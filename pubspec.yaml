@@ -1,0 +1,112 @@
+name: loit
+description: "A new Flutter project."
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
+# Read more about iOS versioning at
+# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
+# In Windows, build-name is used as the major, minor, and patch parts
+# of the product and file versions while build-number is used as the build suffix.
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Supabase (client SDK — auth, realtime, storage, postgrest, functions)
+  supabase_flutter: ^2.8.0
+
+  # State management — Riverpod 3 (Notifier/AsyncNotifier API, code-gen first)
+  flutter_riverpod: ^3.0.0
+  riverpod_annotation: ^3.0.0
+
+  # Navigation — declarative routing with deep-link support (used for Phase 2 invite links)
+  go_router: ^14.6.0
+
+  # HTTP — used for Edge Function calls and FX providers
+  http: ^1.2.2
+
+  # Offline storage — SQLite queue for transactions added while offline
+  drift: ^2.22.0
+  sqlite3_flutter_libs: ^0.5.26
+  path_provider: ^2.1.5
+  path: ^1.9.0
+
+  # Image handling — scanner compression + receipt uploads
+  image_picker: ^1.1.2
+  image: ^4.3.0
+
+  # Charts — budget/spending reports
+  fl_chart: ^0.69.2
+
+  # Locale-aware formatting (currency, dates, numbers)
+  intl: ^0.20.2
+
+  # Push notifications — Firebase Cloud Messaging for room activity alerts
+  firebase_core: ^4.7.0
+  firebase_messaging: ^16.2.0
+
+  # Payments — Stripe Flutter for non-Indonesian markets
+  flutter_stripe: ^12.6.0
+
+  # Error monitoring — Sentry Flutter v8 (with source maps + release tracking)
+  sentry_flutter: ^8.10.0
+
+  # Product analytics — PostHog Flutter v5 (Notifier-friendly, background queueing)
+  posthog_flutter: ^5.0.0
+
+  # Secure token storage (used for Supabase session persistence fallback + biometric gate)
+  flutter_secure_storage: ^9.2.2
+
+  # Connectivity detection — drives offline UI and triggers sync-on-reconnect
+  connectivity_plus: ^6.1.0
+
+  # Scanner hardware + QR
+  camera: ^0.11.0+2
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^5.2.3
+
+  # Biometric app lock (Face ID / Touch ID / Android BiometricPrompt)
+  local_auth: ^2.3.0
+
+  # URL launcher — opens Stripe/Xendit checkout pages
+  url_launcher: ^6.3.1
+
+  # Deep linking (Phase 2 invite flow) — handles uni_links + custom schemes + universal links
+  app_links: ^6.3.2
+
+  # Export
+  csv: ^6.0.0
+  pdf: ^3.11.1
+  printing: ^5.13.2
+  share_plus: ^10.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  build_runner: ^2.4.13
+  custom_lint: ^0.8.1
+  riverpod_generator: ^3.0.0
+  riverpod_lint: ^3.0.0
+  drift_dev: ^2.22.0
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  generate: true   # enables gen_l10n for Phase 4 localization  # the material Icons class.
+

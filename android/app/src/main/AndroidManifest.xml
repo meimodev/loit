@@ -56,6 +56,11 @@
         <meta-data
             android:name="com.posthog.posthog.POSTHOG_HOST"
             android:value="https://us.i.posthog.com" />
+        <!-- Temporary: enables native PostHog debug logs so `adb logcat -s PostHog`
+             shows init + capture activity. Remove or set to false for release. -->
+        <meta-data
+            android:name="com.posthog.posthog.DEBUG"
+            android:value="true" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

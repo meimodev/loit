@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "1063234610982",
+    "project_id": "loit-cb37f",
+    "storage_bucket": "loit-cb37f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1063234610982:android:5fb9708a132de3954ec3e7",
+        "android_client_info": {
+          "package_name": "id.activid.loit"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1063234610982-o0odhd7uk6ahp2788m4d30p9r37d67nr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-zGYATuformj9gtlWIcOqAFfXLB4UIO8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1063234610982-o0odhd7uk6ahp2788m4d30p9r37d67nr.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1063234610982-pgolk44u8vqsdich3q1mltnnncp2gaap.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "id.activid.loit"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

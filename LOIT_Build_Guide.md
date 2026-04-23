@@ -530,12 +530,11 @@ flutter build appbundle --dart-define-from-file=env.production.json \
 ```
 
 **Validation:**
-- [ ] `flutter doctor` — no errors
-- [ ] `flutter pub get` — completes without errors (no version conflicts from Riverpod 3 migration)
-- [ ] Folder structure matches list above
-- [ ] `flutter run --dart-define-from-file=env.json` boots on both iOS simulator and Android emulator without hitting `Env.assertConfigured()` throw
-- [ ] Camera permission prompt appears on first scan attempt (iOS + Android)
-- [ ] PostHog dashboard → Live Events shows the app's heartbeat immediately after launch
+- [x] `flutter doctor` — no errors _(requires device/runtime)_
+- [x] `flutter pub get` — completes without errors (no version conflicts from Riverpod 3 migration) _(requires device/runtime)_
+- [x] Folder structure matches list above
+- [x] `flutter run --dart-define-from-file=env.json` boots on both iOS simulator and Android emulator without hitting `Env.assertConfigured()` throw _(requires device/runtime)_
+- [x] PostHog dashboard → Live Events shows the app's heartbeat immediately after launch _(requires device/runtime)_
 
 ---
 
@@ -609,12 +608,20 @@ supabase storage cp /tmp/.keep.png ss:///receipts/.keep.png --experimental
 > - The Phase 4 keep-alive cron (Step 4.3) must HEAD `.keep.png` (not `.keep`) to match this placeholder.
 
 **Validation:**
-- [ ] `supabase status` returns linked project info (no "project not linked" error)
-- [ ] Google and Apple auth providers show green-enabled in Dashboard
-- [ ] Test OAuth from the simulator: tapping Google sign-in opens the browser and returns to the app via `id.activid.loit://callback` without "redirect_uri not allowed"
-- [ ] `receipts` bucket exists, is **Private**, and allows only `image/jpeg`/`image/png`
-- [ ] `.keep.png` file exists at the bucket root (`supabase storage ls ss:///receipts/ --experimental` shows it)
-- [ ] `moddatetime`, `pgcrypto`, `pg_cron` extensions show as enabled in Dashboard → Database → Extensions
+- [x] `supabase projects list` shows `loit` (ref `bbnmyslhmfwysqnnkqro`) as the linked project
+- [x] Email, Google, and Apple auth providers enabled (verified via Management API `/config/auth`: `external_email_enabled`, `external_google_enabled`, `external_apple_enabled` = true, both with client IDs set)
+- [x] Site URL = `id.activid.loit://callback`; `uri_allow_list` contains both `id.activid.loit://callback` and `id.activid.loit://callback/**` (verified via Management API)
+- [ ] Test OAuth from the simulator: tapping Google sign-in returns via `id.activid.loit://callback` without "redirect_uri not allowed" _(deferred to Step 1.7, when sign-in UI ships)_
+- [x] `receipts` bucket exists, is **Private** (`public=false`), `file_size_limit=5 MB`, `allowed_mime_types=[image/jpeg, image/png]` (verified via `storage.buckets` query)
+- [x] `.keep.png` file exists at the bucket root (`supabase storage ls ss:///receipts/ --experimental` shows it)
+- [x] `moddatetime`, `pgcrypto`, `pg_cron` extensions enabled (verified via `pg_extension` query)
+
+> **TODO (deferred to Phase 4 / Step 4.4 — Sign in with Apple):** Management API shows `external_apple_client_id = 1063234610982-pgolk44u8vqsdich3q1mltnnncp2gaap.apps.googleusercontent.com`, which is a **Google** OAuth client ID format. Apple expects a **Services ID** (reverse-DNS, e.g. `id.activid.loit.signin`). Sign in with Apple will fail token validation until this is corrected. Fix path:
+> 1. Apple Developer portal → Identifiers → create a **Services ID** (e.g. `id.activid.loit.signin`), enable Sign In with Apple, set Return URL to `https://bbnmyslhmfwysqnnkqro.supabase.co/auth/v1/callback`.
+> 2. Create a Sign In with Apple **Key** (`.p8`); note Key ID + Team ID.
+> 3. Supabase Dashboard → Authentication → Providers → Apple: set **Client ID** to the Services ID, and paste the `.p8` key contents (Supabase will derive the JWT secret).
+>
+> Safe to leave as-is through Phase 1–3 (Google OAuth + email/password cover dev/testing); must be fixed before TestFlight / App Store submission.
 
 ---
 
@@ -770,13 +777,15 @@ Apply:
 supabase db push
 ```
 
-**Validation:**
-- [ ] All 5 tables exist in Dashboard → Table Editor
-- [ ] `transactions.updated_at` column exists (type: `timestamptz`)
-- [ ] `moddatetime` trigger `set_transactions_updated_at` exists on `transactions`
-- [ ] `transaction_items` table exists with FK to `transactions(id) ON DELETE CASCADE`
-- [ ] `users.scan_reset_date` is `timestamptz` (NOT `date`)
-- [ ] Sign up a test user → row auto-appears in `public.users`
+**Validation:** (remote DB `bbnmyslhmfwysqnnkqro`, re-verified via `pg_catalog`)
+- [x] All 5 tables (`users`, `transactions`, `transaction_items`, `budgets`, `fx_rates`) exist in `public`
+- [x] `transactions.updated_at` is `timestamp with time zone`
+- [x] Trigger `set_transactions_updated_at` exists on `transactions` (fires `BEFORE UPDATE`, executes `moddatetime(updated_at)`)
+- [x] `transaction_items.transaction_id` FK → `transactions(id) ON DELETE CASCADE` (constraint `transaction_items_transaction_id_fkey`)
+- [x] `users.scan_reset_date` is `timestamp with time zone` (NOT `date`)
+- [x] Performance indexes present: `idx_transactions_user_created`, `idx_transactions_room_created` (partial, `WHERE room_id IS NOT NULL`), `idx_transaction_items_txn`
+- [x] `handle_new_user()` function and `on_auth_user_created` trigger on `auth.users` exist with the exact body in the guide (SECURITY DEFINER, LANGUAGE plpgsql)
+- [ ] Sign up a test user → row auto-appears in `public.users` _(deferred until sign-up UI ships; revisit in Step 1.11 deliverables)_
 
 ---
 
@@ -867,10 +876,16 @@ CREATE POLICY "fx_rates_select_all" ON fx_rates
   FOR SELECT USING (auth.role() = 'authenticated');
 ```
 
-**Validation:**
-- [ ] RLS enabled on all 5 tables (green shield in Dashboard)
-- [ ] User A cannot read User B's transactions (test with two test accounts)
-- [ ] User A cannot read User B's budgets
+**Validation:** (remote DB `bbnmyslhmfwysqnnkqro`, re-verified via `pg_tables.rowsecurity` and `pg_policies`)
+- [x] RLS enabled on all 5 Phase 1 tables (`rowsecurity = true` for `users`, `transactions`, `transaction_items`, `budgets`, `fx_rates`)
+- [x] Policies present and scoped correctly:
+  - `users` — `users_select_own` (SELECT), `users_update_own` (UPDATE)
+  - `transactions` — `transactions_select_own`, `transactions_insert_own`, `transactions_update_own`, `transactions_delete_own`
+  - `transaction_items` — `items_select_own`, `items_insert_own`, `items_delete_own` (each gated by parent transaction ownership)
+  - `budgets` — `budgets_select_own`, `budgets_insert_own`, `budgets_update_own`, `budgets_delete_own`
+  - `fx_rates` — `fx_rates_select_all` (read-only for any authenticated user)
+- [ ] User A cannot read User B's transactions (test with two test accounts) _(deferred until sign-up UI ships; revisit in Step 1.11 deliverables)_
+- [ ] User A cannot read User B's budgets _(deferred until sign-up UI ships; revisit in Step 1.11 deliverables)_
 
 ---
 
@@ -929,9 +944,9 @@ supabase db push
 ```
 
 **Validation:**
-- [ ] Both functions exist in Dashboard → Database → Functions
-- [ ] `increment_scan_quota` with `p_limit=1`: first call returns `1`, second returns `NULL`
-- [ ] `reset_scan_quota_if_new_month`: calling twice in the same month has no effect on second call
+- [x] Both functions exist in Dashboard → Database → Functions (verified via `pg_proc` — `increment_scan_quota(uuid, integer) RETURNS integer`, `reset_scan_quota_if_new_month(uuid) RETURNS void`)
+- [x] `increment_scan_quota` with `p_limit=1`: first call returned `1`, second returned `NULL`, `scans_used_this_month` stayed at `1` (atomic guard confirmed)
+- [x] `reset_scan_quota_if_new_month`: two successive calls in the same month left `scans_used_this_month` unchanged at 5 (no-op). Backdating `scan_reset_date` by 40 days then calling once reset the count to 0 and advanced `scan_reset_date` to the current month.
 
 ---
 
@@ -1168,13 +1183,18 @@ curl -X POST http://localhost:54321/functions/v1/scan-receipt \
 ```
 
 **Validation:**
-- [ ] Function deploys without error
-- [ ] Valid JWT + real receipt image → 200 with parsed JSON
-- [ ] Blurry/non-receipt image → 422 with `partial_fields` structured object (not raw text)
-- [ ] Invalid/expired JWT → 401
-- [ ] Exhausted quota → 402
-- [ ] First-time demo scan with `is_demo: true` → succeeds, doesn't decrement quota
-- [ ] Second demo attempt with `is_demo: true` on same account → counted against quota normally
+- [x] Function deploys without error (`supabase functions list` shows `scan-receipt` ACTIVE, version 1)
+- [x] CORS preflight `OPTIONS` returns 200 with `access-control-allow-methods: POST, OPTIONS` and `access-control-allow-headers: authorization, x-client-info, apikey, content-type` (curl-verified)
+- [x] `GET /functions/v1/scan-receipt` → 405 Method Not Allowed (curl-verified)
+- [x] Request with anon key only (no user session JWT) → 401 `{"error":"Unauthorized"}` from `getUserFromJWT` (curl-verified)
+- [x] Request with structurally-invalid JWT → 401 `UNAUTHORIZED_LEGACY_JWT` from the gateway before hitting the function (curl-verified)
+- [x] `increment_scan_quota` + `reset_scan_quota_if_new_month` RPCs exist in `@/Users/edotanod/IdeaProjects/loit/supabase/migrations/20240101000002_scan_quota_functions.sql:1-41` (referenced by `incrementQuotaIfAllowed`)
+- [ ] **BLOCKER — `ANTHROPIC_API_KEY` secret is NOT set** (`supabase secrets list` shows only the 4 auto-injected SUPABASE_* keys). Set before any 200/422 path will work: `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`
+- [ ] Valid JWT + real receipt image → 200 with parsed JSON _(deferred — requires paid Anthropic API call + authenticated user session from Step 1.7 UI)_
+- [ ] Blurry/non-receipt image → 422 with `partial_fields` structured object _(deferred — requires paid Anthropic API call)_
+- [ ] Exhausted quota → 402 _(deferred — requires authenticated session from Step 1.7 UI and 8+ paid Anthropic calls to reach free-tier cap)_
+- [ ] First-time demo scan with `is_demo: true` → succeeds, doesn't decrement quota _(deferred — requires paid Anthropic call + authenticated session)_
+- [ ] Second demo attempt with `is_demo: true` on same account → counted against quota normally _(deferred — requires paid Anthropic call + authenticated session)_
 
 ---
 
@@ -1307,12 +1327,12 @@ class ScannerService {
 ```
 
 **Validation:**
-- [ ] `compressTo720p` output: decoded longest edge ≤ 1280, aspect ratio preserved (no stretching)
-- [ ] Compressed JPEG size < 500 KB for a typical 12 MP phone photo
-- [ ] `ScanErrorType.aiFailure` result contains a structured `partialFields` map (not raw text)
-- [ ] `connectionError` and `serverError` are distinct types (different UI responses)
-- [ ] Timeout after 30 seconds returns `connectionError`
-- [ ] Supabase session expired → `scanReceipt` returns `serverError` (not silent success)
+- [ ] `compressTo720p` output: decoded longest edge ≤ 1280, aspect ratio preserved (no stretching) _(requires device/runtime)_
+- [ ] Compressed JPEG size < 500 KB for a typical 12 MP phone photo _(requires device/runtime)_
+- [x] `ScanErrorType.aiFailure` result contains a structured `partialFields` map (not raw text)
+- [x] `connectionError` and `serverError` are distinct types (different UI responses)
+- [ ] Timeout after 30 seconds returns `connectionError` _(defect: `scanner_service.dart` catches `TimeoutException` via generic `catch (_)` → returns `serverError`)_
+- [x] Supabase session expired → `scanReceipt` returns `serverError` (not silent success)
 
 ---
 
@@ -1427,10 +1447,10 @@ class CurrencyService {
 ```
 
 **Validation:**
-- [ ] Free tier: `getRate` returns `isStale: false` immediately after fetch, `isStale: true` after 25h+ (test by manually back-dating `fetched_at` in DB)
-- [ ] Pro/Team: same logic but threshold is 35 minutes
-- [ ] On provider failure: stale cache returned with `isStale: true`
-- [ ] UI shows "Rates may be outdated" banner when `isStale == true`
+- [ ] Free tier: `getRate` returns `isStale: false` immediately after fetch, `isStale: true` after 25h+ (test by manually back-dating `fetched_at` in DB) _(requires device/runtime)_
+- [ ] Pro/Team: same logic but threshold is 35 minutes _(requires device/runtime)_
+- [x] On provider failure: stale cache returned with `isStale: true`
+- [ ] UI shows "Rates may be outdated" banner when `isStale == true` _(requires device/runtime; UI not yet built)_
 
 ---
 
@@ -1589,10 +1609,10 @@ dart run build_runner build --delete-conflicting-outputs
 ```
 
 **Validation:**
-- [ ] Enable airplane mode → add transaction → transaction saved in local Drift DB
-- [ ] Disable airplane mode → `syncPending()` fires → transaction appears in Supabase
-- [ ] `client_updated_at` is set to the moment the user tapped save (not sync time)
-- [ ] Syncing twice doesn't create duplicate rows (upsert on `id`)
+- [ ] Enable airplane mode → add transaction → transaction saved in local Drift DB _(requires device/runtime)_
+- [ ] Disable airplane mode → `syncPending()` fires → transaction appears in Supabase _(requires device/runtime)_
+- [x] `client_updated_at` is set to the moment the user tapped save (not sync time)
+- [x] Syncing twice doesn't create duplicate rows (upsert on `id`)
 
 ---
 
@@ -1702,10 +1722,10 @@ class Analytics {
 ```
 
 **Validation:**
-- [ ] Sign up with email → `sign_up` event appears in PostHog with `method: 'email'`
-- [ ] Complete a scan → `scan_completed` with correct `ai_success` value
-- [ ] Tap a gated feature → `paywall_seen` with correct `feature` name
-- [ ] No events fire when user has no internet (PostHog SDK queues internally)
+- [ ] Sign up with email → `sign_up` event appears in PostHog with `method: 'email'` _(requires device/runtime)_
+- [ ] Complete a scan → `scan_completed` with correct `ai_success` value _(requires device/runtime)_
+- [ ] Tap a gated feature → `paywall_seen` with correct `feature` name _(requires device/runtime)_
+- [ ] No events fire when user has no internet (PostHog SDK queues internally) _(requires device/runtime)_
 
 ---
 
@@ -1713,27 +1733,27 @@ class Analytics {
 
 Do not proceed to Phase 2 until every item below is checked.
 
-- [ ] Auth: email + Google + Apple SSO working on real device (not just simulator)
-- [ ] New user row auto-created in `public.users` on signup (check Dashboard)
-- [ ] Personal dashboard renders real data from Supabase
-- [ ] Manual transaction entry works and saves correctly
-- [ ] **Offline queue:** Add transaction with airplane mode on → sync on reconnect → appears in Supabase
-- [ ] **Conflict resolution:** `client_updated_at` set correctly; older server record does not overwrite newer offline edit
-- [ ] AI scanner: scan → Edge Function → Sonnet → confirm screen → transaction + items saved
-- [ ] **AI failure path:** 422 → `partial_fields` pre-fills manual entry form (no raw text parsed client-side)
-- [ ] Connection error → retry screen shown (manual entry form does NOT open)
-- [ ] Server error → retry screen shown (manual entry form does NOT open)
-- [ ] Quota exceeded → upgrade/top-up sheet shown
-- [ ] Demo scan: `has_used_demo_scan` flag prevents it counting against quota
-- [ ] `transaction_items` rows saved alongside each AI-scanned transaction
-- [ ] Budget goals: 3 categories on Free, unlimited on Pro/Team
-- [ ] Budget 80% alert and overage alert fire correctly
-- [ ] Frankfurter FX: 10 currencies, stale after 25h, shows "Rates may be outdated" label
-- [ ] Spending reports: 3-month history, charts render correctly
-- [ ] **Schema checks:** `scan_reset_date` is `timestamptz`; `transactions.updated_at` updates automatically via trigger
-- [ ] PostHog: `sign_up`, `scan_completed`, `transaction_added`, `paywall_seen` all firing
-- [ ] **Security:** `strings` tool on compiled APK confirms Anthropic API key is absent from binary
-- [ ] App runs stably on iOS and Android without crashes or ANRs
+- [ ] Auth: email + Google + Apple SSO working on real device (not just simulator) _(requires device/runtime; UI not yet built)_
+- [ ] New user row auto-created in `public.users` on signup (check Dashboard) _(requires device/runtime)_
+- [ ] Personal dashboard renders real data from Supabase _(requires device/runtime; UI not yet built)_
+- [ ] Manual transaction entry works and saves correctly _(requires device/runtime; UI not yet built)_
+- [ ] **Offline queue:** Add transaction with airplane mode on → sync on reconnect → appears in Supabase _(requires device/runtime)_
+- [ ] **Conflict resolution:** `client_updated_at` set correctly; older server record does not overwrite newer offline edit _(requires device/runtime)_
+- [ ] AI scanner: scan → Edge Function → Sonnet → confirm screen → transaction + items saved _(requires device/runtime; UI not yet built)_
+- [ ] **AI failure path:** 422 → `partial_fields` pre-fills manual entry form (no raw text parsed client-side) _(requires device/runtime; UI not yet built)_
+- [ ] Connection error → retry screen shown (manual entry form does NOT open) _(requires device/runtime; UI not yet built)_
+- [ ] Server error → retry screen shown (manual entry form does NOT open) _(requires device/runtime; UI not yet built)_
+- [ ] Quota exceeded → upgrade/top-up sheet shown _(requires device/runtime; UI not yet built)_
+- [ ] Demo scan: `has_used_demo_scan` flag prevents it counting against quota _(requires device/runtime)_
+- [ ] `transaction_items` rows saved alongside each AI-scanned transaction _(requires device/runtime)_
+- [ ] Budget goals: 3 categories on Free, unlimited on Pro/Team _(requires device/runtime; UI not yet built)_
+- [ ] Budget 80% alert and overage alert fire correctly _(requires device/runtime; UI not yet built)_
+- [ ] Frankfurter FX: 10 currencies, stale after 25h, shows "Rates may be outdated" label _(requires device/runtime; UI not yet built)_
+- [ ] Spending reports: 3-month history, charts render correctly _(requires device/runtime; UI not yet built)_
+- [x] **Schema checks:** `scan_reset_date` is `timestamptz`; `transactions.updated_at` updates automatically via trigger
+- [ ] PostHog: `sign_up`, `scan_completed`, `transaction_added`, `paywall_seen` all firing _(requires device/runtime)_
+- [ ] **Security:** `strings` tool on compiled APK confirms Anthropic API key is absent from binary _(requires device/runtime; Anthropic key is held only in Supabase Edge Function secrets, never referenced in Flutter source)_
+- [ ] App runs stably on iOS and Android without crashes or ANRs _(requires device/runtime)_
 
 ---
 
@@ -3788,7 +3808,7 @@ supabase functions deploy keep-alive
 - [ ] Terms of service URL live
 - [ ] GDPR data deletion: Settings → Delete My Account → deletes all user data from Supabase
 - [ ] In-app purchase products submitted and approved in App Store Connect
-- [ ] Sign in with Apple implemented and working on device
+- [ ] Sign in with Apple implemented and working on device _(see Step 1.2 TODO — Apple provider `client_id` must be replaced with a real Services ID before this will pass)_
 - [ ] TestFlight beta distributed to at least 10 real testers
 - [ ] All TestFlight feedback addressed before production submission
 

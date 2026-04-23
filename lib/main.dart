@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/config/env.dart';
 import 'firebase_options.dart';
 import 'app.dart';
+import 'core/services/analytics_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,4 +45,9 @@ Future<void> main() async {
     options.profilesSampleRate = 0.2;
     options.environment = Env.sentryEnv;
   }, appRunner: () => runApp(const ProviderScope(child: LoitApp())));
+
+  // Temporary smoke test: fire one event and flush immediately so it reaches
+  // the dashboard without waiting for the 30 s batch. Remove once verified.
+  await Analytics.signUp('email');
+  await Posthog().flush();
 }

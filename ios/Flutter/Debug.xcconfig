@@ -1,1 +1,5 @@
 #include "Generated.xcconfig"
+
+// PostHog v5 native auto-init. Referenced by ios/Runner/Info.plist as
+// $(POSTHOG_API_KEY). Must be set or capture() calls are silently dropped.
+POSTHOG_API_KEY=phc_rWFEdTK7T2iKuSgTmCmhiEdVUTLYofT3U2jukrzPFSNP

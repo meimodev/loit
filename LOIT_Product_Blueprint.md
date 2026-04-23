@@ -409,8 +409,9 @@ Day 365 → Photo deleted permanently
 
 | Layer | Technology | Purpose |
 |---|---|---|
-| Mobile Frontend | Flutter (Dart) | iOS + Android from one codebase |
-| Local Storage | drift (SQLite) | Offline queue for personal finance transactions |
+| Mobile Frontend | Flutter 3.24+ / Dart 3.8+ | iOS + Android from one codebase |
+| State Management | Riverpod 3 (`Notifier` / `AsyncNotifier` + `@riverpod` code-gen) | Reactive state; `StateNotifier` is legacy |
+| Local Storage | Drift 2.22+ (SQLite) | Offline queue for personal finance transactions |
 | Database | Supabase PostgreSQL | All app data |
 | Auth | Supabase Auth | Email, Google SSO, Apple SSO |
 | Realtime | Supabase Realtime (WebSocket) | Live room feeds, presence |
@@ -630,6 +631,11 @@ This phase delivers a fully working personal finance tracker. No shared features
 
 ### 12.2 Database Tables
 
+**Required Postgres extensions** (enable once before applying migrations):
+- `moddatetime` — powers the `updated_at` auto-trigger on `transactions`
+- `pgcrypto` — backs `gen_random_uuid()` column defaults
+- `pg_cron` — used by the Phase 3 receipt-expiry cron and Phase 4 keep-alive
+
 ```sql
 -- Users
 create table users (
@@ -665,6 +671,17 @@ create table transactions (
   is_manual_fallback boolean default false,
   client_updated_at timestamptz,           -- set by client at save time; used for offline conflict resolution
   updated_at timestamptz default now(),    -- server-managed via moddatetime trigger
+  created_at timestamptz default now()
+);
+
+-- Transaction items (line items extracted by the AI scanner)
+create table transaction_items (
+  id uuid primary key default gen_random_uuid(),
+  transaction_id uuid references transactions(id) on delete cascade not null,
+  name text not null,
+  qty numeric default 1,
+  unit_price numeric,
+  total_price numeric,
   created_at timestamptz default now()
 );
 
@@ -958,6 +975,16 @@ create table room_budgets (
   unique(room_id, category)
 );
 
+-- Push notification device tokens (FCM)
+create table push_tokens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  token text not null unique,
+  platform text not null check (platform in ('ios', 'android')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 -- Phase 2 migration: add rooms FK to transactions (created without it in Phase 1)
 alter table transactions
   add constraint fk_room
@@ -1087,7 +1114,10 @@ Snap payment channels (all enabled by default in sandbox):
   - Akulaku / Kredivo (BNPL)
 ```
 
-Supabase Edge Function `midtrans-notification` handles the Midtrans webhook (signed with SHA-512 of `order_id + status_code + gross_amount + server_key`) and updates `users.tier` / scan top-up / storage extension on `settlement`.
+Supabase Edge Function `midtrans-notification` handles the Midtrans webhook (signed with SHA-512 of `order_id + status_code + gross_amount + server_key`) and updates `users.tier` / scan top-up / storage extension on `settlement`. Orders are persisted in a `midtrans_orders` table keyed by `order_id` for idempotency across Midtrans' automatic webhook retries. Two supporting RPCs handle the one-time packs:
+
+- `add_scan_topup(p_user_id, p_amount)` — credits extra scans by subtracting from `scans_used_this_month` (keeps tier caps honest)
+- `extend_receipt_expiry(p_user_id)` — pushes `receipt_expires_at` +6 months for every receipt expiring within the next 30 days (one payment covers the whole expiring batch)
 
 ### 14.3 Receipt Storage Flow
 
@@ -1199,7 +1229,7 @@ Supabase Free pauses projects after 1 week of no requests. Both the database and
 
 Mitigation: Supabase Edge Function scheduled cron (every 3 days) that performs two lightweight no-op operations:
 1. A dummy `SELECT 1` query against the database.
-2. A `HEAD` request on a known placeholder object in the Storage bucket (`receipts/.keep`).
+2. A `HEAD` request on a known placeholder object in the Storage bucket (`receipts/.keep.png` — a 1×1 transparent PNG, since the bucket restricts uploads to `image/jpeg` / `image/png`).
 
 Both cost 0 tokens, negligible bandwidth, and keep the full project active.
 

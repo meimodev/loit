@@ -83,7 +83,7 @@ All product decisions are finalized. This log serves as the single source of tru
 | 13 | Image resolution | All bill photos strictly capped at 720p (1280×720) before sending to AI API. |
 | 14 | AI model | Claude Sonnet 4.6 exclusively across all tiers. All API calls are proxied through a Supabase Edge Function — the API key is never in client code. On AI parse failure (model returns unparseable or incomplete JSON), the user is prompted directly to manual input with any partially detected fields pre-filled. No retry. Connection errors and in-app errors are handled separately and do not trigger the manual input flow. |
 | 15 | Infrastructure | Supabase Free + Cloudflare Free at launch. |
-| 16 | Push notifications | Pusher Beams (free sandbox tier at launch). |
+| 16 | Push notifications | Firebase Cloud Messaging (FCM HTTP v1), unlimited and free. Proxied through a Supabase Edge Function that holds the Firebase service account credentials server-side. |
 | 17 | Scan top-up | Available for Free and Pro tiers. 10 scans for Rp16,969 ($0.99). |
 | 18 | Offline capability | Personal finance only. Transactions, manual entry, and budget views work offline and sync when reconnected. Shared rooms require an active internet connection at all times — no offline room access. |
 | 19 | Onboarding demo scan | The optional bill scan during onboarding is a designated demo scan that does not count against the user's monthly quota. It is a one-time event per account, tracked via a `has_used_demo_scan` boolean on the users table. |
@@ -420,7 +420,7 @@ Day 365 → Photo deleted permanently
 | Exchange Rates | Frankfurter API | Free daily ECB rates (upgrade to Open Exchange Rates at scale) |
 | Payments (Global) | Stripe | Pro and Team subscriptions, top-up packs |
 | Payments (SEA) | Xendit | Indonesian and SEA payment methods |
-| Push Notifications | Pusher Beams | iOS and Android push |
+| Push Notifications | Firebase Cloud Messaging (FCM) | iOS (APNs) and Android push via `firebase_messaging` + FCM HTTP v1 |
 | Email | Resend | Transactional emails (expiry warnings, invites) |
 | Error Tracking | Sentry | Crash and error monitoring |
 | Analytics | PostHog | Feature usage, funnel, retention |
@@ -430,27 +430,37 @@ Day 365 → Photo deleted permanently
 
 ```
 lib/
-├── main.dart
+├── main.dart                       # App entry — initializes Firebase, Supabase, Stripe, Sentry, PostHog
+├── app.dart                        # Root widget, routing, deep link wiring
 ├── core/
-│   ├── supabase_client.dart        # Singleton Supabase init
-│   ├── realtime_service.dart       # WebSocket channel manager
-│   ├── currency_service.dart       # FX rate fetching and conversion
-│   ├── scanner_service.dart       # Sends compressed image to Edge Function; handles retry logic
-│   └── offline_queue.dart          # Local queue for personal finance offline sync
+│   ├── config/env.dart             # Compile-time env via --dart-define-from-file
+│   ├── routing/                    # go_router routes
+│   ├── theme/                      # Design tokens, colors, typography
+│   └── services/
+│       ├── scanner_service.dart    # Compresses to 720p, calls scan-receipt Edge Function
+│       ├── currency_service.dart   # Tier-aware FX fetch + cache (Frankfurter / OXR)
+│       ├── offline_database.dart   # Drift SQLite for offline queue
+│       ├── sync_service.dart       # Drains offline queue on reconnect
+│       ├── receipt_service.dart    # Uploads to Storage, resolves signed URLs (Pro/Team)
+│       ├── push_service.dart       # FCM token registration + refresh
+│       ├── deep_link_service.dart  # app_links + invite acceptance
+│       └── analytics_service.dart  # PostHog event taxonomy (see Build Guide Step 1.10)
 ├── features/
 │   ├── auth/                       # Login, signup, onboarding
 │   ├── dashboard/                  # Personal spending overview
 │   ├── transactions/               # Full personal transaction log
 │   ├── budgets/                    # Personal category budgets and alerts
-│   ├── reports/                    # Personal spending charts and history
+│   ├── reports/                    # Personal spending charts, export (CSV/PDF)
 │   ├── scanner/                    # Camera + AI bill reader
 │   ├── rooms/                      # Shared rooms list and creation
 │   ├── room_detail/                # Room feed, room budget, room reports
+│   ├── paywall/                    # Paywall sheets + checkout service
 │   └── settings/                   # Profile, currency, subscription
-└── shared/
-    ├── widgets/                    # Reusable UI components
-    ├── models/                     # Data models
-    └── theme/                      # Design tokens, colors, typography
+├── shared/
+│   ├── widgets/                    # Reusable UI components
+│   ├── models/                     # Data models
+│   └── providers/                  # Cross-feature Riverpod providers (e.g. FeatureGate)
+└── l10n/                           # ARB files + generated AppLocalizations
 ```
 
 ### 9.2 Supabase Realtime Channel Design
@@ -532,7 +542,7 @@ Upgrade to Supabase Pro (Rp428,500 / $25/mo) when daily active users regularly a
 | Frankfurter (FX rates) | Free | Rp0 | Switch to Open Exchange Rates (Rp205,680 / $12/mo) when hourly rates needed |
 | Stripe | 1.5% + Rp5,142 per txn | Per transaction | N/A |
 | Xendit | 1.5–2.9% per txn | Per transaction | N/A |
-| Pusher Beams | Sandbox (Free) | Rp0 | Upgrade to Startup (Rp497,060 / $29/mo) at ~1,000 devices |
+| Firebase Cloud Messaging | Free (unlimited) | Rp0 | N/A — FCM HTTP v1 is free at any volume |
 | Resend | Free (3,000/mo) | Rp0 | Pro (Rp342,800 / $20/mo) at 3,000+ emails/mo |
 | Sentry | Free (5,000 errors/mo) | Rp0 | Team (Rp445,640 / $26/mo) at scale |
 | PostHog | Free (1M events/mo) | Rp0 | Paid tier beyond 1M events |
@@ -565,7 +575,7 @@ Upgrade to Supabase Pro (Rp428,500 / $25/mo) when daily active users regularly a
 | Cloudflare Free | Rp0 | |
 | Claude API (2,760 scans × Rp156) | Rp430,560 | All tiers on Sonnet 4.6 |
 | Frankfurter FX | Rp0 | |
-| Pusher Beams (sandbox) | Rp0 | ⚠️ Upgrade likely at ~600 users |
+| Firebase Cloud Messaging | Rp0 | Free at any volume |
 | Stripe fees | Rp311,227 | 51 transactions |
 | Resend | Rp0 | Under 3,000 emails/mo |
 | Sentry | Rp0 | Under 5,000 errors/mo |
@@ -587,10 +597,10 @@ Upgrade to Supabase Pro (Rp428,500 / $25/mo) when daily active users regularly a
 | Scenario | MRR (IDR) | Cost (IDR) | Profit (IDR) | Margin |
 |---|---|---|---|---|
 | Base case | Rp3,264,539 | Rp918,900 | Rp2,345,639 | 71.8% |
-| + Pusher upgrade | Rp3,264,539 | Rp1,415,960 | Rp1,848,579 | 56.6% |
 | + All Free users hit 8-scan cap | Rp3,264,539 | Rp1,021,500 | Rp2,243,039 | 68.7% |
 | + All Pro users hit 50-scan cap | Rp3,264,539 | Rp1,125,300 | Rp2,139,239 | 65.5% |
-| **Worst case (all risks combined)** | **Rp3,264,539** | **Rp1,873,760** | **Rp1,390,779** | **42.6%** |
+| + Supabase Pro upgrade (at 150+ DAU) | Rp3,264,539 | Rp1,347,400 | Rp1,917,139 | 58.7% |
+| **Worst case (all risks combined)** | **Rp3,264,539** | **Rp1,453,700** | **Rp1,810,839** | **55.5%** |
 
 > Even in the worst-case scenario, LOIT remains profitable. The margin cushion is healthy enough to absorb early volatility.
 
@@ -599,7 +609,6 @@ Upgrade to Supabase Pro (Rp428,500 / $25/mo) when daily active users regularly a
 | Trigger | Action | Added Cost (IDR/mo) |
 |---|---|---|
 | 150+ DAU or 200 concurrent Supabase connections | Upgrade to Supabase Pro | +Rp428,500 |
-| 1,000+ registered devices | Upgrade Pusher Beams to Startup | +Rp497,060 |
 | 3,000+ emails/mo | Upgrade Resend to Pro | +Rp342,800 |
 | Hourly FX rates needed | Switch to Open Exchange Rates Startup | +Rp205,680 |
 
@@ -657,6 +666,7 @@ create table transactions (
   ai_parsed boolean default false,
   is_manual_fallback boolean default false,
   client_updated_at timestamptz,           -- set by client at save time; used for offline conflict resolution
+  updated_at timestamptz default now(),    -- server-managed via moddatetime trigger
   created_at timestamptz default now()
 );
 
@@ -670,10 +680,12 @@ create table budgets (
   unique(user_id, category)
 );
 
--- FX rate cache
--- Rates older than 25 hours are treated as stale.
--- currency_service.dart checks (now() - fetched_at > 25h) before deciding to re-fetch.
--- If Frankfurter is unreachable, the cached rate is used with a "Rates may be outdated" label shown in UI.
+-- FX rate cache (tier-aware staleness)
+--   Free tier (Frankfurter):            stale after 25 hours
+--   Pro/Team tier (Open Exchange Rates): stale after 35 minutes
+-- currency_service.dart picks the correct threshold per user's tier.
+-- If the provider is unreachable, the cached rate is returned with a
+-- "Rates may be outdated" label shown in UI.
 create table fx_rates (
   base_currency text not null,
   target_currency text not null,
@@ -891,7 +903,7 @@ This phase adds the entire shared layer on top of the working personal app. Room
 - Real-time room transaction feed via Supabase WebSocket
 - Room budget goals per category
 - Room reports (combined spend view for all members)
-- Push notifications via Pusher Beams
+- Push notifications via Firebase Cloud Messaging (FCM HTTP v1), proxied through a Supabase Edge Function
 - No-connection handling for room screens
 
 ### 13.2 Additional Database Tables
@@ -991,15 +1003,29 @@ User opens a room screen with no internet
   → Personal finance features remain available offline
 ```
 
-### 13.6 Pusher Beams Integration
+### 13.6 Firebase Cloud Messaging Integration
+
+FCM is used for all push notifications. The Firebase service account key lives in Supabase Secrets — never in the Flutter client.
 
 ```dart
-// Initialize on app launch
-final beamsClient = PushNotificationsInstance();
-await beamsClient.start('<PUSHER_INSTANCE_ID>');
-await beamsClient.addDeviceInterest('user-$userId');
-await beamsClient.addDeviceInterest('room-$roomId'); // per room joined
+// On app launch, after login success
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+final settings = await FirebaseMessaging.instance.requestPermission();
+if (settings.authorizationStatus != AuthorizationStatus.denied) {
+  final token = await FirebaseMessaging.instance.getToken();
+  // Upsert token into the `push_tokens` table (keyed by user_id + token).
+  // See Build Guide Step 2.7 for the full implementation.
+}
+
+FirebaseMessaging.instance.onTokenRefresh.listen(_upsertToken);
+FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) {
+  final roomId = msg.data['room_id'];
+  if (roomId != null) context.go('/rooms/$roomId');
+});
 ```
+
+On the server, a Supabase Edge Function (`room-transaction-notify`) looks up every FCM token for the room's members (excluding the actor) and sends one FCM HTTP v1 request per token. Unregistered tokens are pruned automatically when FCM returns `UNREGISTERED`.
 
 Notification triggers (sent from Supabase Edge Functions):
 
@@ -1019,7 +1045,7 @@ Notification triggers (sent from Supabase Edge Functions):
 - Room budget goals visible and updating live; optional monthly auto-reset working
 - Room reports (combined spend view) rendering correctly
 - No-connection state shown correctly on room screens
-- Pusher Beams push notifications working on iOS and Android
+- FCM push notifications working on iOS (APNs bridged) and Android
 - Room archiving by creator
 - RLS enforced: room data only visible to members
 - Phase 1 `transactions` table FK to `rooms` added via migration

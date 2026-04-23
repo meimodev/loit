@@ -83,9 +83,14 @@ LOIT uses **two separate secret stores** that must never be mixed:
   "SUPABASE_ANON_KEY": "eyJ...",
   "SENTRY_DSN": "https://...@sentry.io/...",
   "POSTHOG_API_KEY": "phc_...",
-  "STRIPE_PUBLISHABLE_KEY": "pk_..."
+  "STRIPE_PUBLISHABLE_KEY": "pk_...",
+  "OPEN_EXCHANGE_RATES_APP_ID": "",
+  "SENTRY_ENV": "dev"
 }
 ```
+> `OPEN_EXCHANGE_RATES_APP_ID` is optional — leave as `""` unless you are
+> intentionally shipping a Pro/Team client build that calls OXR directly.
+> `SENTRY_ENV` tags Sentry events so dev/staging/prod data is separable.
 
 2. Create `env.production.json` with the same keys but production values. `env.json` is for dev.
 
@@ -161,8 +166,11 @@ Add VS Code launch configs in `.vscode/launch.json` for one-click runs:
 
 1. Create the project:
 ```bash
-flutter create loit_app --org com.loit --platforms ios,android
-cd loit_app
+# First-time scaffolding ONLY. Skip this if the project already exists
+# (this repo was scaffolded as `loit` with org `id.activid`, giving the
+# bundle id `id.activid.loit` used throughout this guide).
+flutter create loit --org id.activid --platforms ios,android
+cd loit
 ```
 
 2. Replace the `dependencies` and `dev_dependencies` sections in `pubspec.yaml`.
@@ -286,11 +294,22 @@ mkdir -p assets/icons
 class Env {
   const Env._();
 
-  static const String supabaseUrl      = String.fromEnvironment('SUPABASE_URL');
-  static const String supabaseAnonKey  = String.fromEnvironment('SUPABASE_ANON_KEY');
-  static const String sentryDsn        = String.fromEnvironment('SENTRY_DSN');
-  static const String postHogKey       = String.fromEnvironment('POSTHOG_API_KEY');
+  static const String supabaseUrl          = String.fromEnvironment('SUPABASE_URL');
+  static const String supabaseAnonKey      = String.fromEnvironment('SUPABASE_ANON_KEY');
+  static const String sentryDsn            = String.fromEnvironment('SENTRY_DSN');
+  static const String postHogKey           = String.fromEnvironment('POSTHOG_API_KEY');
   static const String stripePublishableKey = String.fromEnvironment('STRIPE_PUBLISHABLE_KEY');
+
+  /// Optional. Populated only for Pro/Team builds that need to hit Open Exchange
+  /// Rates directly from the client (see Step 1.8). Leave empty on Free tier —
+  /// CurrencyService falls back to Frankfurter. Long-term, prefer moving OXR
+  /// behind an Edge Function so this key never ships in the client binary.
+  static const String openExchangeRatesAppId =
+      String.fromEnvironment('OPEN_EXCHANGE_RATES_APP_ID');
+
+  /// Sentry environment tag (e.g. 'dev', 'staging', 'prod').
+  static const String sentryEnv =
+      String.fromEnvironment('SENTRY_ENV', defaultValue: 'dev');
 
   /// Call once at startup. Throws [StateError] if a required value is missing
   /// so misconfigured builds fail immediately instead of crashing deep in auth.
@@ -376,8 +395,8 @@ dart pub global activate flutterfire_cli
 flutterfire configure \
   --project=<your-firebase-project-id> \
   --platforms=android,ios \
-  --ios-bundle-id=com.loit \
-  --android-package-name=com.loit
+  --ios-bundle-id=id.activid.loit \
+  --android-package-name=id.activid.loit
 ```
 
 This generates `lib/firebase_options.dart` and wires Firebase into `android/` + `ios/`. After running it, verify:
@@ -408,9 +427,9 @@ This generates `lib/firebase_options.dart` and wires Firebase into `android/` + 
 <array>
   <dict>
     <key>CFBundleTypeRole</key><string>Editor</string>
-    <key>CFBundleURLName</key><string>com.loit</string>
+    <key>CFBundleURLName</key><string>id.activid.loit</string>
     <key>CFBundleURLSchemes</key>
-    <array><string>com.loit</string></array>
+    <array><string>id.activid.loit</string></array>
   </dict>
 </array>
 ```
@@ -445,19 +464,24 @@ Inside the `MainActivity` `<activity>` block, add intent filters for OAuth + inv
   <action android:name="android.intent.action.VIEW" />
   <category android:name="android.intent.category.DEFAULT" />
   <category android:name="android.intent.category.BROWSABLE" />
-  <data android:scheme="com.loit" android:host="callback" />
+  <data android:scheme="id.activid.loit" android:host="callback" />
 </intent-filter>
 ```
 
-In `android/app/build.gradle`, inside `defaultConfig { ... }`:
-```gradle
-manifestPlaceholders += [
-  POSTHOG_API_KEY: project.findProperty("POSTHOG_API_KEY") ?: ""
-]
-minSdkVersion 23      // required by flutter_stripe and local_auth biometrics
-targetSdkVersion 34
-compileSdkVersion 35
+In `android/app/build.gradle.kts` (Flutter 3.24+ templates use the Kotlin DSL), inside `defaultConfig { ... }`:
+```kotlin
+manifestPlaceholders["POSTHOG_API_KEY"] =
+    (project.findProperty("POSTHOG_API_KEY") ?: "") as String
+minSdk = maxOf(flutter.minSdkVersion, 23)  // flutter_stripe + local_auth require 23
+targetSdk = flutter.targetSdkVersion
+// compileSdk comes from `flutter.compileSdkVersion` at the `android { }` level.
 ```
+
+> If your project was scaffolded before Flutter 3.16 it may still have Groovy `android/app/build.gradle`. In that case use the pre-Kotlin form:
+> ```gradle
+> manifestPlaceholders += [ POSTHOG_API_KEY: project.findProperty("POSTHOG_API_KEY") ?: "" ]
+> minSdkVersion 23
+> ```
 
 > `flutterfire configure` normally inserts the Firebase native config automatically. If Android push notifications still do not work, verify `android/app/build.gradle` applies `com.google.gms.google-services` and that `google-services.json` is present.
 
@@ -496,11 +520,11 @@ supabase init          # only needed on first run — creates supabase/config.to
    - **Apple** — enable, paste Apple Services ID, Team ID, Key ID, and the `.p8` private key contents. Required for App Store review.
 
 3. **Configure redirect URLs** — Dashboard → Authentication → URL Configuration:
-   - **Site URL** — `com.loit://callback` (must match the `CFBundleURLSchemes` / Android intent filter from Step 1.1)
+   - **Site URL** — `id.activid.loit://callback` (must match the `CFBundleURLSchemes` / Android intent filter from Step 1.1)
    - **Redirect URLs** (one per line):
      ```
-     com.loit://callback
-     com.loit://callback/**
+     id.activid.loit://callback
+     id.activid.loit://callback/**
      ```
    - Without both entries, PKCE OAuth returns will fail with `redirect_uri not allowed`.
 
@@ -516,14 +540,16 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 ```
 
-5. **Create the `receipts` Storage bucket and `.keep` placeholder** (prevents a 404 on the Phase 4 keep-alive cron, which HEADs this file every 3 days):
+5. **Create the `receipts` Storage bucket and `.keep.png` placeholder** (prevents a 404 on the Phase 4 keep-alive cron, which HEADs this file every 3 days):
+
+   > **Placeholder must be a real JPEG/PNG.** Because the bucket restricts uploads to `image/jpeg` / `image/png`, a zero-byte text file is rejected with `415 invalid_mime_type` (sniffed as `text/plain`). Use a 1×1 transparent PNG instead — tiny, policy-compliant, and still a valid keep-alive target.
 
    Option A — via Dashboard:
    - Storage → New Bucket → name `receipts`, visibility **Private**
    - Public access: off
    - Allowed MIME types: `image/jpeg, image/png`
    - Max file size: `5 MB`
-   - Upload a zero-byte file manually at path `.keep`
+   - Upload a 1×1 PNG manually at path `.keep.png`
 
    Option B — via CLI (Supabase CLI 1.200+):
 ```bash
@@ -533,19 +559,23 @@ supabase storage create-bucket receipts \
   --file-size-limit 5MB \
   --allowed-mime-types image/jpeg,image/png
 
-# Upload the placeholder
-echo "" > /tmp/.keep
-supabase storage cp /tmp/.keep "supabase://receipts/.keep"
+# Generate a 1×1 transparent PNG and upload it as the placeholder.
+# IMPORTANT: keep the .png extension so the storage server detects image/png.
+echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgAAIAAAUAAeImBZsAAAAASUVORK5CYII=" \
+  | base64 -d > /tmp/.keep.png
+supabase storage cp /tmp/.keep.png ss:///receipts/.keep.png --experimental
 ```
 
-> The CLI scheme changed from `ss:///` to `supabase://` in CLI 1.175+. Use `supabase storage --help` to confirm for your installed version.
+> - The CLI scheme changed from `ss:///` to `supabase://` in CLI 1.175+ — but CLI 2.x reintroduced `ss:///` and requires the `--experimental` flag for the storage subcommand. Use `supabase storage --help` to confirm the form your installed version accepts.
+> - If you hit `IPv6 is not supported on your current network`, re-run `supabase link --project-ref <ref>` — the link step records a working IPv4 pooler endpoint.
+> - The Phase 4 keep-alive cron (Step 4.3) must HEAD `.keep.png` (not `.keep`) to match this placeholder.
 
 **Validation:**
 - [ ] `supabase status` returns linked project info (no "project not linked" error)
 - [ ] Google and Apple auth providers show green-enabled in Dashboard
-- [ ] Test OAuth from the simulator: tapping Google sign-in opens the browser and returns to the app via `com.loit://callback` without "redirect_uri not allowed"
+- [ ] Test OAuth from the simulator: tapping Google sign-in opens the browser and returns to the app via `id.activid.loit://callback` without "redirect_uri not allowed"
 - [ ] `receipts` bucket exists, is **Private**, and allows only `image/jpeg`/`image/png`
-- [ ] `.keep` file exists at the bucket root (`supabase storage ls supabase://receipts` shows it)
+- [ ] `.keep.png` file exists at the bucket root (`supabase storage ls ss:///receipts/ --experimental` shows it)
 - [ ] `moddatetime`, `pgcrypto`, `pg_cron` extensions show as enabled in Dashboard → Database → Extensions
 
 ---
@@ -1306,7 +1336,12 @@ class CurrencyService {
   }
 
   Future<double> _fetchRate(String from, String to, String tier) async {
-    return (tier == 'pro' || tier == 'team')
+    // If the paid-tier app ID is not present in the client build, fall back
+    // to Frankfurter rather than failing outright — keeps Free-tier builds
+    // working even when OPEN_EXCHANGE_RATES_APP_ID is empty in env.json.
+    final canUseOxr =
+        (tier == 'pro' || tier == 'team') && Env.openExchangeRatesAppId.isNotEmpty;
+    return canUseOxr
         ? _fetchFromOpenExchangeRates(from, to)
         : _fetchFromFrankfurter(from, to);
   }
@@ -1707,6 +1742,29 @@ CREATE TABLE room_members (
 );
 
 -- ================================================================
+-- AUTO-ADD CREATOR AS ADMIN MEMBER
+-- Without this, the creator cannot see their own room under the
+-- `rooms_select_member` RLS policy (which relies on is_room_member).
+-- Using a trigger keeps the client insert atomic — no race where the
+-- room exists but the creator isn't yet a member.
+-- ================================================================
+CREATE OR REPLACE FUNCTION add_room_creator_as_admin()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public AS $$
+BEGIN
+  INSERT INTO room_members (room_id, user_id, role)
+  VALUES (NEW.id, NEW.created_by, 'admin')
+  ON CONFLICT (room_id, user_id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER on_room_created_add_creator
+  AFTER INSERT ON rooms
+  FOR EACH ROW
+  EXECUTE FUNCTION add_room_creator_as_admin();
+
+-- ================================================================
 -- ROOM INVITES TABLE
 -- IMPORTANT: No table-level unique(room_id, invited_user_id) constraint.
 -- Instead, a PARTIAL UNIQUE INDEX on status='pending' only.
@@ -2072,7 +2130,7 @@ Widget _buildFeed(List<Map<String, dynamic>> transactions) {
 ```
 https://loit.app/invite/{invite_token}
 ```
-This HTTPS URL works from anywhere (email, WhatsApp, SMS) and is the target of the iOS Universal Link and Android App Link configured in Step 2.6. A `com.loit://invite/{token}` mirror is emitted for custom-scheme fallback on older Android versions.
+This HTTPS URL works from anywhere (email, WhatsApp, SMS) and is the target of the iOS Universal Link and Android App Link configured in Step 2.6. A `id.activid.loit://invite/{token}` mirror is emitted for custom-scheme fallback on older Android versions.
 
 **Actions:**
 
@@ -2145,7 +2203,8 @@ serve(async (req) => {
 ```sql
 -- supabase/migrations/20240201000002_accept_invite.sql
 CREATE OR REPLACE FUNCTION accept_room_invite(p_invite_token text)
-RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public AS $$
 DECLARE
   v_invite record;
 BEGIN
@@ -2268,7 +2327,7 @@ class _InviteSheetState extends State<InviteSheet> {
   "applinks": {
     "apps": [],
     "details": [{
-      "appID": "TEAMID.com.loit",
+      "appID": "TEAMID.id.activid.loit",
       "paths": ["/invite/*"]
     }]
   }
@@ -2291,7 +2350,7 @@ class _InviteSheetState extends State<InviteSheet> {
   "relation": ["delegate_permission/common.handle_all_urls"],
   "target": {
     "namespace": "android_app",
-    "package_name": "com.loit",
+    "package_name": "id.activid.loit",
     "sha256_cert_fingerprints": ["AA:BB:CC:...your release keystore fingerprint..."]
   }
 }]
@@ -2357,7 +2416,7 @@ class DeepLinkHandler extends _$DeepLinkHandler {
   }
 
   Future<String?> _handle(Uri uri) async {
-    // Matches both https://loit.app/invite/{token} and com.loit://invite/{token}.
+    // Matches both https://loit.app/invite/{token} and id.activid.loit://invite/{token}.
     if (!uri.path.startsWith('/invite/') && uri.host != 'invite') return null;
     final token = uri.pathSegments.last;
     if (token.isEmpty) return null;
@@ -2386,7 +2445,7 @@ ref.listen<AsyncValue<String>>(deepLinkHandlerProvider, (_, next) {
 - [ ] Kill the app → tap `https://loit.app/invite/<valid token>` from Notes/Mail → LOIT opens directly into the joined room (not the browser)
 - [ ] Same link in an incognito Chrome/Safari on Android/iOS → App/Play Store if app not installed
 - [ ] App already running → tapping the link switches to the joined room in-place
-- [ ] `com.loit://invite/<token>` also works (custom scheme fallback)
+- [ ] `id.activid.loit://invite/<token>` also works (custom scheme fallback)
 - [ ] Deep link test tool (Apple + Google) reports no errors
 
 ---
@@ -2395,7 +2454,7 @@ ref.listen<AsyncValue<String>>(deepLinkHandlerProvider, (_, next) {
 
 **Goal:** Send a push notification to every room member whenever a new transaction is added to their room. Uses Firebase Messaging on the client and FCM HTTP v1 from a Supabase Edge Function on the server.
 
-**Why Firebase Messaging over Pusher Beams?** The FlutterFire plugins are actively maintained, integrate directly with APNs + FCM, and do **not** conflict with the Riverpod 3 codegen/lint stack. Pusher Beams currently pulls old transitive dependencies (`uuid ^3`) that break modern Riverpod projects.
+**Why Firebase Cloud Messaging?** FlutterFire plugins are actively maintained, integrate directly with APNs + FCM, and work cleanly alongside the Riverpod 3 codegen/lint stack. FCM HTTP v1 is also free at any volume, so there's no per-device pricing wall to plan around as LOIT scales.
 
 **Architecture:**
 1. Each signed-in device requests notification permission and fetches an FCM device token.
@@ -2408,7 +2467,7 @@ ref.listen<AsyncValue<String>>(deepLinkHandlerProvider, (_, next) {
 
 1. **Firebase project setup:**
    - Create a Firebase project.
-   - Add Android app `com.loit` and iOS app `com.loit`.
+   - Add Android app `id.activid.loit` and iOS app `id.activid.loit`.
    - Firebase Console → Cloud Messaging → upload your APNs auth key (`.p8`) for iOS.
    - Project Settings → Service Accounts → generate a service account JSON.
    - Base64-encode it and store it in Supabase secrets:
@@ -2420,31 +2479,42 @@ supabase secrets set FIREBASE_SERVICE_ACCOUNT_JSON_BASE64=<paste-base64-here>
 
 2. **Create the device-token table.** Add `supabase/migrations/20240201000003_push_tokens.sql`:
 ```sql
-CREATE TABLE push_tokens (
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE TABLE IF NOT EXISTS public.push_tokens (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id    uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   token      text NOT NULL UNIQUE,
-  platform   text NOT NULL CHECK (platform IN ('ios', 'android', 'web')),
+  platform   text NOT NULL CHECK (platform IN ('ios', 'android')),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_push_tokens_user_id ON push_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_push_tokens_user_id
+  ON public.push_tokens(user_id);
 
-ALTER TABLE push_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.push_tokens ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "push_tokens_select_own" ON push_tokens
+DROP POLICY IF EXISTS "push_tokens_select_own" ON public.push_tokens;
+CREATE POLICY "push_tokens_select_own" ON public.push_tokens
   FOR SELECT USING (user_id = auth.uid());
 
-CREATE POLICY "push_tokens_insert_own" ON push_tokens
+DROP POLICY IF EXISTS "push_tokens_insert_own" ON public.push_tokens;
+CREATE POLICY "push_tokens_insert_own" ON public.push_tokens
   FOR INSERT WITH CHECK (user_id = auth.uid());
 
-CREATE POLICY "push_tokens_update_own" ON push_tokens
-  FOR UPDATE USING (user_id = auth.uid());
+DROP POLICY IF EXISTS "push_tokens_update_own" ON public.push_tokens;
+CREATE POLICY "push_tokens_update_own" ON public.push_tokens
+  FOR UPDATE USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
 
-CREATE POLICY "push_tokens_delete_own" ON push_tokens
+DROP POLICY IF EXISTS "push_tokens_delete_own" ON public.push_tokens;
+CREATE POLICY "push_tokens_delete_own" ON public.push_tokens
   FOR DELETE USING (user_id = auth.uid());
 ```
+> Limit `platform` to `'ios'` and `'android'` — there is no web client for
+> LOIT. This also matches the existing migration at
+> `supabase/migrations/20240201000003_push_tokens.sql`.
 
 3. **Flutter client — request permission and register the device token.** Create `lib/core/services/push_service.dart`:
 ```dart
@@ -2923,8 +2993,8 @@ serve(async (req) => {
       // For subscriptions, also copy metadata onto the Subscription object
       // so customer.subscription.* events can identify the user.
       subscription_data: isOneTime ? undefined : { metadata: { user_id: user.id } },
-      success_url: 'com.loit://checkout/success',
-      cancel_url:  'com.loit://checkout/cancel',
+      success_url: 'id.activid.loit://checkout/success',
+      cancel_url:  'id.activid.loit://checkout/cancel',
     });
     return Response.json({ provider: 'stripe', url: session.url });
   }
@@ -2941,8 +3011,8 @@ serve(async (req) => {
         external_id: `${user.id}:${product_key}:${Date.now()}`,
         amount: XENDIT_PRICES[product_key],
         payer_email: user.email,
-        success_redirect_url: 'com.loit://checkout/success',
-        failure_redirect_url: 'com.loit://checkout/cancel',
+        success_redirect_url: 'id.activid.loit://checkout/success',
+        failure_redirect_url: 'id.activid.loit://checkout/cancel',
         items: [{ name: product_key, quantity: 1, price: XENDIT_PRICES[product_key] }],
       }),
     });
@@ -2990,7 +3060,7 @@ class CheckoutService {
     }
     final url = (resp.data as Map)['url'] as String;
 
-    // Both providers redirect to `com.loit://checkout/success` on completion,
+    // Both providers redirect to `id.activid.loit://checkout/success` on completion,
     // which our deep link handler catches to refresh the tier.
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
@@ -3083,6 +3153,7 @@ if (!flags.csvExport) {
 -- `(storage.foldername(name))[1]` returns the first path segment
 -- (the user_id), which we compare to auth.uid().
 -- ================================================================
+DROP POLICY IF EXISTS "receipts_select_own" ON storage.objects;
 CREATE POLICY "receipts_select_own" ON storage.objects
   FOR SELECT
   USING (
@@ -3090,6 +3161,7 @@ CREATE POLICY "receipts_select_own" ON storage.objects
     AND (storage.foldername(name))[1] = auth.uid()::text
   );
 
+DROP POLICY IF EXISTS "receipts_insert_own" ON storage.objects;
 CREATE POLICY "receipts_insert_own" ON storage.objects
   FOR INSERT
   WITH CHECK (
@@ -3097,6 +3169,7 @@ CREATE POLICY "receipts_insert_own" ON storage.objects
     AND (storage.foldername(name))[1] = auth.uid()::text
   );
 
+DROP POLICY IF EXISTS "receipts_update_own" ON storage.objects;
 CREATE POLICY "receipts_update_own" ON storage.objects
   FOR UPDATE
   USING (
@@ -3104,6 +3177,7 @@ CREATE POLICY "receipts_update_own" ON storage.objects
     AND (storage.foldername(name))[1] = auth.uid()::text
   );
 
+DROP POLICY IF EXISTS "receipts_delete_own" ON storage.objects;
 CREATE POLICY "receipts_delete_own" ON storage.objects
   FOR DELETE
   USING (
@@ -3454,13 +3528,20 @@ String formatDate(BuildContext ctx, DateTime date) =>
 
 **Goal:** Finalize and harden offline behavior for personal finance. Shared rooms must always show no-connection state when offline.
 
-Go through every personal finance screen and verify the following:
+Go through every personal finance screen and verify the following.
+
+> **Read-cache scope.** Step 1.9 only introduces a Drift *write* queue (`pending_transactions`).
+> A Drift *read* cache for transactions / budgets / dashboards is added here in Phase 4.
+> Implement it by mirroring every successful Supabase read into a `cached_transactions`
+> table (same schema, plus a `synced_at timestamptz`) and serving it when `Connectivity()`
+> reports no network. Do NOT gate shared-room reads the same way — room data must remain
+> online-only to avoid divergent multi-user views.
 
 ```
 Personal Finance — Offline Behavior:
-  [x] Dashboard loads from Drift/local cache (last synced data)
-  [x] Transaction log readable from local cache
-  [x] Budget progress readable from local cache
+  [x] Dashboard loads from Drift read cache (last synced data)
+  [x] Transaction log readable from Drift read cache
+  [x] Budget progress readable from Drift read cache
   [x] Manual transaction entry works → queued in Drift, synced on reconnect
   [x] Scanner shows "Scanning requires an internet connection" when offline
   [x] FX rates show "Last updated [date]" label when using cached rates (isStale: true)
@@ -3490,10 +3571,11 @@ Shared Rooms — Offline Behavior:
 
 **Goal:** Prevent Supabase Free project from auto-pausing after 7 days of inactivity.
 
-**Prerequisite check:** Confirm `receipts/.keep` file exists in Storage (created in Step 1.2). If it doesn't exist, create it now:
+**Prerequisite check:** Confirm `receipts/.keep.png` exists in Storage (created in Step 1.2). If it doesn't exist, create it now (must be a real PNG — the bucket's MIME allowlist rejects text files):
 ```bash
-echo "" > /tmp/.keep
-supabase storage cp /tmp/.keep "supabase://receipts/.keep"
+echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgAAIAAAUAAeImBZsAAAAASUVORK5CYII=" \
+  | base64 -d > /tmp/.keep.png
+supabase storage cp /tmp/.keep.png ss:///receipts/.keep.png --experimental
 ```
 
 Create `supabase/functions/keep-alive/index.ts`:
@@ -3513,10 +3595,11 @@ serve(async () => {
     .select('base_currency')
     .limit(1);
 
-  // 2. Keep Storage active — HEAD on known placeholder file
+  // 2. Keep Storage active — download the known placeholder file.
+  //    Must match the path created in Step 1.2 (1×1 PNG, NOT an empty .keep).
   const { error: storageError } = await supabase.storage
     .from('receipts')
-    .download('.keep');
+    .download('.keep.png');
 
   if (dbError) console.error('Keep-alive DB error:', dbError);
   if (storageError) console.error('Keep-alive Storage error:', storageError);
@@ -3540,7 +3623,7 @@ supabase functions deploy keep-alive
 ```
 
 **Validation:**
-- [ ] `receipts/.keep` confirmed to exist in Storage before deploying cron
+- [ ] `receipts/.keep.png` confirmed to exist in Storage before deploying cron
 - [ ] Trigger function manually → response is `200 OK` with `db: ok | storage: ok`
 - [ ] Check Edge Function logs 3 days later — confirm it fired automatically
 - [ ] Simulate 7-day inactivity (if on Free tier dev project) — project does not pause
@@ -3608,7 +3691,7 @@ Execute every test in the table below before submitting to either store.
 - [ ] No-connection handling for rooms working correctly on real devices
 - [ ] Full EN + ID localization — all strings, all screens
 - [ ] Keep-alive cron running and confirmed via Edge Function logs
-- [ ] `receipts/.keep` placeholder confirmed in Storage
+- [ ] `receipts/.keep.png` placeholder confirmed in Storage
 - [ ] Both apps submitted to App Store and Google Play
 - [ ] Privacy policy and Terms of Service pages live at public URLs
 - [ ] All QA tests passing on real devices (iOS and Android)

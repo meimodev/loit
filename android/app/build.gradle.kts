@@ -22,12 +22,17 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "id.activid.loit"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // minSdk 23 is required by flutter_stripe and local_auth biometric APIs.
+        minSdk = maxOf(flutter.minSdkVersion, 23)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // PostHog v5 native SDK reads this meta-data from the manifest.
+        // Pass via Gradle property: -PPOSTHOG_API_KEY=phc_... or set in
+        // android/gradle.properties / ~/.gradle/gradle.properties.
+        manifestPlaceholders["POSTHOG_API_KEY"] =
+            (project.findProperty("POSTHOG_API_KEY") ?: "") as String
     }
 
     buildTypes {

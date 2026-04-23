@@ -66,5 +66,40 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+
+	<!-- Camera + photo library permissions (scanner + receipt upload) -->
+	<key>NSCameraUsageDescription</key>
+	<string>LOIT uses your camera to scan receipts.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>LOIT needs access to your photos to upload receipts.</string>
+
+	<!-- FaceID (local_auth biometric lock) -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>LOIT uses Face ID to unlock your finance data.</string>
+
+	<!-- PostHog v5 native init — replaces the deprecated Posthog().setup() call.
+	     $(POSTHOG_API_KEY) is resolved from your Xcode build settings; add an
+	     entry in ios/Runner/Runner.xcconfig for each build configuration, or
+	     paste the literal phc_... key here. -->
+	<key>com.posthog.posthog.API_KEY</key>
+	<string>$(POSTHOG_API_KEY)</string>
+	<key>com.posthog.posthog.POSTHOG_HOST</key>
+	<string>https://us.i.posthog.com</string>
+
+	<!-- Deep link scheme for Supabase OAuth (PKCE) + Phase 2 invite links.
+	     Must match the Supabase redirect URL and the Android intent filter. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>id.activid.loit</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>id.activid.loit</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

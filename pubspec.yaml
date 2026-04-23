@@ -61,8 +61,10 @@ dependencies:
   firebase_core: ^4.7.0
   firebase_messaging: ^16.2.0
 
-  # Payments — Stripe Flutter for non-Indonesian markets
-  flutter_stripe: ^12.6.0
+  # Payments — Midtrans (Snap in-app UI for all markets: cards, GoPay, OVO,
+  # DANA, QRIS, virtual account, BCA KlikPay, etc.). Server key stays in
+  # Supabase Edge Function secrets; only the public client key ships here.
+  midtrans_sdk: ^1.2.0
 
   # Error monitoring — Sentry Flutter v8 (with source maps + release tracking)
   sentry_flutter: ^8.10.0
@@ -84,7 +86,7 @@ dependencies:
   # Biometric app lock (Face ID / Touch ID / Android BiometricPrompt)
   local_auth: ^2.3.0
 
-  # URL launcher — opens Stripe/Xendit checkout pages
+  # URL launcher — opens external URLs (Midtrans fallback, privacy policy, ToS)
   url_launcher: ^6.3.1
 
   # Deep linking (Phase 2 invite flow) — handles uni_links + custom schemes + universal links
@@ -97,6 +99,7 @@ dependencies:
   share_plus: ^10.1.2
 
 dev_dependencies:
+  sentry_dart_plugin: ^3.3.0
   flutter_test:
     sdk: flutter
   build_runner: ^2.4.13
@@ -110,3 +113,9 @@ flutter:
   uses-material-design: true
   generate: true   # enables gen_l10n for Phase 4 localization  # the material Icons class.
 
+
+sentry:
+  upload_debug_symbols: true
+  upload_source_maps: true
+  project: flutter
+  org: meimo

@@ -8,7 +8,7 @@
 **Audience:** AI coding agent or developer following explicit step-by-step implementation instructions.
 
 **Last refreshed:** April 2026
-**Target stack:** Flutter 3.24+, Dart 3.8+, Riverpod 3, Supabase Flutter 2.8+, Drift 2.22+, Deno 1.45+, Claude Sonnet 4.6, Stripe 17.x, Stripe Flutter 12.x, PostHog Flutter 5.x, Sentry Flutter 8.x.
+**Target stack:** Flutter 3.24+, Dart 3.8+, Riverpod 3, Supabase Flutter 2.8+, Drift 2.22+, Deno 1.45+, Claude Sonnet 4.6, Midtrans Snap (via `midtrans_sdk` 1.2+ on the client, Snap HTTP API server-side), PostHog Flutter 5.x, Sentry Flutter 8.x.
 
 **Configuration philosophy:**
 - Client-safe keys → `env.json` compiled in via `--dart-define-from-file=env.json` (not `flutter_dotenv`).
@@ -40,8 +40,7 @@
 | Resend | Transactional email | Free (3,000/mo) |
 | Sentry | Error monitoring | Free (5,000 errors/mo) |
 | PostHog | Analytics | Free (1M events/mo) |
-| Stripe | Subscriptions + one-time payments | 1.5% + Rp5,142/txn |
-| Xendit | Indonesian payment methods (GoPay, OVO, DANA) | 1.5–2.9%/txn |
+| Midtrans | Subscriptions + one-time payments (cards, GoPay, OVO, DANA, QRIS, VA, BCA KlikPay) | 0.7–2.9% per txn depending on channel |
 | Open Exchange Rates | 180+ currency FX rates (Pro/Team) | Startup plan when needed |
 | Apple Developer | iOS App Store | $99/yr |
 | Google Play | Android Play Store | $25 one-time |
@@ -50,13 +49,15 @@
 
 ```bash
 # Verify these are installed before starting
-flutter --version       # Flutter 3.24+ stable channel (required for Dart 3.8+ and current Stripe/Firebase plugins)
+flutter --version       # Flutter 3.24+ stable channel (required for Dart 3.8+ and current Midtrans/Firebase plugins)
 dart --version          # Dart 3.8+ (bundled with recent Flutter stable)
 flutterfire --version   # FlutterFire CLI (Firebase config generation for Phase 2 push notifications)
 supabase --version      # Supabase CLI >=1.200 — `brew install supabase/tap/supabase`
-node --version          # Node.js 20 LTS+ (required by current Supabase CLI and Stripe CLI)
+node --version          # Node.js 20 LTS+ (required by current Supabase CLI)
 deno --version          # Deno 1.45+ (for Edge Function local testing; bundled with Supabase CLI 1.190+)
-stripe --version        # Stripe CLI — `brew install stripe/stripe-cli/stripe` (for webhook testing in Phase 3)
+# Midtrans has no dedicated CLI — webhook testing is done via `ngrok http 54321`
+# (or `supabase functions serve`) + the "Send Test Notification" button in the
+# Midtrans sandbox dashboard → Settings → Configuration.
 ```
 
 > Note: do **NOT** install the Supabase CLI globally with `npm install -g supabase` — that package is deprecated. Use Homebrew, Scoop, or the official installer from <https://supabase.com/docs/guides/cli/getting-started>.
@@ -67,8 +68,8 @@ LOIT uses **two separate secret stores** that must never be mixed:
 
 | Store | Used by | Contains | Delivery mechanism |
 |---|---|---|---|
-| `env.json` (project root) | Flutter client ONLY | Public/anon keys only (Supabase URL, anon key, PostHog key, Sentry DSN, Stripe publishable key) | Compiled in via `--dart-define-from-file=env.json` |
-| Supabase Secrets (server) | Edge Functions ONLY | All private secrets (service-role, Anthropic, Stripe secret + webhook signing, Xendit, OpenExchangeRates app ID, Resend, Firebase service account JSON) | `supabase secrets set KEY=value` |
+| `env.json` (project root) | Flutter client ONLY | Public/anon keys only (Supabase URL, anon key, PostHog key, Sentry DSN, Midtrans **client** key) | Compiled in via `--dart-define-from-file=env.json` |
+| Supabase Secrets (server) | Edge Functions ONLY | All private secrets (service-role, Anthropic, Midtrans **server** key, OpenExchangeRates app ID, Resend, Firebase service account JSON) | `supabase secrets set KEY=value` |
 
 **Why `--dart-define-from-file` and not `flutter_dotenv`?**
 - Values become compile-time constants (`const String.fromEnvironment(...)`), enabling tree-shaking and dead-code elimination of unused branches.
@@ -76,21 +77,25 @@ LOIT uses **two separate secret stores** that must never be mixed:
 - Works with `flutter build appbundle`/`ipa` without shipping a `.env` file inside the app bundle (which would be trivially extractable with `apktool`).
 - Flutter-official pattern since Flutter 3.7.
 
-1. Create `env.json` in the project root. **This file contains ONLY client-safe keys.** No service-role, no Anthropic, no Stripe secret:
+1. Create `env.json` in the project root. **This file contains ONLY client-safe keys.** No service-role, no Anthropic, no Midtrans **server** key:
 ```json
 {
   "SUPABASE_URL": "https://xxxx.supabase.co",
   "SUPABASE_ANON_KEY": "eyJ...",
   "SENTRY_DSN": "https://...@sentry.io/...",
   "POSTHOG_API_KEY": "phc_...",
-  "STRIPE_PUBLISHABLE_KEY": "pk_...",
+  "MIDTRANS_CLIENT_KEY": "SB-Mid-client-...",
+  "MIDTRANS_MERCHANT_ID": "",
+  "MIDTRANS_IS_PRODUCTION": "false",
   "OPEN_EXCHANGE_RATES_APP_ID": "",
   "SENTRY_ENV": "dev"
 }
 ```
-> `OPEN_EXCHANGE_RATES_APP_ID` is optional — leave as `""` unless you are
-> intentionally shipping a Pro/Team client build that calls OXR directly.
-> `SENTRY_ENV` tags Sentry events so dev/staging/prod data is separable.
+> - `MIDTRANS_CLIENT_KEY` is the **public** key — it's fine to ship in the binary. Sandbox keys are prefixed `SB-Mid-client-`; live keys are `Mid-client-`.
+> - `MIDTRANS_IS_PRODUCTION` is a string (`"true"`/`"false"`) because `--dart-define-from-file` only emits strings. `env.production.json` sets it to `"true"`.
+> - `MIDTRANS_MERCHANT_ID` is optional — only used for the Snap sheet header.
+> - `OPEN_EXCHANGE_RATES_APP_ID` is optional — leave as `""` unless you are intentionally shipping a Pro/Team client build that calls OXR directly.
+> - `SENTRY_ENV` tags Sentry events so dev/staging/prod data is separable.
 
 2. Create `env.production.json` with the same keys but production values. `env.json` is for dev.
 
@@ -107,9 +112,8 @@ env.*.json
 5. Server-side secrets are set **only** via the Supabase CLI (covered in Steps 1.6 and 3.1):
 ```bash
 supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
-supabase secrets set STRIPE_SECRET_KEY=sk_...
-supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...
-supabase secrets set XENDIT_SECRET_KEY=xnd_...
+supabase secrets set MIDTRANS_SERVER_KEY=SB-Mid-server-...          # SB- prefix = sandbox
+supabase secrets set MIDTRANS_IS_PRODUCTION=false                   # "true" for live mode
 supabase secrets set RESEND_API_KEY=re_...
 supabase secrets set OPEN_EXCHANGE_RATES_APP_ID=...
 supabase secrets set FIREBASE_SERVICE_ACCOUNT_JSON_BASE64=...
@@ -219,8 +223,10 @@ dependencies:
   firebase_core: ^4.7.0
   firebase_messaging: ^16.2.0
 
-  # Payments — Stripe Flutter for non-Indonesian markets
-  flutter_stripe: ^12.6.0
+  # Payments — Midtrans Snap in-app UI (cards, GoPay, OVO, DANA, QRIS, VA,
+  # BCA KlikPay). Server key stays in Supabase Edge Function secrets; only
+  # the public MIDTRANS_CLIENT_KEY ships here.
+  midtrans_sdk: ^1.2.0
 
   # Error monitoring — Sentry Flutter v8 (with source maps + release tracking)
   sentry_flutter: ^8.10.0
@@ -242,7 +248,7 @@ dependencies:
   # Biometric app lock (Face ID / Touch ID / Android BiometricPrompt)
   local_auth: ^2.3.0
 
-  # URL launcher — opens Stripe/Xendit checkout pages
+  # URL launcher — external URLs (privacy policy, ToS, Midtrans fallback)
   url_launcher: ^6.3.1
 
   # Deep linking (Phase 2 invite flow) — handles uni_links + custom schemes + universal links
@@ -294,11 +300,29 @@ mkdir -p assets/icons
 class Env {
   const Env._();
 
-  static const String supabaseUrl          = String.fromEnvironment('SUPABASE_URL');
-  static const String supabaseAnonKey      = String.fromEnvironment('SUPABASE_ANON_KEY');
-  static const String sentryDsn            = String.fromEnvironment('SENTRY_DSN');
-  static const String postHogKey           = String.fromEnvironment('POSTHOG_API_KEY');
-  static const String stripePublishableKey = String.fromEnvironment('STRIPE_PUBLISHABLE_KEY');
+  static const String supabaseUrl     = String.fromEnvironment('SUPABASE_URL');
+  static const String supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+  static const String sentryDsn       = String.fromEnvironment('SENTRY_DSN');
+  static const String postHogKey      = String.fromEnvironment('POSTHOG_API_KEY');
+
+  /// Midtrans public client key (format `SB-Mid-client-...` in sandbox or
+  /// `Mid-client-...` in production). Safe to ship in the client binary.
+  /// The Midtrans **server key** stays server-side in Supabase Edge Function
+  /// secrets as `MIDTRANS_SERVER_KEY`.
+  static const String midtransClientKey =
+      String.fromEnvironment('MIDTRANS_CLIENT_KEY');
+
+  /// Optional merchant ID displayed on the Snap sheet.
+  static const String midtransMerchantId =
+      String.fromEnvironment('MIDTRANS_MERCHANT_ID');
+
+  /// `"true"` hits the production Midtrans endpoints; any other value
+  /// (including empty) uses sandbox. String-typed because
+  /// `--dart-define-from-file` only emits strings.
+  static const String _midtransIsProductionRaw =
+      String.fromEnvironment('MIDTRANS_IS_PRODUCTION', defaultValue: 'false');
+  static bool get midtransIsProduction =>
+      _midtransIsProductionRaw.toLowerCase() == 'true';
 
   /// Optional. Populated only for Pro/Team builds that need to hit Open Exchange
   /// Rates directly from the client (see Step 1.8). Leave empty on Free tier —
@@ -315,11 +339,11 @@ class Env {
   /// so misconfigured builds fail immediately instead of crashing deep in auth.
   static void assertConfigured() {
     const required = <String, String>{
-      'SUPABASE_URL'          : supabaseUrl,
-      'SUPABASE_ANON_KEY'     : supabaseAnonKey,
-      'SENTRY_DSN'            : sentryDsn,
-      'POSTHOG_API_KEY'       : postHogKey,
-      'STRIPE_PUBLISHABLE_KEY': stripePublishableKey,
+      'SUPABASE_URL'       : supabaseUrl,
+      'SUPABASE_ANON_KEY'  : supabaseAnonKey,
+      'SENTRY_DSN'         : sentryDsn,
+      'POSTHOG_API_KEY'    : postHogKey,
+      'MIDTRANS_CLIENT_KEY': midtransClientKey,
     };
     final missing = required.entries.where((e) => e.value.isEmpty).map((e) => e.key).toList();
     if (missing.isNotEmpty) {
@@ -341,7 +365,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
 
 import 'core/config/env.dart';
 import 'firebase_options.dart';
@@ -367,9 +390,11 @@ Future<void> main() async {
     ),
   );
 
-  // Stripe Flutter — publishable key only. The secret key stays server-side.
-  stripe.Stripe.publishableKey = Env.stripePublishableKey;
-  await stripe.Stripe.instance.applySettings();
+  // Midtrans — initialized lazily by `MidtransService` the first time the
+  // paywall opens (see `lib/core/services/midtrans_service.dart`). Keeping
+  // it out of the startup path means free-tier users never pay the SDK's
+  // init cost, and we avoid touching platform channels before the first
+  // frame.
 
   // PostHog — native init is configured in Info.plist / AndroidManifest.xml
   // (see steps 7–8 below). With native-only init, no Dart setup() call is needed;
@@ -472,7 +497,7 @@ In `android/app/build.gradle.kts` (Flutter 3.24+ templates use the Kotlin DSL), 
 ```kotlin
 manifestPlaceholders["POSTHOG_API_KEY"] =
     (project.findProperty("POSTHOG_API_KEY") ?: "") as String
-minSdk = maxOf(flutter.minSdkVersion, 23)  // flutter_stripe + local_auth require 23
+minSdk = maxOf(flutter.minSdkVersion, 23)  // midtrans_sdk + local_auth require 23
 targetSdk = flutter.targetSdkVersion
 // compileSdk comes from `flutter.compileSdkVersion` at the `android { }` level.
 ```
@@ -482,6 +507,19 @@ targetSdk = flutter.targetSdkVersion
 > manifestPlaceholders += [ POSTHOG_API_KEY: project.findProperty("POSTHOG_API_KEY") ?: "" ]
 > minSdkVersion 23
 > ```
+
+**MainActivity must extend `FlutterFragmentActivity`** — `midtrans_sdk` hosts its
+Snap UI inside an AndroidX Fragment and silently fails to attach when the
+activity doesn't support `FragmentManager`. Edit
+`android/app/src/main/kotlin/<namespace>/MainActivity.kt`:
+
+```kotlin
+package id.activid.loit
+
+import io.flutter.embedding.android.FlutterFragmentActivity
+
+class MainActivity : FlutterFragmentActivity()
+```
 
 > `flutterfire configure` normally inserts the Firebase native config automatically. If Android push notifications still do not work, verify `android/app/build.gradle` applies `com.google.gms.google-services` and that `google-services.json` is present.
 
@@ -2721,170 +2759,314 @@ await Supabase.instance.client.functions.invoke('room-transaction-notify', body:
 
 ## Phase 3 — Pro Layer (Weeks 14–17)
 
-**Goal:** Gate premium features behind Stripe/Xendit subscriptions. Activate full monetization.
+**Goal:** Gate premium features behind Midtrans subscriptions + one-time payments. Activate full monetization with a single payment gateway that supports both card and Indonesian e-wallet / VA / QRIS rails.
 
 ---
 
-### Step 3.1 — Stripe Products Setup
+### Step 3.1 — Midtrans Setup
 
-**Goal:** Create all subscription and one-time payment products in Stripe Dashboard.
+**Goal:** Create the Midtrans account, pick the right product (Core API for recurring; Snap for one-off), record the key pair, and wire the webhook.
 
-Create these exact products in Stripe Dashboard → Products. **Critical:** when creating each Price, set the **Lookup key** field to the value in the "Lookup Key" column. Lookup keys are stable, human-readable identifiers you can use in code instead of `price_xxx` IDs — and they are what the webhook uses to identify which tier a subscription belongs to.
+#### 3.1.1 Account & environment
 
-| Lookup Key | Name | Type | USD Price | IDR Price |
+1. Sign up at <https://dashboard.midtrans.com/register>. Pick **"Indonesian business"** if your PT/CV is Indonesia-registered; otherwise go with "Cross-border merchant" (still uses IDR as the settlement currency).
+2. In the sandbox dashboard (top-right toggle reads **"Sandbox"**), open **Settings → Access Keys**. You will see:
+   - **Merchant ID** → copy into `env.json` as `MIDTRANS_MERCHANT_ID` (optional, for Snap sheet header).
+   - **Client Key** (`SB-Mid-client-...`) → `env.json` as `MIDTRANS_CLIENT_KEY`.
+   - **Server Key** (`SB-Mid-server-...`) → **Supabase secret only**: `supabase secrets set MIDTRANS_SERVER_KEY=SB-Mid-server-...`
+3. The equivalent production keys (`Mid-client-...` / `Mid-server-...`) are on the same page after you flip the dashboard toggle to **"Production"** and complete the KYC onboarding. For staging/production, copy them into `env.production.json` and the production Supabase project's secrets respectively.
+
+#### 3.1.2 Product catalogue
+
+Unlike Stripe, Midtrans does **not** have a stored-product catalogue — every Snap transaction is created ad-hoc with a price. The canonical product list therefore lives in the Edge Function, not the dashboard:
+
+| Product key | Name | Type | IDR Price | Side effect on success |
 |---|---|---|---|---|
-| `loit_pro_monthly` | LOIT Pro Monthly | Recurring | $4.99/mo | Rp85,529 |
-| `loit_pro_yearly` | LOIT Pro Yearly | Recurring | $49.99/yr | Rp856,680 |
-| `loit_team_monthly` | LOIT Team Monthly | Recurring | $9.99/mo | Rp171,169 |
-| `loit_team_yearly` | LOIT Team Yearly | Recurring | $99.99/yr | Rp1,713,360 |
-| `loit_scan_topup` | Scan Top-Up (10 scans) | One-time | $0.99 | Rp16,969 |
-| `loit_storage_ext` | Receipt Storage Extension | One-time | $0.99 | Rp16,969 |
+| `loit_pro_monthly` | LOIT Pro Monthly | Recurring* | Rp85,529 | `users.tier = 'pro'` |
+| `loit_pro_yearly` | LOIT Pro Yearly | Recurring* | Rp856,680 | `users.tier = 'pro'` |
+| `loit_team_monthly` | LOIT Team Monthly | Recurring* | Rp171,169 | `users.tier = 'team'` |
+| `loit_team_yearly` | LOIT Team Yearly | Recurring* | Rp1,713,360 | `users.tier = 'team'` |
+| `loit_scan_topup` | Scan Top-Up (10 scans) | One-time | Rp16,969 | `add_scan_topup(user_id, 10)` |
+| `loit_storage_ext` | Receipt Storage Extension | One-time | Rp16,969 | `extend_receipt_expiry(user_id)` |
 
-**How Stripe identifiers map:**
-- **Product ID** (`prod_XXX`) — auto-generated by Stripe, not stable across test/live.
-- **Price ID** (`price_XXX`) — auto-generated per pricing row, not portable across environments.
-- **Lookup Key** — what you set, what you use. `loit_pro_monthly`, etc.
+\* **Recurring handling.** Snap does not auto-renew by itself. There are two supported patterns — pick one and stick with it:
+- **Manual renewal (launch default).** Treat every subscription as a one-shot 30-day / 365-day grant. The webhook sets `users.tier` and records `tier_expires_at = now() + interval`. A daily cron (see `keep-alive` pattern in Step 4.3) downgrades lapsed users. Users re-tap the paywall near expiry — simpler, works with every Midtrans payment method.
+- **Core API Subscription.** For card payments only, you can call `POST /v1/subscriptions` on the Midtrans Core API with a `saved_token_id` returned from the first Snap charge. This auto-charges on each cycle. Adds code complexity and doesn't work for GoPay / OVO / DANA / QRIS (which can't be tokenized for recurring). Skip unless card-only recurring is a hard requirement.
 
-When creating Prices via the Dashboard, each Product can have multiple Prices (e.g. USD + IDR variants). Set a **separate Lookup Key per currency**: `loit_pro_monthly_usd` and `loit_pro_monthly_idr`. The checkout function picks the right one based on the user's locale.
+The guide implements the **manual renewal** flow.
 
-**Annual plan display rule:** In the paywall UI, always show annual plans alongside monthly with a **"Save 17%"** badge. Calculate dynamically: `savings = 100 - (annual_price / (monthly_price * 12)) * 100`.
+#### 3.1.3 Webhook
 
-**Xendit (Indonesian market):**
-- Mirror the same 6 SKUs in Xendit
-- Auto-detect Indonesian users by locale `id_ID` and route checkout to Xendit
-- Xendit supports: GoPay, OVO, DANA, virtual bank accounts (BCA, Mandiri, BNI)
+Midtrans posts a signed notification to your Payment Notification URL on every state change (settlement, expire, deny, cancel). Configure it at **Settings → Configuration → Payment Notification URL**:
 
-**Stripe Webhook setup:**
 ```
-Endpoint URL: ${SUPABASE_URL}/functions/v1/stripe-webhook
-Events to listen for:
-  - customer.subscription.created
-  - customer.subscription.updated
-  - customer.subscription.deleted
-  - checkout.session.completed
+https://<project-ref>.supabase.co/functions/v1/midtrans-notification
 ```
 
-Save the webhook signing secret as a Supabase secret:
+The signature is a SHA-512 of `order_id + status_code + gross_amount + server_key`. We verify it in the Edge Function (Step 3.2). **There is no separate "webhook secret" — the server key doubles as the signing salt.**
+
+#### 3.1.4 Supabase secrets
+
 ```bash
-supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...
-supabase secrets set STRIPE_SECRET_KEY=sk_...
+supabase secrets set MIDTRANS_SERVER_KEY=SB-Mid-server-...
+supabase secrets set MIDTRANS_IS_PRODUCTION=false   # "true" on your production project
 ```
 
 **Validation:**
-- [ ] All 6 products exist in Stripe Dashboard
-- [ ] Webhook endpoint registered with correct events
-- [ ] Webhook signing secret stored in Supabase secrets
-- [ ] Xendit products mirrored correctly
+- [ ] `env.json` has `MIDTRANS_CLIENT_KEY` set to a sandbox `SB-Mid-client-...` value.
+- [ ] `supabase secrets list` includes `MIDTRANS_SERVER_KEY` and `MIDTRANS_IS_PRODUCTION`.
+- [ ] Sandbox dashboard → Settings → Configuration → **Payment Notification URL** points at the `midtrans-notification` Edge Function.
+- [ ] Finance Notification URL is **left blank** (we don't use the disbursement product).
+
+**Annual plan display rule:** In the paywall UI, always show annual plans alongside monthly with a **"Save 17%"** badge. Calculate dynamically: `savings = 100 - (annual_price / (monthly_price * 12)) * 100`.
 
 ---
 
-### Step 3.2 — Edge Function: stripe-webhook
+### Step 3.2 — Edge Functions: `midtrans-checkout` and `midtrans-notification`
 
-Create `supabase/functions/stripe-webhook/index.ts`:
+Two Edge Functions handle the whole payment flow:
+
+1. `midtrans-checkout` — called by the Flutter paywall. Looks up the product price, inserts a pending row in `midtrans_orders`, asks Midtrans Snap for a token, returns `{order_id, snap_token, redirect_url}`.
+2. `midtrans-notification` — called by Midtrans on every state change. Verifies the SHA-512 signature, flips `midtrans_orders.status`, and applies the side effect (tier change / top-up credit / expiry extension).
+
+#### 3.2.1 Orders table
+
+First create the backing table — the webhook reconciles against this, and the paywall UI can poll it / subscribe via Realtime for live status:
+
+```sql
+-- supabase/migrations/20240301000000_midtrans_orders.sql
+CREATE TABLE IF NOT EXISTS public.midtrans_orders (
+  order_id                    text        PRIMARY KEY,
+  user_id                     uuid        NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  product_key                 text        NOT NULL,
+  amount_idr                  bigint      NOT NULL CHECK (amount_idr > 0),
+  status                      text        NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'succeeded', 'failed', 'cancelled', 'expired', 'init_failed')),
+  midtrans_transaction_status text,
+  midtrans_fraud_status       text,
+  failure_reason              text,
+  paid_at                     timestamptz,
+  created_at                  timestamptz NOT NULL DEFAULT now(),
+  updated_at                  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_midtrans_orders_user_id
+  ON public.midtrans_orders(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_midtrans_orders_status
+  ON public.midtrans_orders(status) WHERE status = 'pending';
+
+ALTER TABLE public.midtrans_orders ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "midtrans_orders_select_own" ON public.midtrans_orders;
+CREATE POLICY "midtrans_orders_select_own" ON public.midtrans_orders
+  FOR SELECT USING (user_id = auth.uid());
+```
+
+Writes happen only from Edge Functions (service role, which bypasses RLS), so no insert/update policy is needed.
+
+#### 3.2.2 `midtrans-checkout` — mint a Snap token
+
+Create `supabase/functions/midtrans-checkout/index.ts`:
 
 ```typescript
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import Stripe from 'npm:stripe@17.3.1';
 import { createClient } from 'npm:@supabase/supabase-js@2.46.1';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!);
+const PRODUCTS = {
+  loit_pro_monthly:  { name: 'LOIT Pro Monthly',     priceIdr: 85_529    },
+  loit_pro_yearly:   { name: 'LOIT Pro Yearly',      priceIdr: 856_680   },
+  loit_team_monthly: { name: 'LOIT Team Monthly',    priceIdr: 171_169   },
+  loit_team_yearly:  { name: 'LOIT Team Yearly',     priceIdr: 1_713_360 },
+  loit_scan_topup:   { name: 'Scan Top-Up (10)',     priceIdr: 16_969    },
+  loit_storage_ext:  { name: 'Receipt Storage +6mo', priceIdr: 16_969    },
+} as const;
+type ProductKey = keyof typeof PRODUCTS;
+
+const SNAP_URL = () =>
+  Deno.env.get('MIDTRANS_IS_PRODUCTION')?.toLowerCase() === 'true'
+    ? 'https://app.midtrans.com/snap/v1/transactions'
+    : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
+
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 );
 
-// Maps lookup_key → tier. The `_usd`/`_idr` suffix is stripped so both
-// currency variants of the same plan map to the same tier.
-function tierFromLookupKey(lookupKey: string | null | undefined): string | null {
-  if (!lookupKey) return null;
-  const base = lookupKey.replace(/_(usd|idr)$/, '');
-  return {
-    loit_pro_monthly:  'pro',
-    loit_pro_yearly:   'pro',
-    loit_team_monthly: 'team',
-    loit_team_yearly:  'team',
-  }[base] ?? null;
+serve(async (req) => {
+  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+
+  const auth = req.headers.get('Authorization');
+  if (!auth) return new Response('Unauthorized', { status: 401 });
+  const { data: { user } } = await supabase.auth.getUser(auth.replace('Bearer ', ''));
+  if (!user) return new Response('Unauthorized', { status: 401 });
+
+  const body = await req.json() as { product_key?: string };
+  const productKey = body.product_key as ProductKey | undefined;
+  if (!productKey || !(productKey in PRODUCTS)) {
+    return new Response(`Unknown product_key: ${productKey}`, { status: 400 });
+  }
+  const product = PRODUCTS[productKey];
+
+  // Unique order_id; prefix with user id so the webhook can sanity-check
+  // ownership before hitting the DB.
+  const orderId = `${user.id.slice(0, 8)}-${productKey}-${Date.now()}`;
+
+  await supabase.from('midtrans_orders').insert({
+    order_id:    orderId,
+    user_id:     user.id,
+    product_key: productKey,
+    amount_idr:  product.priceIdr,
+    status:      'pending',
+  });
+
+  const res = await fetch(SNAP_URL(), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      Authorization: 'Basic ' + btoa(Deno.env.get('MIDTRANS_SERVER_KEY')! + ':'),
+    },
+    body: JSON.stringify({
+      transaction_details: { order_id: orderId, gross_amount: product.priceIdr },
+      item_details: [{ id: productKey, name: product.name, price: product.priceIdr, quantity: 1 }],
+      customer_details: {
+        email:      user.email ?? `user-${user.id}@loit.app`,
+        first_name: (user.user_metadata?.full_name as string | undefined) ?? 'LOIT User',
+      },
+      // Echoed back in the notification — safety net for order_id parsing.
+      custom_field1: user.id,
+      custom_field2: productKey,
+      credit_card: { secure: true },
+    }),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    await supabase.from('midtrans_orders')
+      .update({ status: 'init_failed', failure_reason: errText }).eq('order_id', orderId);
+    return new Response(`Snap create failed: ${errText}`, { status: 502 });
+  }
+  const { token, redirect_url } = await res.json();
+
+  return Response.json({ order_id: orderId, snap_token: token, redirect_url });
+});
+```
+
+Deploy: `supabase functions deploy midtrans-checkout`
+
+#### 3.2.3 `midtrans-notification` — webhook
+
+Create `supabase/functions/midtrans-notification/index.ts`:
+
+```typescript
+import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2.46.1';
+
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+);
+
+// SHA-512(order_id + status_code + gross_amount + server_key) in hex.
+async function verifySignature(p: {
+  order_id: string; status_code: string; gross_amount: string; signature_key: string;
+}): Promise<boolean> {
+  const serverKey = Deno.env.get('MIDTRANS_SERVER_KEY')!;
+  const raw = `${p.order_id}${p.status_code}${p.gross_amount}${serverKey}`;
+  const buf = await crypto.subtle.digest('SHA-512', new TextEncoder().encode(raw));
+  const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return hex === p.signature_key;
+}
+
+function resolveFinalStatus(txnStatus: string, fraudStatus?: string) {
+  switch (txnStatus) {
+    case 'capture':    return fraudStatus === 'accept' ? 'succeeded' : 'pending';
+    case 'settlement': return 'succeeded';
+    case 'pending':    return 'pending';
+    case 'deny':
+    case 'failure':    return 'failed';
+    case 'cancel':     return 'cancelled';
+    case 'expire':     return 'expired';
+    default:           return 'pending';
+  }
+}
+
+async function applySuccess(order: { user_id: string; product_key: string }) {
+  switch (order.product_key) {
+    case 'loit_pro_monthly':
+    case 'loit_pro_yearly':
+      await supabase.from('users').update({ tier: 'pro' }).eq('id', order.user_id); return;
+    case 'loit_team_monthly':
+    case 'loit_team_yearly':
+      await supabase.from('users').update({ tier: 'team' }).eq('id', order.user_id); return;
+    case 'loit_scan_topup':
+      await supabase.rpc('add_scan_topup', { p_user_id: order.user_id, p_amount: 10 }); return;
+    case 'loit_storage_ext':
+      await supabase.rpc('extend_receipt_expiry', { p_user_id: order.user_id }); return;
+  }
 }
 
 serve(async (req) => {
-  const body      = await req.text();
-  const signature = req.headers.get('stripe-signature')!;
+  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
-  let event: Stripe.Event;
-  try {
-    event = await stripe.webhooks.constructEventAsync(
-      body, signature, Deno.env.get('STRIPE_WEBHOOK_SECRET')!,
-    );
-  } catch {
-    return new Response('Invalid signature', { status: 400 });
+  const payload = await req.json();
+  const {
+    order_id, status_code, gross_amount, signature_key,
+    transaction_status, fraud_status,
+  } = payload;
+  if (!order_id || !status_code || !gross_amount || !signature_key || !transaction_status) {
+    return new Response('Missing required fields', { status: 400 });
   }
 
-  // `user_id` is set in the Checkout Session `metadata` AND propagated to the
-  // Subscription via `subscription_data.metadata` (see create-checkout-session).
-  // For subscription.* events, metadata lives on the Subscription object.
-  const obj    = event.data.object as Record<string, unknown>;
-  const userId = (obj.metadata as Record<string, string> | undefined)?.user_id;
-  if (!userId) return new Response('No user_id in metadata', { status: 400 });
+  if (!await verifySignature({ order_id, status_code, gross_amount, signature_key })) {
+    return new Response('Invalid signature', { status: 401 });
+  }
 
-  switch (event.type) {
-    case 'customer.subscription.created':
-    case 'customer.subscription.updated': {
-      const sub = event.data.object as Stripe.Subscription;
-      // `price.lookup_key` is our canonical product key — stable across
-      // dashboards and environments. Falls back to null if not set.
-      const lookupKey = sub.items.data[0]?.price.lookup_key;
-      const tier      = tierFromLookupKey(lookupKey);
-      if (tier) {
-        await supabase.from('users').update({ tier }).eq('id', userId);
-      } else {
-        console.warn('Unknown lookup_key on subscription update:', lookupKey);
-      }
-      break;
-    }
-    case 'customer.subscription.deleted':
-      await supabase.from('users').update({ tier: 'free' }).eq('id', userId);
-      break;
+  const { data: order } = await supabase.from('midtrans_orders')
+    .select('order_id, user_id, product_key, status')
+    .eq('order_id', order_id).maybeSingle();
+  if (!order) {
+    // Unknown order — Midtrans stops retrying on 2xx.
+    return new Response('OK', { status: 200 });
+  }
 
-    case 'checkout.session.completed': {
-      // Subscription checkouts are already handled by subscription.created above.
-      // Only handle one-time payment top-ups here.
-      const session = event.data.object as Stripe.CheckoutSession;
-      if (session.mode !== 'payment') break;
+  const finalStatus = resolveFinalStatus(transaction_status, fraud_status);
+  if (order.status === 'succeeded' && finalStatus === 'succeeded') {
+    return new Response('OK (duplicate)', { status: 200 });
+  }
 
-      const type = session.metadata?.type;
-      if (type === 'scan_topup') {
-        await supabase.rpc('add_scan_topup', { p_user_id: userId, p_amount: 10 });
-      } else if (type === 'storage_ext') {
-        await supabase.rpc('extend_receipt_expiry', { p_user_id: userId });
-      }
-      break;
-    }
+  await supabase.from('midtrans_orders').update({
+    status:                      finalStatus,
+    midtrans_transaction_status: transaction_status,
+    midtrans_fraud_status:       fraud_status ?? null,
+    paid_at:                     finalStatus === 'succeeded' ? new Date().toISOString() : null,
+  }).eq('order_id', order_id);
+
+  if (finalStatus === 'succeeded' && order.status !== 'succeeded') {
+    await applySuccess({ user_id: order.user_id, product_key: order.product_key });
   }
 
   return new Response('OK', { status: 200 });
 });
 ```
 
-Deploy:
-```bash
-supabase functions deploy stripe-webhook
-```
+Deploy: `supabase functions deploy midtrans-notification`
 
 **Validation:**
-- [ ] Stripe CLI: `stripe trigger customer.subscription.created` → `users.tier` updates to `'pro'`
-- [ ] Stripe CLI: `stripe trigger customer.subscription.deleted` → `users.tier` reverts to `'free'`
-- [ ] Invalid webhook signature → 400
-- [ ] Missing `user_id` in metadata → 400
-- [ ] One-time `scan_topup` checkout → extra scans visible to user within 1 second (`add_scan_topup` RPC)
-- [ ] One-time `storage_ext` checkout → `receipt_expires_at` on all user receipts extended by 6 months
+- [ ] From Midtrans Sandbox Dashboard → Settings → Configuration, click **"Send Test Notification"** → webhook fires → response 200.
+- [ ] Manually tamper with `signature_key` in a curl replay → response 401.
+- [ ] `loit_pro_monthly` settlement → `users.tier = 'pro'` within 1 second.
+- [ ] `loit_scan_topup` settlement → `add_scan_topup` RPC runs; scans remaining goes up by 10.
+- [ ] `loit_storage_ext` settlement → `extend_receipt_expiry` runs; all user receipts get +6 months.
+- [ ] Duplicate notification (Midtrans retries) → DB row unchanged, 200 returned.
+- [ ] `expire`/`cancel`/`deny` notifications → `midtrans_orders.status` updated but `users.tier` unchanged.
 
 ---
 
 ### Step 3.3 — SQL: Top-Up and Storage Extension Functions
 
-**Goal:** Define the RPC functions that the `stripe-webhook` Edge Function calls on successful one-time payments. These are split from subscription updates because they don't change tier, just credit additional usage.
+**Goal:** Define the RPC functions that the `midtrans-notification` Edge Function calls on successful one-time payments. These are split from subscription updates because they don't change tier, just credit additional usage.
 
-Create `supabase/migrations/20240301000000_topup_functions.sql`:
+Create `supabase/migrations/20240301000001_topup_functions.sql` (the `...000000_midtrans_orders.sql` migration from Step 3.2.1 must already be applied):
 
 ```sql
 -- ================================================================
@@ -2935,134 +3117,96 @@ supabase db push
 
 ---
 
-### Step 3.4 — Flutter: Subscription Checkout (Stripe + Xendit)
+### Step 3.4 — Flutter: Paywall Checkout via Midtrans Snap
 
-**Goal:** Show the paywall, route to the correct provider based on locale, and kick off checkout. Stripe (non-IDR) uses `flutter_stripe` PaymentSheet for a native experience. Xendit (IDR) opens a hosted checkout URL in the system browser.
+**Goal:** Show the paywall, hand off to Midtrans Snap in-app, react to the transaction-finished callback, and let the `midtrans-notification` webhook flip `users.tier` server-side. The UI should never mutate entitlements directly from the client result — treat the client callback as "the sheet closed" and rely on Realtime streaming from `users.tier` for the actual upgrade.
 
-**Routing logic:**
+**Flow:**
 ```
-locale.countryCode == 'ID'  →  Xendit (server creates an invoice URL, client launches it)
-otherwise                    →  Stripe PaymentSheet (server creates PaymentIntent or Subscription, client confirms)
+[Flutter paywall]
+      │  tap "Upgrade to Pro"
+      ▼
+[MidtransService.startCheckout(productKey)]
+      │  POST /functions/v1/midtrans-checkout  (user JWT)
+      ▼
+[Edge: midtrans-checkout] → Midtrans Snap API → { snap_token, order_id }
+      │
+      ▼
+[midtrans_sdk.startPaymentUiFlow(token)]    (in-app Snap UI)
+      │  user selects GoPay / OVO / card / QRIS / VA / ...
+      │
+      ├────── success/pending/failure callback ───┐
+      │                                           │
+      ▼                                           ▼
+[UI: show "Processing…" until webhook lands]   [midtrans_orders row updates]
+      ▲                                           │
+      └─── FeatureGate stream emits new tier ─── [users.tier flipped by webhook]
 ```
 
 **Actions:**
 
-1. **Edge Function `create-checkout-session`** — creates Stripe Checkout Session OR Xendit Invoice based on the `provider` field:
-```typescript
-// supabase/functions/create-checkout-session/index.ts
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import Stripe from 'npm:stripe@17.3.1';
-import { createClient } from 'npm:@supabase/supabase-js@2.46.1';
-
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!);
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-);
-
-serve(async (req) => {
-  const auth = req.headers.get('Authorization')!;
-  const { data: { user } } = await supabase.auth.getUser(auth.replace('Bearer ', ''));
-  if (!user) return new Response('Unauthorized', { status: 401 });
-
-  const { provider, product_key } = await req.json();
-
-  if (provider === 'stripe') {
-    // Resolve the Price ID from the lookup_key. This is the supported way
-    // to reference Prices portably across environments.
-    const prices = await stripe.prices.list({
-      lookup_keys: [`${product_key}_usd`],
-      active: true,
-      limit: 1,
-    });
-    const priceId = prices.data[0]?.id;
-    if (!priceId) return new Response('Price not found for lookup_key', { status: 404 });
-
-    const isOneTime = product_key === 'loit_scan_topup' || product_key === 'loit_storage_ext';
-
-    const session = await stripe.checkout.sessions.create({
-      mode: isOneTime ? 'payment' : 'subscription',
-      line_items: [{ price: priceId, quantity: 1 }],
-      // Top-level metadata shows up on the CheckoutSession event.
-      metadata: {
-        user_id: user.id,
-        type: product_key === 'loit_scan_topup' ? 'scan_topup'
-            : product_key === 'loit_storage_ext' ? 'storage_ext'
-            : 'subscription',
-      },
-      // For subscriptions, also copy metadata onto the Subscription object
-      // so customer.subscription.* events can identify the user.
-      subscription_data: isOneTime ? undefined : { metadata: { user_id: user.id } },
-      success_url: 'id.activid.loit://checkout/success',
-      cancel_url:  'id.activid.loit://checkout/cancel',
-    });
-    return Response.json({ provider: 'stripe', url: session.url });
-  }
-
-  if (provider === 'xendit') {
-    // Xendit Invoice API — creates a hosted checkout URL
-    const res = await fetch('https://api.xendit.co/v2/invoices', {
-      method: 'POST',
-      headers: {
-        Authorization: 'Basic ' + btoa(Deno.env.get('XENDIT_SECRET_KEY')! + ':'),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        external_id: `${user.id}:${product_key}:${Date.now()}`,
-        amount: XENDIT_PRICES[product_key],
-        payer_email: user.email,
-        success_redirect_url: 'id.activid.loit://checkout/success',
-        failure_redirect_url: 'id.activid.loit://checkout/cancel',
-        items: [{ name: product_key, quantity: 1, price: XENDIT_PRICES[product_key] }],
-      }),
-    });
-    const invoice = await res.json();
-    return Response.json({ provider: 'xendit', url: invoice.invoice_url });
-  }
-
-  return new Response('Unknown provider', { status: 400 });
-});
-
-const XENDIT_PRICES: Record<string, number> = {
-  'loit_pro_monthly':  85529,
-  'loit_pro_yearly':   856680,
-  'loit_team_monthly': 171169,
-  'loit_team_yearly':  1713360,
-  'loit_scan_topup':   16969,
-  'loit_storage_ext':  16969,
-};
-```
-
-2. **Flutter checkout launcher** (`lib/features/paywall/checkout_service.dart`):
+1. **Client wrapper** — already implemented at `@/Users/edotanod/IdeaProjects/loit/lib/core/services/midtrans_service.dart`. It exposes a single method:
 ```dart
+Future<MidtransCheckoutResult> startCheckout({
+  required BuildContext context,
+  required String productKey,
+});
+```
+The SDK is initialized lazily on first use; subsequent checkouts reuse the same `MidtransSDK` instance. The merchantBaseUrl is set based on `Env.midtransIsProduction` so sandbox vs production is a build-time toggle with no code changes.
+
+2. **Paywall view** — binds the button to the service and polls `midtrans_orders` for the final status:
+```dart
+// lib/features/paywall/paywall_sheet.dart
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/services/midtrans_service.dart';
 
-class CheckoutService {
-  /// Starts checkout for the given product and returns once the browser/native
-  /// sheet is dismissed. The actual tier upgrade happens asynchronously via
-  /// the stripe-webhook Edge Function — the UI should listen to the user's
-  /// tier change and update reactively.
-  Future<void> startCheckout({
-    required BuildContext context,
-    required String productKey,
-    required String localeCountryCode,
-  }) async {
-    final provider = localeCountryCode == 'ID' ? 'xendit' : 'stripe';
+class PaywallUpgradeButton extends ConsumerStatefulWidget {
+  const PaywallUpgradeButton({
+    super.key,
+    required this.productKey,
+    required this.label,
+  });
+  final String productKey;
+  final String label;
 
-    final resp = await Supabase.instance.client.functions.invoke(
-      'create-checkout-session',
-      body: {'provider': provider, 'product_key': productKey},
-    );
-    if (resp.status >= 400) {
-      throw Exception('Checkout init failed: ${resp.data}');
+  @override
+  ConsumerState<PaywallUpgradeButton> createState() => _PaywallUpgradeButtonState();
+}
+
+class _PaywallUpgradeButtonState extends ConsumerState<PaywallUpgradeButton> {
+  bool _busy = false;
+
+  Future<void> _onPressed() async {
+    setState(() => _busy = true);
+    try {
+      final result = await MidtransService.instance.startCheckout(
+        context: context,
+        productKey: widget.productKey,
+      );
+      if (!mounted) return;
+
+      final msg = switch (result.status) {
+        MidtransCheckoutStatus.succeeded => 'Payment received. Unlocking Pro…',
+        MidtransCheckoutStatus.pending   => 'Payment pending. We\'ll upgrade you as soon as it settles.',
+        MidtransCheckoutStatus.failed    => 'Payment failed. Please try again.',
+        MidtransCheckoutStatus.cancelled => 'Payment cancelled.',
+        MidtransCheckoutStatus.unknown   => 'Payment status unknown. Check back in a minute.',
+      };
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    final url = (resp.data as Map)['url'] as String;
+  }
 
-    // Both providers redirect to `id.activid.loit://checkout/success` on completion,
-    // which our deep link handler catches to refresh the tier.
-    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton(
+      onPressed: _busy ? null : _onPressed,
+      child: _busy
+          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+          : Text(widget.label),
+    );
   }
 }
 ```
@@ -3132,11 +3276,14 @@ if (!flags.csvExport) {
 ```
 
 **Validation:**
-- [ ] Device locale `en_US` → checkout routes to Stripe, native PaymentSheet appears
-- [ ] Device locale `id_ID` → checkout routes to Xendit, browser opens to GoPay/OVO/DANA options
-- [ ] After successful checkout, deep link returns to the app and the `FeatureGate` stream emits the new tier within 2 seconds (driven by the webhook updating `users.tier`)
+- [ ] Tapping **"Upgrade to Pro"** opens Midtrans Snap in-app (not in the system browser)
+- [ ] Snap shows at minimum: Credit Card, GoPay, OVO, DANA, QRIS, Bank Transfer (VA) on sandbox
+- [ ] Completing a successful sandbox payment → Snap sheet closes → snackbar shows "Payment received" → `FeatureGate` stream emits the new tier within ~2 seconds (driven by the webhook, not the client callback)
+- [ ] Cancelling the Snap sheet returns the user to the paywall with a "Payment cancelled" snackbar — no tier change
 - [ ] Tapping a gated feature while on Free shows the paywall AND fires `Analytics.paywallSeen(feature)`
-- [ ] Cancel from the payment sheet returns the user to the paywall without error
+- [ ] A pending payment (e.g. VA that hasn't been paid yet) produces `midtrans_orders.status = 'pending'`; the tier is NOT upgraded until settlement
+- [ ] Replaying the same Snap token (accidentally calling `startCheckout` twice) is safely ignored because `MidtransService` completes its `Completer` only once per sheet
+- [ ] On Android, the app does NOT crash when Snap opens (proof that `MainActivity extends FlutterFragmentActivity` — otherwise the Fragment can't attach)
 
 ---
 
@@ -3396,10 +3543,10 @@ class ExportService {
 
 ### Step 3.8 — Phase 3 Deliverables Checklist
 
-- [ ] Stripe subscription checkout working on iOS and Android (test cards)
-- [ ] Xendit checkout working for GoPay, OVO, DANA (sandbox mode)
+- [ ] Midtrans Snap checkout opens in-app on iOS and Android (no system-browser fallback)
+- [ ] Snap test transaction completes for: Credit Card (sandbox test card), GoPay, OVO, DANA, QRIS, and Bank Transfer (VA)
 - [ ] Annual pricing visible in paywall with "Save 17%" badge
-- [ ] Webhook correctly updates `users.tier` on subscription create/update/delete
+- [ ] `midtrans-notification` webhook correctly flips `users.tier` on `settlement`, leaves it alone on `pending`/`expire`/`cancel`/`deny`
 - [ ] `paywall_seen` PostHog event fires with correct `feature` for every gated feature
 - [ ] `subscriptionStarted` PostHog event fires after successful checkout
 - [ ] Open Exchange Rates serving 180+ currencies for Pro/Team (35-minute cache)
@@ -3672,7 +3819,7 @@ Execute every test in the table below before submitting to either store.
 | Rooms — online | Feed live updates (INSERT/UPDATE/DELETE); budget bar updates live; new member join event shown |
 | Rooms — offline | Full-screen no-connection shown; retry button works; personal tab accessible |
 | Empty room | New room shows empty state with CTA; first transaction dismisses empty state |
-| Payments | Stripe test card checkout; Xendit sandbox checkout; webhook upgrades tier; scan top-up end-to-end; storage extension end-to-end |
+| Payments | Midtrans Snap checkout end-to-end (card + GoPay/OVO/DANA/QRIS/VA in sandbox); webhook flips `users.tier`; scan top-up credits scans; storage extension pushes `receipt_expires_at` +6 months |
 | Annual pricing | Annual plan visible in paywall alongside monthly; "Save 17%" badge shown |
 | Re-invite | Mark invite expired → re-invite same user to same room → succeeds |
 | Receipt expiry | Accelerated test (back-date `receipt_expires_at`): file deleted on expiry, transaction record preserved |

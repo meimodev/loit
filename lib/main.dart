@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
 
 import 'core/config/env.dart';
 import 'firebase_options.dart';
@@ -27,9 +26,10 @@ Future<void> main() async {
     ),
   );
 
-  // Stripe Flutter — publishable key only. The secret key stays server-side.
-  stripe.Stripe.publishableKey = Env.stripePublishableKey;
-  await stripe.Stripe.instance.applySettings();
+  // Midtrans — initialized lazily by `MidtransService` the first time the
+  // paywall opens (see `lib/core/services/midtrans_service.dart`). Keeping it
+  // out of the startup path means free-tier users never pay the SDK's init
+  // cost, and we avoid touching platform channels before the first frame.
 
   // PostHog — native init is configured in Info.plist / AndroidManifest.xml.
   // With native-only init, no Dart setup() call is needed; the SDK auto-

@@ -415,11 +415,10 @@ Day 365 → Photo deleted permanently
 | Auth | Supabase Auth | Email, Google SSO, Apple SSO |
 | Realtime | Supabase Realtime (WebSocket) | Live room feeds, presence |
 | File Storage | Supabase Storage | Receipt photo uploads |
-| Edge Functions | Supabase Edge Functions | Stripe webhooks, scan quotas, expiry jobs |
+| Edge Functions | Supabase Edge Functions | Midtrans webhooks (signed SHA-512 notification), scan quotas, expiry jobs |
 | AI / OCR | Claude Sonnet 4.6 (Anthropic) | Bill scanning and categorization — proxied via Supabase Edge Function |
 | Exchange Rates | Frankfurter API | Free daily ECB rates (upgrade to Open Exchange Rates at scale) |
-| Payments (Global) | Stripe | Pro and Team subscriptions, top-up packs |
-| Payments (SEA) | Xendit | Indonesian and SEA payment methods |
+| Payments | Midtrans | Pro and Team subscriptions + one-time packs (credit card, GoPay, OVO, DANA, QRIS, virtual account, BCA KlikPay) |
 | Push Notifications | Firebase Cloud Messaging (FCM) | iOS (APNs) and Android push via `firebase_messaging` + FCM HTTP v1 |
 | Email | Resend | Transactional emails (expiry warnings, invites) |
 | Error Tracking | Sentry | Crash and error monitoring |
@@ -430,7 +429,7 @@ Day 365 → Photo deleted permanently
 
 ```
 lib/
-├── main.dart                       # App entry — initializes Firebase, Supabase, Stripe, Sentry, PostHog
+├── main.dart                       # App entry — initializes Firebase, Supabase, Sentry, PostHog (Midtrans is lazy-init in core/services/midtrans_service.dart)
 ├── app.dart                        # Root widget, routing, deep link wiring
 ├── core/
 │   ├── config/env.dart             # Compile-time env via --dart-define-from-file
@@ -540,8 +539,7 @@ Upgrade to Supabase Pro (Rp428,500 / $25/mo) when daily active users regularly a
 | Cloudflare | Free | Rp0 | Never for this scale |
 | Claude API (Anthropic) | Pay-per-use | Rp156/scan | N/A |
 | Frankfurter (FX rates) | Free | Rp0 | Switch to Open Exchange Rates (Rp205,680 / $12/mo) when hourly rates needed |
-| Stripe | 1.5% + Rp5,142 per txn | Per transaction | N/A |
-| Xendit | 1.5–2.9% per txn | Per transaction | N/A |
+| Midtrans | 0.7–2.9% per txn (channel-dependent) | Per transaction | N/A |
 | Firebase Cloud Messaging | Free (unlimited) | Rp0 | N/A — FCM HTTP v1 is free at any volume |
 | Resend | Free (3,000/mo) | Rp0 | Pro (Rp342,800 / $20/mo) at 3,000+ emails/mo |
 | Sentry | Free (5,000 errors/mo) | Rp0 | Team (Rp445,640 / $26/mo) at scale |
@@ -576,7 +574,7 @@ Upgrade to Supabase Pro (Rp428,500 / $25/mo) when daily active users regularly a
 | Claude API (2,760 scans × Rp156) | Rp430,560 | All tiers on Sonnet 4.6 |
 | Frankfurter FX | Rp0 | |
 | Firebase Cloud Messaging | Rp0 | Free at any volume |
-| Stripe fees | Rp311,227 | 51 transactions |
+| Midtrans fees | Rp311,227 | 51 transactions (blended ~2% across cards, e-wallets, VA) |
 | Resend | Rp0 | Under 3,000 emails/mo |
 | Sentry | Rp0 | Under 5,000 errors/mo |
 | PostHog | Rp0 | Under 1M events/mo |
@@ -1054,12 +1052,11 @@ Notification triggers (sent from Supabase Edge Functions):
 
 ## 14. Phase 3 — Pro Layer (Weeks 14–17)
 
-This phase gates premium features behind Stripe subscriptions and activates the full monetization model.
+This phase gates premium features behind Midtrans subscriptions and activates the full monetization model.
 
 ### 14.1 Scope
 
-- Stripe subscription integration + paywall screens
-- Xendit integration for Indonesian users
+- Midtrans Snap integration + paywall screens (in-app UI, no browser redirect)
 - 180+ currencies + live FX rates (30-minute cache)
 - Receipt photo storage for Pro and Team (Supabase Storage)
 - Receipt expiry warning system (Day 335 / 350 / 360 / 365)
@@ -1070,10 +1067,10 @@ This phase gates premium features behind Stripe subscriptions and activates the 
 - Custom categories (Pro and Team)
 - Unlimited budget goals (Pro and Team)
 
-### 14.2 Stripe + Xendit Setup
+### 14.2 Midtrans Setup
 
 ```
-Stripe products:
+Midtrans products (IDR-denominated; Snap handles currency conversion for cards):
   - loit_pro_monthly:   $4.99/mo  → Rp85,529
   - loit_pro_yearly:    $49.99/yr → Rp856,680
   - loit_team_monthly:  $9.99/mo  → Rp171,169
@@ -1081,13 +1078,16 @@ Stripe products:
   - loit_scan_topup:    $0.99     → Rp16,969 (one-time)
   - loit_storage_ext:   $0.99     → Rp16,969 (one-time)
 
-Xendit products (Indonesian market):
-  - Same SKUs routed through Xendit
-  - Supports GoPay, OVO, DANA, virtual bank accounts
-  - Auto-detected based on user locale (ID)
+Snap payment channels (all enabled by default in sandbox):
+  - Credit card (Visa / Mastercard / JCB / Amex) — 3DS always on
+  - GoPay, OVO, DANA, ShopeePay, LinkAja
+  - QRIS (any BI-QRIS-compliant wallet)
+  - Bank Transfer / Virtual Account (BCA, Mandiri, BNI, BRI, Permata)
+  - BCA KlikPay, CIMB Clicks, Mandiri ClickPay
+  - Akulaku / Kredivo (BNPL)
 ```
 
-Supabase Edge Function handles Stripe and Xendit webhooks → updates `users.tier` on subscription events.
+Supabase Edge Function `midtrans-notification` handles the Midtrans webhook (signed with SHA-512 of `order_id + status_code + gross_amount + server_key`) and updates `users.tier` / scan top-up / storage extension on `settlement`.
 
 ### 14.3 Receipt Storage Flow
 
@@ -1125,8 +1125,7 @@ Expiry job (runs daily via Supabase Edge Function cron):
 - User confirms or edits before finalizing
 
 ### 14.6 Deliverables at End of Phase 3
-- Stripe subscription checkout working on iOS and Android
-- Xendit checkout working for Indonesian payment methods
+- Midtrans Snap in-app checkout working on iOS and Android for all payment channels (card / GoPay / OVO / DANA / QRIS / VA)
 - Paywall screens on all gated features
 - 180+ currencies loading from Open Exchange Rates with 30-minute cache
 - Receipt photo upload and storage working for Pro/Team
@@ -1238,7 +1237,7 @@ Both cost 0 tokens, negligible bandwidth, and keep the full project active.
 | Personal offline | Add transaction offline, sync on reconnect, cache readable offline |
 | Rooms — connection | Room feed live, budget updates live, new member join event |
 | Rooms — no connection | No-connection screen shown, personal tab still accessible |
-| Payments | Stripe checkout, Xendit checkout, webhook tier upgrade, top-up |
+| Payments | Midtrans Snap checkout across every channel, webhook tier upgrade, scan top-up, storage extension |
 | Expiry | Accelerated test: receipt expires on day 365, record preserved |
 | Localization | All strings render correctly in EN and ID |
 | Performance | App cold start under 3 seconds, feed loads under 1 second |

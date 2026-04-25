@@ -424,6 +424,7 @@ Day 365 → Photo deleted permanently
 | Email | Resend | Transactional emails (expiry warnings, invites) |
 | Error Tracking | Sentry | Crash and error monitoring |
 | Analytics | PostHog | Feature usage, funnel, retention |
+| Logging | Custom `Log` class (`log_service.dart`) | Unified color-coded terminal logs, level-based filtering, auto Sentry forwarding on errors, simplified PostHog/Sentry display |
 | DNS / CDN | Cloudflare Free | DNS, DDoS protection |
 
 ### 9.1 Flutter Project Structure
@@ -444,6 +445,7 @@ lib/
 │       ├── receipt_service.dart    # Uploads to Storage, resolves signed URLs (Pro/Team)
 │       ├── push_service.dart       # FCM token registration + refresh
 │       ├── deep_link_service.dart  # app_links + invite acceptance
+│       ├── log_service.dart        # Unified logger — color-coded terminal, level filtering, auto Sentry on errors
 │       └── analytics_service.dart  # PostHog event taxonomy (see Build Guide Step 1.10)
 ├── features/
 │   ├── auth/                       # Login, signup, onboarding

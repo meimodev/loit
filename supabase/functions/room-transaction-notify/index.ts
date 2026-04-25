@@ -86,13 +86,6 @@ async function sendMessage(
             channel_id: 'room_activity',
           },
         },
-        apns: {
-          payload: {
-            aps: {
-              sound: 'default',
-            },
-          },
-        },
       },
     }),
   });
@@ -165,7 +158,7 @@ serve(async (req) => {
       throw membershipError;
     }
 
-    if (!memberships || memberships.isEmpty) {
+    if (!memberships || memberships.length === 0) {
       return new Response('Forbidden', {
         status: 403,
         headers: corsHeaders,
@@ -220,8 +213,8 @@ serve(async (req) => {
     );
 
     const failures = results.filter((result) => result.status === 'rejected');
-    if (failures.isNotEmpty) {
-      throw failures[0].reason;
+    if (failures.length > 0) {
+      throw (failures[0] as PromiseRejectedResult).reason;
     }
 
     return new Response(JSON.stringify({ sent: tokens.length }), {

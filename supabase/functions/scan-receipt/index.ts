@@ -172,7 +172,8 @@ serve(async (req) => {
       // See https://platform.claude.com/docs/en/about-claude/models/overview
       // If upgrading, prefer dated IDs like `claude-sonnet-4-6-20260318` for
       // deterministic builds.
-      model: 'claude-sonnet-4-6',
+      // model: 'claude-sonnet-4-6',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
       messages: [{
         role: 'user',

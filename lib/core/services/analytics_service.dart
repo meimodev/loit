@@ -1,100 +1,86 @@
 import 'package:posthog_flutter/posthog_flutter.dart';
 
+import 'log_service.dart';
+
 /// All PostHog events for LOIT.
 /// Call these at the exact UI moment noted in comments.
 class Analytics {
+  static const _tag = 'Analytics';
+
   // ---- SESSION LIFECYCLE ----
   /// Call once after login success. Associates all future events with this user.
-  static Future<void> identify(String userId, {String? email}) =>
-      Posthog().identify(
-        userId: userId,
-        userProperties: {
-          if (email != null) 'email': email,
-        },
-      );
+  static Future<void> identify(String userId, {String? email}) {
+    Log.i(_tag, 'Identify user=$userId');
+    return Posthog().identify(
+      userId: userId,
+      userProperties: {if (email != null) 'email': email},
+    );
+  }
 
   /// Call on sign-out to sever the distinct_id link.
-  static Future<void> reset() => Posthog().reset();
+  static Future<void> reset() {
+    Log.i(_tag, 'Reset (sign-out)');
+    return Posthog().reset();
+  }
 
-  // ---- AUTH (call immediately after successful operation) ----
+  // ---- AUTH ----
   static Future<void> signUp(String method) =>
-      Posthog().capture(eventName: 'sign_up', properties: {'method': method});
-  // method: 'email' | 'google' | 'apple'
+      _capture('sign_up', {'method': method});
 
   static Future<void> login(String method) =>
-      Posthog().capture(eventName: 'login', properties: {'method': method});
+      _capture('login', {'method': method});
 
   // ---- SCANNER ----
-  static Future<void> scanStarted() =>
-      Posthog().capture(eventName: 'scan_started');
-  // Call when camera opens
+  static Future<void> scanStarted() => _capture('scan_started');
 
   static Future<void> scanCompleted({required bool aiSuccess}) =>
-      Posthog().capture(
-        eventName: 'scan_completed',
-        properties: {'ai_success': aiSuccess},
-      );
-  // Call when transaction is confirmed and saved (not just scanned)
+      _capture('scan_completed', {'ai_success': aiSuccess});
 
   static Future<void> scanFailed(String reason) =>
-      Posthog().capture(eventName: 'scan_failed', properties: {'reason': reason});
-  // reason: 'quota_exceeded' | 'connection_error' | 'server_error'
+      _capture('scan_failed', {'reason': reason});
 
   static Future<void> scanTopupPromptShown() =>
-      Posthog().capture(eventName: 'scan_topup_prompt_shown');
+      _capture('scan_topup_prompt_shown');
 
   // ---- TRANSACTIONS ----
   static Future<void> transactionAdded({
     required String method,
     required String category,
   }) =>
-      Posthog().capture(eventName: 'transaction_added', properties: {
-        'method': method,       // 'scan' | 'manual' | 'manual_fallback'
-        'category': category,
-      });
+      _capture('transaction_added', {'method': method, 'category': category});
 
-  static Future<void> transactionEdited() =>
-      Posthog().capture(eventName: 'transaction_edited');
+  static Future<void> transactionEdited() => _capture('transaction_edited');
 
   // ---- BUDGETS ----
-  static Future<void> budgetCreated() =>
-      Posthog().capture(eventName: 'budget_created');
+  static Future<void> budgetCreated() => _capture('budget_created');
 
   static Future<void> budgetAlertShown(String type) =>
-      Posthog().capture(
-        eventName: 'budget_alert_shown',
-        properties: {'type': type}, // '80_percent' | 'exceeded'
-      );
+      _capture('budget_alert_shown', {'type': type});
 
-  // ---- PAYWALL (call when paywall screen is shown, before user acts) ----
+  // ---- PAYWALL ----
   static Future<void> paywallSeen(String feature) =>
-      Posthog().capture(
-        eventName: 'paywall_seen',
-        properties: {'feature': feature},
-      );
-  // feature: 'custom_categories' | 'unlimited_budgets' | 'export' |
-  //          'receipt_storage' | 'full_history' | 'more_currencies' |
-  //          'more_scan_quota' | 'more_rooms' | 'more_room_members'
+      _capture('paywall_seen', {'feature': feature});
 
   static Future<void> subscriptionStarted(String tier) =>
-      Posthog().capture(
-        eventName: 'subscription_started',
-        properties: {'tier': tier}, // 'pro' | 'team'
-      );
+      _capture('subscription_started', {'tier': tier});
 
   static Future<void> topupPurchased(String type) =>
-      Posthog().capture(
-        eventName: 'topup_purchased',
-        properties: {'type': type}, // 'scans' | 'storage'
-      );
+      _capture('topup_purchased', {'type': type});
 
   // ---- ROOMS (Phase 2) ----
-  static Future<void> roomCreated() =>
-      Posthog().capture(eventName: 'room_created');
+  static Future<void> roomCreated() => _capture('room_created');
 
-  static Future<void> roomJoined() =>
-      Posthog().capture(eventName: 'room_joined');
+  static Future<void> roomJoined() => _capture('room_joined');
 
   static Future<void> roomTransactionAdded() =>
-      Posthog().capture(eventName: 'room_transaction_added');
+      _capture('room_transaction_added');
+
+  /// Central capture with terminal logging. All events route through here.
+  static Future<void> _capture(
+    String eventName, [
+    Map<String, Object>? properties,
+  ]) {
+    Log.analytics(eventName, properties);
+    return Posthog().capture(eventName: eventName, properties: properties);
+  }
 }

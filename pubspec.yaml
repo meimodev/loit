@@ -49,7 +49,7 @@ dependencies:
 
   # Image handling — scanner compression + receipt uploads
   image_picker: ^1.1.2
-  image: ^4.3.0
+  flutter_image_compress: ^2.3.0
 
   # Charts — budget/spending reports
   fl_chart: ^0.69.2

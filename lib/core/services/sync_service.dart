@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'log_service.dart';
 import 'offline_database.dart';
 
 class SyncService {
+  static const _tag = 'SyncService';
+
   final OfflineDatabase _db;
   final _supabase = Supabase.instance.client;
   final _connectivity = Connectivity();
@@ -14,36 +16,32 @@ class SyncService {
 
   SyncService(this._db);
 
-  /// Call once during app startup (after Supabase.initialize) to
-  /// auto-drain the queue whenever connectivity returns.
   void startAutoSync() {
+    Log.i(_tag, 'Auto-sync started');
     _sub = _connectivity.onConnectivityChanged.listen((results) {
       final online = results.any((r) => r != ConnectivityResult.none);
-      if (online) unawaited(syncPending());
+      if (online) {
+        Log.d(_tag, 'Connectivity restored, draining queue');
+        unawaited(syncPending());
+      }
     });
-    // Run once immediately in case we boot up already online with a non-empty queue.
     unawaited(syncPending());
   }
 
   Future<void> dispose() async {
     await _sub?.cancel();
+    Log.d(_tag, 'Disposed');
   }
 
-  /// Sync pending offline transactions to Supabase.
-  ///
-  /// Conflict resolution:
-  ///   - Client sets `client_updated_at` at save time (see [OfflineDatabase.enqueue]).
-  ///   - Server maintains `updated_at` via the moddatetime trigger from Step 1.3.
-  ///   - Upsert with `onConflict: 'id'` — if the server row's `updated_at` is newer
-  ///     than the queued `client_updated_at`, the application layer compares the two
-  ///     and discards the stale offline edit. (See [_serverHasNewer].)
   Future<void> syncPending() async {
-    if (_syncing) return;             // prevent overlapping syncs
-    if (_supabase.auth.currentSession == null) return;  // not signed in
+    if (_syncing) return;
+    if (_supabase.auth.currentSession == null) return;
     _syncing = true;
     try {
       final pending = await _db.getPending();
       if (pending.isEmpty) return;
+
+      Log.i(_tag, 'Syncing ${pending.length} pending items');
 
       for (final item in pending) {
         try {
@@ -51,18 +49,19 @@ class SyncService {
           tx['client_updated_at'] = item.clientUpdatedAt.toIso8601String();
 
           if (await _serverHasNewer(tx['id'] as String?, item.clientUpdatedAt)) {
-            // Server has a more recent edit from another device — drop local change.
+            Log.d(_tag, 'Item ${item.id} superseded by server, skipping');
             await _db.markSynced(item.id);
             continue;
           }
 
           await _supabase.from('transactions').upsert(tx, onConflict: 'id');
           await _db.markSynced(item.id);
+          Log.d(_tag, 'Synced item ${item.id}');
         } catch (e, st) {
-          // Log and continue — do not abort entire sync for one failed item.
-          debugPrint('Sync failed for item ${item.id}: $e\n$st');
+          Log.e(_tag, 'Sync failed for item ${item.id}', error: e, stack: st);
         }
       }
+      Log.i(_tag, 'Sync complete');
     } finally {
       _syncing = false;
     }

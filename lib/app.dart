@@ -1,19 +1,79 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Root application widget.
-///
-/// Phase 1 placeholder: the detailed UI (auth, dashboard, scanner flow,
-/// budgets, reports) is introduced by subsequent UX work on top of the
-/// services/data layer scaffolded in `lib/core/services`. Keep this shell
-/// intentionally small so hot-reload iterations stay fast while services
-/// and migrations are being wired up.
-class LoitApp extends ConsumerWidget {
+import 'core/routing/app_router.dart';
+import 'core/services/analytics_service.dart';
+import 'core/services/deep_link_service.dart';
+import 'core/services/log_service.dart';
+import 'core/services/push_service.dart';
+import 'shared/providers/auth_providers.dart';
+import 'shared/providers/room_providers.dart';
+import 'shared/providers/services_providers.dart';
+
+class LoitApp extends ConsumerStatefulWidget {
   const LoitApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return MaterialApp(
+  ConsumerState<LoitApp> createState() => _LoitAppState();
+}
+
+class _LoitAppState extends ConsumerState<LoitApp> {
+  final _pushService = PushService();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(syncServiceProvider).startAutoSync();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pushService.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Identify/reset PostHog + init push on auth transitions
+    ref.listen<AsyncValue<AuthState>>(authStateProvider, (_, next) {
+      final session = next.value?.session;
+      if (session != null) {
+        Log.i('App', 'User signed in: ${session.user.id}');
+        Analytics.identify(session.user.id, email: session.user.email);
+        _pushService.initialize();
+        acceptPendingInviteIfAny().then((roomId) {
+          if (roomId != null && mounted) {
+            Log.i('App', 'Pending invite accepted: room=$roomId');
+            Analytics.roomJoined();
+            ref.invalidate(myRoomsProvider);
+            final router = ref.read(appRouterProvider);
+            router.go('/rooms/$roomId');
+          }
+        });
+      } else {
+        Log.i('App', 'User signed out');
+        Analytics.reset();
+      }
+    });
+
+    // Deep link → navigate to joined room
+    ref.listen(deepLinkRoomIdProvider, (_, next) {
+      next.whenData((roomId) {
+        Analytics.roomJoined();
+        ref.invalidate(myRoomsProvider);
+        final router = ref.read(appRouterProvider);
+        router.go('/rooms/$roomId');
+      });
+    });
+
+    // Push notification open → navigate to room
+    _wirePushNavigation();
+
+    final router = ref.watch(appRouterProvider);
+    return MaterialApp.router(
       title: 'LOIT',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -28,41 +88,25 @@ class LoitApp extends ConsumerWidget {
           brightness: Brightness.dark,
         ),
       ),
-      home: const _BootstrapScreen(),
+      routerConfig: router,
     );
   }
-}
 
-class _BootstrapScreen extends StatelessWidget {
-  const _BootstrapScreen();
+  void _wirePushNavigation() {
+    // Cold start: app was killed, opened via notification
+    _pushService.getInitialRoomId().then((roomId) {
+      if (roomId != null && mounted) {
+        final router = ref.read(appRouterProvider);
+        router.go('/rooms/$roomId');
+      }
+    });
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'LOIT',
-                  style: Theme.of(context).textTheme.displayMedium,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Phase 1 services are wired. '
-                  'UI screens (auth, dashboard, scanner, budgets, reports) '
-                  'come next.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+    // Warm: notification tapped while app is running
+    _pushService.openedRoomIds().listen((roomId) {
+      if (mounted) {
+        final router = ref.read(appRouterProvider);
+        router.go('/rooms/$roomId');
+      }
+    });
   }
 }

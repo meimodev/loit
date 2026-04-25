@@ -5,6 +5,7 @@ import 'package:midtrans_sdk/midtrans_sdk.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/env.dart';
+import 'log_service.dart';
 
 /// Thin wrapper around [MidtransSDK].
 ///
@@ -24,6 +25,8 @@ import '../config/env.dart';
 /// in the webhook — never trust the client-side result for anything that
 /// touches the database.
 class MidtransService {
+  static const _tag = 'MidtransService';
+
   MidtransService._();
   static final MidtransService instance = MidtransService._();
 
@@ -38,6 +41,7 @@ class MidtransService {
   }
 
   Future<MidtransSDK> _init(BuildContext context) async {
+    Log.i(_tag, 'Initializing SDK (production=${Env.midtransIsProduction})');
     final scheme = Theme.of(context).colorScheme;
     final sdk = await MidtransSDK.init(
       config: MidtransConfig(
@@ -54,8 +58,8 @@ class MidtransService {
         ),
       ),
     );
-    sdk.setUIKitCustomSetting(skipCustomerDetailsPages: true);
     _sdk = sdk;
+    Log.i(_tag, 'SDK initialized');
     return sdk;
   }
 
@@ -68,6 +72,7 @@ class MidtransService {
     required BuildContext context,
     required String productKey,
   }) async {
+    Log.i(_tag, 'Starting checkout: product=$productKey');
     final sdk = await _ensureInitialized(context);
 
     final resp = await Supabase.instance.client.functions.invoke(
@@ -75,15 +80,18 @@ class MidtransService {
       body: {'product_key': productKey},
     );
     if (resp.status >= 400) {
+      Log.e(_tag, 'Checkout init failed: ${resp.data}');
       throw Exception('Midtrans checkout init failed: ${resp.data}');
     }
     final data = resp.data as Map<String, dynamic>;
     final token = data['snap_token'] as String?;
     final orderId = data['order_id'] as String?;
     if (token == null || orderId == null) {
+      Log.e(_tag, 'Malformed checkout response', error: data);
       throw StateError('midtrans-checkout returned malformed body: $data');
     }
 
+    Log.d(_tag, 'Snap token received, launching payment UI');
     final completer = Completer<TransactionResult>();
     sdk.setTransactionFinishedCallback((result) {
       if (!completer.isCompleted) completer.complete(result);
@@ -92,21 +100,27 @@ class MidtransService {
     await sdk.startPaymentUiFlow(token: token);
     final result = await completer.future;
 
+    final status = _statusFromResult(result);
+    Log.i(_tag, 'Checkout result: order=$orderId status=$status');
     return MidtransCheckoutResult(
       orderId: orderId,
-      status: _statusFromResult(result),
-      rawMessage: result.transactionStatus ?? '',
+      status: status,
+      rawMessage: result.message ?? result.status,
     );
   }
 
   MidtransCheckoutStatus _statusFromResult(TransactionResult result) {
-    if (result.isTransactionCanceled) return MidtransCheckoutStatus.cancelled;
-    switch ((result.transactionStatus ?? '').toLowerCase()) {
+    switch (result.status.toLowerCase()) {
+      case 'success':
       case 'capture':
       case 'settlement':
         return MidtransCheckoutStatus.succeeded;
       case 'pending':
         return MidtransCheckoutStatus.pending;
+      case 'canceled':
+      case 'cancelled':
+        return MidtransCheckoutStatus.cancelled;
+      case 'failed':
       case 'deny':
       case 'expire':
       case 'failure':

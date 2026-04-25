@@ -2,6 +2,17 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/env.dart';
+import 'log_service.dart';
+
+enum UserTier {
+  free, pro, team;
+
+  static UserTier fromString(String value) => switch (value) {
+    'pro' => pro,
+    'team' => team,
+    _ => free,
+  };
+}
 
 class FxRate {
   final double rate;
@@ -10,66 +21,64 @@ class FxRate {
 }
 
 class CurrencyService {
-  // Free tier uses Frankfurter — treat as stale after 25 hours.
-  static const Duration _freeTierStaleness = Duration(hours: 25);
-  // Pro/Team use Open Exchange Rates (30-min refresh) — treat as stale after 35 minutes.
-  static const Duration _paidTierStaleness = Duration(minutes: 35);
-
-  static const String _frankfurterBase = 'https://api.frankfurter.app';
-  static const String _oxrBase         = 'https://openexchangerates.org/api';
+  static const _tag = 'CurrencyService';
+  static const _staleness = {
+    UserTier.free: Duration(hours: 25),
+    UserTier.pro: Duration(minutes: 35),
+    UserTier.team: Duration(minutes: 35),
+  };
 
   final _supabase = Supabase.instance.client;
-
-  Duration _stalenessDuration(String tier) =>
-      (tier == 'pro' || tier == 'team') ? _paidTierStaleness : _freeTierStaleness;
 
   Future<FxRate> getRate({
     required String from,
     required String to,
-    required String userTier,
+    required UserTier tier,
   }) async {
     if (from == to) return const FxRate(rate: 1.0, isStale: false);
 
+    Log.d(_tag, 'Getting rate $from→$to (tier=$tier)');
     final cached = await _getCachedRate(from, to);
-    final threshold = _stalenessDuration(userTier);
+    final threshold = _staleness[tier]!;
 
     if (cached != null) {
       final age = DateTime.now().toUtc().difference(cached.$2);
-      if (age < threshold) return FxRate(rate: cached.$1, isStale: false);
+      if (age < threshold) {
+        Log.d(_tag, 'Cache hit $from→$to rate=${cached.$1}');
+        return FxRate(rate: cached.$1, isStale: false);
+      }
     }
 
     try {
-      final rate = await _fetchRate(from, to, userTier);
+      final rate = tier == UserTier.free
+          ? await _fetchFrankfurter(from, to)
+          : await _fetchOxr(from, to);
       await _cacheRate(from, to, rate);
+      Log.i(_tag, 'Fetched $from→$to rate=$rate');
       return FxRate(rate: rate, isStale: false);
-    } catch (_) {
-      if (cached != null) return FxRate(rate: cached.$1, isStale: true);
+    } catch (e) {
+      if (cached != null) {
+        Log.w(_tag, 'Fetch failed, using stale rate $from→$to', error: e);
+        return FxRate(rate: cached.$1, isStale: true);
+      }
+      Log.e(_tag, 'FX fetch failed, no cache', error: e);
       rethrow;
     }
   }
 
-  Future<double> _fetchRate(String from, String to, String tier) async {
-    // If the paid-tier app ID is not present in the client build, fall back
-    // to Frankfurter rather than failing outright — matches the server-side
-    // secret-only preference documented in env.dart.
-    final canUseOxr =
-        (tier == 'pro' || tier == 'team') && Env.openExchangeRatesAppId.isNotEmpty;
-    return canUseOxr
-        ? _fetchFromOpenExchangeRates(from, to)
-        : _fetchFromFrankfurter(from, to);
-  }
-
-  Future<double> _fetchFromFrankfurter(String from, String to) async {
-    final uri = Uri.parse('$_frankfurterBase/latest?from=$from&to=$to');
+  Future<double> _fetchFrankfurter(String from, String to) async {
+    final uri = Uri.parse('https://api.frankfurter.app/latest?from=$from&to=$to');
     final res = await http.get(uri).timeout(const Duration(seconds: 10));
     if (res.statusCode != 200) throw Exception('Frankfurter fetch failed');
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     return (data['rates'][to] as num).toDouble();
   }
 
-  Future<double> _fetchFromOpenExchangeRates(String from, String to) async {
-    final appId = Env.openExchangeRatesAppId;
-    final uri = Uri.parse('$_oxrBase/latest.json?app_id=$appId&base=$from&symbols=$to');
+  Future<double> _fetchOxr(String from, String to) async {
+    final uri = Uri.parse(
+      'https://openexchangerates.org/api/latest.json'
+      '?app_id=${Env.openExchangeRatesAppId}&base=$from&symbols=$to',
+    );
     final res = await http.get(uri).timeout(const Duration(seconds: 10));
     if (res.statusCode != 200) throw Exception('OXR fetch failed');
     final data = jsonDecode(res.body) as Map<String, dynamic>;

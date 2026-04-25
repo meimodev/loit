@@ -32,7 +32,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
-            <!-- Deep link for Supabase OAuth (PKCE) callback + Phase 2 invite links.
+            <!-- Deep link for Supabase OAuth (PKCE) callback.
                  Scheme must match the iOS CFBundleURLScheme and the Supabase
                  redirect URL configuration. -->
             <intent-filter android:autoVerify="true">
@@ -40,6 +40,14 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="id.activid.loit" android:host="callback" />
+            </intent-filter>
+
+            <!-- App Links: https://loit.app/invite/* (Phase 2 room invites) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="loit.app" android:pathPrefix="/invite/" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

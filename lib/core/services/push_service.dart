@@ -1,10 +1,12 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'log_service.dart';
 
 class PushService {
+  static const _tag = 'PushService';
+
   PushService({FirebaseMessaging? messaging, SupabaseClient? supabase})
     : _messaging = messaging ?? FirebaseMessaging.instance,
       _supabase = supabase ?? Supabase.instance.client;
@@ -15,6 +17,7 @@ class PushService {
   StreamSubscription<String>? _tokenRefreshSubscription;
 
   Future<bool> initialize() async {
+    Log.i(_tag, 'Requesting notification permission');
     final settings = await _messaging.requestPermission(
       alert: true,
       badge: true,
@@ -24,8 +27,10 @@ class PushService {
 
     final status = settings.authorizationStatus;
     if (status == AuthorizationStatus.denied) {
+      Log.w(_tag, 'Notification permission denied');
       return false;
     }
+    Log.i(_tag, 'Permission granted: $status');
 
     await _messaging.setForegroundNotificationPresentationOptions(
       alert: true,
@@ -36,15 +41,17 @@ class PushService {
     await syncCurrentToken();
 
     await _tokenRefreshSubscription?.cancel();
-    _tokenRefreshSubscription = _messaging.onTokenRefresh.listen(
-      (token) => unawaited(_upsertToken(token)),
-    );
+    _tokenRefreshSubscription = _messaging.onTokenRefresh.listen((token) {
+      Log.i(_tag, 'FCM token refreshed');
+      unawaited(_upsertToken(token));
+    });
 
     return true;
   }
 
   Future<void> syncCurrentToken() async {
     final token = await _messaging.getToken();
+    Log.d(_tag, 'FCM token: ${token != null ? '${token.substring(0, 12)}...' : 'null'}');
     await _upsertToken(token);
   }
 
@@ -52,9 +59,11 @@ class PushService {
     final user = _supabase.auth.currentUser;
     final token = await _messaging.getToken();
     if (user == null || token == null) {
+      Log.w(_tag, 'Cannot unregister: user or token null');
       return;
     }
 
+    Log.i(_tag, 'Unregistering device token');
     await _supabase
         .from('push_tokens')
         .delete()
@@ -94,13 +103,5 @@ class PushService {
     }, onConflict: 'token');
   }
 
-  String? _platformName() {
-    if (Platform.isIOS) {
-      return 'ios';
-    }
-    if (Platform.isAndroid) {
-      return 'android';
-    }
-    return null;
-  }
+  String? _platformName() => 'android';
 }

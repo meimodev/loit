@@ -15,8 +15,12 @@ final deepLinkRoomIdProvider = StreamProvider<String>((ref) {
 
   Future<String?> handle(Uri uri) async {
     Log.d('DeepLink', 'Received: $uri');
-    if (!uri.path.startsWith('/invite/')) return null;
-    final token = uri.pathSegments.last;
+    // Matches https://loit.app/invite/{token} (path starts with /invite/)
+    // and id.activid.loit://invite/{token} (host == 'invite').
+    final isHttpsInvite = uri.path.startsWith('/invite/');
+    final isCustomSchemeInvite = uri.host == 'invite';
+    if (!isHttpsInvite && !isCustomSchemeInvite) return null;
+    final token = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : '';
     if (token.isEmpty) return null;
 
     final session = Supabase.instance.client.auth.currentSession;

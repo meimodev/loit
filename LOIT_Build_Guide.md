@@ -2519,14 +2519,14 @@ class _InviteSheetState extends State<InviteSheet> {
 ```
 
 **Validation:**
-- [ ] Creator opens a room → taps "Invite" → QR + URL shown immediately (no email input needed)
-- [ ] Sharing link via WhatsApp/SMS/etc. → recipient taps → app opens → "Join Room?" screen
-- [ ] User calls `accept_room_invite(token)` → `room_members` row created, audit logged in `room_invites`
-- [ ] User tries to join twice → second call is idempotent (returns room_id, no duplicate member row)
-- [ ] Room at member cap → SQL raises "Room is full" exception; UI shows friendly error
-- [ ] Creator regenerates link → old link stops working (returns "Invalid or expired invite link")
-- [ ] Archived room → invite link returns error
-- [ ] Analytics: `room_joined` event fires on successful acceptance
+- [x] Creator opens a room → taps "Invite" → QR + URL shown immediately (no email input needed)
+- [x] Sharing link via WhatsApp/SMS/etc. → recipient taps → app opens → "Join Room?" screen
+- [x] User calls `accept_room_invite(token)` → `room_members` row created, audit logged in `room_invites`
+- [x] User tries to join twice → second call is idempotent (returns room_id, no duplicate member row)
+- [x] Room at member cap → SQL raises "Room is full" exception; UI shows friendly error
+- [x] Creator regenerates link → old link stops working (returns "Invalid or expired invite link")
+- [x] Archived room → invite link returns error
+- [x] Analytics: `room_joined` event fires on successful acceptance
 
 ---
 
@@ -2877,33 +2877,33 @@ await Supabase.instance.client.functions.invoke('room-transaction-notify', body:
 ```
 
 **Validation:**
-- [ ] Two real devices signed in as two different members of the same room
-- [ ] Device A adds a transaction → Device B receives a push within ~2 seconds
-- [ ] Device A does NOT get a push for its own action (`actor_id` filter)
-- [ ] Sign out on Device B → token row deleted from `push_tokens` → Device A adds transaction → no push arrives on the logged-out device
-- [ ] Rotating the FCM token (clear app data / reinstall app) updates `push_tokens` via `onTokenRefresh`
-- [ ] Opening the push deep-links into the correct room feed (`message.data['room_id']`)
+- [x] Two real devices signed in as two different members of the same room
+- [x] Device A adds a transaction → Device B receives a push within ~2 seconds
+- [x] Device A does NOT get a push for its own action (`actor_id` filter)
+- [x] Sign out on Device B → token row deleted from `push_tokens` → Device A adds transaction → no push arrives on the logged-out device
+- [x] Rotating the FCM token (clear app data / reinstall app) updates `push_tokens` via `onTokenRefresh`
+- [x] Opening the push deep-links into the correct room feed (`message.data['room_id']`)
 
 ---
 
 ### Step 2.8 — Phase 2 Deliverables Checklist
 
-- [ ] Room creation with shareable invite link and QR code (no email input required)
-- [ ] Creator can regenerate invite link → old link immediately invalid
-- [ ] Join flow via deep link (Android App Link configured in AndroidManifest.xml)
-- [ ] Member cap enforced on join (Free=3, Pro=7, Team=15 — based on creator's tier)
-- [ ] Room creation limit enforced (Free=3, Pro=10, Team=25 — checked client-side via `FeatureFlags`)
-- [ ] Real-time feed: INSERT, UPDATE, DELETE all handled and reflected immediately on all member devices
-- [ ] Room feed empty state with CTA shown on new rooms
-- [ ] Room budget goals visible and updating live for all members
-- [ ] Room budget monthly auto-reset working when enabled by creator
-- [ ] Room reports (combined spend view) rendering correctly
-- [ ] No-connection state shown on all room screens when offline
-- [ ] Personal finance tab remains accessible while rooms show no-connection state
-- [ ] Firebase Messaging push notifications working on Android (real device required)
-- [ ] Room archiving by creator — members retain read-only access after archive
-- [ ] RLS confirmed: room data only visible to members of that room
-- [ ] PostHog: `room_created`, `room_joined`, `room_transaction_added` events firing
+- [x] Room creation with shareable invite link and QR code (no email input required)
+- [x] Creator can regenerate invite link → old link immediately invalid
+- [x] Join flow via deep link (Android App Link configured in AndroidManifest.xml)
+- [x] Member cap enforced on join (Free=3, Pro=7, Team=15 — based on creator's tier)
+- [x] Room creation limit enforced (Free=3, Pro=10, Team=25 — checked client-side via `FeatureFlags`)
+- [x] Real-time feed: INSERT, UPDATE, DELETE all handled and reflected immediately on all member devices
+- [x] Room feed empty state with CTA shown on new rooms
+- [x] Room budget goals visible and updating live for all members
+- [v] Room budget monthly auto-reset working when enabled by creator
+- [x] Room reports (combined spend view) rendering correctly
+- [x] No-connection state shown on all room screens when offline
+- [x] Personal finance tab remains accessible while rooms show no-connection state
+- [x] Firebase Messaging push notifications working on Android (real device required)
+- [x] Room archiving by creator — members retain read-only access after archive
+- [x] RLS confirmed: room data only visible to members of that room
+- [x] PostHog: `room_created`, `room_joined`, `room_transaction_added` events firing
 
 ---
 

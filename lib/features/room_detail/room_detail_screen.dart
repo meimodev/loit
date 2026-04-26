@@ -40,7 +40,11 @@ class RoomDetailScreen extends ConsumerWidget {
                 IconButton(
                   icon: const Icon(Icons.person_add),
                   tooltip: 'Invite',
-                  onPressed: () => _showInviteSheet(context, room),
+                  onPressed: () => _showInviteSheet(
+                    context,
+                    room,
+                    isCreator: isCreator,
+                  ),
                 ),
               PopupMenuButton<String>(
                 onSelected: (v) =>
@@ -107,7 +111,18 @@ class RoomDetailScreen extends ConsumerWidget {
     );
   }
 
-  void _showInviteSheet(BuildContext context, Map<String, dynamic> room) {
+  void _showInviteSheet(
+    BuildContext context,
+    Map<String, dynamic> room, {
+    required bool isCreator,
+  }) {
+    final inviteToken = room['invite_token'] as String?;
+    if (inviteToken == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invite link unavailable for this room')),
+      );
+      return;
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -118,6 +133,8 @@ class RoomDetailScreen extends ConsumerWidget {
         child: InviteSheet(
           roomId: room['id'] as String,
           roomName: room['name'] as String? ?? 'Room',
+          inviteToken: inviteToken,
+          isCreator: isCreator,
         ),
       ),
     );

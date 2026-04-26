@@ -42,6 +42,15 @@
                 <data android:scheme="id.activid.loit" android:host="callback" />
             </intent-filter>
 
+            <!-- Custom-scheme fallback for room invites on devices where
+                 App Links verification is unavailable. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="id.activid.loit" android:host="invite" />
+            </intent-filter>
+
             <!-- App Links: https://loit.app/invite/* (Phase 2 room invites) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />

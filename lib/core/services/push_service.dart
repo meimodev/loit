@@ -92,15 +92,22 @@ class PushService {
     final user = _supabase.auth.currentUser;
     final platform = _platformName();
     if (user == null || token == null || platform == null) {
+      Log.w(_tag, 'Skip upsert: user=${user?.id} token=${token != null} platform=$platform');
       return;
     }
 
-    await _supabase.from('push_tokens').upsert({
-      'user_id': user.id,
-      'token': token,
-      'platform': platform,
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
-    }, onConflict: 'token');
+    try {
+      await _supabase.from('push_tokens').upsert({
+        'user_id': user.id,
+        'token': token,
+        'platform': platform,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }, onConflict: 'token');
+      Log.i(_tag, 'Upserted push token for user=${user.id}');
+    } catch (e, st) {
+      Log.e(_tag, 'Failed to upsert push token', error: e, stack: st);
+      rethrow;
+    }
   }
 
   String? _platformName() => 'android';

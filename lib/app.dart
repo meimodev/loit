@@ -18,19 +18,31 @@ class LoitApp extends ConsumerStatefulWidget {
   ConsumerState<LoitApp> createState() => _LoitAppState();
 }
 
-class _LoitAppState extends ConsumerState<LoitApp> {
+class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
   final _pushService = PushService();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(syncServiceProvider).startAutoSync();
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        Supabase.instance.client.auth.currentUser != null) {
+      _pushService.syncCurrentToken().catchError((Object e, StackTrace st) {
+        Log.e('App', 'Push token sync on resume failed', error: e, stack: st);
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pushService.dispose();
     super.dispose();
   }
@@ -43,7 +55,11 @@ class _LoitAppState extends ConsumerState<LoitApp> {
       if (session != null) {
         Log.i('App', 'User signed in: ${session.user.id}');
         Analytics.identify(session.user.id, email: session.user.email);
-        _pushService.initialize();
+        _pushService.initialize().then((ok) {
+          Log.i('App', 'PushService.initialize result: $ok');
+        }).catchError((Object e, StackTrace st) {
+          Log.e('App', 'PushService.initialize failed', error: e, stack: st);
+        });
         acceptPendingInviteIfAny().then((roomId) {
           if (roomId != null && mounted) {
             Log.i('App', 'Pending invite accepted: room=$roomId');

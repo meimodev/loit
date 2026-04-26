@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import '../../core/services/analytics_service.dart';
 import '../../core/services/currency_service.dart';
 import '../../core/services/interaction_log_service.dart';
 import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/services_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/stale_rate_banner.dart';
@@ -116,6 +119,29 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
         if (_roomId != null) 'room_id': _roomId,
       };
       await ref.read(transactionsProvider.notifier).addTransaction(payload);
+
+      if (_roomId != null) {
+        unawaited(
+          ref
+              .read(roomServiceProvider)
+              .notifyRoomTransaction(
+                roomId: _roomId!,
+                merchant: _merchant.text.trim().isEmpty
+                    ? null
+                    : _merchant.text.trim(),
+                amount: amount,
+                currency: _currency,
+              )
+              .catchError((Object e, StackTrace _) {
+                InteractionLog.error(
+                  action: 'room_notify',
+                  screen: 'transaction_form',
+                  message: '$e',
+                  metadata: {'room_id': _roomId},
+                );
+              }),
+        );
+      }
 
       final method = _aiParsed
           ? 'scan'

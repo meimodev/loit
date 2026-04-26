@@ -4,6 +4,16 @@ import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
+/// Default [FirebaseOptions] for use with your Firebase apps.
+///
+/// Example:
+/// ```dart
+/// import 'firebase_options.dart';
+/// // ...
+/// await Firebase.initializeApp(
+///   options: DefaultFirebaseOptions.currentPlatform,
+/// );
+/// ```
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
@@ -15,9 +25,26 @@ class DefaultFirebaseOptions {
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
+      case TargetPlatform.iOS:
+        return ios;
+      case TargetPlatform.macOS:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for macos - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
+      case TargetPlatform.windows:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for windows - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
+      case TargetPlatform.linux:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for linux - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       default:
         throw UnsupportedError(
-          'DefaultFirebaseOptions are only configured for Android.',
+          'DefaultFirebaseOptions are not supported for this platform.',
         );
     }
   }
@@ -29,4 +56,16 @@ class DefaultFirebaseOptions {
     projectId: 'loit-cb37f',
     storageBucket: 'loit-cb37f.firebasestorage.app',
   );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyC_OJjr-ET8pjASGVJNv8i9ps97pWorfVk',
+    appId: '1:1063234610982:ios:e972429dac1218704ec3e7',
+    messagingSenderId: '1063234610982',
+    projectId: 'loit-cb37f',
+    storageBucket: 'loit-cb37f.firebasestorage.app',
+    androidClientId: '1063234610982-hvbj3frttnq0kb9oa6litbeaj4degp5j.apps.googleusercontent.com',
+    iosClientId: '1063234610982-pgolk44u8vqsdich3q1mltnnncp2gaap.apps.googleusercontent.com',
+    iosBundleId: 'id.activid.loit',
+  );
+
 }

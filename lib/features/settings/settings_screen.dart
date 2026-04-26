@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/config/categories.dart';
 import '../../core/services/analytics_service.dart';
+import '../../core/services/push_service.dart';
 import '../../shared/providers/auth_providers.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -60,6 +61,11 @@ class SettingsScreen extends ConsumerWidget {
             leading: const Icon(Icons.logout),
             title: const Text('Sign out'),
             onTap: () async {
+              // Drop FCM token before sign-out so the logged-out device
+              // stops receiving room pushes.
+              try {
+                await PushService().unregisterCurrentDevice();
+              } catch (_) {}
               await Supabase.instance.client.auth.signOut();
               await Analytics.reset();
             },

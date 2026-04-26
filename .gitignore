@@ -50,6 +50,10 @@ app.*.map.json
 env.*
 
 # Loit specific
+firepit-log.txt
 
+# iOS generated files (keep only GoogleService-Info.plist)
+ios/Flutter/
+ios/Runner/GeneratedPluginRegistrant.*
 
 sentry.properties

@@ -1,0 +1,16 @@
+{
+  "@@locale": "en",
+  "scanQuotaUnlimited": "Unlimited",
+  "scanQuotaUnlimitedDescription": "Scan as many receipts as you need",
+  "annualSavingsBadge": "4 months free",
+  "annualSavingsPercent": "Save 33%",
+  "proMonthlyPrice": "Rp99,000/mo",
+  "proAnnualPrice": "Rp792,000/yr",
+  "teamMonthlyPrice": "Rp199,000/mo",
+  "teamAnnualPrice": "Rp1,592,000/yr",
+  "scanTopUpPrice": "Rp19,000 for 10 scans",
+  "storageExtensionPrice": "Rp19,000 for 6 months",
+  "paymentGooglePlayOnly": "Payments processed securely via Google Play",
+  "restorePurchases": "Restore purchases",
+  "iosComingSoon": "iOS version coming soon"
+}

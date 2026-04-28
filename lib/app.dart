@@ -7,6 +7,7 @@ import 'core/services/analytics_service.dart';
 import 'core/services/deep_link_service.dart';
 import 'core/services/log_service.dart';
 import 'core/services/push_service.dart';
+import 'core/services/revenuecat_payment_service.dart';
 import 'shared/providers/auth_providers.dart';
 import 'shared/providers/room_providers.dart';
 import 'shared/providers/services_providers.dart';
@@ -55,6 +56,15 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       if (session != null) {
         Log.i('App', 'User signed in: ${session.user.id}');
         Analytics.identify(session.user.id, email: session.user.email);
+        // Bind RevenueCat customer to Supabase user so webhook events carry
+        // the correct app_user_id. Without this, purchases land on whichever
+        // anon ID RC generated at first init.
+        final pay = ref.read(paymentServiceProvider);
+        if (pay is RevenueCatPaymentService) {
+          pay.identify(session.user.id).catchError((Object e, StackTrace st) {
+            Log.e('App', 'RC identify failed', error: e, stack: st);
+          });
+        }
         _pushService.initialize().then((ok) {
           Log.i('App', 'PushService.initialize result: $ok');
         }).catchError((Object e, StackTrace st) {
@@ -72,6 +82,12 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       } else {
         Log.i('App', 'User signed out');
         Analytics.reset();
+        final pay = ref.read(paymentServiceProvider);
+        if (pay is RevenueCatPaymentService) {
+          pay.logout().catchError((Object e, StackTrace st) {
+            Log.e('App', 'RC logout failed', error: e, stack: st);
+          });
+        }
       }
     });
 

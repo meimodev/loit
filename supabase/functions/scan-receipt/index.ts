@@ -106,8 +106,11 @@ async function getUserFromJWT(
 }
 
 async function incrementQuotaIfAllowed(userId: string, tier: string): Promise<boolean> {
-  const limits: Record<string, number> = { free: 8, pro: 50, team: 999999 };
-  const limit = limits[tier] ?? 8;
+  // Pro and Team have unlimited scans — skip the quota check entirely
+  // and do not decrement any counter. Only Free tier is metered.
+  if (tier === 'pro' || tier === 'team') return true;
+
+  const limit = 8; // Free tier monthly cap
 
   await supabase.rpc('reset_scan_quota_if_new_month', { p_user_id: userId });
 

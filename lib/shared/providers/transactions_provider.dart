@@ -73,7 +73,9 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
 
   /// Insert a new personal transaction. Writes online if possible, otherwise
   /// enqueues offline. UI state is optimistically updated.
-  Future<void> addTransaction(Map<String, dynamic> payload) async {
+  /// Returns the inserted transaction id when the online insert succeeds,
+  /// or `null` when the row was queued offline (no id yet).
+  Future<String?> addTransaction(Map<String, dynamic> payload) async {
     final user = ref.read(currentUserProvider);
     if (user == null) throw StateError('Not signed in');
 
@@ -97,10 +99,12 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
       final current = state.value ?? const [];
       final replaced = [Txn.fromRow(inserted), ...current.skip(1)];
       state = AsyncData(replaced);
+      return inserted['id'] as String?;
     } catch (_) {
       // Enqueue for later sync.
       final db = ref.read(offlineDbProvider);
       await db.enqueue(payload);
+      return null;
     }
   }
 

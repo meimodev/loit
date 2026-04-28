@@ -22,6 +22,7 @@ class UserProfile {
   final String tier;
   final int scansUsedThisMonth;
   final bool hasUsedDemoScan;
+  final DateTime? nextReceiptExpiryAt;
 
   const UserProfile({
     required this.id,
@@ -32,6 +33,7 @@ class UserProfile {
     required this.tier,
     required this.scansUsedThisMonth,
     required this.hasUsedDemoScan,
+    this.nextReceiptExpiryAt,
   });
 
   factory UserProfile.fromRow(Map<String, dynamic> r) => UserProfile(
@@ -43,13 +45,19 @@ class UserProfile {
     tier: (r['tier'] as String?) ?? 'free',
     scansUsedThisMonth: (r['scans_used_this_month'] as int?) ?? 0,
     hasUsedDemoScan: (r['has_used_demo_scan'] as bool?) ?? false,
+    nextReceiptExpiryAt: r['next_receipt_expiry_at'] == null
+        ? null
+        : DateTime.parse(r['next_receipt_expiry_at'] as String).toLocal(),
   );
 
-  int get scanQuota => switch (tier) {
-    'pro' => 50,
-    'team' => 999999,
+  /// `null` = unlimited (Pro / Team). Otherwise the monthly scan cap.
+  int? get scanQuota => switch (tier) {
+    'pro' || 'team' => null,
     _ => 8,
   };
+
+  bool get hasUnlimitedScans => scanQuota == null;
+  bool get canPurchaseScanTopUp => tier == 'free';
   int get budgetLimit => switch (tier) {
     'pro' || 'team' => 999,
     _ => 3,

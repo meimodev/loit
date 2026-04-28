@@ -30,9 +30,11 @@ Future<void> main() async {
   );
   Log.lifecycle('Supabase ready');
 
-  // Midtrans — initialized lazily by `MidtransService` the first time the
-  // paywall opens (see `lib/core/services/midtrans_service.dart`).
-  Log.d('Init', 'Midtrans deferred to first paywall open');
+  // RevenueCat — initialized lazily by `RevenueCatPaymentService` the first
+  // time `paymentServiceProvider` is read. RevenueCat wraps Play Billing
+  // (and StoreKit on iOS later) and signs entitlement events back to us
+  // through the `revenuecat-webhook` Edge Function.
+  Log.d('Init', 'RevenueCat deferred to first paywall open');
 
   // PostHog — native init via AndroidManifest.xml. No Dart setup() needed.
   Log.lifecycle('PostHog ready (native init)');

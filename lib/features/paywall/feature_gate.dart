@@ -8,7 +8,10 @@ class FeatureFlags {
   final bool pdfExport;
   final bool receiptStorage;
   final bool fullHistory;
-  final int scanLimitPerMonth;
+  final bool recurringBills;
+
+  /// `null` = unlimited scans. Otherwise the per-month cap.
+  final int? scanLimitPerMonth;
   final int budgetCategoryLimit;
 
   const FeatureFlags({
@@ -18,9 +21,12 @@ class FeatureFlags {
     required this.pdfExport,
     required this.receiptStorage,
     required this.fullHistory,
+    required this.recurringBills,
     required this.scanLimitPerMonth,
     required this.budgetCategoryLimit,
   });
+
+  bool get hasUnlimitedScans => scanLimitPerMonth == null;
 
   factory FeatureFlags.forTier(String tier) => switch (tier) {
         'pro' || 'team' => const FeatureFlags(
@@ -30,7 +36,8 @@ class FeatureFlags {
             pdfExport: true,
             receiptStorage: true,
             fullHistory: true,
-            scanLimitPerMonth: 50,
+            recurringBills: true,
+            scanLimitPerMonth: null, // Pro and Team — unlimited scans
             budgetCategoryLimit: 1 << 30,
           ),
         _ => const FeatureFlags(
@@ -40,6 +47,7 @@ class FeatureFlags {
             pdfExport: false,
             receiptStorage: false,
             fullHistory: false,
+            recurringBills: false,
             scanLimitPerMonth: 8,
             budgetCategoryLimit: 3,
           ),

@@ -1,15 +1,24 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
+import '../../core/config/pricing_constants.dart';
 import '../../core/services/analytics_service.dart';
+import '../../core/services/dummy_payment_service.dart';
 import '../../core/services/interaction_log_service.dart';
-import '../../core/services/midtrans_service.dart';
+import '../../core/services/payment_service.dart';
 import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/services_providers.dart';
+
+enum _BillingPeriod { monthly, annual }
 
 /// Paywall screen shown when a gated feature is tapped.
 ///
-/// Fires `Analytics.paywallSeen(feature)` on build. Shows Pro benefits
-/// and an upgrade button that hands off to Midtrans Snap.
+/// Drives Google Play Billing through [PaymentService] (RevenueCat under
+/// the hood). The actual entitlement flip happens server-side when the
+/// `revenuecat-webhook` Edge Function processes the matching RC event.
 class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({super.key, required this.feature});
 
@@ -23,52 +32,134 @@ class PaywallScreen extends ConsumerStatefulWidget {
 class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   bool _busy = false;
   bool _analyticsTracked = false;
+  _BillingPeriod _period = _BillingPeriod.annual;
+  StreamSubscription<PurchaseUpdate>? _purchaseSub;
+
+  @override
+  void initState() {
+    super.initState();
+    final pay = ref.read(paymentServiceProvider);
+    _purchaseSub = pay.purchaseUpdates.listen(_onPurchaseUpdate);
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Stub payment service needs a [BuildContext] to show its
+    // "Pretend Pay" dialog. Real RevenueCat impl ignores this call.
+    final pay = ref.read(paymentServiceProvider);
+    if (pay is DummyPaymentService) pay.bindContext(context);
     if (!_analyticsTracked) {
       _analyticsTracked = true;
       Analytics.paywallSeen(widget.feature);
     }
   }
 
-  Future<void> _upgrade(String productKey) async {
+  @override
+  void dispose() {
+    final pay = ref.read(paymentServiceProvider);
+    if (pay is DummyPaymentService) pay.unbindContext(context);
+    _purchaseSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _purchaseSubscription(String productId) async {
     setState(() => _busy = true);
     try {
-      final result = await MidtransService.instance.startCheckout(
-        context: context,
-        productKey: productKey,
-      );
+      final pay = ref.read(paymentServiceProvider);
+      final result = await pay.purchaseSubscription(productId);
       if (!mounted) return;
-
-      final msg = switch (result.status) {
-        MidtransCheckoutStatus.succeeded =>
-          'Payment received. Unlocking Pro…',
-        MidtransCheckoutStatus.pending =>
-          "Payment pending. We'll upgrade you as soon as it settles.",
-        MidtransCheckoutStatus.failed => 'Payment failed. Please try again.',
-        MidtransCheckoutStatus.cancelled => 'Payment cancelled.',
-        MidtransCheckoutStatus.unknown =>
-          'Payment status unknown. Check back in a minute.',
-      };
-      final statusStr = result.status.name;
-      InteractionLog.info(
-        action: 'payment_checkout',
-        screen: 'paywall',
-        message: msg,
-        metadata: {'product': productKey, 'status': statusStr},
-      );
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(msg)));
-
-      if (result.status == MidtransCheckoutStatus.succeeded) {
-        await Analytics.subscriptionStarted('pro');
+      if (result.isTerminalSuccess) {
+        ref.invalidate(userProfileProvider);
+        _showSnack('Purchase complete. Unlocking…');
+      } else if (result.status == PurchaseStatus.cancelled) {
+        _showSnack('Purchase cancelled.');
+      } else if (result.status == PurchaseStatus.pending) {
+        _showSnack('Purchase pending. Waiting for confirmation…');
+      } else {
+        _showSnack(result.message ?? 'Purchase failed.');
       }
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Could not start purchase: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _purchaseTopUp(String productId) async {
+    final profile = ref.read(userProfileProvider).value;
+    // Top-ups are Free-tier only. Pro/Team have unlimited scans.
+    assert(profile?.canPurchaseScanTopUp ?? false,
+        'Top-up flow reached for non-free tier');
+    if (profile?.canPurchaseScanTopUp != true) return;
+    setState(() => _busy = true);
+    try {
+      final pay = ref.read(paymentServiceProvider);
+      final result = await pay.purchaseOneTime(productId);
+      if (!mounted) return;
+      if (result.isTerminalSuccess) {
+        ref.invalidate(userProfileProvider);
+        _showSnack('Purchase complete.');
+      } else if (result.status == PurchaseStatus.cancelled) {
+        _showSnack('Purchase cancelled.');
+      } else {
+        _showSnack(result.message ?? 'Purchase failed.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Could not start purchase: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _restorePurchases() async {
+    setState(() => _busy = true);
+    try {
+      await ref.read(paymentServiceProvider).restorePurchases();
+      if (!mounted) return;
+      _showSnack('Restoring purchases…');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _onPurchaseUpdate(PurchaseUpdate u) {
+    if (!mounted) return;
+    final msg = switch (u.status) {
+      PurchaseStatus.purchased => 'Purchase complete. Unlocking…',
+      PurchaseStatus.restored => 'Purchase restored.',
+      PurchaseStatus.pending => 'Purchase pending. Waiting for confirmation…',
+      PurchaseStatus.cancelled => 'Purchase cancelled.',
+      PurchaseStatus.failed => u.message ?? 'Purchase failed.',
+    };
+    InteractionLog.info(
+      action: 'payment_purchase_update',
+      screen: 'paywall',
+      message: msg,
+      metadata: {'product': u.productId, 'status': u.status.name},
+    );
+    _showSnack(msg);
+    if (u.status == PurchaseStatus.purchased ||
+        u.status == PurchaseStatus.restored) {
+      Analytics.subscriptionStarted(_inferTier(u.productId));
+      ref.invalidate(userProfileProvider);
+    }
+    if (u.status != PurchaseStatus.pending) {
+      setState(() => _busy = false);
+    }
+  }
+
+  String _inferTier(String sku) {
+    if (sku.contains('team')) return 'team';
+    if (sku.contains('pro')) return 'pro';
+    return 'free';
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -76,6 +167,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final profile = ref.watch(userProfileProvider).value;
     final isPro = profile?.tier == 'pro' || profile?.tier == 'team';
     final cs = Theme.of(context).colorScheme;
+    final canBuyTopUp = profile?.canPurchaseScanTopUp ?? true;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Upgrade to Pro')),
@@ -96,55 +188,49 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
-          const SizedBox(height: 32),
-          _FeatureRow(
+          const SizedBox(height: 24),
+          if (!isPro) _BillingPeriodToggle(
+            value: _period,
+            onChanged: (p) => setState(() => _period = p),
+          ),
+          const SizedBox(height: 16),
+          const _FeatureRow(
             icon: Icons.all_inclusive,
             title: 'Unlimited budgets',
             subtitle: 'Free: 3 categories',
           ),
-          _FeatureRow(
+          const _FeatureRow(
             icon: Icons.document_scanner,
-            title: '50 scans / month',
-            subtitle: 'Free: 8 scans',
+            title: 'Unlimited scans',
+            subtitle: 'Free: 8 scans / month',
           ),
-          _FeatureRow(
+          const _FeatureRow(
             icon: Icons.currency_exchange,
             title: 'Real-time FX rates',
             subtitle: 'Free: daily rates',
           ),
-          _FeatureRow(
+          const _FeatureRow(
             icon: Icons.download,
             title: 'CSV & PDF export',
             subtitle: 'Free: not available',
           ),
-          _FeatureRow(
+          const _FeatureRow(
             icon: Icons.history,
             title: 'Full transaction history',
             subtitle: 'Free: 3 months',
           ),
-          _FeatureRow(
+          const _FeatureRow(
             icon: Icons.receipt_long,
             title: 'Receipt image storage',
             subtitle: 'Free: not available',
           ),
-          const SizedBox(height: 32),
-          if (!isPro) ...[
-            FilledButton(
-              onPressed: _busy ? null : () => _upgrade('pro_monthly'),
-              child: _busy
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Upgrade to Pro — Monthly'),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: _busy ? null : () => _upgrade('pro_annual'),
-              child: const Text('Upgrade to Pro — Annual (Save 17%)'),
-            ),
-          ],
+          const _FeatureRow(
+            icon: Icons.repeat,
+            title: 'Recurring bills',
+            subtitle: 'Free: not available',
+          ),
+          const SizedBox(height: 24),
+          if (!isPro) ..._buildPurchaseButtons(),
           if (isPro)
             Container(
               padding: const EdgeInsets.all(16),
@@ -158,8 +244,134 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 style: TextStyle(color: cs.onPrimaryContainer),
               ),
             ),
+          const SizedBox(height: 16),
+          // Scan top-up is Free-tier only. Pro / Team get unlimited scans.
+          if (canBuyTopUp) ...[
+            const Divider(),
+            const SizedBox(height: 8),
+            Text('One-time add-ons',
+                style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: _busy
+                  ? null
+                  : () => _purchaseTopUp(PricingConstants.skuScanTopUp),
+              child: Text(
+                  '+10 scans · ${_formatIdr(PricingConstants.scanTopUpIdr)}'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: _busy
+                  ? null
+                  : () => _purchaseTopUp(PricingConstants.skuStorageExt),
+              child: Text(
+                  'Extend receipt storage · 6 months · ${_formatIdr(PricingConstants.storageExtensionIdr)}'),
+            ),
+          ],
+          const SizedBox(height: 24),
+          Center(
+            child: TextButton(
+              onPressed: _busy ? null : _restorePurchases,
+              child: const Text('Restore purchases'),
+            ),
+          ),
+          Center(
+            child: Text(
+              'Payments processed securely via Google Play.',
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              'iOS version coming soon.',
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  List<Widget> _buildPurchaseButtons() {
+    final isAnnual = _period == _BillingPeriod.annual;
+    final proSku = isAnnual
+        ? PricingConstants.skuProAnnual
+        : PricingConstants.skuProMonthly;
+    final teamSku = isAnnual
+        ? PricingConstants.skuTeamAnnual
+        : PricingConstants.skuTeamMonthly;
+    final proPrice = isAnnual
+        ? PricingConstants.proAnnualIdr
+        : PricingConstants.proMonthlyIdr;
+    final teamPrice = isAnnual
+        ? PricingConstants.teamAnnualIdr
+        : PricingConstants.teamMonthlyIdr;
+    final periodLabel = isAnnual ? '/yr' : '/mo';
+    return [
+      FilledButton(
+        onPressed: _busy ? null : () => _purchaseSubscription(proSku),
+        child: _busy
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Text('Pro — ${_formatIdr(proPrice)}$periodLabel'),
+      ),
+      const SizedBox(height: 12),
+      OutlinedButton(
+        onPressed: _busy ? null : () => _purchaseSubscription(teamSku),
+        child: Text('Team — ${_formatIdr(teamPrice)}$periodLabel'),
+      ),
+      if (isAnnual) ...[
+        const SizedBox(height: 8),
+        Center(
+          child: Text(
+            '4 months free · Save 33%',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Center(
+          child: Text(
+            // Show per-month equivalent for the annual price.
+            'Pro ≈ ${_formatIdr(PricingConstants.proAnnualIdr ~/ 12)}/mo · '
+            'Team ≈ ${_formatIdr(PricingConstants.teamAnnualIdr ~/ 12)}/mo',
+            style: Theme.of(context).textTheme.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
+    ];
+  }
+}
+
+class _BillingPeriodToggle extends StatelessWidget {
+  const _BillingPeriodToggle({required this.value, required this.onChanged});
+  final _BillingPeriod value;
+  final ValueChanged<_BillingPeriod> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<_BillingPeriod>(
+      segments: const [
+        ButtonSegment(
+          value: _BillingPeriod.monthly,
+          label: Text('Monthly'),
+        ),
+        ButtonSegment(
+          value: _BillingPeriod.annual,
+          label: Text('Annual · 4 months free'),
+        ),
+      ],
+      selected: {value},
+      onSelectionChanged: (s) => onChanged(s.first),
     );
   }
 }
@@ -186,10 +398,8 @@ class _FeatureRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: Theme.of(context).textTheme.titleSmall),
-                Text(subtitle,
-                    style: Theme.of(context).textTheme.bodySmall),
+                Text(title, style: Theme.of(context).textTheme.titleSmall),
+                Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
           ),
@@ -199,6 +409,15 @@ class _FeatureRow extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatIdr(int amount) {
+  final fmt = NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp',
+    decimalDigits: 0,
+  );
+  return fmt.format(amount);
 }
 
 /// Helper to show paywall from anywhere.

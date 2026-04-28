@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -6,6 +9,14 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Load release signing config from android/key.properties (gitignored).
+// Falls back to debug signing when the file is missing so local builds
+// without the keystore (e.g. `flutter run`) still work.
+val keystoreProperties = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) load(FileInputStream(f))
 }
 
 android {
@@ -38,11 +49,25 @@ android {
             (project.findProperty("POSTHOG_API_KEY") ?: "") as String
     }
 
+    signingConfigs {
+        create("release") {
+            if (keystoreProperties.isNotEmpty()) {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = keystoreProperties.getProperty("storeFile")?.let { file(it) }
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Use release signing when key.properties is present, otherwise
+            // fall back to debug keys so `flutter run --release` still works.
+            signingConfig = if (keystoreProperties.isNotEmpty())
+                signingConfigs.getByName("release")
+            else
+                signingConfigs.getByName("debug")
         }
     }
 }

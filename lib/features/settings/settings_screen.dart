@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/categories.dart';
 import '../../core/services/analytics_service.dart';
@@ -47,7 +48,18 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('Scans used this month'),
             subtitle: profile == null
                 ? const Text('—')
-                : Text('${profile.scansUsedThisMonth} / ${profile.scanQuota}'),
+                : Text(
+                    profile.hasUnlimitedScans
+                        ? 'Unlimited'
+                        : '${profile.scansUsedThisMonth} / ${profile.scanQuota}',
+                  ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.repeat),
+            title: const Text('Recurring bills'),
+            subtitle: const Text('Auto-create transactions on a schedule'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/recurring'),
           ),
           ListTile(
             leading: const Icon(Icons.workspace_premium),
@@ -55,6 +67,21 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: Text(profile?.tier.toUpperCase() ?? 'FREE'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/paywall', extra: 'general'),
+          ),
+          if (profile?.tier == 'pro' || profile?.tier == 'team')
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: const Text('Manage subscription'),
+              subtitle: const Text('Cancel or change plan in Google Play'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _openPlaySubscriptions,
+            ),
+          ListTile(
+            leading: const Icon(Icons.receipt_long),
+            title: const Text('Billing & receipts'),
+            subtitle: const Text('Purchase history'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/billing'),
           ),
           const Divider(),
           ListTile(
@@ -73,6 +100,13 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _openPlaySubscriptions() async {
+    // Per-SKU deep link not used: cancel flow lives at the package level.
+    final uri = Uri.parse(
+        'https://play.google.com/store/account/subscriptions?package=id.activid.loit');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   void _pickCurrency(

@@ -4,12 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/auth/auth_screen.dart';
+import '../../features/billing/billing_history_screen.dart';
 import '../../features/budgets/budgets_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/reports/reports_screen.dart';
 import '../../features/paywall/paywall_screen.dart';
 import '../../features/room_detail/room_budgets_screen.dart';
 import '../../features/room_detail/room_detail_screen.dart';
+import '../../features/recurring/recurring_bills_screen.dart';
 import '../../features/rooms/rooms_screen.dart';
 import '../../features/scanner/scanner_screen.dart';
 import '../../features/settings/settings_screen.dart';
@@ -76,6 +78,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/scan',
         builder: (_, __) => const ScannerScreen(),
+      ),
+      GoRoute(
+        path: '/recurring',
+        builder: (_, __) => const RecurringBillsScreen(),
+      ),
+      GoRoute(
+        path: '/billing',
+        builder: (_, __) => const BillingHistoryScreen(),
       ),
       GoRoute(
         path: '/paywall',

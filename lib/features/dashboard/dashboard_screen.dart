@@ -7,6 +7,7 @@ import '../../core/config/categories.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/budget_alert_banner.dart';
+import '../../shared/widgets/receipt_expiry_banner.dart';
 
 /// Home screen: month-to-date spend + recent transactions + FAB (manual/scan).
 class DashboardScreen extends ConsumerWidget {
@@ -43,6 +44,7 @@ class DashboardScreen extends ConsumerWidget {
             slivers: [
               SliverToBoxAdapter(child: _MonthSummary(items: items, profile: profile)),
               const SliverToBoxAdapter(child: BudgetAlertBanner()),
+              const SliverToBoxAdapter(child: ReceiptExpiryBanner()),
               if (items.isEmpty)
                 const SliverFillRemaining(
                   hasScrollBody: false,
@@ -122,7 +124,9 @@ class _MonthSummary extends StatelessWidget {
               if (profile != null) ...[
                 const SizedBox(height: 8),
                 Text(
-                  'Scans used: ${profile!.scansUsedThisMonth}/${profile!.scanQuota}',
+                  profile!.hasUnlimitedScans
+                      ? 'Scans: Unlimited'
+                      : 'Scans used: ${profile!.scansUsedThisMonth}/${profile!.scanQuota}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

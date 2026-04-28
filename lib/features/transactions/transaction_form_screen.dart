@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +15,7 @@ import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/services_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/stale_rate_banner.dart';
+import '../paywall/feature_gate.dart';
 
 /// Manual transaction entry. Also used as the manual-fallback form when
 /// the scanner returns [ScanErrorType.aiFailure] — pre-filled with
@@ -40,6 +42,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
   List<Map<String, dynamic>>? _items;
   FxRate? _fx;
   String? _roomId;
+  String? _imagePath;
 
   @override
   void initState() {
@@ -56,6 +59,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
       _roomId = p['_room_id'] as String?;
       _isManualFallback = (p['_manual_fallback'] as bool?) ?? false;
       _aiParsed = (p['_ai_parsed'] as bool?) ?? false;
+      _imagePath = p['_image_path'] as String?;
       final rawItems = p['items'];
       if (rawItems is List) {
         _items = rawItems
@@ -118,7 +122,48 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
         'is_manual_fallback': _isManualFallback,
         if (_roomId != null) 'room_id': _roomId,
       };
-      await ref.read(transactionsProvider.notifier).addTransaction(payload);
+      final insertedId = await ref
+          .read(transactionsProvider.notifier)
+          .addTransaction(payload);
+
+      if (insertedId != null && _imagePath != null) {
+        final tier = ref.read(userProfileProvider).value?.tier;
+        final canStore = FeatureFlags.forTier(tier ?? 'free').receiptStorage;
+        InteractionLog.info(
+          action: 'receipt_upload_check',
+          screen: 'transaction_form',
+          message: 'tier=$tier canStore=$canStore path=$_imagePath',
+          metadata: {'txn_id': insertedId, 'tier': tier},
+        );
+        if (canStore) {
+          try {
+            final bytes = await File(_imagePath!).readAsBytes();
+            final user = ref.read(currentUserProvider);
+            if (user != null) {
+              final path = await ref
+                  .read(receiptServiceProvider)
+                  .uploadReceipt(
+                    userId: user.id,
+                    transactionId: insertedId,
+                    imageBytes: bytes,
+                  );
+              InteractionLog.success(
+                action: 'receipt_upload',
+                screen: 'transaction_form',
+                message: 'uploaded $path',
+                metadata: {'txn_id': insertedId},
+              );
+            }
+          } catch (e) {
+            InteractionLog.error(
+              action: 'receipt_upload',
+              screen: 'transaction_form',
+              message: '$e',
+              metadata: {'txn_id': insertedId},
+            );
+          }
+        }
+      }
 
       if (_roomId != null) {
         unawaited(

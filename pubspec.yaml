@@ -61,10 +61,14 @@ dependencies:
   firebase_core: ^4.7.0
   firebase_messaging: ^16.2.0
 
-  # Payments — Midtrans (Snap in-app UI for all markets: cards, GoPay, OVO,
-  # DANA, QRIS, virtual account, BCA KlikPay, etc.). Server key stays in
-  # Supabase Edge Function secrets; only the public client key ships here.
-  midtrans_sdk: ^1.2.0
+  # Payments — RevenueCat. Wraps Google Play Billing (and StoreKit on iOS
+  # later) and validates every purchase against Google Play / Apple receipts
+  # server-side on RevenueCat's side. RevenueCat then posts a signed
+  # webhook to the Supabase `revenuecat-webhook` Edge Function, which is
+  # the only place that flips `users.tier` / grants top-up credits.
+  # Chosen over `in_app_purchase` because it removes the need for a Play
+  # Console-linked service account (we do not own the Play developer account).
+  purchases_flutter: ^10.0.1
 
   # Error monitoring — Sentry Flutter v8 (with source maps + release tracking)
   sentry_flutter: ^8.10.0
@@ -86,7 +90,7 @@ dependencies:
   # Biometric app lock (Face ID / Touch ID / Android BiometricPrompt)
   local_auth: ^2.3.0
 
-  # URL launcher — opens external URLs (Midtrans fallback, privacy policy, ToS)
+  # URL launcher — opens external URLs (privacy policy, ToS, support links)
   url_launcher: ^6.3.1
 
   # Deep linking (Phase 2 invite flow) — handles uni_links + custom schemes + universal links

@@ -7,6 +7,8 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/services/analytics_service.dart';
 import '../../core/services/scanner_service.dart';
+import '../../core/config/pricing_constants.dart';
+import '../../core/services/dummy_payment_service.dart';
 import '../paywall/paywall_screen.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/services_providers.dart';
@@ -51,10 +53,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     final profile = ref.read(userProfileProvider).value;
     final isDemo = profile != null && !profile.hasUsedDemoScan;
 
-    final result = await ref.read(scannerServiceProvider).scanReceipt(
-          file,
-          isDemo: isDemo,
-        );
+    final scanner = ref.read(scannerServiceProvider);
+    final compressed = await scanner.compressToFile(file);
+    final result = await scanner.scanReceipt(compressed, isDemo: isDemo);
 
     if (!mounted) return;
     setState(() => _busy = false);
@@ -64,12 +65,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         // success
         final data = Map<String, dynamic>.from(result.parsedData ?? {});
         data['_ai_parsed'] = true;
+        data['_image_path'] = compressed.path;
         context.pushReplacement('/transactions/new', extra: data);
         break;
       case ScanErrorType.aiFailure:
         await Analytics.scanFailed('ai_failure');
         final data = Map<String, dynamic>.from(result.partialFields ?? {});
         data['_manual_fallback'] = true;
+        data['_image_path'] = compressed.path;
         if (!mounted) return;
         context.pushReplacement('/transactions/new', extra: data);
         break;
@@ -95,8 +98,21 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => const _QuotaExceededSheet(),
+      builder: (_) => _QuotaExceededSheet(onTopUp: _handleTopUp),
     );
+  }
+
+  Future<void> _handleTopUp() async {
+    // Sheet has already popped. Bind dummy service to the still-mounted
+    // scanner page context so the "Pretend Pay" dialog has a host.
+    if (!mounted) return;
+    final pay = ref.read(paymentServiceProvider);
+    if (pay is DummyPaymentService) pay.bindContext(context);
+    try {
+      await pay.purchaseOneTime(PricingConstants.skuScanTopUp);
+    } catch (_) {
+      // PurchaseUpdate stream surfaces failures.
+    }
   }
 
   @override
@@ -219,7 +235,8 @@ class _RetryView extends StatelessWidget {
 }
 
 class _QuotaExceededSheet extends ConsumerWidget {
-  const _QuotaExceededSheet();
+  const _QuotaExceededSheet({required this.onTopUp});
+  final Future<void> Function() onTopUp;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -247,17 +264,32 @@ class _QuotaExceededSheet extends ConsumerWidget {
           Text(
             profile == null
                 ? 'You have used your monthly scan quota.'
-                : "You've used all ${profile.scanQuota} scans in your "
+                : "You've used all ${profile.scanQuota ?? '∞'} scans in your "
                     "${profile.tier.toUpperCase()} plan this month.",
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          FilledButton(
+          // Top-up is Free-tier only. Pro/Team get unlimited scans and
+          // should never reach this sheet — but guard anyway.
+          if (profile?.canPurchaseScanTopUp ?? true)
+            FilledButton(
+              onPressed: () {
+                // Pop sheet first so the "Pretend Pay" dialog hosts on the
+                // scanner page context (still mounted) instead of the
+                // about-to-be-disposed sheet context.
+                Navigator.of(context).pop();
+                onTopUp();
+              },
+              child: const Text('Top up · 10 scans for Rp19,000'),
+            ),
+          if (profile?.canPurchaseScanTopUp ?? true)
+            const SizedBox(height: 8),
+          OutlinedButton(
             onPressed: () {
               Navigator.of(context).pop();
               showPaywallSheet(context, feature: 'more_scan_quota');
             },
-            child: const Text('Upgrade to Pro'),
+            child: const Text('Upgrade to Pro — unlimited scans'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),

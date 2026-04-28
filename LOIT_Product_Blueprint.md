@@ -1100,9 +1100,9 @@ This phase gates premium features behind Midtrans subscriptions and activates th
 
 ```
 Midtrans products (IDR-denominated; Snap handles currency conversion for cards):
-  - loit_pro_monthly:   $4.99/mo  → Rp85,529
+  - loit_pro_monthly_1:   $4.99/mo  → Rp85,529
   - loit_pro_yearly:    $49.99/yr → Rp856,680
-  - loit_team_monthly:  $9.99/mo  → Rp171,169
+  - loit_team_monthly_1:  $9.99/mo  → Rp171,169
   - loit_team_yearly:   $99.99/yr → Rp1,713,360
   - loit_scan_topup:    $0.99     → Rp16,969 (one-time)
   - loit_storage_ext:   $0.99     → Rp16,969 (one-time)

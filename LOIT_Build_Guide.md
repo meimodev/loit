@@ -8,7 +8,101 @@
 **Audience:** AI coding agent or developer following explicit step-by-step implementation instructions.
 
 **Last refreshed:** April 2026
-**Target stack:** Flutter 3.24+, Dart 3.8+, Riverpod 3, Supabase Flutter 2.8+, Drift 2.22+, Deno 1.45+, Claude Sonnet 4.6, Midtrans Snap (via `midtrans_sdk` 1.2+ on the client, Snap HTTP API server-side), PostHog Flutter 5.x, Sentry Flutter 8.x.
+**Target stack:** Flutter 3.24+, Dart 3.8+, Riverpod 3, Supabase Flutter 2.8+, Drift 2.22+, Deno 1.45+, Claude Sonnet 4.6, **Google Play Billing via RevenueCat** (`purchases_flutter` 10.x on the client; RevenueCat handles Play Developer API receipt validation server-side and posts a signed webhook to a Supabase Edge Function), PostHog Flutter 5.x, Sentry Flutter 8.x.
+
+> ## ⚠️ Phase 3 Amendment — April 2026
+>
+> Three connected decisions were made after the initial blueprint and supersede every Phase 3 detail in this guide. **Where this amendment conflicts with later sections (Steps 3.0 – 3.4), the amendment wins.**
+>
+> 1. **Payment rail.** Google Play Billing is the sole payment rail at launch (Android only). Server-side receipt validation is delegated to **RevenueCat** — RevenueCat hosts the Play Developer API integration on its side and posts a signed webhook to our `revenuecat-webhook` Edge Function. All client payment code flows through a `PaymentService` abstraction (`lib/core/services/payment_service.dart`) so iOS / StoreKit 2 plugs in later without touching business logic. While Play Console SKUs are not yet provisioned (requires a signed APK on a closed-testing track first), a `DummyPaymentService` + `dummy-grant` Edge Function are wired behind `Env.paymentStub=true` so the paywall, scanner top-up, tier flips and analytics can be exercised end-to-end against Supabase.
+> 2. **Scan quotas changed.** Pro tier moves from 50 scans / month to **unlimited**. Team was already unlimited and stays that way. The scan top-up IAP (`loit_scan_topup_10`) is now **Free-tier only** — Pro and Team users never see top-up CTAs or quota counters. Free tier remains 8 scans / month with top-up available. The `scan-receipt` Edge Function skips quota enforcement entirely for `pro` / `team`.
+> 3. **Annual pricing changed.** Annual billing is now priced at **8 × monthly = 4 months free** (replacing the old 2-months-free model), with the savings badge wording updated to **“4 months free” / “Save 33%”**. Monthly prices are adjusted to clean Google Play price points. The canonical pricing table now lives in `lib/core/config/pricing_constants.dart`.
+>
+> | SKU | Monthly | Annual |
+> |---|---|---|
+> | Pro  | Rp 99,000  | Rp 792,000  (≈ Rp 66,000/mo) |
+> | Team | Rp 199,000 | Rp 1,592,000 (≈ Rp 132,667/mo) |
+> | Scan top-up (Free only) | — | Rp 19,000 / 10 scans |
+> | Storage extension       | — | Rp 19,000 / 6 months   |
+>
+> **Updated tier matrix:**
+>
+> | Feature | Free | Pro | Team |
+> |---|---|---|---|
+> | Bill scans | 8/month | Unlimited | Unlimited |
+> | Scan top-up | ✅ Rp19,000/10 | ❌ Not needed | ❌ Not needed |
+> | Receipt storage | ❌ | ✅ 1 year | ✅ 1 year |
+> | Storage extension | ❌ | ✅ Rp19,000/6mo | ✅ Rp19,000/6mo |
+> | Currencies | 10 | 180+ | 180+ |
+> | Budget categories | 3 | Unlimited | Unlimited |
+> | Rooms created | 3 | 10 | 25 |
+> | Members per room | 3 | 7 | 15 |
+> | CSV / PDF export | ❌ | ✅ | ✅ |
+> | Recurring bills | ❌ | ✅ | ✅ |
+> | Room admin controls | ❌ | ❌ | ✅ |
+> | Priority support | ❌ | ❌ | ✅ |
+> | Monthly price | Free | Rp99,000 | Rp199,000 |
+> | Annual price | — | Rp792,000 | Rp1,592,000 |
+>
+> **What changed in this repo (apply during a fresh build, not a diff against earlier steps):**
+>
+> - **Files:** `lib/core/config/pricing_constants.dart`, `lib/core/services/payment_service.dart`, `lib/core/services/revenuecat_payment_service.dart`, `lib/core/services/dummy_payment_service.dart`, `supabase/functions/revenuecat-webhook/index.ts`, `supabase/functions/dummy-grant/index.ts`, `supabase/migrations/20240301000006_payment_receipts.sql`, `lib/l10n/app_en.arb`, `lib/l10n/app_id.arb`, `l10n.yaml`.
+> - **Dependencies:** `purchases_flutter: ^10.0.1` (RevenueCat SDK).
+> - **`env.json` keys:** `PAYMENT_STUB` (`"true"` until RC is live), `REVENUECAT_ANDROID_KEY` (public `goog_...` SDK key), `REVENUECAT_IOS_KEY` (empty until iOS launches). **Supabase secrets:** `REVENUECAT_WEBHOOK_AUTH` (shared bearer string between RC dashboard webhook config and the Edge Function), `STUB_MODE` (`"true"` only while the dummy path is active — the `dummy-grant` Edge Function returns 403 unless this is set).
+> - **Tier semantics:** `FeatureFlags.scanLimitPerMonth` is now `int?` — `null` means unlimited. `UserProfile.scanQuota` is `int?` with the same convention. UI must render “Unlimited” when null and never decrement a counter.
+> - **Paywall UI:** monthly / annual toggle, savings badge says **“4 months free · Save 33%”**, top-up + storage-extension buttons render only for Free tier, plus a “Restore purchases” action and the disclosure copy “Payments processed securely via Google Play” + “iOS version coming soon”.
+> - **`scan-receipt` Edge Function:** `incrementQuotaIfAllowed` returns `true` immediately for `pro` / `team` and never touches the quota counters.
+> - **`revenuecat-webhook` Edge Function:** receives RevenueCat event payloads, authenticates by bearer token (`REVENUECAT_WEBHOOK_AUTH`), and on grant-class events (`INITIAL_PURCHASE`, `RENEWAL`, `PRODUCT_CHANGE`, `NON_RENEWING_PURCHASE`, `UNCANCELLATION`) updates `users.tier` + `tier_expires_at` for subscriptions or invokes the existing `add_scan_topup` / `extend_receipt_expiry` RPCs for one-time IAPs. Revoke-class events (`EXPIRATION`, `BILLING_ISSUE`, `REFUND`, post-grace `CANCELLATION`) reset `users.tier` to `free`. Idempotent through `payment_receipts.purchase_token` (RC `event.id` reused as the dedupe key).
+> - **RevenueCat dashboard config (one-time):** create a project, add the Android app with the same package name as Play Console, attach the linked Google Cloud service account on **RevenueCat's** side (no Play Console API access needed from us — RC's onboarding handles it), create products matching `PricingConstants` SKUs, group subscriptions into an entitlement called `pro` for Pro SKUs and `team` for Team SKUs, then under **Integrations → Webhooks** point the webhook URL at `https://<project-ref>.supabase.co/functions/v1/revenuecat-webhook` and set "Authorization header value" to the same string stored in `REVENUECAT_WEBHOOK_AUTH`.
+> - **Phase 3 flow:** client → `PaymentService.purchaseSubscription/purchaseOneTime` → (stub branch: `DummyPaymentService` → `dummy-grant` Edge Function → `users.tier` update) OR (live branch: RevenueCat SDK → Play Billing UI → RC validates with Play Developer API → RC posts webhook → `revenuecat-webhook` Edge Function → `users.tier` update). Both branches share the same `payment_receipts` idempotency key path so analytics and database state are identical.
+>
+> **Pre-launch payment rollout — current state (April 2026):**
+>
+> Play Console product creation requires a signed APK / AAB to be uploaded first. Until then, in-app products and subscriptions cannot be created in Play Console, and therefore cannot be mirrored in RevenueCat. The build is currently running **dummy stub mode** (`Env.paymentStub = true` → `DummyPaymentService`) which exercises the full paywall + scanner top-up + tier-flip flow against the `dummy-grant` Edge Function. This unblocks all Phase 3 UI and analytics work.
+>
+> **Already done:**
+> - GCP service account created via RevenueCat's Cloud Shell automation script (`androidpublisher.googleapis.com`, `playdeveloperreporting.googleapis.com`, `pubsub.googleapis.com` enabled; `roles/pubsub.editor` + `roles/monitoring.viewer` granted).
+> - Service account email invited into Play Console via **Users and Permissions** (App permissions: LOIT; Account permissions: View app information / View financial data / Manage orders and subscriptions).
+> - `revenuecat-key.json` uploaded to RevenueCat dashboard (Project settings → Google Play App Settings → Service Account Key). Note RC docs say validation can take up to 36h.
+> - Flutter wired with `DummyPaymentService` + `RevenueCatPaymentService` (one-line provider swap on `Env.paymentStub`).
+> - `dummy-grant` Edge Function deployed (gated by `STUB_MODE=true` Supabase secret) and mirrors `revenuecat-webhook` side effects on `users.tier` / `payment_receipts`.
+>
+> **Resume after first signed-APK upload to Play Console (closed/internal testing track is enough):**
+>
+> 1. **Play Console — create SKUs.** Monetize → **Subscriptions** → create 4 subscriptions, one base plan each, IDs and prices matching `PricingConstants`:
+>    - `loit_pro_monthly_1` (Rp 99,000, monthly auto-renew)
+>    - `loit_pro_annual_1` (Rp 792,000, annual auto-renew)
+>    - `loit_team_monthly_1` (Rp 199,000, monthly auto-renew)
+>    - `loit_team_annual_1` (Rp 1,592,000, annual auto-renew)
+>
+>    Monetize → **In-app products** → create 2 consumables:
+>    - `loit_scan_topup_10` (Rp 19,000, consumable)
+>    - `loit_storage_ext_6mo` (Rp 19,000, consumable)
+>
+>    Activate all 6.
+> 2. **RevenueCat dashboard — mirror SKUs.** Product catalog → New Product → choose **LOIT (Play Store)** (not Test Store) → enter the same product ID. Repeat ×6.
+> 3. **Entitlements + offerings.** Create `pro` + `team` entitlements; attach the matching subscription products. Create a `default` Offering with packages: `pro_monthly`, `pro_annual`, `team_monthly`, `team_annual`, plus the two non-sub products.
+> 4. **Webhook.** Project settings → Integrations → Webhooks → URL `https://<project-ref>.functions.supabase.co/revenuecat-webhook`, Authorization header value = the value stored in Supabase secret `REVENUECAT_WEBHOOK_AUTH`.
+> 5. **Android SDK key.** Project settings → API keys → copy Android public key (`goog_...`).
+> 6. **Closed testing track.** Play Console → Testing → Closed testing → upload signed AAB, add 12+ testers, accept the 14-day verification window (personal Play developer account requirement).
+> 7. **Flip the stub off.** Update `env.json`:
+>    ```json
+>    { "PAYMENT_STUB": "false", "REVENUECAT_ANDROID_KEY": "goog_..." }
+>    ```
+>    Set Supabase secret `STUB_MODE=false` (or `supabase functions delete dummy-grant`). The Flutter `paymentServiceProvider` will branch into `RevenueCatPaymentService` automatically.
+> 8. **Smoke test on a tester device.** Run through the QA gates below using the closed-testing build.
+>
+> **QA gates for this amendment (all must pass before shipping):**
+>
+> - Free user hits 8-scan quota → top-up CTA → Google Play purchase → 10 scans credited.
+> - Pro / Team users see no scan counter and no top-up CTA anywhere in the app.
+> - Annual subscription purchase (Pro and Team) round-trips through `revenuecat-webhook` and flips `users.tier` and `tier_expires_at` immediately.
+> - Restore purchases re-applies prior entitlement.
+> - Annual paywall toggle shows **“4 months free”** and the correct IDR price.
+> - `PaymentService` is the only payment surface used by feature code; no direct `purchases_flutter` imports outside `revenuecat_payment_service.dart`.
+> - `revenuecat-webhook` is idempotent — re-posting the same RC `event.id` does not double-credit (verified by inserting a duplicate event with the same `id` and confirming the second call returns `{ok: true, idempotent: true}` without changing state).
+> - Storage extension purchase end-to-end works for Pro and Team via Google Play.
+> - Localisation strings render in EN and ID (`lib/l10n/app_en.arb`, `app_id.arb`).
 
 **Platform scope:** Android only for v1. iOS deferred — no Apple Developer account, no APNs, no Apple SSO. The Product Blueprint references iOS + Android; this guide targets Android to ship faster on the primary Indonesian market (>90% Android). iOS can be added later by re-running `flutter create --platforms ios`, adding APNs config, and implementing Sign in with Apple.
 
@@ -42,7 +136,7 @@
 | Resend | Transactional email | Free (3,000/mo) |
 | Sentry | Error monitoring | Free (5,000 errors/mo) |
 | PostHog | Analytics | Free (1M events/mo) |
-| Midtrans | Subscriptions + one-time payments (cards, GoPay, OVO, DANA, QRIS, VA, BCA KlikPay) | 0.7–2.9% per txn depending on channel |
+| Google Play Billing (via RevenueCat) | Subscriptions + one-time IAPs | 15–30% Play store cut + 1% RevenueCat fee above $2.5k MTR |
 | Open Exchange Rates | 180+ currency FX rates (Pro/Team) | Startup plan when needed |
 | Google Play | Android Play Store | $25 one-time |
 
@@ -50,15 +144,16 @@
 
 ```bash
 # Verify these are installed before starting
-flutter --version       # Flutter 3.24+ stable channel (required for Dart 3.8+ and current Midtrans/Firebase plugins)
+flutter --version       # Flutter 3.24+ stable channel (required for Dart 3.8+ and current RevenueCat/Firebase plugins)
 dart --version          # Dart 3.8+ (bundled with recent Flutter stable)
 flutterfire --version   # FlutterFire CLI (Firebase config generation for Phase 2 push notifications)
 supabase --version      # Supabase CLI >=1.200 — `brew install supabase/tap/supabase`
 node --version          # Node.js 20 LTS+ (required by current Supabase CLI)
 deno --version          # Deno 1.45+ (for Edge Function local testing; bundled with Supabase CLI 1.190+)
-# Midtrans has no dedicated CLI — webhook testing is done via `ngrok http 54321`
-# (or `supabase functions serve`) + the "Send Test Notification" button in the
-# Midtrans sandbox dashboard → Settings → Configuration.
+# RevenueCat webhook testing: use `supabase functions serve revenuecat-webhook`
+# + RevenueCat dashboard → Project Settings → Integrations → Webhooks →
+# "Send test event" button. For dummy-mode testing the `dummy-grant` Edge
+# Function is invoked directly from the Flutter `DummyPaymentService`.
 ```
 
 > Note: do **NOT** install the Supabase CLI globally with `npm install -g supabase` — that package is deprecated. Use Homebrew, Scoop, or the official installer from <https://supabase.com/docs/guides/cli/getting-started>.
@@ -69,8 +164,8 @@ LOIT uses **two separate secret stores** that must never be mixed:
 
 | Store | Used by | Contains | Delivery mechanism |
 |---|---|---|---|
-| `env.json` (project root) | Flutter client ONLY | Public/anon keys only (Supabase URL, anon key, PostHog key, Sentry DSN, Midtrans **client** key) | Compiled in via `--dart-define-from-file=env.json` |
-| Supabase Secrets (server) | Edge Functions ONLY | All private secrets (service-role, Anthropic, Midtrans **server** key, OpenExchangeRates app ID, Resend, Firebase service account JSON) | `supabase secrets set KEY=value` |
+| `env.json` (project root) | Flutter client ONLY | Public/anon keys only (Supabase URL, anon key, PostHog key, Sentry DSN, RevenueCat **public** SDK key) | Compiled in via `--dart-define-from-file=env.json` |
+| Supabase Secrets (server) | Edge Functions ONLY | All private secrets (service-role, Anthropic, RevenueCat webhook bearer token, OpenExchangeRates app ID, Resend, Firebase service account JSON) | `supabase secrets set KEY=value` |
 
 **Why `--dart-define-from-file` and not `flutter_dotenv`?**
 - Values become compile-time constants (`const String.fromEnvironment(...)`), enabling tree-shaking and dead-code elimination of unused branches.
@@ -78,23 +173,23 @@ LOIT uses **two separate secret stores** that must never be mixed:
 - Works with `flutter build appbundle` without shipping a `.env` file inside the app bundle (which would be trivially extractable with `apktool`).
 - Flutter-official pattern since Flutter 3.7.
 
-1. Create `env.json` in the project root. **This file contains ONLY client-safe keys.** No service-role, no Anthropic, no Midtrans **server** key:
+1. Create `env.json` in the project root. **This file contains ONLY client-safe keys.** No service-role, no Anthropic, no RevenueCat **secret** API key:
 ```json
 {
   "SUPABASE_URL": "https://xxxx.supabase.co",
   "SUPABASE_ANON_KEY": "eyJ...",
   "SENTRY_DSN": "https://...@sentry.io/...",
   "POSTHOG_API_KEY": "phc_...",
-  "MIDTRANS_CLIENT_KEY": "SB-Mid-client-...",
-  "MIDTRANS_MERCHANT_ID": "",
-  "MIDTRANS_IS_PRODUCTION": "false",
+  "PAYMENT_STUB": "true",
+  "REVENUECAT_ANDROID_KEY": "",
+  "REVENUECAT_IOS_KEY": "",
   "OPEN_EXCHANGE_RATES_APP_ID": "",
   "SENTRY_ENV": "dev"
 }
 ```
-> - `MIDTRANS_CLIENT_KEY` is the **public** key — it's fine to ship in the binary. Sandbox keys are prefixed `SB-Mid-client-`; live keys are `Mid-client-`.
-> - `MIDTRANS_IS_PRODUCTION` is a string (`"true"`/`"false"`) because `--dart-define-from-file` only emits strings. `env.production.json` sets it to `"true"`.
-> - `MIDTRANS_MERCHANT_ID` is optional — only used for the Snap sheet header.
+> - `PAYMENT_STUB` is a string (`"true"`/`"false"`) because `--dart-define-from-file` only emits strings. While `"true"`, the app uses `DummyPaymentService` and the `dummy-grant` Edge Function (no Play Billing, no RevenueCat); flip to `"false"` once Play Console SKUs are live and RevenueCat is configured.
+> - `REVENUECAT_ANDROID_KEY` is the RevenueCat **public** Android SDK key (format `goog_...`) — safe to ship in the binary. The corresponding **secret** REST API key (`sk_...`) and the webhook bearer token stay server-side as Supabase secrets. Leave empty while `PAYMENT_STUB="true"`.
+> - `REVENUECAT_IOS_KEY` is the iOS SDK key (`appl_...`). Empty until iOS launches.
 > - `OPEN_EXCHANGE_RATES_APP_ID` is optional — leave as `""` unless you are intentionally shipping a Pro/Team client build that calls OXR directly.
 > - `SENTRY_ENV` tags Sentry events so dev/staging/prod data is separable.
 
@@ -113,8 +208,8 @@ env.*.json
 5. Server-side secrets are set **only** via the Supabase CLI (covered in Steps 1.6 and 3.1):
 ```bash
 supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
-supabase secrets set MIDTRANS_SERVER_KEY=SB-Mid-server-...          # SB- prefix = sandbox
-supabase secrets set MIDTRANS_IS_PRODUCTION=false                   # "true" for live mode
+supabase secrets set REVENUECAT_WEBHOOK_AUTH=$(openssl rand -hex 32)   # used as the bearer token RC sends to revenuecat-webhook
+supabase secrets set STUB_MODE=true                                    # set to "false" (or remove) once dummy-grant is no longer needed
 supabase secrets set RESEND_API_KEY=re_...
 supabase secrets set OPEN_EXCHANGE_RATES_APP_ID=...
 supabase secrets set FIREBASE_SERVICE_ACCOUNT_JSON_BASE64=...
@@ -223,10 +318,14 @@ dependencies:
   firebase_core: ^4.7.0
   firebase_messaging: ^16.2.0
 
-  # Payments — Midtrans Snap in-app UI (cards, GoPay, OVO, DANA, QRIS, VA,
-  # BCA KlikPay). Server key stays in Supabase Edge Function secrets; only
-  # the public MIDTRANS_CLIENT_KEY ships here.
-  midtrans_sdk: ^1.2.0
+  # Payments — RevenueCat. Wraps Google Play Billing on Android (and StoreKit
+  # on iOS later) and validates every purchase against Google Play / Apple
+  # receipts on RevenueCat's servers. RevenueCat then posts a signed webhook
+  # to the Supabase `revenuecat-webhook` Edge Function, which is the only
+  # place that flips `users.tier` / grants top-up credits. While Play Console
+  # SKUs are not yet provisioned the app uses `DummyPaymentService` +
+  # `dummy-grant` Edge Function instead — see `Env.paymentStub`.
+  purchases_flutter: ^10.0.1
 
   # Error monitoring — Sentry Flutter v8 (with source maps + release tracking)
   sentry_flutter: ^8.10.0
@@ -248,7 +347,7 @@ dependencies:
   # Biometric app lock (Face ID / Touch ID / Android BiometricPrompt)
   local_auth: ^2.3.0
 
-  # URL launcher — external URLs (privacy policy, ToS, Midtrans fallback)
+  # URL launcher — external URLs (privacy policy, ToS, support links)
   url_launcher: ^6.3.1
 
   # Deep linking (Phase 2 invite flow) — handles Android App Links + custom schemes
@@ -308,24 +407,25 @@ class Env {
   static const String sentryDsn       = String.fromEnvironment('SENTRY_DSN');
   static const String postHogKey      = String.fromEnvironment('POSTHOG_API_KEY');
 
-  /// Midtrans public client key (format `SB-Mid-client-...` in sandbox or
-  /// `Mid-client-...` in production). Safe to ship in the client binary.
-  /// The Midtrans **server key** stays server-side in Supabase Edge Function
-  /// secrets as `MIDTRANS_SERVER_KEY`.
-  static const String midtransClientKey =
-      String.fromEnvironment('MIDTRANS_CLIENT_KEY');
+  /// `"true"` swaps the real `RevenueCatPaymentService` for the in-app
+  /// stub (`DummyPaymentService`) — purchases settle via a "Pretend Pay"
+  /// dialog and a server-side `dummy-grant` Edge Function. Used while
+  /// Play Console SKUs / RevenueCat onboarding are still being unblocked.
+  /// **Must be `"false"` (or removed) before launch.**
+  static const String _paymentStubRaw =
+      String.fromEnvironment('PAYMENT_STUB', defaultValue: 'true');
+  static bool get paymentStub => _paymentStubRaw.toLowerCase() == 'true';
 
-  /// Optional merchant ID displayed on the Snap sheet.
-  static const String midtransMerchantId =
-      String.fromEnvironment('MIDTRANS_MERCHANT_ID');
+  /// RevenueCat **public** SDK key for Android (format `goog_...`). Safe to
+  /// ship in the client binary. The corresponding **secret** REST API key
+  /// (`sk_...`) and the webhook bearer token stay server-side as Supabase
+  /// secrets (`REVENUECAT_WEBHOOK_AUTH`).
+  static const String revenueCatAndroidKey =
+      String.fromEnvironment('REVENUECAT_ANDROID_KEY');
 
-  /// `"true"` hits the production Midtrans endpoints; any other value
-  /// (including empty) uses sandbox. String-typed because
-  /// `--dart-define-from-file` only emits strings.
-  static const String _midtransIsProductionRaw =
-      String.fromEnvironment('MIDTRANS_IS_PRODUCTION', defaultValue: 'false');
-  static bool get midtransIsProduction =>
-      _midtransIsProductionRaw.toLowerCase() == 'true';
+  /// RevenueCat iOS SDK key (format `appl_...`). Empty until iOS launches.
+  static const String revenueCatIosKey =
+      String.fromEnvironment('REVENUECAT_IOS_KEY');
 
   /// Optional. Populated only for Pro/Team builds that need to hit Open Exchange
   /// Rates directly from the client (see Step 1.8). Leave empty on Free tier —
@@ -346,7 +446,6 @@ class Env {
       'SUPABASE_ANON_KEY'  : supabaseAnonKey,
       'SENTRY_DSN'         : sentryDsn,
       'POSTHOG_API_KEY'    : postHogKey,
-      'MIDTRANS_CLIENT_KEY': midtransClientKey,
     };
     final missing = required.entries.where((e) => e.value.isEmpty).map((e) => e.key).toList();
     if (missing.isNotEmpty) {
@@ -394,9 +493,10 @@ Future<void> main() async {
   );
   Log.lifecycle('Supabase ready');
 
-  // Midtrans — initialized lazily by `MidtransService` the first time the
-  // paywall opens (see `lib/core/services/midtrans_service.dart`).
-  Log.d('Init', 'Midtrans deferred to first paywall open');
+  // Payment service (RevenueCat or DummyPaymentService) — initialized lazily
+  // the first time `paymentServiceProvider` is read. See
+  // `lib/shared/providers/services_providers.dart`.
+  Log.d('Init', 'Payment service deferred to first read');
 
   // PostHog — native init via AndroidManifest.xml. No Dart setup() needed.
   Log.lifecycle('PostHog ready (native init)');
@@ -464,7 +564,7 @@ In `android/app/build.gradle.kts` (Flutter 3.24+ templates use the Kotlin DSL), 
 ```kotlin
 manifestPlaceholders["POSTHOG_API_KEY"] =
     (project.findProperty("POSTHOG_API_KEY") ?: "") as String
-minSdk = maxOf(flutter.minSdkVersion, 23)  // midtrans_sdk + local_auth require 23
+minSdk = maxOf(flutter.minSdkVersion, 23)  // local_auth biometric APIs require 23
 targetSdk = flutter.targetSdkVersion
 // compileSdk comes from `flutter.compileSdkVersion` at the `android { }` level.
 ```
@@ -474,19 +574,6 @@ targetSdk = flutter.targetSdkVersion
 > manifestPlaceholders += [ POSTHOG_API_KEY: project.findProperty("POSTHOG_API_KEY") ?: "" ]
 > minSdkVersion 23
 > ```
-
-**MainActivity must extend `FlutterFragmentActivity`** — `midtrans_sdk` hosts its
-Snap UI inside an AndroidX Fragment and silently fails to attach when the
-activity doesn't support `FragmentManager`. Edit
-`android/app/src/main/kotlin/<namespace>/MainActivity.kt`:
-
-```kotlin
-package id.activid.loit
-
-import io.flutter.embedding.android.FlutterFragmentActivity
-
-class MainActivity : FlutterFragmentActivity()
-```
 
 > `flutterfire configure` normally inserts the Firebase native config automatically. If Android push notifications still do not work, verify `android/app/build.gradle` applies `com.google.gms.google-services` and that `google-services.json` is present.
 
@@ -606,7 +693,7 @@ CREATE TABLE users (
   -- (e.g. Dec 31 23:59 UTC+7 is Jan 1 in UTC — date type would mishandle this)
   scan_reset_date       timestamptz DEFAULT date_trunc('month', now()),
   has_used_demo_scan    boolean DEFAULT false,
-  tier_expires_at       timestamptz,  -- set by midtrans-notification on subscription; NULL = free tier
+  tier_expires_at       timestamptz,  -- set by revenuecat-webhook on subscription grant; NULL = free tier
   created_at            timestamptz DEFAULT now()
 );
 
@@ -1907,7 +1994,8 @@ Future<void> main() async {
 | `push_service.dart` | `PushService` | Permission, token refresh, unregister |
 | `scanner_service.dart` | `ScannerService` | Compress, scan result, errors |
 | `currency_service.dart` | `CurrencyService` | FX fetch, cache hit, stale fallback |
-| `midtrans_service.dart` | `MidtransService` | SDK init, checkout start/result |
+| `revenuecat_payment_service.dart` | `RevenueCatPaymentService` | SDK init, purchase start/result, restore |
+| `dummy_payment_service.dart` | `DummyPaymentService` | Stub purchase confirm dialogs (pre-Play-SKU launch) |
 | `room_service.dart` | `RoomService` | Room create, invite accept |
 | `deep_link_service.dart` | `DeepLink` | Link received, invite stash/accept |
 
@@ -1943,7 +2031,7 @@ Do not proceed to Phase 2 until every item below is checked.
 - [ ] Spending reports: 3-month history, charts render correctly _(requires device/runtime; UI built — `reports_screen.dart` with fl_chart + category icons)_
 - [x] **Schema checks:** `scan_reset_date` is `timestamptz`; `transactions.updated_at` updates automatically via trigger
 - [x] **UI complete:** All Phase 1 screens built — auth, dashboard, transactions, scanner (all error states), budgets, reports, settings, paywall; `dart analyze` passes
-- [x] **Paywall integration:** `FeatureGate` provider streams tier from Supabase Realtime; `PaywallScreen` with Midtrans Snap checkout; wired into scanner quota + budget cap
+- [x] **Paywall integration:** `FeatureGate` provider streams tier from Supabase Realtime; `PaywallScreen` with Google Play Billing (via RevenueCat) checkout, dummy stub fallback for pre-launch; wired into scanner quota + budget cap
 - [x] **Routing:** GoRouter with auth guard, shell (4-tab nav), transaction form, scanner, paywall routes
 - [x] **Settings:** Currency picker dialog updates `public.users.home_currency`; subscription link to paywall
 - [x] PostHog: `sign_up`, `scan_completed`, `transaction_added`, `paywall_seen` all firing _(requires device/runtime)_
@@ -2909,203 +2997,220 @@ await Supabase.instance.client.functions.invoke('room-transaction-notify', body:
 
 ## Phase 3 — Pro Layer (Weeks 14–17)
 
-**Goal:** Gate premium features behind Midtrans subscriptions + one-time payments. Activate full monetization with a single payment gateway that supports both card and Indonesian e-wallet / VA / QRIS rails.
+**Goal:** Gate premium features behind Google Play Billing subscriptions and one-time IAPs, with RevenueCat hosting receipt validation and webhook delivery.
 
 ---
 
-### Step 3.1 — Midtrans Setup
+### Step 3.0 — Dummy Payment Stub (interim)
 
-**Goal:** Create the Midtrans account, pick the right product (Core API for recurring; Snap for one-off), record the key pair, and wire the webhook.
+**Goal:** Unblock Phase 3 work (paywall UI, feature gating, top-up RPCs, receipt storage, exports) before Play Console SKUs exist. Play Console refuses to create products until a signed APK has been uploaded to a closed-testing track, so the dummy stub replaces the RevenueCat path with a local "Pretend Pay" dialog and a server-side `dummy-grant` Edge Function that mirrors the real `revenuecat-webhook` side effects. **Flip off before launch** — see Step 3.1 onward.
 
-#### 3.1.1 Account & environment
+**What stub mode swaps:**
+- `RevenueCatPaymentService` → `DummyPaymentService` (via `Env.paymentStub`).
+- Real Play Billing UI → simple in-app confirm dialog ("Pretend Pay Rp X").
+- `revenuecat-webhook` → `dummy-grant` Edge Function (gated by `STUB_MODE=true` Supabase secret).
+- Receipt validation, signed webhook auth → skipped (the JWT auth on the Edge Function still applies).
 
-1. Sign up at <https://dashboard.midtrans.com/register>. Pick **"Indonesian business"** if your PT/CV is Indonesia-registered; otherwise go with "Cross-border merchant" (still uses IDR as the settlement currency).
-2. In the sandbox dashboard (top-right toggle reads **"Sandbox"**), open **Settings → Access Keys**. You will see:
-   - **Merchant ID** → copy into `env.json` as `MIDTRANS_MERCHANT_ID` (optional, for Snap sheet header).
-   - **Client Key** (`SB-Mid-client-...`) → `env.json` as `MIDTRANS_CLIENT_KEY`.
-   - **Server Key** (`SB-Mid-server-...`) → **Supabase secret only**: `supabase secrets set MIDTRANS_SERVER_KEY=SB-Mid-server-...`
-3. The equivalent production keys (`Mid-client-...` / `Mid-server-...`) are on the same page after you flip the dashboard toggle to **"Production"** and complete the KYC onboarding. For staging/production, copy them into `env.production.json` and the production Supabase project's secrets respectively.
+**What stays identical:**
+- `payment_receipts` table schema and idempotency contract.
+- `add_scan_topup` / `extend_receipt_expiry` RPCs (Step 3.3) — applied as-is.
+- `FeatureGate` provider + `FeatureFlags` — applied as-is.
+- Paywall UI and `_QuotaExceededSheet` — unchanged; only the underlying `paymentServiceProvider` branches on the stub flag.
+
+**Actions:**
+
+1. **Env flag.** `env.json`:
+```json
+{
+  "PAYMENT_STUB": "true",
+  "REVENUECAT_ANDROID_KEY": "",
+  "REVENUECAT_IOS_KEY": ""
+}
+```
+Exposed in `lib/core/config/env.dart` as `Env.paymentStub` (bool parsed from String).
+
+2. **Stub Edge Function.** Create `supabase/functions/dummy-grant/index.ts`. Mirrors the side effects of `revenuecat-webhook` so DB state after a dummy purchase is identical. Gated on `STUB_MODE=true` so a misconfigured production deploy returns 403 instead of silently exposing the endpoint:
+```typescript
+import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2.46.1';
+
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+);
+
+const STUB_MODE = (Deno.env.get('STUB_MODE') ?? 'false').toLowerCase() === 'true';
+
+const SUBSCRIPTION_SKUS: Record<string, { tier: 'pro' | 'team'; days: number }> = {
+  loit_pro_monthly_1:  { tier: 'pro',  days: 30  },
+  loit_pro_annual_1:   { tier: 'pro',  days: 365 },
+  loit_team_monthly_1: { tier: 'team', days: 30  },
+  loit_team_annual_1:  { tier: 'team', days: 365 },
+};
+const ONE_TIME_SKUS = new Set(['loit_scan_topup_10', 'loit_storage_ext_6mo']);
+
+serve(async (req) => {
+  if (!STUB_MODE) return new Response(JSON.stringify({ error: 'STUB_MODE not enabled' }), { status: 403 });
+  if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
+
+  const auth = req.headers.get('Authorization');
+  if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  const { data: userData } = await supabase.auth.getUser(auth.replace('Bearer ', ''));
+  if (!userData.user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+
+  const { productId, userId } = await req.json() as { productId?: string; userId?: string };
+  if (!productId || !userId || userData.user.id !== userId) {
+    return new Response(JSON.stringify({ error: 'Bad request' }), { status: 400 });
+  }
+  const stubToken = `stub-${productId}-${userId}-${Date.now()}`;
+
+  if (productId in SUBSCRIPTION_SKUS) {
+    const cfg = SUBSCRIPTION_SKUS[productId];
+    const expiry = new Date(Date.now() + cfg.days * 24 * 60 * 60 * 1000);
+    await supabase.from('users').update({ tier: cfg.tier, tier_expires_at: expiry.toISOString() }).eq('id', userId);
+  } else if (ONE_TIME_SKUS.has(productId)) {
+    if (productId === 'loit_scan_topup_10') {
+      await supabase.rpc('add_scan_topup', { p_user_id: userId, p_amount: 10 });
+    } else if (productId === 'loit_storage_ext_6mo') {
+      await supabase.rpc('extend_receipt_expiry', { p_user_id: userId });
+    }
+  } else {
+    return new Response(JSON.stringify({ error: `Unknown productId: ${productId}` }), { status: 400 });
+  }
+
+  await supabase.from('payment_receipts').insert({
+    user_id: userId, product_id: productId, purchase_token: stubToken,
+    raw: { stub: true, productId },
+  });
+
+  return new Response(JSON.stringify({ success: true }), {
+    headers: { 'Content-Type': 'application/json' },
+  });
+});
+```
+Deploy: `supabase functions deploy dummy-grant && supabase secrets set STUB_MODE=true`
+
+3. **Client branch.** In `lib/shared/providers/services_providers.dart`, the `paymentServiceProvider` branches on `Env.paymentStub` first, returning `DummyPaymentService` when set; otherwise it falls through to `RevenueCatPaymentService`. `DummyPaymentService` shows a "Pretend Pay" `AlertDialog` (hosted on a `BuildContext` bound by the calling screen via `bindContext`), then POSTs to the `dummy-grant` Edge Function and re-emits a `PurchaseUpdate` on its broadcast `Stream<PurchaseUpdate>` so paywall/scanner UI react identically to the real flow.
+
+4. **Skip in stub mode:** All of Step 3.1 below (Play Console SKU creation, RevenueCat dashboard wiring, webhook bearer token) — those require a signed APK uploaded to a closed-testing track first. The dummy stub bypasses them entirely.
+
+5. **Still apply:** `payment_receipts` migration, Step 3.3 RPC migration, Step 3.4 paywall UI, Steps 3.5–3.8 (receipt storage, expiry cron, recurring bills, exports). None of these depend on real RevenueCat or Play Billing.
+
+**Validation (stub):**
+- [ ] Tap "Upgrade to Pro" → "Pretend Pay" dialog appears (no real billing UI).
+- [ ] Tap "Pay" → `users.tier = 'pro'` within ~1 second; `FeatureGate` stream emits the new tier.
+- [ ] Tap "Cancel" → snackbar "Payment cancelled"; tier unchanged.
+- [ ] Free tier `loit_scan_topup_10` flow → `users.scans_used_this_month` drops by 10 (or floors to 0).
+- [ ] `payment_receipts` row inserted with `purchase_token` prefixed `stub-`.
+
+**Switch-to-real checklist (after first signed AAB upload):**
+- [ ] Complete Step 3.1 (Play Console SKUs + RevenueCat dashboard).
+- [ ] Set `PAYMENT_STUB=false` and `REVENUECAT_ANDROID_KEY=goog_...` in `env.json`.
+- [ ] `supabase secrets set STUB_MODE=false` (or `supabase functions delete dummy-grant`).
+- [ ] Smoke-test a sandbox subscription end-to-end on a tester device before flipping the stub off in production.
+
+---
+
+### Step 3.1 — RevenueCat + Play Console Setup
+
+**Goal:** Create the RevenueCat project, link it to Google Play, declare the SKU catalogue, and capture the keys the Flutter client + Edge Function need.
+
+> **Why RevenueCat (not raw `in_app_purchase`)?** Play Developer API verification needs a Google Cloud service account linked to the Play Console. The current Play account is owned by a third party, so direct service-account access is blocked. RevenueCat hosts that integration on their side, signs entitlement events back via webhook, and abstracts the StoreKit/Play Billing differences for a future iOS launch.
+
+#### 3.1.1 Account & app
+
+1. Sign up at <https://app.revenuecat.com/signup>. Create a new project named **LOIT**.
+2. **Project → Apps → + New** → pick **Google Play Store**. Bundle/package: `id.activid.loit`.
+3. Skip the "Service Account credentials" upload until after the first APK is in Play Console (RC's Cloud Shell automation script — Part 2 of <https://www.revenuecat.com/docs/service-credentials/creating-play-service-credentials> — handles GCP + Play Console invite without needing the deprecated Play "API access" page).
+4. **Project Settings → API Keys** → copy the **Public app-specific SDK key** (`goog_...`) → `env.json` as `REVENUECAT_ANDROID_KEY`. The **Secret REST API key** stays server-side only.
 
 #### 3.1.2 Product catalogue
 
-Unlike Stripe, Midtrans does **not** have a stored-product catalogue — every Snap transaction is created ad-hoc with a price. The canonical product list therefore lives in the Edge Function, not the dashboard:
+Define each SKU once on RevenueCat and once on Play Console (post-APK upload). The canonical product list lives in `lib/core/config/pricing_constants.dart` and is mirrored by the `dummy-grant` / `revenuecat-webhook` Edge Functions:
 
-| Product key | Name | Type | IDR Price | Side effect on success |
+| Product key (SKU) | Name | Type | IDR Price | Side effect on success |
 |---|---|---|---|---|
-| `loit_pro_monthly` | LOIT Pro Monthly | Recurring* | Rp85,529 | `users.tier = 'pro'` |
-| `loit_pro_yearly` | LOIT Pro Yearly | Recurring* | Rp856,680 | `users.tier = 'pro'` |
-| `loit_team_monthly` | LOIT Team Monthly | Recurring* | Rp171,169 | `users.tier = 'team'` |
-| `loit_team_yearly` | LOIT Team Yearly | Recurring* | Rp1,713,360 | `users.tier = 'team'` |
-| `loit_scan_topup` | Scan Top-Up (10 scans) | One-time | Rp16,969 | `add_scan_topup(user_id, 10)` |
-| `loit_storage_ext` | Receipt Storage Extension | One-time | Rp16,969 | `extend_receipt_expiry(user_id)` |
+| `loit_pro_monthly_1` | LOIT Pro Monthly | Auto-renewing sub | Rp85,000 | `users.tier = 'pro'` (+30d) |
+| `loit_pro_annual_1` | LOIT Pro Annual | Auto-renewing sub | Rp680,000 | `users.tier = 'pro'` (+365d) |
+| `loit_team_monthly_1` | LOIT Team Monthly | Auto-renewing sub | Rp170,000 | `users.tier = 'team'` (+30d) |
+| `loit_team_annual_1` | LOIT Team Annual | Auto-renewing sub | Rp1,360,000 | `users.tier = 'team'` (+365d) |
+| `loit_scan_topup_10` | Scan Top-Up (10 scans) | One-time (consumable) | Rp19,000 | `add_scan_topup(user_id, 10)` |
+| `loit_storage_ext_6mo` | Receipt Storage +6mo | One-time (consumable) | Rp19,000 | `extend_receipt_expiry(user_id)` |
 
-\* **Recurring handling.** Snap does not auto-renew by itself. There are two supported patterns — pick one and stick with it:
-- **Manual renewal (launch default).** Treat every subscription as a one-shot 30-day / 365-day grant. The webhook sets `users.tier` and `tier_expires_at = now() + interval`. A daily cron (Step 4.4 `subscription-downgrade`) downgrades lapsed users. Users re-tap the paywall near expiry — simpler, works with every Midtrans payment method.
-- **Core API Subscription.** For card payments only, you can call `POST /v1/subscriptions` on the Midtrans Core API with a `saved_token_id` returned from the first Snap charge. This auto-charges on each cycle. Adds code complexity and doesn't work for GoPay / OVO / DANA / QRIS (which can't be tokenized for recurring). Skip unless card-only recurring is a hard requirement.
-
-The guide implements the **manual renewal** flow.
+**Annual plan badge:** Paywall renders annual SKUs alongside monthly with **"Save 33% · 4 months free"**. Compute dynamically when prices change: `savings = 1 - (annual / (monthly * 12))`.
 
 #### 3.1.3 Webhook
 
-Midtrans posts a signed notification to your Payment Notification URL on every state change (settlement, expire, deny, cancel). Configure it at **Settings → Configuration → Payment Notification URL**:
+RevenueCat → **Project Settings → Integrations → Webhooks → + New webhook**.
 
 ```
-https://<project-ref>.supabase.co/functions/v1/midtrans-notification
+URL:           https://<project-ref>.supabase.co/functions/v1/revenuecat-webhook
+Auth header:   Authorization: Bearer <REVENUECAT_WEBHOOK_AUTH>
 ```
 
-The signature is a SHA-512 of `order_id + status_code + gross_amount + server_key`. We verify it in the Edge Function (Step 3.2). **There is no separate "webhook secret" — the server key doubles as the signing salt.**
+Generate the shared secret with `openssl rand -hex 32` and store both ends:
+
+```bash
+supabase secrets set REVENUECAT_WEBHOOK_AUTH=<hex-from-openssl>
+```
+
+RC posts JSON events of type `INITIAL_PURCHASE`, `RENEWAL`, `CANCELLATION`, `EXPIRATION`, `NON_RENEWING_PURCHASE`, `PRODUCT_CHANGE`, `BILLING_ISSUE`. The Edge Function only acts on the GRANT events (`INITIAL_PURCHASE`, `RENEWAL`, `NON_RENEWING_PURCHASE`, `PRODUCT_CHANGE`) and the REVOKE events (`EXPIRATION`, `CANCELLATION` once `event.expiration_at_ms` < now). Everything else is acknowledged with 200 and ignored.
 
 #### 3.1.4 Supabase secrets
 
 ```bash
-supabase secrets set MIDTRANS_SERVER_KEY=SB-Mid-server-...
-supabase secrets set MIDTRANS_IS_PRODUCTION=false   # "true" on your production project
+supabase secrets set REVENUECAT_WEBHOOK_AUTH=<hex>
+supabase secrets set STUB_MODE=true   # flip to "false" once real Play SKUs are live
 ```
 
 **Validation:**
-- [ ] `env.json` has `MIDTRANS_CLIENT_KEY` set to a sandbox `SB-Mid-client-...` value.
-- [ ] `supabase secrets list` includes `MIDTRANS_SERVER_KEY` and `MIDTRANS_IS_PRODUCTION`.
-- [ ] Sandbox dashboard → Settings → Configuration → **Payment Notification URL** points at the `midtrans-notification` Edge Function.
-- [ ] Finance Notification URL is **left blank** (we don't use the disbursement product).
-
-**Annual plan display rule:** In the paywall UI, always show annual plans alongside monthly with a **"Save 17%"** badge. Calculate dynamically: `savings = 100 - (annual_price / (monthly_price * 12)) * 100`.
+- [ ] `env.json` has `REVENUECAT_ANDROID_KEY` set (or `PAYMENT_STUB=true` for pre-Play-SKU builds).
+- [ ] `supabase secrets list` includes `REVENUECAT_WEBHOOK_AUTH` and `STUB_MODE`.
+- [ ] RC dashboard webhook config points at `revenuecat-webhook` and uses the bearer secret.
+- [ ] Six SKUs appear under **Project → Products** (mirroring the table above) — only required once Play Console SKU creation is unblocked by the first APK upload.
 
 ---
 
-### Step 3.2 — Edge Functions: `midtrans-checkout` and `midtrans-notification`
+### Step 3.2 — Edge Function: `revenuecat-webhook`
 
-Two Edge Functions handle the whole payment flow:
+A single Edge Function consumes RC events and applies them to Supabase. The dummy stub (`dummy-grant`) shares the same downstream SQL effects so the client can swap stub ↔ real with no schema change.
 
-1. `midtrans-checkout` — called by the Flutter paywall. Looks up the product price, inserts a pending row in `midtrans_orders`, asks Midtrans Snap for a token, returns `{order_id, snap_token, redirect_url}`.
-2. `midtrans-notification` — called by Midtrans on every state change. Verifies the SHA-512 signature, flips `midtrans_orders.status`, and applies the side effect (tier change / top-up credit / expiry extension).
+#### 3.2.1 Payment receipts table
 
-#### 3.2.1 Orders table
-
-First create the backing table — the webhook reconciles against this, and the paywall UI can poll it / subscribe via Realtime for live status:
+Create `supabase/migrations/20240301000006_payment_receipts.sql`:
 
 ```sql
--- supabase/migrations/20240301000000_midtrans_orders.sql
-CREATE TABLE IF NOT EXISTS public.midtrans_orders (
-  order_id                    text        PRIMARY KEY,
-  user_id                     uuid        NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  product_key                 text        NOT NULL,
-  amount_idr                  bigint      NOT NULL CHECK (amount_idr > 0),
-  status                      text        NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending', 'succeeded', 'failed', 'cancelled', 'expired', 'init_failed')),
-  midtrans_transaction_status text,
-  midtrans_fraud_status       text,
-  failure_reason              text,
-  paid_at                     timestamptz,
-  created_at                  timestamptz NOT NULL DEFAULT now(),
-  updated_at                  timestamptz NOT NULL DEFAULT now()
+-- Idempotent ledger of every grant/revoke event from RC (and dummy stub).
+-- The (provider, event_id) unique constraint is the dedup key — RC retries
+-- failed webhooks with the same event_id, so a 200 on a duplicate must be a
+-- no-op rather than re-applying the side effect.
+CREATE TABLE IF NOT EXISTS public.payment_receipts (
+  id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid        NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  provider      text        NOT NULL CHECK (provider IN ('revenuecat', 'dummy')),
+  event_id      text        NOT NULL,
+  event_type    text        NOT NULL,  -- INITIAL_PURCHASE | RENEWAL | EXPIRATION | NON_RENEWING_PURCHASE | ...
+  product_id    text        NOT NULL,
+  store_txn_id  text,
+  occurred_at   timestamptz NOT NULL,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (provider, event_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_midtrans_orders_user_id
-  ON public.midtrans_orders(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_midtrans_orders_status
-  ON public.midtrans_orders(status) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_payment_receipts_user
+  ON public.payment_receipts(user_id, occurred_at DESC);
 
-ALTER TABLE public.midtrans_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payment_receipts ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "midtrans_orders_select_own" ON public.midtrans_orders;
-CREATE POLICY "midtrans_orders_select_own" ON public.midtrans_orders
+CREATE POLICY "payment_receipts_select_own" ON public.payment_receipts
   FOR SELECT USING (user_id = auth.uid());
 ```
 
-Writes happen only from Edge Functions (service role, which bypasses RLS), so no insert/update policy is needed.
+Service-role writes bypass RLS, so no insert policy is required.
 
-#### 3.2.2 `midtrans-checkout` — mint a Snap token
+#### 3.2.2 `revenuecat-webhook`
 
-Create `supabase/functions/midtrans-checkout/index.ts`:
-
-```typescript
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { createClient } from 'npm:@supabase/supabase-js@2.46.1';
-
-const PRODUCTS = {
-  loit_pro_monthly:  { name: 'LOIT Pro Monthly',     priceIdr: 85_529    },
-  loit_pro_yearly:   { name: 'LOIT Pro Yearly',      priceIdr: 856_680   },
-  loit_team_monthly: { name: 'LOIT Team Monthly',    priceIdr: 171_169   },
-  loit_team_yearly:  { name: 'LOIT Team Yearly',     priceIdr: 1_713_360 },
-  loit_scan_topup:   { name: 'Scan Top-Up (10)',     priceIdr: 16_969    },
-  loit_storage_ext:  { name: 'Receipt Storage +6mo', priceIdr: 16_969    },
-} as const;
-type ProductKey = keyof typeof PRODUCTS;
-
-const SNAP_URL = () =>
-  Deno.env.get('MIDTRANS_IS_PRODUCTION')?.toLowerCase() === 'true'
-    ? 'https://app.midtrans.com/snap/v1/transactions'
-    : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
-
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-);
-
-serve(async (req) => {
-  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-
-  const auth = req.headers.get('Authorization');
-  if (!auth) return new Response('Unauthorized', { status: 401 });
-  const { data: { user } } = await supabase.auth.getUser(auth.replace('Bearer ', ''));
-  if (!user) return new Response('Unauthorized', { status: 401 });
-
-  const body = await req.json() as { product_key?: string };
-  const productKey = body.product_key as ProductKey | undefined;
-  if (!productKey || !(productKey in PRODUCTS)) {
-    return new Response(`Unknown product_key: ${productKey}`, { status: 400 });
-  }
-  const product = PRODUCTS[productKey];
-
-  // Unique order_id; prefix with user id so the webhook can sanity-check
-  // ownership before hitting the DB.
-  const orderId = `${user.id.slice(0, 8)}-${productKey}-${Date.now()}`;
-
-  await supabase.from('midtrans_orders').insert({
-    order_id:    orderId,
-    user_id:     user.id,
-    product_key: productKey,
-    amount_idr:  product.priceIdr,
-    status:      'pending',
-  });
-
-  const res = await fetch(SNAP_URL(), {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      Authorization: 'Basic ' + btoa(Deno.env.get('MIDTRANS_SERVER_KEY')! + ':'),
-    },
-    body: JSON.stringify({
-      transaction_details: { order_id: orderId, gross_amount: product.priceIdr },
-      item_details: [{ id: productKey, name: product.name, price: product.priceIdr, quantity: 1 }],
-      customer_details: {
-        email:      user.email ?? `user-${user.id}@loit.app`,
-        first_name: (user.user_metadata?.full_name as string | undefined) ?? 'LOIT User',
-      },
-      // Echoed back in the notification — safety net for order_id parsing.
-      custom_field1: user.id,
-      custom_field2: productKey,
-      credit_card: { secure: true },
-    }),
-  });
-  if (!res.ok) {
-    const errText = await res.text();
-    await supabase.from('midtrans_orders')
-      .update({ status: 'init_failed', failure_reason: errText }).eq('order_id', orderId);
-    return new Response(`Snap create failed: ${errText}`, { status: 502 });
-  }
-  const { token, redirect_url } = await res.json();
-
-  return Response.json({ order_id: orderId, snap_token: token, redirect_url });
-});
-```
-
-Deploy: `supabase functions deploy midtrans-checkout`
-
-#### 3.2.3 `midtrans-notification` — webhook
-
-Create `supabase/functions/midtrans-notification/index.ts`:
+Create `supabase/functions/revenuecat-webhook/index.ts`:
 
 ```typescript
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
@@ -3116,122 +3221,92 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 );
 
-// SHA-512(order_id + status_code + gross_amount + server_key) in hex.
-async function verifySignature(p: {
-  order_id: string; status_code: string; gross_amount: string; signature_key: string;
-}): Promise<boolean> {
-  const serverKey = Deno.env.get('MIDTRANS_SERVER_KEY')!;
-  const raw = `${p.order_id}${p.status_code}${p.gross_amount}${serverKey}`;
-  const buf = await crypto.subtle.digest('SHA-512', new TextEncoder().encode(raw));
-  const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-  return hex === p.signature_key;
-}
+const SUB_DAYS: Record<string, { tier: 'pro' | 'team'; days: number }> = {
+  loit_pro_monthly_1:  { tier: 'pro',  days: 30  },
+  loit_pro_annual_1:   { tier: 'pro',  days: 365 },
+  loit_team_monthly_1: { tier: 'team', days: 30  },
+  loit_team_annual_1:  { tier: 'team', days: 365 },
+};
+const ONE_TIME = new Set(['loit_scan_topup_10', 'loit_storage_ext_6mo']);
 
-function resolveFinalStatus(txnStatus: string, fraudStatus?: string) {
-  switch (txnStatus) {
-    case 'capture':    return fraudStatus === 'accept' ? 'succeeded' : 'pending';
-    case 'settlement': return 'succeeded';
-    case 'pending':    return 'pending';
-    case 'deny':
-    case 'failure':    return 'failed';
-    case 'cancel':     return 'cancelled';
-    case 'expire':     return 'expired';
-    default:           return 'pending';
-  }
-}
-
-async function applySuccess(order: { user_id: string; product_key: string }) {
-  const now = new Date();
-  switch (order.product_key) {
-    case 'loit_pro_monthly':
-      await supabase.from('users').update({
-        tier: 'pro',
-        tier_expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      }).eq('id', order.user_id); return;
-    case 'loit_pro_yearly':
-      await supabase.from('users').update({
-        tier: 'pro',
-        tier_expires_at: new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-      }).eq('id', order.user_id); return;
-    case 'loit_team_monthly':
-      await supabase.from('users').update({
-        tier: 'team',
-        tier_expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      }).eq('id', order.user_id); return;
-    case 'loit_team_yearly':
-      await supabase.from('users').update({
-        tier: 'team',
-        tier_expires_at: new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-      }).eq('id', order.user_id); return;
-    case 'loit_scan_topup':
-      await supabase.rpc('add_scan_topup', { p_user_id: order.user_id, p_amount: 10 }); return;
-    case 'loit_storage_ext':
-      await supabase.rpc('extend_receipt_expiry', { p_user_id: order.user_id }); return;
-  }
-}
+const GRANT = new Set([
+  'INITIAL_PURCHASE', 'RENEWAL', 'NON_RENEWING_PURCHASE', 'PRODUCT_CHANGE', 'UNCANCELLATION',
+]);
+const REVOKE = new Set(['EXPIRATION', 'SUBSCRIPTION_PAUSED']);
 
 serve(async (req) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
-  const payload = await req.json();
-  const {
-    order_id, status_code, gross_amount, signature_key,
-    transaction_status, fraud_status,
-  } = payload;
-  if (!order_id || !status_code || !gross_amount || !signature_key || !transaction_status) {
-    return new Response('Missing required fields', { status: 400 });
+  const expected = `Bearer ${Deno.env.get('REVENUECAT_WEBHOOK_AUTH') ?? ''}`;
+  if (req.headers.get('Authorization') !== expected) {
+    return new Response('Unauthorized', { status: 401 });
   }
 
-  if (!await verifySignature({ order_id, status_code, gross_amount, signature_key })) {
-    return new Response('Invalid signature', { status: 401 });
+  const body = await req.json();
+  const e = body?.event;
+  if (!e?.id || !e?.type || !e?.app_user_id || !e?.product_id) {
+    return new Response('Malformed event', { status: 400 });
   }
 
-  const { data: order } = await supabase.from('midtrans_orders')
-    .select('order_id, user_id, product_key, status')
-    .eq('order_id', order_id).maybeSingle();
-  if (!order) {
-    // Unknown order — Midtrans stops retrying on 2xx.
-    return new Response('OK', { status: 200 });
-  }
-
-  const finalStatus = resolveFinalStatus(transaction_status, fraud_status);
-  if (order.status === 'succeeded' && finalStatus === 'succeeded') {
+  // Idempotency: insert returns conflict if RC retries a delivered event.
+  const { error: dupErr } = await supabase.from('payment_receipts').insert({
+    user_id:      e.app_user_id,
+    provider:     'revenuecat',
+    event_id:     e.id,
+    event_type:   e.type,
+    product_id:   e.product_id,
+    store_txn_id: e.transaction_id ?? null,
+    occurred_at:  new Date(e.event_timestamp_ms ?? Date.now()).toISOString(),
+  });
+  if (dupErr && dupErr.code === '23505') {
     return new Response('OK (duplicate)', { status: 200 });
   }
+  if (dupErr) {
+    return new Response(`Insert failed: ${dupErr.message}`, { status: 500 });
+  }
 
-  await supabase.from('midtrans_orders').update({
-    status:                      finalStatus,
-    midtrans_transaction_status: transaction_status,
-    midtrans_fraud_status:       fraud_status ?? null,
-    paid_at:                     finalStatus === 'succeeded' ? new Date().toISOString() : null,
-  }).eq('order_id', order_id);
-
-  if (finalStatus === 'succeeded' && order.status !== 'succeeded') {
-    await applySuccess({ user_id: order.user_id, product_key: order.product_key });
+  if (GRANT.has(e.type)) {
+    const sub = SUB_DAYS[e.product_id];
+    if (sub) {
+      const expiresAt = new Date(Date.now() + sub.days * 86_400_000).toISOString();
+      await supabase.from('users').update({
+        tier: sub.tier, tier_expires_at: expiresAt,
+      }).eq('id', e.app_user_id);
+    } else if (ONE_TIME.has(e.product_id)) {
+      if (e.product_id === 'loit_scan_topup_10') {
+        await supabase.rpc('add_scan_topup', { p_user_id: e.app_user_id, p_amount: 10 });
+      } else if (e.product_id === 'loit_storage_ext_6mo') {
+        await supabase.rpc('extend_receipt_expiry', { p_user_id: e.app_user_id });
+      }
+    }
+  } else if (REVOKE.has(e.type)) {
+    await supabase.from('users').update({
+      tier: 'free', tier_expires_at: null,
+    }).eq('id', e.app_user_id);
   }
 
   return new Response('OK', { status: 200 });
 });
 ```
 
-Deploy: `supabase functions deploy midtrans-notification`
+Deploy: `supabase functions deploy revenuecat-webhook --no-verify-jwt` (RC does not send a Supabase JWT — bearer auth is checked manually inside the handler).
 
 **Validation:**
-- [ ] From Midtrans Sandbox Dashboard → Settings → Configuration, click **"Send Test Notification"** → webhook fires → response 200.
-- [ ] Manually tamper with `signature_key` in a curl replay → response 401.
-- [ ] `loit_pro_monthly` settlement → `users.tier = 'pro'` within 1 second.
-- [ ] `loit_scan_topup` settlement → `add_scan_topup` RPC runs; scans remaining goes up by 10.
-- [ ] `loit_storage_ext` settlement → `extend_receipt_expiry` runs; all user receipts get +6 months.
-- [ ] Duplicate notification (Midtrans retries) → DB row unchanged, 200 returned.
-- [ ] `expire`/`cancel`/`deny` notifications → `midtrans_orders.status` updated but `users.tier` unchanged.
+- [ ] RC dashboard → **Send test event** → webhook returns 200 and a row appears in `payment_receipts`.
+- [ ] Replay the same payload → response is `OK (duplicate)`, no duplicate row.
+- [ ] Tamper the bearer header → 401.
+- [ ] `INITIAL_PURCHASE` for `loit_pro_monthly_1` → `users.tier = 'pro'` and `tier_expires_at ≈ now()+30d`.
+- [ ] `EXPIRATION` event → `users.tier = 'free'`, `tier_expires_at = NULL`.
+- [ ] `NON_RENEWING_PURCHASE` for `loit_scan_topup_10` → `add_scan_topup` runs.
+- [ ] `NON_RENEWING_PURCHASE` for `loit_storage_ext_6mo` → `extend_receipt_expiry` runs.
 
 ---
 
 ### Step 3.3 — SQL: Top-Up and Storage Extension Functions
 
-**Goal:** Define the RPC functions that the `midtrans-notification` Edge Function calls on successful one-time payments. These are split from subscription updates because they don't change tier, just credit additional usage.
+**Goal:** Define the RPC functions that the `revenuecat-webhook` Edge Function (and the `dummy-grant` stub) calls on successful one-time payments. These are split from subscription updates because they don't change tier, just credit additional usage.
 
-Create `supabase/migrations/20240301000001_topup_functions.sql` (the `...000000_midtrans_orders.sql` migration from Step 3.2.1 must already be applied):
+Create `supabase/migrations/20240301000001_topup_functions.sql`:
 
 ```sql
 -- ================================================================
@@ -3283,101 +3358,140 @@ supabase db push
 
 ---
 
-### Step 3.4 — Flutter: Paywall Checkout via Midtrans Snap
+### Step 3.4 — Flutter: Paywall Checkout via RevenueCat (with Dummy Stub)
 
-**Goal:** Show the paywall, hand off to Midtrans Snap in-app, react to the transaction-finished callback, and let the `midtrans-notification` webhook flip `users.tier` server-side. The UI should never mutate entitlements directly from the client result — treat the client callback as "the sheet closed" and rely on Realtime streaming from `users.tier` for the actual upgrade.
+**Goal:** Show the paywall, hand off to Google Play Billing (via RevenueCat) when `PAYMENT_STUB=false`, or to the in-app dummy confirm dialog when `PAYMENT_STUB=true`. Either path lands in the same downstream Edge Function side effect (`revenuecat-webhook` or `dummy-grant`), which is the **only** code path allowed to flip `users.tier`. The client treats the purchase result as "the sheet closed" and waits for Realtime streaming from `users.tier` for the actual upgrade.
 
 **Flow:**
 ```
-[Flutter paywall]
-      │  tap "Upgrade to Pro"
+[PaywallScreen — segmented Monthly/Annual toggle, "Save 33% · 4 months free" badge]
+      │  tap "Upgrade to Pro Annual"
       ▼
-[MidtransService.startCheckout(productKey)]
-      │  POST /functions/v1/midtrans-checkout  (user JWT)
-      ▼
-[Edge: midtrans-checkout] → Midtrans Snap API → { snap_token, order_id }
+[paymentServiceProvider]
+      ├── PAYMENT_STUB=true  → DummyPaymentService.purchaseSubscription(sku)
+      │       └── confirm dialog → POST /functions/v1/dummy-grant (user JWT)
+      │              └── Edge: writes payment_receipts + flips users.tier
+      │
+      └── PAYMENT_STUB=false → RevenueCatPaymentService.purchaseSubscription(sku)
+              └── Purchases.purchaseStoreProduct → Play Billing sheet
+                     └── Play → RC servers → POST revenuecat-webhook
+                            └── Edge: writes payment_receipts + flips users.tier
       │
       ▼
-[midtrans_sdk.startPaymentUiFlow(token)]    (in-app Snap UI)
-      │  user selects GoPay / OVO / card / QRIS / VA / ...
-      │
-      ├────── success/pending/failure callback ───┐
-      │                                           │
-      ▼                                           ▼
-[UI: show "Processing…" until webhook lands]   [midtrans_orders row updates]
-      ▲                                           │
-      └─── FeatureGate stream emits new tier ─── [users.tier flipped by webhook]
+[FeatureGate stream emits new tier ← Supabase Realtime on users.tier]
 ```
 
 **Actions:**
 
-1. **Client wrapper** — already implemented at `@/Users/edotanod/IdeaProjects/loit/lib/core/services/midtrans_service.dart`. It exposes a single method:
+1. **PaymentService abstraction** — `lib/core/services/payment_service.dart` defines the interface; `revenuecat_payment_service.dart` and `dummy_payment_service.dart` implement it. The Riverpod provider in `lib/shared/providers/services_providers.dart` selects on `Env.paymentStub`:
 ```dart
-Future<MidtransCheckoutResult> startCheckout({
-  required BuildContext context,
-  required String productKey,
+final paymentServiceProvider = Provider<PaymentService>((ref) {
+  if (Env.paymentStub) return DummyPaymentService();
+  return RevenueCatPaymentService();
 });
 ```
-The SDK is initialized lazily on first use; subsequent checkouts reuse the same `MidtransSDK` instance. The merchantBaseUrl is set based on `Env.midtransIsProduction` so sandbox vs production is a build-time toggle with no code changes.
 
-2. **Paywall view** — binds the button to the service and polls `midtrans_orders` for the final status:
+2. **Paywall view** — `lib/features/paywall/paywall_screen.dart`. Segmented Monthly/Annual toggle drives the SKU. Free-only top-up CTAs render below the tier cards. "Restore purchases" lives in the app bar (RC `restorePurchases` for live builds; no-op for dummy):
 ```dart
-// lib/features/paywall/paywall_sheet.dart
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/services/midtrans_service.dart';
-
-class PaywallUpgradeButton extends ConsumerStatefulWidget {
-  const PaywallUpgradeButton({
-    super.key,
-    required this.productKey,
-    required this.label,
-  });
-  final String productKey;
-  final String label;
-
+class PaywallScreen extends ConsumerStatefulWidget {
+  const PaywallScreen({super.key, this.feature});
+  final String? feature;
   @override
-  ConsumerState<PaywallUpgradeButton> createState() => _PaywallUpgradeButtonState();
+  ConsumerState<PaywallScreen> createState() => _PaywallScreenState();
 }
 
-class _PaywallUpgradeButtonState extends ConsumerState<PaywallUpgradeButton> {
+class _PaywallScreenState extends ConsumerState<PaywallScreen> {
+  _Cycle _cycle = _Cycle.annual;
   bool _busy = false;
 
-  Future<void> _onPressed() async {
+  Future<void> _purchase(String sku) async {
+    if (_busy) return;
     setState(() => _busy = true);
+    final pay = ref.read(paymentServiceProvider);
+    if (pay is DummyPaymentService) pay.bindContext(context);
     try {
-      final result = await MidtransService.instance.startCheckout(
-        context: context,
-        productKey: widget.productKey,
-      );
+      final r = PricingConstants.subscriptionSkus.contains(sku)
+          ? await pay.purchaseSubscription(sku)
+          : await pay.purchaseOneTime(sku);
       if (!mounted) return;
-
-      final msg = switch (result.status) {
-        MidtransCheckoutStatus.succeeded => 'Payment received. Unlocking Pro…',
-        MidtransCheckoutStatus.pending   => 'Payment pending. We\'ll upgrade you as soon as it settles.',
-        MidtransCheckoutStatus.failed    => 'Payment failed. Please try again.',
-        MidtransCheckoutStatus.cancelled => 'Payment cancelled.',
-        MidtransCheckoutStatus.unknown   => 'Payment status unknown. Check back in a minute.',
+      final msg = switch (r.status) {
+        PurchaseStatus.purchased => 'Payment received. Unlocking…',
+        PurchaseStatus.pending   => 'Payment pending. We\'ll upgrade you when it settles.',
+        PurchaseStatus.cancelled => 'Payment cancelled.',
+        PurchaseStatus.failed    => 'Payment failed: ${r.message ?? "unknown"}',
+        PurchaseStatus.restored  => 'Purchase restored.',
       };
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return FilledButton(
-      onPressed: _busy ? null : _onPressed,
-      child: _busy
-          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-          : Text(widget.label),
-    );
-  }
+  // ... build() renders ToggleButtons(_cycle), tier cards, top-up cards, Restore action
 }
 ```
 
-3. **Paywall gating** — use a Riverpod provider that reads the user's tier and composes feature flags:
+3. **`dummy-grant` Edge Function** — same shape as `revenuecat-webhook`, but invoked directly from the client and gated by `STUB_MODE`:
+```typescript
+// supabase/functions/dummy-grant/index.ts
+import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2.46.1';
+
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+);
+const STUB_MODE = (Deno.env.get('STUB_MODE') ?? 'false').toLowerCase() === 'true';
+
+const SUB: Record<string, { tier: 'pro' | 'team'; days: number }> = {
+  loit_pro_monthly_1:  { tier: 'pro',  days: 30  },
+  loit_pro_annual_1:   { tier: 'pro',  days: 365 },
+  loit_team_monthly_1: { tier: 'team', days: 30  },
+  loit_team_annual_1:  { tier: 'team', days: 365 },
+};
+const ONE_TIME = new Set(['loit_scan_topup_10', 'loit_storage_ext_6mo']);
+
+serve(async (req) => {
+  if (!STUB_MODE) return new Response('Stub disabled', { status: 403 });
+  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+
+  const auth = req.headers.get('Authorization');
+  if (!auth) return new Response('Unauthorized', { status: 401 });
+  const { data: { user } } = await supabase.auth.getUser(auth.replace('Bearer ', ''));
+  if (!user) return new Response('Unauthorized', { status: 401 });
+
+  const body = await req.json() as { product_id?: string };
+  const productId = body.product_id;
+  if (!productId) return new Response('Missing product_id', { status: 400 });
+
+  await supabase.from('payment_receipts').insert({
+    user_id:    user.id,
+    provider:   'dummy',
+    event_id:   `dummy-${user.id}-${productId}-${Date.now()}`,
+    event_type: SUB[productId] ? 'INITIAL_PURCHASE' : 'NON_RENEWING_PURCHASE',
+    product_id: productId,
+    occurred_at: new Date().toISOString(),
+  });
+
+  if (SUB[productId]) {
+    const s = SUB[productId];
+    await supabase.from('users').update({
+      tier: s.tier,
+      tier_expires_at: new Date(Date.now() + s.days * 86_400_000).toISOString(),
+    }).eq('id', user.id);
+  } else if (ONE_TIME.has(productId)) {
+    if (productId === 'loit_scan_topup_10') {
+      await supabase.rpc('add_scan_topup', { p_user_id: user.id, p_amount: 10 });
+    } else {
+      await supabase.rpc('extend_receipt_expiry', { p_user_id: user.id });
+    }
+  }
+  return Response.json({ ok: true, product_id: productId });
+});
+```
+
+Deploy: `supabase functions deploy dummy-grant`
+
+4. **Paywall gating** — use a Riverpod provider that reads the user's tier and composes feature flags:
 ```dart
 // lib/features/paywall/feature_gate.dart
 @riverpod
@@ -3461,14 +3575,13 @@ if (!flags.csvExport) {
 ```
 
 **Validation:**
-- [ ] Tapping **"Upgrade to Pro"** opens Midtrans Snap in-app (not in the system browser)
-- [ ] Snap shows at minimum: Credit Card, GoPay, OVO, DANA, QRIS, Bank Transfer (VA) on sandbox
-- [ ] Completing a successful sandbox payment → Snap sheet closes → snackbar shows "Payment received" → `FeatureGate` stream emits the new tier within ~2 seconds (driven by the webhook, not the client callback)
-- [ ] Cancelling the Snap sheet returns the user to the paywall with a "Payment cancelled" snackbar — no tier change
+- [ ] With `PAYMENT_STUB=true`, tapping **"Upgrade to Pro Annual"** opens the in-app dummy confirm dialog and on confirm flips `users.tier` within ~2 seconds (Realtime stream)
+- [ ] With `PAYMENT_STUB=false` on a closed-testing build, tapping the same button opens the Google Play Billing sheet (not the browser) and a successful purchase flips `users.tier` once the RC webhook lands
+- [ ] Cancelling either sheet returns the user to the paywall with a "Payment cancelled" snackbar — no tier change
 - [ ] Tapping a gated feature while on Free shows the paywall AND fires `Analytics.paywallSeen(feature)`
-- [ ] A pending payment (e.g. VA that hasn't been paid yet) produces `midtrans_orders.status = 'pending'`; the tier is NOT upgraded until settlement
-- [ ] Replaying the same Snap token (accidentally calling `startCheckout` twice) is safely ignored because `MidtransService` completes its `Completer` only once per sheet
-- [ ] On Android, the app does NOT crash when Snap opens (proof that `MainActivity extends FlutterFragmentActivity` — otherwise the Fragment can't attach)
+- [ ] Replaying a purchase (RC retry, or rapid double-tap of the dummy dialog) does NOT double-grant — `payment_receipts` unique `(provider, event_id)` blocks dupes
+- [ ] **Restore purchases** in the app bar calls `Purchases.restorePurchases()` (live build) and emits the active entitlement → tier reflects on next stream tick
+- [ ] Free-only top-up CTAs (`loit_scan_topup_10`, `loit_storage_ext_6mo`) trigger `add_scan_topup` / `extend_receipt_expiry` after purchase
 
 ---
 
@@ -3864,11 +3977,11 @@ class ExportService {
 
 ### Step 3.9 — Phase 3 Deliverables Checklist
 
-- [ ] Midtrans Snap checkout opens in-app on Android (no system-browser fallback)
-- [ ] Snap test transaction completes for: Credit Card (sandbox test card), GoPay, OVO, DANA, QRIS, and Bank Transfer (VA)
-- [ ] Annual pricing visible in paywall with "Save 17%" badge
-- [ ] `midtrans-notification` webhook correctly flips `users.tier` AND sets `tier_expires_at` on `settlement`
-- [ ] Webhook leaves tier alone on `pending`/`expire`/`cancel`/`deny`
+- [ ] Google Play Billing sheet (via RevenueCat) opens in-app on Android — or dummy confirm dialog when `PAYMENT_STUB=true`
+- [ ] Sandbox purchase completes for each SKU (`loit_pro_monthly_1`, `loit_pro_annual_1`, `loit_team_monthly_1`, `loit_team_annual_1`, `loit_scan_topup_10`, `loit_storage_ext_6mo`)
+- [ ] Annual pricing visible in paywall with "Save 33% · 4 months free" badge
+- [ ] `revenuecat-webhook` correctly flips `users.tier` AND sets `tier_expires_at` on `INITIAL_PURCHASE` / `RENEWAL`
+- [ ] Webhook leaves tier alone on `CANCELLATION` until current period ends; `EXPIRATION` schedules downgrade
 - [ ] `paywall_seen` PostHog event fires with correct `feature` for every gated feature
 - [ ] `subscriptionStarted` PostHog event fires after successful checkout
 - [ ] Open Exchange Rates serving 180+ currencies for Pro/Team (35-minute cache)
@@ -4106,7 +4219,7 @@ supabase functions deploy keep-alive
 
 ### Step 4.4 — Subscription Downgrade Cron
 
-**Goal:** Automatically downgrade users whose subscription has expired. `tier_expires_at` is set by the `midtrans-notification` webhook (Step 3.2.3) on each successful subscription payment. This cron checks daily and reverts lapsed users to free tier.
+**Goal:** Automatically downgrade users whose subscription has expired. `tier_expires_at` is set by the `revenuecat-webhook` (Step 3.2) on each successful subscription grant/renewal. This cron checks daily and reverts lapsed users to free tier as a safety net (RC `EXPIRATION` events should already cover this, but the cron catches missed webhooks).
 
 Create `supabase/functions/subscription-downgrade/index.ts`:
 
@@ -4193,7 +4306,7 @@ Execute every test in the table below before submitting to either store.
 | Rooms — online | Feed live updates (INSERT/UPDATE/DELETE); budget bar updates live; new member join event shown |
 | Rooms — offline | Full-screen no-connection shown; retry button works; personal tab accessible |
 | Empty room | New room shows empty state with CTA; first transaction dismisses empty state |
-| Payments | Midtrans Snap checkout end-to-end (card + GoPay/OVO/DANA/QRIS/VA in sandbox); webhook flips `users.tier` + sets `tier_expires_at`; scan top-up credits scans; storage extension pushes expiring receipts +6 months |
+| Payments | Google Play Billing (via RevenueCat) checkout end-to-end on a closed-testing build; `revenuecat-webhook` flips `users.tier` + sets `tier_expires_at`; scan top-up credits scans; storage extension pushes expiring receipts +6 months. Dummy stub path validated when `PAYMENT_STUB=true` |
 | Subscription expiry | Set `tier_expires_at` in past → downgrade cron fires → user reverted to free; `FeatureGate` emits free flags |
 | Annual pricing | Annual plan visible in paywall alongside monthly; "Save 17%" badge shown |
 | Recurring bills | Mark transaction as recurring → cron creates draft on due date → next_due_date advances |

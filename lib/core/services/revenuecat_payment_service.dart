@@ -32,14 +32,24 @@ class RevenueCatPaymentService implements PaymentService {
 
   RevenueCatPaymentService() {
     _updates = StreamController<PurchaseUpdate>.broadcast();
+    _entitlementChanged = StreamController<void>.broadcast();
   }
 
   late final StreamController<PurchaseUpdate> _updates;
+  late final StreamController<void> _entitlementChanged;
   bool _initialized = false;
   CustomerInfoUpdateListener? _customerInfoListener;
+  // Dedup: RC's CustomerInfo listener fires on every refresh and re-lists all
+  // active entitlements / non-sub txs. Without dedup, every state poll re-emits
+  // every prior purchase as a new "purchased" event, spamming snacks/logs.
+  final Set<String> _emittedEntitlementKeys = {};
+  final Set<String> _emittedTxIds = {};
 
   @override
   Stream<PurchaseUpdate> get purchaseUpdates => _updates.stream;
+
+  @override
+  Stream<void> get entitlementChanged => _entitlementChanged.stream;
 
   @override
   Future<void> initialize() async {
@@ -73,6 +83,8 @@ class RevenueCatPaymentService implements PaymentService {
 
   Future<void> logout() async {
     if (!_initialized) return;
+    _emittedEntitlementKeys.clear();
+    _emittedTxIds.clear();
     await Purchases.logOut();
   }
 
@@ -132,7 +144,9 @@ class RevenueCatPaymentService implements PaymentService {
       }
 
       final entitled = _hasEntitlementFor(info, productId);
-      _emitFromCustomerInfo(info, productId);
+      // Don't manually emit here — RC's addCustomerInfoUpdateListener fires
+      // _onCustomerInfo automatically after a successful purchase. Emitting
+      // both produces duplicate purchased events.
       return PurchaseResult(
         productId: productId,
         status: entitled ? PurchaseStatus.purchased : PurchaseStatus.pending,
@@ -170,34 +184,32 @@ class RevenueCatPaymentService implements PaymentService {
   }
 
   void _onCustomerInfo(CustomerInfo info, {bool isRestore = false}) {
-    // Re-emit each active entitlement / non-subscription as an update so
-    // the UI can refresh. Server-side entitlement is still authoritative
-    // and arrives via the webhook → Supabase `users.tier` update.
+    // Always notify listeners that entitlement state may have shifted (refund,
+    // billing issue, expiration, etc.). They should re-pull users.tier.
+    if (!_entitlementChanged.isClosed) _entitlementChanged.add(null);
+    // Server-side entitlement is authoritative via webhook → users.tier.
+    // Restore intentionally re-emits everything (user pressed "Restore").
+    if (isRestore) {
+      _emittedEntitlementKeys.clear();
+      _emittedTxIds.clear();
+    }
+    final status = isRestore ? PurchaseStatus.restored : PurchaseStatus.purchased;
     for (final entry in info.entitlements.active.entries) {
+      final key = '${entry.key}:${entry.value.productIdentifier}:'
+          '${entry.value.latestPurchaseDate}';
+      if (!_emittedEntitlementKeys.add(key)) continue;
       _updates.add(PurchaseUpdate(
         productId: entry.value.productIdentifier,
-        status: isRestore
-            ? PurchaseStatus.restored
-            : PurchaseStatus.purchased,
+        status: status,
         purchaseToken: entry.value.identifier,
       ));
     }
     for (final p in info.nonSubscriptionTransactions) {
+      if (!_emittedTxIds.add(p.transactionIdentifier)) continue;
       _updates.add(PurchaseUpdate(
         productId: p.productIdentifier,
-        status: isRestore
-            ? PurchaseStatus.restored
-            : PurchaseStatus.purchased,
+        status: status,
         purchaseToken: p.transactionIdentifier,
-      ));
-    }
-  }
-
-  void _emitFromCustomerInfo(CustomerInfo info, String productId) {
-    if (_hasEntitlementFor(info, productId)) {
-      _updates.add(PurchaseUpdate(
-        productId: productId,
-        status: PurchaseStatus.purchased,
       ));
     }
   }
@@ -225,5 +237,6 @@ class RevenueCatPaymentService implements PaymentService {
       Purchases.removeCustomerInfoUpdateListener(_customerInfoListener!);
     }
     await _updates.close();
+    await _entitlementChanged.close();
   }
 }

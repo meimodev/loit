@@ -161,8 +161,14 @@ serve(async (req) => {
 
   const ev = body.event;
   if (!ev?.type || !ev.app_user_id || !ev.product_id) {
+    console.log('rc-webhook malformed', JSON.stringify(body));
     return jsonResponse({ error: 'Malformed event' }, 400);
   }
+
+  console.log(
+    `rc-webhook event type=${ev.type} sku=${ev.product_id} ` +
+    `user=${ev.app_user_id} env=${ev.environment} exp=${ev.expiration_at_ms}`,
+  );
 
   // RC sends sandbox events too — let them through but never write in
   // production. Comment the next line out during sandbox QA.
@@ -187,32 +193,45 @@ serve(async (req) => {
     return jsonResponse({ error: `Unknown app_user_id: ${userId}` }, 404);
   }
 
+  // Google Play sends product_id in `subscriptionId:basePlanId` form
+  // (e.g. `loit_pro_annual_1:loit-pro-annual-2`). RC forwards it verbatim.
+  // Strip the base-plan suffix so SKU set lookups match our bare ids.
+  const sku = ev.product_id.split(':')[0];
+
   try {
     if (GRANT_EVENTS.has(ev.type)) {
-      if (SUBSCRIPTION_SKUS.has(ev.product_id)) {
-        await grantSubscription(userId, ev.product_id, ev.expiration_at_ms);
-      } else if (ONE_TIME_SKUS.has(ev.product_id)) {
-        if (ev.product_id === 'loit_scan_topup_10') {
+      let granted = false;
+      if (SUBSCRIPTION_SKUS.has(sku)) {
+        await grantSubscription(userId, sku, ev.expiration_at_ms);
+        granted = true;
+      } else if (ONE_TIME_SKUS.has(sku)) {
+        if (sku === 'loit_scan_topup_10') {
           await grantScanTopUp(userId);
-        } else if (ev.product_id === 'loit_storage_ext_6mo') {
+          granted = true;
+        } else if (sku === 'loit_storage_ext_6mo') {
           await grantStorageExtension(userId);
+          granted = true;
         }
       }
-      await recordReceipt(userId, ev.product_id, ev.id, body);
-      return jsonResponse({ ok: true, granted: true });
+      await recordReceipt(userId, sku, ev.id, body);
+      return jsonResponse({ ok: true, granted, sku });
     }
 
     if (REVOKE_EVENTS.has(ev.type)) {
-      // Subscriptions: only revoke once we're past expiry. RC sends
-      // CANCELLATION the moment the user cancels, but they keep access
-      // until `expiration_at_ms`.
-      const inGrace =
-        ev.expiration_at_ms && ev.expiration_at_ms > Date.now();
-      if (SUBSCRIPTION_SKUS.has(ev.product_id) && !inGrace) {
+      // REFUND with "remove entitlement" on Play Console = immediate revoke,
+      // grace period does not apply. CANCELLATION/EXPIRATION/BILLING_ISSUE/
+      // SUBSCRIPTION_PAUSED honor `expiration_at_ms` so the user keeps access
+      // through the paid-up period they already paid for.
+      const isHardRevoke = ev.type === 'REFUND' || ev.type === 'EXPIRATION';
+      const inGrace = !isHardRevoke &&
+        ev.expiration_at_ms !== undefined &&
+        ev.expiration_at_ms > Date.now();
+      const shouldRevoke = SUBSCRIPTION_SKUS.has(sku) && !inGrace;
+      if (shouldRevoke) {
         await revokeSubscription(userId);
       }
-      await recordReceipt(userId, ev.product_id, ev.id, body);
-      return jsonResponse({ ok: true, revoked: !inGrace });
+      await recordReceipt(userId, sku, ev.id, body);
+      return jsonResponse({ ok: true, revoked: shouldRevoke, type: ev.type });
     }
 
     // Acknowledge unknown / informational events (TRANSFER, TEST, etc.)

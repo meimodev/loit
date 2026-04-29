@@ -25,6 +25,12 @@ abstract class PaymentService {
   /// client. Subscription should be live for the lifetime of the app.
   Stream<PurchaseUpdate> get purchaseUpdates;
 
+  /// Fires whenever the underlying customer entitlement state changes —
+  /// including refund / revoke cases that don't surface as a [PurchaseUpdate]
+  /// (since revoked entitlements aren't "purchases"). Listeners typically
+  /// re-fetch the server-side profile (`users.tier`) when this fires.
+  Stream<void> get entitlementChanged;
+
   /// Release platform resources. Called on app shutdown.
   Future<void> dispose();
 }

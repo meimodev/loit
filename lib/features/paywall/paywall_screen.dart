@@ -69,15 +69,15 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       final pay = ref.read(paymentServiceProvider);
       final result = await pay.purchaseSubscription(productId);
       if (!mounted) return;
-      if (result.isTerminalSuccess) {
-        ref.invalidate(userProfileProvider);
-        _showSnack('Purchase complete. Unlocking…');
-      } else if (result.status == PurchaseStatus.cancelled) {
+      // Success/restored/pending snacks come from _onPurchaseUpdate listener
+      // (single source of truth). Only show terminal-fail/cancel here since
+      // those don't emit through the CustomerInfo stream.
+      if (result.status == PurchaseStatus.cancelled) {
         _showSnack('Purchase cancelled.');
-      } else if (result.status == PurchaseStatus.pending) {
-        _showSnack('Purchase pending. Waiting for confirmation…');
-      } else {
+      } else if (result.status == PurchaseStatus.failed) {
         _showSnack(result.message ?? 'Purchase failed.');
+      } else if (result.isTerminalSuccess) {
+        ref.invalidate(userProfileProvider);
       }
     } catch (e) {
       if (!mounted) return;
@@ -98,13 +98,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       final pay = ref.read(paymentServiceProvider);
       final result = await pay.purchaseOneTime(productId);
       if (!mounted) return;
-      if (result.isTerminalSuccess) {
-        ref.invalidate(userProfileProvider);
-        _showSnack('Purchase complete.');
-      } else if (result.status == PurchaseStatus.cancelled) {
+      if (result.status == PurchaseStatus.cancelled) {
         _showSnack('Purchase cancelled.');
-      } else {
+      } else if (result.status == PurchaseStatus.failed) {
         _showSnack(result.message ?? 'Purchase failed.');
+      } else if (result.isTerminalSuccess) {
+        ref.invalidate(userProfileProvider);
       }
     } catch (e) {
       if (!mounted) return;
@@ -144,11 +143,36 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     if (u.status == PurchaseStatus.purchased ||
         u.status == PurchaseStatus.restored) {
       Analytics.subscriptionStarted(_inferTier(u.productId));
-      ref.invalidate(userProfileProvider);
+      // RC fires `purchased` on local CustomerInfo, but our DB `users.tier`
+      // flip lands a beat later via the revenuecat-webhook. Poll profile
+      // until tier reflects entitlement (or timeout) so the UI doesn't
+      // settle on a stale `free` row.
+      _pollProfileUntilTierMatches(_inferTier(u.productId));
     }
-    if (u.status != PurchaseStatus.pending) {
+    if (u.status == PurchaseStatus.cancelled ||
+        u.status == PurchaseStatus.failed) {
       setState(() => _busy = false);
     }
+  }
+
+  Future<void> _pollProfileUntilTierMatches(String expectedTier) async {
+    if (expectedTier == 'free') {
+      if (mounted) setState(() => _busy = false);
+      return;
+    }
+    const maxAttempts = 8;
+    const interval = Duration(milliseconds: 1500);
+    for (var i = 0; i < maxAttempts; i++) {
+      ref.invalidate(userProfileProvider);
+      try {
+        final profile = await ref.read(userProfileProvider.future);
+        if (profile?.tier == expectedTier) break;
+      } catch (_) {/* retry */}
+      if (!mounted) return;
+      await Future.delayed(interval);
+      if (!mounted) return;
+    }
+    if (mounted) setState(() => _busy = false);
   }
 
   String _inferTier(String sku) {

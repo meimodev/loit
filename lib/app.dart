@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/routing/app_router.dart';
@@ -21,6 +24,8 @@ class LoitApp extends ConsumerStatefulWidget {
 
 class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
   final _pushService = PushService();
+  StreamSubscription<void>? _entitlementSub;
+  RealtimeChannel? _userRowChannel;
 
   @override
   void initState() {
@@ -28,6 +33,18 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(syncServiceProvider).startAutoSync();
+      // Listen for any entitlement-state shift surfaced by the payment SDK
+      // (purchase, refund, billing issue, expiration). Refunds-with-revoke on
+      // Play Console fire here without a corresponding PurchaseUpdate, so we
+      // re-pull the server profile to catch tier downgrades.
+      final pay = ref.read(paymentServiceProvider);
+      _entitlementSub = pay.entitlementChanged.listen((_) {
+        ref.invalidate(userProfileProvider);
+      });
+      // Cold-start case: session may already exist from cached auth before
+      // authStateProvider emits its first event. Subscribe immediately if so.
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) _subscribeUserRow(user.id);
     });
   }
 
@@ -38,14 +55,46 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       _pushService.syncCurrentToken().catchError((Object e, StackTrace st) {
         Log.e('App', 'Push token sync on resume failed', error: e, stack: st);
       });
+      // Force RC to re-pull CustomerInfo on resume — covers refunds issued
+      // while the app was backgrounded. The CustomerInfo listener will then
+      // fire entitlementChanged, which invalidates userProfileProvider.
+      Purchases.invalidateCustomerInfoCache().catchError((Object _) {});
+      Purchases.getCustomerInfo().catchError((Object _) {});
+      // Also refresh profile directly in case the webhook already landed.
+      ref.invalidate(userProfileProvider);
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _entitlementSub?.cancel();
+    _userRowChannel?.unsubscribe();
     _pushService.dispose();
     super.dispose();
+  }
+
+  void _subscribeUserRow(String userId) {
+    _userRowChannel?.unsubscribe();
+    // Realtime UPDATE on the user's own public.users row. Catches any
+    // server-side tier mutation (webhook revoke, admin grant, cron downgrade)
+    // without waiting on the next app resume.
+    _userRowChannel = Supabase.instance.client
+        .channel('user:$userId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'users',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: userId,
+          ),
+          callback: (_) {
+            ref.invalidate(userProfileProvider);
+          },
+        )
+        .subscribe();
   }
 
   @override
@@ -56,6 +105,7 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       if (session != null) {
         Log.i('App', 'User signed in: ${session.user.id}');
         Analytics.identify(session.user.id, email: session.user.email);
+        _subscribeUserRow(session.user.id);
         // Bind RevenueCat customer to Supabase user so webhook events carry
         // the correct app_user_id. Without this, purchases land on whichever
         // anon ID RC generated at first init.
@@ -82,6 +132,8 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       } else {
         Log.i('App', 'User signed out');
         Analytics.reset();
+        _userRowChannel?.unsubscribe();
+        _userRowChannel = null;
         final pay = ref.read(paymentServiceProvider);
         if (pay is RevenueCatPaymentService) {
           pay.logout().catchError((Object e, StackTrace st) {

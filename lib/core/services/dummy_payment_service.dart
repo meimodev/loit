@@ -37,9 +37,11 @@ class DummyPaymentService implements PaymentService {
 
   DummyPaymentService() {
     _updates = StreamController<PurchaseUpdate>.broadcast();
+    _entitlementChanged = StreamController<void>.broadcast();
   }
 
   late final StreamController<PurchaseUpdate> _updates;
+  late final StreamController<void> _entitlementChanged;
   BuildContext? _context;
 
   /// Bind a [BuildContext] used by the confirmation dialog. Call this from
@@ -54,6 +56,9 @@ class DummyPaymentService implements PaymentService {
 
   @override
   Stream<PurchaseUpdate> get purchaseUpdates => _updates.stream;
+
+  @override
+  Stream<void> get entitlementChanged => _entitlementChanged.stream;
 
   @override
   Future<void> initialize() async {
@@ -179,6 +184,7 @@ class DummyPaymentService implements PaymentService {
   @override
   Future<void> dispose() async {
     await _updates.close();
+    await _entitlementChanged.close();
   }
 
   int? _priceFor(String productId) => switch (productId) {

@@ -214,6 +214,20 @@ serve(async (req) => {
         }
       }
       await recordReceipt(userId, sku, ev.id, body);
+      if (granted) {
+        await supabase.from('notifications').insert({
+          user_id: userId,
+          kind: 'subscription',
+          title: SUBSCRIPTION_SKUS.has(sku)
+            ? 'LOIT Pro active'
+            : 'Purchase complete',
+          body: SUBSCRIPTION_SKUS.has(sku)
+            ? 'Your subscription is active. Welcome aboard.'
+            : `Top-up applied (${sku}).`,
+          deep_link: '/billing',
+          metadata: { sku, event_type: ev.type, event_id: ev.id },
+        });
+      }
       return jsonResponse({ ok: true, granted, sku });
     }
 
@@ -231,6 +245,28 @@ serve(async (req) => {
         await revokeSubscription(userId);
       }
       await recordReceipt(userId, sku, ev.id, body);
+      const notifTitle = ev.type === 'BILLING_ISSUE'
+        ? 'Billing issue with your subscription'
+        : ev.type === 'REFUND'
+        ? 'Refund processed'
+        : shouldRevoke
+        ? 'Subscription ended'
+        : 'Subscription set to expire';
+      const notifBody = ev.type === 'BILLING_ISSUE'
+        ? 'Update your payment method in Google Play to keep Pro features.'
+        : ev.type === 'REFUND'
+        ? 'Your purchase has been refunded.'
+        : shouldRevoke
+        ? "You're back on the free tier."
+        : 'Access continues until the end of the paid period.';
+      await supabase.from('notifications').insert({
+        user_id: userId,
+        kind: 'subscription',
+        title: notifTitle,
+        body: notifBody,
+        deep_link: '/billing',
+        metadata: { sku, event_type: ev.type, event_id: ev.id },
+      });
       return jsonResponse({ ok: true, revoked: shouldRevoke, type: ev.type });
     }
 

@@ -105,6 +105,14 @@ serve(async (req) => {
         purchase_token: stubToken,
         raw: { stub: true, productId, expiry: expiry.toISOString() },
       });
+      await supabase.from('notifications').insert({
+        user_id: userId,
+        kind: 'subscription',
+        title: 'LOIT Pro active (stub)',
+        body: 'Stub purchase granted. Real purchases will use RevenueCat.',
+        deep_link: '/billing',
+        metadata: { sku: productId, stub: true },
+      });
       return jsonResponse({ success: true, tier: cfg.tier });
     }
 
@@ -122,6 +130,14 @@ serve(async (req) => {
         product_id: productId,
         purchase_token: stubToken,
         raw: { stub: true, productId },
+      });
+      await supabase.from('notifications').insert({
+        user_id: userId,
+        kind: 'subscription',
+        title: 'Top-up applied (stub)',
+        body: `${productId} stub purchase granted.`,
+        deep_link: '/billing',
+        metadata: { sku: productId, stub: true },
       });
       const { data: profile } = await supabase
         .from('users')

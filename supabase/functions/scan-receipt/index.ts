@@ -23,10 +23,15 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const SCANNER_PROMPT = `You are a receipt parsing assistant. Analyze the receipt image and return ONLY valid JSON.
+const SCANNER_PROMPT = `You are a financial document parsing assistant. Analyze the image and return ONLY valid JSON.
 Do not include any explanation, preamble, or markdown formatting.
 
+The image may be either an EXPENSE document (merchant receipt, invoice the user paid)
+or an INCOME document (payslip, bank transfer-in, refund slip, deposit confirmation).
+Set "type" accordingly.
+
 {
+  "type": "expense|income",
   "merchant": "",
   "address": "",
   "date": "YYYY-MM-DD",
@@ -40,10 +45,13 @@ Do not include any explanation, preamble, or markdown formatting.
   "tip": 0.00,
   "total": 0.00,
   "payment_method": "",
-  "category": "dining|groceries|transport|shopping|entertainment|utilities|health|travel|other"
+  "category": "dining|groceries|transport|shopping|entertainment|utilities|health|travel|other|income_salary|income_bonus|income_freelance|income_investment|income_gift|income_refund|income_other"
 }
 
-If any field cannot be determined, use null. Never guess — use null if unsure.`;
+Pick "category" from the EXPENSE options when type is expense, or from the INCOME options
+(income_*) when type is income. The "total" field MUST be a positive number — sign is
+conveyed by "type", not by the value. If unsure, default type to "expense".
+If any other field cannot be determined, use null. Never guess — use null if unsure.`;
 
 /**
  * Extract partial fields from malformed AI response using targeted regex patterns.
@@ -54,6 +62,7 @@ function extractPartialFields(rawText: string): Record<string, unknown> {
   const partial: Record<string, unknown> = {};
 
   const patterns: [string, RegExp][] = [
+    ['type',           /"type"\s*:\s*"(expense|income)"/],
     ['merchant',       /"merchant"\s*:\s*"([^"]+)"/],
     ['date',           /"date"\s*:\s*"(\d{4}-\d{2}-\d{2})"/],
     ['total',          /"total"\s*:\s*([\d.]+)/],

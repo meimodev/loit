@@ -55,6 +55,22 @@ serve(async () => {
     });
   }
 
+  // Log a notification for each downgraded user so they see the change in-app.
+  const notifRows = ids.map((uid) => ({
+    user_id: uid,
+    kind: 'subscription',
+    title: 'Subscription expired',
+    body: "You're back on the free tier. Renew to restore Pro features.",
+    deep_link: '/billing',
+    metadata: { reason: 'tier_expires_at_lapsed' },
+  }));
+  const { error: notifErr } = await supabase
+    .from('notifications')
+    .insert(notifRows);
+  if (notifErr) {
+    console.error('downgrade notification insert failed:', notifErr);
+  }
+
   console.log(`Downgraded ${ids.length} users:`, ids);
   return new Response(
     JSON.stringify({ ok: true, downgraded: ids.length, ids }),

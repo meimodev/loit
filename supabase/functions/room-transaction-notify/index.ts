@@ -29,7 +29,22 @@ type NotifyBody = {
   merchant?: string | null;
   amount: number | string;
   currency: string;
+  // 'income' | 'expense'. Falls back to amount sign (negative ⇒ income) if absent.
+  type?: string | null;
 };
+
+function isIncomePayload(body: NotifyBody): boolean {
+  if (body.type === 'income') return true;
+  if (body.type === 'expense') return false;
+  const n = typeof body.amount === 'string' ? Number(body.amount) : body.amount;
+  return Number.isFinite(n) && n < 0;
+}
+
+function formatAmount(amount: NotifyBody['amount']): string {
+  const n = typeof amount === 'string' ? Number(amount) : amount;
+  if (!Number.isFinite(n)) return String(amount);
+  return Math.abs(n).toString();
+}
 
 async function getAccessToken(): Promise<string> {
   const tokens = await jwt.authorize();
@@ -70,15 +85,19 @@ async function sendMessage(
       message: {
         token: deviceToken,
         notification: {
-          title: body.merchant ?? 'New expense',
-          body: `${body.amount} ${body.currency}`,
+          title: body.merchant ??
+            (isIncomePayload(body) ? 'Income recorded' : 'New expense'),
+          body: `${isIncomePayload(body) ? '+' : ''}${formatAmount(body.amount)} ${body.currency}`,
         },
         data: {
           room_id: body.room_id,
           actor_id: body.actor_id,
           amount: String(body.amount),
           currency: body.currency,
+          tx_type: isIncomePayload(body) ? 'income' : 'expense',
           type: 'room_transaction',
+          kind: 'room_activity',
+          deep_link: `/rooms/${body.room_id}`,
         },
         android: {
           priority: 'high',
@@ -184,6 +203,31 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
       });
+    }
+
+    // Insert in-app notification rows (one per recipient).
+    const isIncome = isIncomePayload(body);
+    const notifTitle = body.merchant ?? (isIncome ? 'Income recorded' : 'New expense');
+    const notifBody = `${isIncome ? '+' : ''}${formatAmount(body.amount)} ${body.currency}`;
+    const notifRows = userIds.map((uid) => ({
+      user_id: uid,
+      kind: 'room_activity',
+      title: notifTitle,
+      body: notifBody,
+      deep_link: `/rooms/${body.room_id}`,
+      metadata: {
+        room_id: body.room_id,
+        actor_id: body.actor_id,
+        amount: String(body.amount),
+        currency: body.currency,
+        tx_type: isIncome ? 'income' : 'expense',
+      },
+    }));
+    const { error: notifInsertError } = await supabase
+      .from('notifications')
+      .insert(notifRows);
+    if (notifInsertError) {
+      console.error('notifications insert failed', notifInsertError);
     }
 
     const { data: tokens, error: tokensError } = await supabase

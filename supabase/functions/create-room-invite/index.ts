@@ -69,6 +69,21 @@ serve(async (req) => {
     return json({ error: error.message }, 500);
   }
 
+  // Notify invitee in-app.
+  const { data: room } = await supabase
+    .from('rooms')
+    .select('name')
+    .eq('id', room_id)
+    .maybeSingle();
+  await supabase.from('notifications').insert({
+    user_id: invitee.id,
+    kind: 'invite',
+    title: 'Room invitation',
+    body: `You've been invited to join ${room?.name ?? 'a room'}.`,
+    deep_link: '/rooms',
+    metadata: { room_id, invite_token: token },
+  });
+
   return json({
     invite_token: token,
     invite_url: `https://loit.app/invite/${token}`,

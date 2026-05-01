@@ -92,12 +92,30 @@ serve(async (req) => {
     .update({ next_receipt_expiry_at: null })
     .not('next_receipt_expiry_at', 'is', null);
 
+  // Notify users whose earliest upcoming receipt expires within 14 days.
+  const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
+  const notifRows: Array<Record<string, unknown>> = [];
   for (const [uid, ts] of earliestByUser.entries()) {
     await supabase
       .from('users')
       .update({ next_receipt_expiry_at: ts })
       .eq('id', uid);
     warningUserCount += 1;
+
+    const expiresAt = new Date(ts);
+    if (expiresAt.getTime() - now.getTime() <= fourteenDaysMs) {
+      notifRows.push({
+        user_id: uid,
+        kind: 'receipt',
+        title: 'Receipt expiring soon',
+        body: `A receipt will be auto-deleted on ${ts.slice(0, 10)} (free-tier 90-day window).`,
+        deep_link: '/transactions',
+        metadata: { expires_at: ts },
+      });
+    }
+  }
+  if (notifRows.length > 0) {
+    await supabase.from('notifications').insert(notifRows);
   }
 
   return new Response(

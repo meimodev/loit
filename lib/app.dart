@@ -1,17 +1,21 @@
 import 'dart:async';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/routing/app_router.dart';
+import 'core/theme/loit_theme.dart';
 import 'core/services/analytics_service.dart';
 import 'core/services/deep_link_service.dart';
 import 'core/services/log_service.dart';
 import 'core/services/push_service.dart';
 import 'core/services/revenuecat_payment_service.dart';
 import 'shared/providers/auth_providers.dart';
+import 'shared/providers/notifications_provider.dart';
+import 'shared/providers/preferences_provider.dart';
 import 'shared/providers/room_providers.dart';
 import 'shared/providers/services_providers.dart';
 
@@ -25,6 +29,7 @@ class LoitApp extends ConsumerStatefulWidget {
 class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
   final _pushService = PushService();
   StreamSubscription<void>? _entitlementSub;
+  StreamSubscription<RemoteMessage>? _foregroundPushSub;
   RealtimeChannel? _userRowChannel;
 
   @override
@@ -40,6 +45,11 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       final pay = ref.read(paymentServiceProvider);
       _entitlementSub = pay.entitlementChanged.listen((_) {
         ref.invalidate(userProfileProvider);
+      });
+      // Foreground FCM: refresh notifications feed so new pushes appear
+      // without waiting on the realtime channel round-trip.
+      _foregroundPushSub = FirebaseMessaging.onMessage.listen((_) {
+        ref.invalidate(notificationsProvider);
       });
       // Cold-start case: session may already exist from cached auth before
       // authStateProvider emits its first event. Subscribe immediately if so.
@@ -69,6 +79,7 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _entitlementSub?.cancel();
+    _foregroundPushSub?.cancel();
     _userRowChannel?.unsubscribe();
     _pushService.dispose();
     super.dispose();
@@ -160,36 +171,27 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
     return MaterialApp.router(
       title: 'LOIT',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.indigo,
-          brightness: Brightness.dark,
-        ),
-      ),
+      theme: LoitTheme.light(),
+      darkTheme: LoitTheme.dark(),
+      themeMode: ref.watch(themeModePrefProvider),
       routerConfig: router,
     );
   }
 
   void _wirePushNavigation() {
     // Cold start: app was killed, opened via notification
-    _pushService.getInitialRoomId().then((roomId) {
-      if (roomId != null && mounted) {
+    _pushService.getInitialDeepLink().then((deepLink) {
+      if (deepLink != null && mounted) {
         final router = ref.read(appRouterProvider);
-        router.go('/rooms/$roomId');
+        router.go(deepLink);
       }
     });
 
     // Warm: notification tapped while app is running
-    _pushService.openedRoomIds().listen((roomId) {
+    _pushService.openedDeepLinks().listen((deepLink) {
       if (mounted) {
         final router = ref.read(appRouterProvider);
-        router.go('/rooms/$roomId');
+        router.go(deepLink);
       }
     });
   }

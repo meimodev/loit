@@ -71,16 +71,47 @@ class PushService {
         .eq('token', token);
   }
 
-  Future<String?> getInitialRoomId() async {
+  /// Resolve a deep-link path from a push payload. Prefer explicit `deep_link`,
+  /// fall back to legacy `room_id` so older payloads still navigate.
+  String? _deepLinkOf(RemoteMessage? message) {
+    if (message == null) return null;
+    final dl = message.data['deep_link'];
+    if (dl is String && dl.isNotEmpty) return dl;
+    final roomId = message.data['room_id'];
+    if (roomId is String && roomId.isNotEmpty) return '/rooms/$roomId';
+    return null;
+  }
+
+  Future<String?> getInitialDeepLink() async {
     final message = await _messaging.getInitialMessage();
-    return message?.data['room_id'];
+    return _deepLinkOf(message);
+  }
+
+  Stream<String> openedDeepLinks() {
+    return FirebaseMessaging.onMessageOpenedApp
+        .map(_deepLinkOf)
+        .where((dl) => dl != null)
+        .cast<String>();
+  }
+
+  /// Backwards-compatible helpers — extract roomId from deep_link if it
+  /// matches `/rooms/<id>`, otherwise from legacy `room_id` field.
+  Future<String?> getInitialRoomId() async {
+    final dl = await getInitialDeepLink();
+    return _roomIdFromPath(dl);
   }
 
   Stream<String> openedRoomIds() {
-    return FirebaseMessaging.onMessageOpenedApp
-        .map((message) => message.data['room_id'])
-        .where((roomId) => roomId != null)
+    return openedDeepLinks()
+        .map(_roomIdFromPath)
+        .where((id) => id != null)
         .cast<String>();
+  }
+
+  static String? _roomIdFromPath(String? path) {
+    if (path == null) return null;
+    final m = RegExp(r'^/rooms/([^/?]+)').firstMatch(path);
+    return m?.group(1);
   }
 
   Future<void> dispose() async {

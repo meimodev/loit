@@ -121,6 +121,7 @@ class RoomService {
     String? merchant,
     required num amount,
     required String currency,
+    bool isIncome = false,
   }) async {
     await _client.functions.invoke(
       'room-transaction-notify',
@@ -130,6 +131,7 @@ class RoomService {
         'merchant': merchant,
         'amount': amount,
         'currency': currency,
+        'type': isIncome ? 'income' : 'expense',
       },
     );
   }

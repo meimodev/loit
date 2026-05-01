@@ -53,6 +53,13 @@ class Txn {
     ),
     roomId: r['room_id'] as String?,
   );
+
+  /// Income transactions are stored with a negative `amount` (sign convention).
+  bool get isIncome => amount < 0;
+
+  /// Absolute amount for display.
+  double get absAmount => amount.abs();
+  double get absAmountHome => (amountHome ?? amount).abs();
 }
 
 class TransactionsNotifier extends AsyncNotifier<List<Txn>> {

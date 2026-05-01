@@ -84,6 +84,7 @@ final budgetStatusesProvider = Provider<List<BudgetStatus>>((ref) {
     final spent = txns
         .where((t) =>
             (t.category ?? '') == b.category &&
+            t.amount > 0 &&
             t.createdAt.isAfter(monthStart))
         .fold<double>(0, (sum, t) => sum + (t.amountHome ?? t.amount));
     return BudgetStatus(budget: b, spent: spent);

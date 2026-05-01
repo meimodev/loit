@@ -1,55 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Bottom-nav shell: Dashboard, Budgets, Reports, Settings.
+import 'loit_tab_bar.dart';
+
+/// LOIT bottom-nav shell. Backed by `StatefulShellRoute.indexedStack` so each
+/// tab keeps its own navigation stack across switches.
+///
+/// Branch order: 0=Home, 1=Transactions, 2=Rooms, 3=Settings.
+/// LoitTabBar slot 2 (center) is the Scan FAB — pushed on top, not a branch.
 class ShellScaffold extends StatelessWidget {
-  const ShellScaffold({super.key, required this.child});
-  final Widget child;
+  const ShellScaffold({super.key, required this.navigationShell});
+  final StatefulNavigationShell navigationShell;
 
-  static const _tabs = <_Tab>[
-    _Tab('/', Icons.dashboard_outlined, Icons.dashboard, 'Home'),
-    _Tab('/rooms', Icons.group_outlined, Icons.group, 'Rooms'),
-    _Tab('/budgets', Icons.savings_outlined, Icons.savings, 'Budgets'),
-    _Tab('/reports', Icons.bar_chart_outlined, Icons.bar_chart, 'Reports'),
-    _Tab('/settings', Icons.settings_outlined, Icons.settings, 'Settings'),
-  ];
+  /// Map LoitTabBar slot (0..4) to branch index. Slot 2 is FAB → no branch.
+  static const _slotToBranch = <int, int>{0: 0, 1: 1, 3: 2, 4: 3};
+  static const _branchToSlot = <int, int>{0: 0, 1: 1, 2: 3, 3: 4};
 
-  int _indexFor(String location) {
-    for (var i = 0; i < _tabs.length; i++) {
-      if (location == _tabs[i].path ||
-          (_tabs[i].path != '/' && location.startsWith(_tabs[i].path))) {
-        return i;
-      }
-    }
-    return 0;
+  void _onTap(BuildContext context, int slot) {
+    final branch = _slotToBranch[slot];
+    if (branch == null) return;
+    navigationShell.goBranch(
+      branch,
+      // Tapping the active tab pops to its branch root.
+      initialLocation: branch == navigationShell.currentIndex,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final location = GoRouterState.of(context).matchedLocation;
-    final index = _indexFor(location);
+    final activeSlot =
+        _branchToSlot[navigationShell.currentIndex] ?? 0;
     return Scaffold(
-      body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) => context.go(_tabs[i].path),
-        destinations: [
-          for (final t in _tabs)
-            NavigationDestination(
-              icon: Icon(t.icon),
-              selectedIcon: Icon(t.selectedIcon),
-              label: t.label,
-            ),
-        ],
+      body: navigationShell,
+      bottomNavigationBar: LoitTabBar(
+        currentIndex: activeSlot,
+        onTap: (slot) => _onTap(context, slot),
+        onScan: () => context.push('/scan'),
       ),
     );
   }
-}
-
-class _Tab {
-  final String path;
-  final IconData icon;
-  final IconData selectedIcon;
-  final String label;
-  const _Tab(this.path, this.icon, this.selectedIcon, this.label);
 }

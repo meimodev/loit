@@ -1,0 +1,210 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class AppPreferences {
+  final ThemeMode themeMode;
+  final String language; // 'en' | 'id' | 'system'
+  final String region; // 'ID' | 'US' | etc.
+  final String currency; // 'IDR' | 'USD' | ...
+
+  // Security
+  final bool biometricLock;
+  final bool appLock;
+  final bool hideAmounts;
+
+  // Notifications (8 toggles on notifications screen)
+  final bool notifBudgetAlerts;
+  final bool notifBudgetWeeklyDigest;
+  final bool notifRoomActivity;
+  final bool notifRoomMentions;
+  final bool notifReceiptExpiry;
+  final bool notifMonthlyDigest;
+  final bool notifProductUpdates;
+
+  const AppPreferences({
+    this.themeMode = ThemeMode.system,
+    this.language = 'system',
+    this.region = 'ID',
+    this.currency = 'IDR',
+    this.biometricLock = false,
+    this.appLock = false,
+    this.hideAmounts = false,
+    this.notifBudgetAlerts = true,
+    this.notifBudgetWeeklyDigest = false,
+    this.notifRoomActivity = true,
+    this.notifRoomMentions = true,
+    this.notifReceiptExpiry = true,
+    this.notifMonthlyDigest = false,
+    this.notifProductUpdates = false,
+  });
+
+  AppPreferences copyWith({
+    ThemeMode? themeMode,
+    String? language,
+    String? region,
+    String? currency,
+    bool? biometricLock,
+    bool? appLock,
+    bool? hideAmounts,
+    bool? notifBudgetAlerts,
+    bool? notifBudgetWeeklyDigest,
+    bool? notifRoomActivity,
+    bool? notifRoomMentions,
+    bool? notifReceiptExpiry,
+    bool? notifMonthlyDigest,
+    bool? notifProductUpdates,
+  }) =>
+      AppPreferences(
+        themeMode: themeMode ?? this.themeMode,
+        language: language ?? this.language,
+        region: region ?? this.region,
+        currency: currency ?? this.currency,
+        biometricLock: biometricLock ?? this.biometricLock,
+        appLock: appLock ?? this.appLock,
+        hideAmounts: hideAmounts ?? this.hideAmounts,
+        notifBudgetAlerts: notifBudgetAlerts ?? this.notifBudgetAlerts,
+        notifBudgetWeeklyDigest:
+            notifBudgetWeeklyDigest ?? this.notifBudgetWeeklyDigest,
+        notifRoomActivity: notifRoomActivity ?? this.notifRoomActivity,
+        notifRoomMentions: notifRoomMentions ?? this.notifRoomMentions,
+        notifReceiptExpiry: notifReceiptExpiry ?? this.notifReceiptExpiry,
+        notifMonthlyDigest: notifMonthlyDigest ?? this.notifMonthlyDigest,
+        notifProductUpdates: notifProductUpdates ?? this.notifProductUpdates,
+      );
+}
+
+class _Keys {
+  static const themeMode = 'pref.themeMode'; // 'system' | 'light' | 'dark'
+  static const language = 'pref.language';
+  static const region = 'pref.region';
+  static const currency = 'pref.currency';
+  static const biometricLock = 'pref.biometricLock';
+  static const appLock = 'pref.appLock';
+  static const hideAmounts = 'pref.hideAmounts';
+  static const notifBudgetAlerts = 'pref.notif.budgetAlerts';
+  static const notifBudgetWeeklyDigest = 'pref.notif.budgetWeeklyDigest';
+  static const notifRoomActivity = 'pref.notif.roomActivity';
+  static const notifRoomMentions = 'pref.notif.roomMentions';
+  static const notifReceiptExpiry = 'pref.notif.receiptExpiry';
+  static const notifMonthlyDigest = 'pref.notif.monthlyDigest';
+  static const notifProductUpdates = 'pref.notif.productUpdates';
+}
+
+ThemeMode _decodeThemeMode(String? v) {
+  switch (v) {
+    case 'light':
+      return ThemeMode.light;
+    case 'dark':
+      return ThemeMode.dark;
+    default:
+      return ThemeMode.system;
+  }
+}
+
+String _encodeThemeMode(ThemeMode m) => switch (m) {
+      ThemeMode.light => 'light',
+      ThemeMode.dark => 'dark',
+      ThemeMode.system => 'system',
+    };
+
+class PreferencesNotifier extends AsyncNotifier<AppPreferences> {
+  late SharedPreferences _sp;
+
+  @override
+  Future<AppPreferences> build() async {
+    _sp = await SharedPreferences.getInstance();
+    return AppPreferences(
+      themeMode: _decodeThemeMode(_sp.getString(_Keys.themeMode)),
+      language: _sp.getString(_Keys.language) ?? 'system',
+      region: _sp.getString(_Keys.region) ?? 'ID',
+      currency: _sp.getString(_Keys.currency) ?? 'IDR',
+      biometricLock: _sp.getBool(_Keys.biometricLock) ?? false,
+      appLock: _sp.getBool(_Keys.appLock) ?? false,
+      hideAmounts: _sp.getBool(_Keys.hideAmounts) ?? false,
+      notifBudgetAlerts: _sp.getBool(_Keys.notifBudgetAlerts) ?? true,
+      notifBudgetWeeklyDigest:
+          _sp.getBool(_Keys.notifBudgetWeeklyDigest) ?? false,
+      notifRoomActivity: _sp.getBool(_Keys.notifRoomActivity) ?? true,
+      notifRoomMentions: _sp.getBool(_Keys.notifRoomMentions) ?? true,
+      notifReceiptExpiry: _sp.getBool(_Keys.notifReceiptExpiry) ?? true,
+      notifMonthlyDigest: _sp.getBool(_Keys.notifMonthlyDigest) ?? false,
+      notifProductUpdates: _sp.getBool(_Keys.notifProductUpdates) ?? false,
+    );
+  }
+
+  Future<void> _update(AppPreferences next) async {
+    state = AsyncData(next);
+  }
+
+  Future<void> setThemeMode(ThemeMode m) async {
+    await _sp.setString(_Keys.themeMode, _encodeThemeMode(m));
+    final cur = state.value ?? const AppPreferences();
+    await _update(cur.copyWith(themeMode: m));
+  }
+
+  Future<void> setLanguage(String v) async {
+    await _sp.setString(_Keys.language, v);
+    final cur = state.value ?? const AppPreferences();
+    await _update(cur.copyWith(language: v));
+  }
+
+  Future<void> setRegion(String v) async {
+    await _sp.setString(_Keys.region, v);
+    final cur = state.value ?? const AppPreferences();
+    await _update(cur.copyWith(region: v));
+  }
+
+  Future<void> setCurrency(String v) async {
+    await _sp.setString(_Keys.currency, v);
+    final cur = state.value ?? const AppPreferences();
+    await _update(cur.copyWith(currency: v));
+  }
+
+  Future<void> setBool(String key, bool value) async {
+    await _sp.setBool(key, value);
+    final cur = state.value ?? const AppPreferences();
+    final next = switch (key) {
+      _Keys.biometricLock => cur.copyWith(biometricLock: value),
+      _Keys.appLock => cur.copyWith(appLock: value),
+      _Keys.hideAmounts => cur.copyWith(hideAmounts: value),
+      _Keys.notifBudgetAlerts => cur.copyWith(notifBudgetAlerts: value),
+      _Keys.notifBudgetWeeklyDigest =>
+        cur.copyWith(notifBudgetWeeklyDigest: value),
+      _Keys.notifRoomActivity => cur.copyWith(notifRoomActivity: value),
+      _Keys.notifRoomMentions => cur.copyWith(notifRoomMentions: value),
+      _Keys.notifReceiptExpiry => cur.copyWith(notifReceiptExpiry: value),
+      _Keys.notifMonthlyDigest => cur.copyWith(notifMonthlyDigest: value),
+      _Keys.notifProductUpdates => cur.copyWith(notifProductUpdates: value),
+      _ => cur,
+    };
+    await _update(next);
+  }
+}
+
+final preferencesProvider =
+    AsyncNotifierProvider<PreferencesNotifier, AppPreferences>(
+        PreferencesNotifier.new);
+
+/// Synchronous theme-mode for `MaterialApp.themeMode`.
+final themeModePrefProvider = Provider<ThemeMode>((ref) {
+  final async = ref.watch(preferencesProvider);
+  return async.maybeWhen(
+    data: (p) => p.themeMode,
+    orElse: () => ThemeMode.system,
+  );
+});
+
+/// Pref keys exposed for convenience in widgets calling [setBool].
+class PrefKeys {
+  static const biometricLock = _Keys.biometricLock;
+  static const appLock = _Keys.appLock;
+  static const hideAmounts = _Keys.hideAmounts;
+  static const notifBudgetAlerts = _Keys.notifBudgetAlerts;
+  static const notifBudgetWeeklyDigest = _Keys.notifBudgetWeeklyDigest;
+  static const notifRoomActivity = _Keys.notifRoomActivity;
+  static const notifRoomMentions = _Keys.notifRoomMentions;
+  static const notifReceiptExpiry = _Keys.notifReceiptExpiry;
+  static const notifMonthlyDigest = _Keys.notifMonthlyDigest;
+  static const notifProductUpdates = _Keys.notifProductUpdates;
+}

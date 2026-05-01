@@ -4,19 +4,41 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/services/analytics_service.dart';
 import '../../core/services/interaction_log_service.dart';
+import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_radius.dart';
+import '../../core/theme/loit_spacing.dart';
+import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/room_providers.dart';
-import 'create_room_dialog.dart';
+import '../../shared/widgets/connectivity_banner.dart';
+import '../../shared/widgets/loit_empty_state.dart';
+import 'room_colors.dart';
 
 class RoomsScreen extends ConsumerWidget {
   const RoomsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.loitColors;
     final rooms = ref.watch(myRoomsProvider);
     final invites = ref.watch(pendingInvitesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Rooms')),
+      backgroundColor: c.canvas,
+      appBar: AppBar(
+        title: const Text('Rooms'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.link),
+            tooltip: 'Join via link',
+            onPressed: () => context.push('/rooms/join'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'New room',
+            onPressed: () => context.push('/rooms/new'),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(myRoomsProvider);
@@ -24,57 +46,52 @@ class RoomsScreen extends ConsumerWidget {
         },
         child: CustomScrollView(
           slivers: [
-            // Pending invites banner
-            invites.when(
+            const SliverToBoxAdapter(child: ConnectivityBanner()),
+            invites.maybeWhen(
               data: (list) => list.isEmpty
                   ? const SliverToBoxAdapter(child: SizedBox.shrink())
-                  : SliverToBoxAdapter(
-                      child: _InvitesBanner(invites: list),
-                    ),
-              loading: () =>
-                  const SliverToBoxAdapter(child: SizedBox.shrink()),
-              error: (_, __) =>
+                  : SliverToBoxAdapter(child: _InvitesBanner(invites: list)),
+              orElse: () =>
                   const SliverToBoxAdapter(child: SizedBox.shrink()),
             ),
-            // Room list
             rooms.when(
               loading: () => const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
-              ),
+                  child: Center(child: CircularProgressIndicator())),
               error: (e, _) => SliverFillRemaining(
                 child: Center(child: Text('Error: $e')),
               ),
               data: (list) => list.isEmpty
-                  ? const SliverFillRemaining(
+                  ? SliverFillRemaining(
                       hasScrollBody: false,
-                      child: _EmptyState(),
+                      child: Padding(
+                        padding: const EdgeInsets.all(LoitSpacing.s5),
+                        child: LoitEmptyState(
+                          icon: Icons.group_outlined,
+                          title: 'No rooms yet',
+                          body:
+                              'Create a room to track shared expenses with friends or housemates.',
+                          primaryCta: 'New room',
+                          onPrimaryCta: () => context.push('/rooms/new'),
+                          secondaryCta: 'Join via link',
+                          onSecondaryCta: () => context.push('/rooms/join'),
+                        ),
+                      ),
                     )
-                  : SliverList.builder(
-                      itemCount: list.length,
-                      itemBuilder: (_, i) => _RoomTile(room: list[i]),
+                  : SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(
+                          LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, 96),
+                      sliver: SliverList.builder(
+                        itemCount: list.length,
+                        itemBuilder: (_, i) => Padding(
+                          padding:
+                              const EdgeInsets.only(bottom: LoitSpacing.s2),
+                          child: _RoomTile(room: list[i]),
+                        ),
+                      ),
                     ),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 96)),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateDialog(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('New Room'),
-      ),
-    );
-  }
-
-  void _showCreateDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (_) => CreateRoomDialog(
-        onCreated: (room) {
-          Analytics.roomCreated();
-          ref.invalidate(myRoomsProvider);
-          context.push('/rooms/${room['id']}');
-        },
       ),
     );
   }
@@ -86,23 +103,73 @@ class _RoomTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.loitColors;
+    final id = room['id'] as String? ?? '';
     final name = room['name'] as String? ?? 'Untitled';
     final members = room['room_members'] as List?;
     final memberCount = members?.length ?? 0;
     final isArchived = room['is_archived'] as bool? ?? false;
+    final color = RoomColors.forId(id);
 
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: isArchived ? Colors.grey : null,
-        child: Icon(isArchived ? Icons.archive : Icons.group),
+    return InkWell(
+      onTap: () => context.push('/rooms/$id'),
+      borderRadius: LoitRadius.brM,
+      child: Container(
+        padding: const EdgeInsets.all(LoitSpacing.s4),
+        decoration: BoxDecoration(
+          color: c.surface,
+          border: Border.all(color: c.borderSubtle),
+          borderRadius: LoitRadius.brM,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: isArchived ? c.muted : color,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : 'R',
+                style: LoitTypography.titleM.copyWith(
+                    color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(width: LoitSpacing.s3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(name,
+                            style: LoitTypography.bodyL.copyWith(
+                                color: c.contentPrimary,
+                                fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      const SizedBox(width: 6),
+                      Text('· $memberCount members',
+                          style: LoitTypography.bodyS
+                              .copyWith(color: c.contentTertiary)),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isArchived ? 'Archived' : 'Tap to open feed',
+                    style: LoitTypography.bodyS
+                        .copyWith(color: c.contentSecondary),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: c.contentTertiary),
+          ],
+        ),
       ),
-      title: Text(name),
-      subtitle: Text(
-        '$memberCount member${memberCount == 1 ? '' : 's'}'
-        '${isArchived ? ' · Archived' : ''}',
-      ),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => context.push('/rooms/${room['id']}'),
     );
   }
 }
@@ -113,58 +180,68 @@ class _InvitesBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.loitColors;
     return Container(
-      margin: const EdgeInsets.all(12),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.fromLTRB(
+          LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, 0),
+      padding: const EdgeInsets.all(LoitSpacing.s3),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFFFDF4E0),
+        borderRadius: LoitRadius.brM,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${invites.length} pending invite${invites.length == 1 ? '' : 's'}',
-            style: Theme.of(context).textTheme.titleSmall,
+          Row(
+            children: [
+              const Icon(Icons.mail_outline,
+                  size: 18, color: Color(0xFF7D5916)),
+              const SizedBox(width: LoitSpacing.s2),
+              Expanded(
+                child: Text(
+                  '${invites.length} pending invite${invites.length == 1 ? '' : 's'}',
+                  style: LoitTypography.bodyM.copyWith(
+                      color: const Color(0xFF7D5916),
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          for (final invite in invites) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    (invite['rooms'] as Map?)?['name'] as String? ??
-                        'Unknown room',
+          const SizedBox(height: LoitSpacing.s2),
+          for (final invite in invites)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      (invite['rooms'] as Map?)?['name'] as String? ??
+                          'Unknown room',
+                      style: LoitTypography.bodyS
+                          .copyWith(color: c.contentPrimary),
+                    ),
                   ),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => _accept(context, ref, invite),
-                  child: const Text('Join'),
-                ),
-              ],
+                  TextButton(
+                    onPressed: () => _accept(context, ref, invite),
+                    child: const Text('Join'),
+                  ),
+                ],
+              ),
             ),
-            if (invite != invites.last) const SizedBox(height: 4),
-          ],
         ],
       ),
     );
   }
 
-  Future<void> _accept(
-    BuildContext context,
-    WidgetRef ref,
-    Map<String, dynamic> invite,
-  ) async {
+  Future<void> _accept(BuildContext context, WidgetRef ref,
+      Map<String, dynamic> invite) async {
     try {
       final roomId = await ref
           .read(roomServiceProvider)
           .acceptInvite(invite['invite_token'] as String);
       Analytics.roomJoined();
       InteractionLog.success(
-        action: 'room_joined',
-        screen: 'rooms',
-        message: 'Joined room $roomId',
-      );
+          action: 'room_joined', screen: 'rooms', message: 'Joined $roomId');
       ref.invalidate(myRoomsProvider);
       ref.invalidate(pendingInvitesProvider);
       if (context.mounted && roomId != null) {
@@ -172,41 +249,11 @@ class _InvitesBanner extends ConsumerWidget {
       }
     } catch (e) {
       InteractionLog.error(
-        action: 'room_join',
-        screen: 'rooms',
-        message: '$e',
-      );
+          action: 'room_join', screen: 'rooms', message: '$e');
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to join: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to join: $e')));
       }
     }
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.group_outlined, size: 64, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text('No rooms yet', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(
-            'Create a room to track shared expenses',
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: Colors.grey.shade500),
-          ),
-        ],
-      ),
-    );
   }
 }

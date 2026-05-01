@@ -8,8 +8,6 @@ class FeatureFlags {
   final bool pdfExport;
   final bool receiptStorage;
   final bool fullHistory;
-  final bool recurringBills;
-
   /// `null` = unlimited scans. Otherwise the per-month cap.
   final int? scanLimitPerMonth;
   final int budgetCategoryLimit;
@@ -21,7 +19,6 @@ class FeatureFlags {
     required this.pdfExport,
     required this.receiptStorage,
     required this.fullHistory,
-    required this.recurringBills,
     required this.scanLimitPerMonth,
     required this.budgetCategoryLimit,
   });
@@ -36,7 +33,6 @@ class FeatureFlags {
             pdfExport: true,
             receiptStorage: true,
             fullHistory: true,
-            recurringBills: true,
             scanLimitPerMonth: null, // Pro and Team — unlimited scans
             budgetCategoryLimit: 1 << 30,
           ),
@@ -47,7 +43,6 @@ class FeatureFlags {
             pdfExport: false,
             receiptStorage: false,
             fullHistory: false,
-            recurringBills: false,
             scanLimitPerMonth: 8,
             budgetCategoryLimit: 3,
           ),

@@ -1,279 +1,278 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/config/categories.dart';
-import '../../core/services/analytics_service.dart';
-import '../../core/services/interaction_log_service.dart';
-import '../paywall/paywall_screen.dart';
+import '../../core/theme/loit_categories.dart';
+import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_spacing.dart';
+import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/budgets_provider.dart';
+import '../../shared/widgets/loit_app_bar_month.dart';
+import '../../shared/widgets/loit_budget_row.dart';
+import '../../shared/widgets/loit_empty_state.dart';
+import '../../shared/widgets/loit_fab_stack.dart';
+import '../../shared/widgets/loit_group_label.dart';
+import '../../shared/widgets/loit_stat_triple.dart';
+import '../paywall/paywall_screen.dart';
 
-/// Budgets list + create/edit flow. Enforces Free-tier 3-budget cap.
-class BudgetsScreen extends ConsumerWidget {
+/// LOIT Budgets list — F · 01.
+/// AppBarMonth + period tabs + StatTriple + grouped category rows.
+class BudgetsScreen extends ConsumerStatefulWidget {
   const BudgetsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BudgetsScreen> createState() => _BudgetsScreenState();
+}
+
+class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
+  DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
+  int _periodTab = 0; // 0 Monthly · 1 Weekly · 2 Custom
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
     final budgets = ref.watch(budgetsProvider);
     final statuses = ref.watch(budgetStatusesProvider);
     final profile = ref.watch(userProfileProvider).value;
+    final currency = profile?.homeCurrency ?? 'IDR';
+    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: 0);
+    final monthLabel = DateFormat.yMMM().format(_month);
+
+    final now = DateTime.now();
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final dayOfMonth = now.day;
+
+    final totalLimit = statuses.fold<double>(
+        0, (s, b) => s + b.budget.monthlyLimit);
+    final totalSpent =
+        statuses.fold<double>(0, (s, b) => s + b.spent);
+    final left = (totalLimit - totalSpent).clamp(0, double.infinity);
+
+    final overCount = statuses.where((s) => s.isOver).length;
+    final paceLabel = _paceLabel(
+        spent: totalSpent,
+        limit: totalLimit,
+        dayOfMonth: dayOfMonth,
+        daysInMonth: daysInMonth,
+        overCount: overCount);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Budgets')),
+      backgroundColor: c.canvas,
+      appBar: LoitAppBarMonth(
+        label: monthLabel,
+        onPrev: () => setState(() =>
+            _month = DateTime(_month.year, _month.month - 1)),
+        onNext: () => setState(() =>
+            _month = DateTime(_month.year, _month.month + 1)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add, size: 20),
+            tooltip: 'New budget',
+            onPressed: () => _addBudget(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.tune, size: 20),
+            tooltip: 'Filter',
+            onPressed: () {},
+          ),
+        ],
+      ),
       body: budgets.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (items) {
-          if (items.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text(
-                  'No budgets yet. Tap + to add one per category.',
-                  textAlign: TextAlign.center,
+          return CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: _PeriodTabs(
+                  active: _periodTab,
+                  onTap: (i) => setState(() => _periodTab = i),
                 ),
               ),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: statuses.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (_, i) => _BudgetCard(
-              status: statuses[i],
-              homeCurrency: profile?.homeCurrency ?? 'IDR',
-              onEdit: () =>
-                  _openSheet(context, ref, existing: statuses[i].budget),
-              onDelete: () => ref
-                  .read(budgetsProvider.notifier)
-                  .delete(statuses[i].budget.id),
-            ),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          final count = budgets.value?.length ?? 0;
-          final cap = profile?.budgetLimit ?? 3;
-          if (count >= cap) {
-            showPaywallSheet(context, feature: 'unlimited_budgets');
-            return;
-          }
-          _openSheet(context, ref);
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Add budget'),
-      ),
-    );
-  }
-
-  void _openSheet(BuildContext context, WidgetRef ref, {Budget? existing}) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => _BudgetFormSheet(existing: existing),
-    );
-  }
-}
-
-class _BudgetCard extends StatelessWidget {
-  const _BudgetCard({
-    required this.status,
-    required this.homeCurrency,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  final BudgetStatus status;
-  final String homeCurrency;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final fmt = NumberFormat.simpleCurrency(name: homeCurrency);
-    final color = status.isOver
-        ? Theme.of(context).colorScheme.error
-        : status.isNearLimit
-        ? Colors.amber.shade700
-        : Theme.of(context).colorScheme.primary;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Categories.iconFor(status.budget.category)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    status.budget.category,
-                    style: Theme.of(context).textTheme.titleMedium,
+              SliverToBoxAdapter(
+                child: LoitStatTriple(
+                  stats: [
+                    LoitStat(
+                      label: 'Limit',
+                      amount: fmt.format(totalLimit),
+                      color: c.info,
+                    ),
+                    LoitStat(
+                      label: 'Spent',
+                      amount: fmt.format(totalSpent),
+                      color: c.danger,
+                    ),
+                    LoitStat(
+                      label: 'Left',
+                      amount: fmt.format(left),
+                      color: c.brand,
+                    ),
+                  ],
+                ),
+              ),
+              if (items.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: LoitEmptyState(
+                      icon: Icons.savings_outlined,
+                      title: 'No budgets yet',
+                      body:
+                          'Set a monthly limit per category to track spend at a glance.',
+                      primaryCta: 'New budget',
+                      onPrimaryCta: _addBudget,
+                    ),
+                  ),
+                )
+              else ...[
+                SliverToBoxAdapter(
+                  child: LoitGroupLabel(
+                    label: 'Categories',
+                    trailing: Text(
+                      paceLabel,
+                      style: LoitTypography.bodyS.copyWith(
+                        color: c.contentTertiary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ),
-                IconButton(onPressed: onEdit, icon: const Icon(Icons.edit)),
-                IconButton(
-                  onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline),
+                SliverList.builder(
+                  itemCount: statuses.length,
+                  itemBuilder: (_, i) {
+                    final s = statuses[i];
+                    final pct = (s.ratio * 100).round();
+                    final overAmt = s.spent - s.budget.monthlyLimit;
+                    final subtitleParts = [
+                      '${fmt.format(s.spent)} of ${fmt.format(s.budget.monthlyLimit)}',
+                      if (s.isOver) '${fmt.format(overAmt)} over',
+                    ];
+                    return LoitBudgetRow(
+                      label: LoitCategories.resolve(s.budget.category).label,
+                      categoryKey: s.budget.category,
+                      percent: pct,
+                      subtitle: subtitleParts.join(' · '),
+                      showDivider: i != statuses.length - 1,
+                      onTap: () =>
+                          context.push('/budgets/${s.budget.id}'),
+                    );
+                  },
                 ),
+                const SliverToBoxAdapter(child: SizedBox(height: 120)),
               ],
+            ],
+          );
+        },
+      ),
+      floatingActionButton: LoitFabStack(
+        primaryIcon: Icons.add,
+        primaryTooltip: 'New budget',
+        secondaryIcon: Icons.bar_chart_outlined,
+        secondaryTooltip: 'Reports',
+        onPrimary: _addBudget,
+        onSecondary: () => context.push('/reports'),
+      ),
+    );
+  }
+
+  void _addBudget() {
+    final budgets = ref.read(budgetsProvider).value ?? const [];
+    final cap = ref.read(userProfileProvider).value?.budgetLimit ?? 3;
+    if (budgets.length >= cap) {
+      showPaywallSheet(context, feature: 'unlimited_budgets');
+      return;
+    }
+    context.push('/budgets/new');
+  }
+
+  String _paceLabel({
+    required double spent,
+    required double limit,
+    required int dayOfMonth,
+    required int daysInMonth,
+    required int overCount,
+  }) {
+    if (limit <= 0) return 'No limits set';
+    if (overCount > 0) {
+      return 'Day $dayOfMonth · $daysInMonth — $overCount over';
+    }
+    final expected = limit * (dayOfMonth / daysInMonth);
+    final onPace = spent <= expected;
+    return 'Day $dayOfMonth · $daysInMonth — ${onPace ? 'on pace' : 'over pace'}';
+  }
+}
+
+class _PeriodTabs extends StatelessWidget {
+  const _PeriodTabs({required this.active, required this.onTap});
+
+  final int active;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    const labels = ['Monthly', 'Weekly', 'Custom'];
+    return Container(
+      color: c.canvas,
+      padding: const EdgeInsets.fromLTRB(
+        LoitSpacing.s5,
+        LoitSpacing.s1,
+        LoitSpacing.s5,
+        LoitSpacing.s2,
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < labels.length; i++) ...[
+            _TabChip(
+              label: labels[i],
+              active: i == active,
+              onTap: () => onTap(i),
             ),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: status.ratio.clamp(0.0, 1.0),
-              color: color,
-              minHeight: 8,
-              // ignore: deprecated_member_use
-              backgroundColor: color.withOpacity(0.15),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${fmt.format(status.spent)} / ${fmt.format(status.budget.monthlyLimit)}'
-              '  ·  ${(status.ratio * 100).toStringAsFixed(0)}%',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            if (i < labels.length - 1) const SizedBox(width: LoitSpacing.s2),
           ],
-        ),
+        ],
       ),
     );
   }
 }
 
-class _BudgetFormSheet extends ConsumerStatefulWidget {
-  const _BudgetFormSheet({this.existing});
-  final Budget? existing;
+class _TabChip extends StatelessWidget {
+  const _TabChip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
 
-  @override
-  ConsumerState<_BudgetFormSheet> createState() => _BudgetFormSheetState();
-}
-
-class _BudgetFormSheetState extends ConsumerState<_BudgetFormSheet> {
-  final _formKey = GlobalKey<FormState>();
-  late String _category;
-  final _limit = TextEditingController();
-  bool _busy = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _category = widget.existing?.category ?? 'dining';
-    if (widget.existing != null) {
-      _limit.text = widget.existing!.monthlyLimit.toString();
-    }
-  }
-
-  @override
-  void dispose() {
-    _limit.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _busy = true);
-    try {
-      await ref
-          .read(budgetsProvider.notifier)
-          .upsert(
-            category: _category,
-            monthlyLimit: double.parse(_limit.text),
-            id: widget.existing?.id,
-          );
-      if (widget.existing == null) await Analytics.budgetCreated();
-      InteractionLog.success(
-        action: widget.existing == null ? 'budget_created' : 'budget_updated',
-        screen: 'budgets',
-        message: 'Category: $_category, limit: ${_limit.text}',
-      );
-      if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      InteractionLog.error(
-        action: 'budget_save',
-        screen: 'budgets',
-        message: '$e',
-        metadata: {'category': _category, 'limit': _limit.text},
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        8,
-        20,
-        MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              widget.existing == null ? 'New budget' : 'Edit budget',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _category,
-              decoration: const InputDecoration(
-                labelText: 'Category',
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                for (final c in Categories.all)
-                  DropdownMenuItem(value: c, child: Text(c)),
-              ],
-              onChanged: widget.existing == null
-                  ? (v) => setState(() => _category = v ?? 'dining')
-                  : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _limit,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-              ],
-              decoration: const InputDecoration(
-                labelText: 'Monthly limit',
-                border: OutlineInputBorder(),
-              ),
-              validator: (v) {
-                if (v == null || v.isEmpty) return 'Required';
-                final parsed = double.tryParse(v);
-                if (parsed == null || parsed <= 0) return 'Invalid';
-                return null;
-              },
-            ),
-            const SizedBox(height: 20),
-            FilledButton(
-              onPressed: _busy ? null : _save,
-              child: _busy
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save'),
-            ),
-          ],
+    final c = context.loitColors;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: LoitSpacing.s4,
+          vertical: LoitSpacing.s2,
+        ),
+        decoration: BoxDecoration(
+          color: active ? c.brand : c.surface,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: active ? c.brand : c.borderSubtle,
+          ),
+        ),
+        child: Text(
+          label,
+          style: LoitTypography.bodyS.copyWith(
+            color: active ? Colors.white : c.contentSecondary,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );

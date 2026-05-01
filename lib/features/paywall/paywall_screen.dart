@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/config/pricing_constants.dart';
@@ -9,20 +10,17 @@ import '../../core/services/analytics_service.dart';
 import '../../core/services/dummy_payment_service.dart';
 import '../../core/services/interaction_log_service.dart';
 import '../../core/services/payment_service.dart';
+import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/services_providers.dart';
+import '../../shared/widgets/loit_button.dart';
 
-enum _BillingPeriod { monthly, annual }
+enum _Plan { free, proAnnual, proMonthly }
 
-/// Paywall screen shown when a gated feature is tapped.
-///
-/// Drives Google Play Billing through [PaymentService] (RevenueCat under
-/// the hood). The actual entitlement flip happens server-side when the
-/// `revenuecat-webhook` Edge Function processes the matching RC event.
 class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({super.key, required this.feature});
 
-  /// The feature that triggered the paywall (e.g. 'unlimited_budgets').
   final String feature;
 
   @override
@@ -32,7 +30,7 @@ class PaywallScreen extends ConsumerStatefulWidget {
 class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   bool _busy = false;
   bool _analyticsTracked = false;
-  _BillingPeriod _period = _BillingPeriod.annual;
+  _Plan _selected = _Plan.proAnnual;
   StreamSubscription<PurchaseUpdate>? _purchaseSub;
 
   @override
@@ -45,8 +43,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Stub payment service needs a [BuildContext] to show its
-    // "Pretend Pay" dialog. Real RevenueCat impl ignores this call.
     final pay = ref.read(paymentServiceProvider);
     if (pay is DummyPaymentService) pay.bindContext(context);
     if (!_analyticsTracked) {
@@ -63,40 +59,22 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     super.dispose();
   }
 
-  Future<void> _purchaseSubscription(String productId) async {
-    setState(() => _busy = true);
-    try {
-      final pay = ref.read(paymentServiceProvider);
-      final result = await pay.purchaseSubscription(productId);
-      if (!mounted) return;
-      // Success/restored/pending snacks come from _onPurchaseUpdate listener
-      // (single source of truth). Only show terminal-fail/cancel here since
-      // those don't emit through the CustomerInfo stream.
-      if (result.status == PurchaseStatus.cancelled) {
-        _showSnack('Purchase cancelled.');
-      } else if (result.status == PurchaseStatus.failed) {
-        _showSnack(result.message ?? 'Purchase failed.');
-      } else if (result.isTerminalSuccess) {
-        ref.invalidate(userProfileProvider);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      _showSnack('Could not start purchase: $e');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
+  String? get _selectedSku => switch (_selected) {
+        _Plan.proAnnual => PricingConstants.skuProAnnual,
+        _Plan.proMonthly => PricingConstants.skuProMonthly,
+        _Plan.free => null,
+      };
 
-  Future<void> _purchaseTopUp(String productId) async {
-    final profile = ref.read(userProfileProvider).value;
-    // Top-ups are Free-tier only. Pro/Team have unlimited scans.
-    assert(profile?.canPurchaseScanTopUp ?? false,
-        'Top-up flow reached for non-free tier');
-    if (profile?.canPurchaseScanTopUp != true) return;
+  Future<void> _continue() async {
+    final sku = _selectedSku;
+    if (sku == null) {
+      if (context.mounted) context.pop();
+      return;
+    }
     setState(() => _busy = true);
     try {
       final pay = ref.read(paymentServiceProvider);
-      final result = await pay.purchaseOneTime(productId);
+      final result = await pay.purchaseSubscription(sku);
       if (!mounted) return;
       if (result.status == PurchaseStatus.cancelled) {
         _showSnack('Purchase cancelled.');
@@ -139,15 +117,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       message: msg,
       metadata: {'product': u.productId, 'status': u.status.name},
     );
-    _showSnack(msg);
     if (u.status == PurchaseStatus.purchased ||
         u.status == PurchaseStatus.restored) {
       Analytics.subscriptionStarted(_inferTier(u.productId));
-      // RC fires `purchased` on local CustomerInfo, but our DB `users.tier`
-      // flip lands a beat later via the revenuecat-webhook. Poll profile
-      // until tier reflects entitlement (or timeout) so the UI doesn't
-      // settle on a stale `free` row.
       _pollProfileUntilTierMatches(_inferTier(u.productId));
+    } else {
+      _showSnack(msg);
     }
     if (u.status == PurchaseStatus.cancelled ||
         u.status == PurchaseStatus.failed) {
@@ -167,12 +142,14 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       try {
         final profile = await ref.read(userProfileProvider.future);
         if (profile?.tier == expectedTier) break;
-      } catch (_) {/* retry */}
+      } catch (_) {}
       if (!mounted) return;
       await Future.delayed(interval);
       if (!mounted) return;
     }
-    if (mounted) setState(() => _busy = false);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (context.mounted) context.go('/pro/success');
   }
 
   String _inferTier(String sku) {
@@ -186,249 +163,312 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         .showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  String _ctaLabel() {
+    switch (_selected) {
+      case _Plan.free:
+        return 'Continue on Free';
+      case _Plan.proAnnual:
+        return 'Start Pro · ${_formatIdr(PricingConstants.proAnnualIdr)}/yr';
+      case _Plan.proMonthly:
+        return 'Start Pro · ${_formatIdr(PricingConstants.proMonthlyIdr)}/mo';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final c = context.loitColors;
     final profile = ref.watch(userProfileProvider).value;
     final isPro = profile?.tier == 'pro' || profile?.tier == 'team';
-    final cs = Theme.of(context).colorScheme;
-    final canBuyTopUp = profile?.canPurchaseScanTopUp ?? true;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Upgrade to Pro')),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Icon(Icons.workspace_premium, size: 64, color: cs.primary),
-          const SizedBox(height: 16),
-          Text(
-            isPro ? 'You are on Pro' : 'Unlock all features',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          if (!isPro)
-            Text(
-              'Remove limits and get the most out of LOIT.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
+      backgroundColor: c.canvas,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Row(
+                children: [
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => context.canPop()
+                        ? context.pop()
+                        : context.go('/'),
+                    child: Text(
+                      'Not now',
+                      style: LoitTypography.bodyM.copyWith(
+                        color: c.contentSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          const SizedBox(height: 24),
-          if (!isPro) _BillingPeriodToggle(
-            value: _period,
-            onChanged: (p) => setState(() => _period = p),
-          ),
-          const SizedBox(height: 16),
-          const _FeatureRow(
-            icon: Icons.all_inclusive,
-            title: 'Unlimited budgets',
-            subtitle: 'Free: 3 categories',
-          ),
-          const _FeatureRow(
-            icon: Icons.document_scanner,
-            title: 'Unlimited scans',
-            subtitle: 'Free: 8 scans / month',
-          ),
-          const _FeatureRow(
-            icon: Icons.currency_exchange,
-            title: 'Real-time FX rates',
-            subtitle: 'Free: daily rates',
-          ),
-          const _FeatureRow(
-            icon: Icons.download,
-            title: 'CSV & PDF export',
-            subtitle: 'Free: not available',
-          ),
-          const _FeatureRow(
-            icon: Icons.history,
-            title: 'Full transaction history',
-            subtitle: 'Free: 3 months',
-          ),
-          const _FeatureRow(
-            icon: Icons.receipt_long,
-            title: 'Receipt image storage',
-            subtitle: 'Free: not available',
-          ),
-          const _FeatureRow(
-            icon: Icons.repeat,
-            title: 'Recurring bills',
-            subtitle: 'Free: not available',
-          ),
-          const SizedBox(height: 24),
-          if (!isPro) ..._buildPurchaseButtons(),
-          if (isPro)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [c.brand, c.accent],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.workspace_premium,
+                        size: 24, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  isPro
+                      ? 'You\'re on Pro.\nEverything\nunlocked.'
+                      : 'Unlimited budgets.\nUnlimited currencies.\nPro.',
+                  style: LoitTypography.titleL.copyWith(
+                    color: c.contentPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 24,
+                    height: 30 / 24,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  if (isPro)
+                    _ProActiveCard(profile: profile)
+                  else ...[
+                    _PlanCard(
+                      title: 'Free',
+                      price: 'Rp 0',
+                      period: '/mo',
+                      features:
+                          '3 budgets · 8 scans · 3 months reports',
+                      selected: _selected == _Plan.free,
+                      onTap: () => setState(() => _selected = _Plan.free),
+                    ),
+                    _PlanCard(
+                      title: 'Pro · Yearly',
+                      price: _formatIdr(PricingConstants.proAnnualIdr),
+                      period: '/yr',
+                      features:
+                          'Save 4 months · Unlimited everything · Export',
+                      selected: _selected == _Plan.proAnnual,
+                      recommended: true,
+                      onTap: () =>
+                          setState(() => _selected = _Plan.proAnnual),
+                    ),
+                    _PlanCard(
+                      title: 'Pro · Monthly',
+                      price: _formatIdr(PricingConstants.proMonthlyIdr),
+                      period: '/mo',
+                      features: 'Cancel anytime',
+                      selected: _selected == _Plan.proMonthly,
+                      onTap: () =>
+                          setState(() => _selected = _Plan.proMonthly),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton(
+                      onPressed: _busy ? null : _restorePurchases,
+                      child: Text('Restore purchases',
+                          style: LoitTypography.bodyS.copyWith(
+                            color: c.brand,
+                            fontWeight: FontWeight.w600,
+                          )),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
               decoration: BoxDecoration(
-                color: cs.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
+                color: c.surface,
+                border: Border(
+                  top: BorderSide(color: c.borderSubtle, width: 1),
+                ),
               ),
-              child: Text(
-                'You have access to all Pro features.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: cs.onPrimaryContainer),
+              child: Column(
+                children: [
+                  LoitButton.primary(
+                    label: isPro ? 'You\'re all set' : _ctaLabel(),
+                    size: LoitButtonSize.l,
+                    fullWidth: true,
+                    loading: _busy,
+                    onPressed: _busy || isPro ? null : _continue,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Billed via Google Play · Cancel anytime · Terms & Privacy',
+                    style: LoitTypography.bodyS
+                        .copyWith(color: c.contentTertiary),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
-            ),
-          const SizedBox(height: 16),
-          // Scan top-up is Free-tier only. Pro / Team get unlimited scans.
-          if (canBuyTopUp) ...[
-            const Divider(),
-            const SizedBox(height: 8),
-            Text('One-time add-ons',
-                style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: _busy
-                  ? null
-                  : () => _purchaseTopUp(PricingConstants.skuScanTopUp),
-              child: Text(
-                  '+10 scans · ${_formatIdr(PricingConstants.scanTopUpIdr)}'),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: _busy
-                  ? null
-                  : () => _purchaseTopUp(PricingConstants.skuStorageExt),
-              child: Text(
-                  'Extend receipt storage · 6 months · ${_formatIdr(PricingConstants.storageExtensionIdr)}'),
             ),
           ],
-          const SizedBox(height: 24),
-          Center(
-            child: TextButton(
-              onPressed: _busy ? null : _restorePurchases,
-              child: const Text('Restore purchases'),
+        ),
+      ),
+    );
+  }
+}
+
+class _PlanCard extends StatelessWidget {
+  const _PlanCard({
+    required this.title,
+    required this.price,
+    required this.period,
+    required this.features,
+    required this.selected,
+    required this.onTap,
+    this.recommended = false,
+  });
+
+  final String title;
+  final String price;
+  final String period;
+  final String features;
+  final bool selected;
+  final bool recommended;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    final borderColor = selected ? c.brand : c.borderSubtle;
+    final borderWidth = selected ? 2.0 : 1.0;
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: c.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: borderColor, width: borderWidth),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(title,
+                            style: LoitTypography.titleM.copyWith(
+                              color: c.contentPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            )),
+                      ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(price,
+                              style: LoitTypography.titleL.copyWith(
+                                color: c.contentPrimary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 18,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ],
+                              )),
+                          Text(period,
+                              style: LoitTypography.bodyS
+                                  .copyWith(color: c.contentSecondary)),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(features,
+                      style: LoitTypography.bodyS.copyWith(
+                        color: c.contentSecondary,
+                        height: 17 / 12,
+                      )),
+                ],
+              ),
             ),
           ),
-          Center(
-            child: Text(
-              'Payments processed securely via Google Play.',
-              style: Theme.of(context).textTheme.bodySmall,
-              textAlign: TextAlign.center,
+          if (recommended)
+            Positioned(
+              top: -10,
+              left: 14,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: c.brand,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'BEST VALUE',
+                  style: LoitTypography.labelS.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 10,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Center(
-            child: Text(
-              'iOS version coming soon.',
-              style: Theme.of(context).textTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-          ),
         ],
       ),
     );
   }
-
-  List<Widget> _buildPurchaseButtons() {
-    final isAnnual = _period == _BillingPeriod.annual;
-    final proSku = isAnnual
-        ? PricingConstants.skuProAnnual
-        : PricingConstants.skuProMonthly;
-    final teamSku = isAnnual
-        ? PricingConstants.skuTeamAnnual
-        : PricingConstants.skuTeamMonthly;
-    final proPrice = isAnnual
-        ? PricingConstants.proAnnualIdr
-        : PricingConstants.proMonthlyIdr;
-    final teamPrice = isAnnual
-        ? PricingConstants.teamAnnualIdr
-        : PricingConstants.teamMonthlyIdr;
-    final periodLabel = isAnnual ? '/yr' : '/mo';
-    return [
-      FilledButton(
-        onPressed: _busy ? null : () => _purchaseSubscription(proSku),
-        child: _busy
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Text('Pro — ${_formatIdr(proPrice)}$periodLabel'),
-      ),
-      const SizedBox(height: 12),
-      OutlinedButton(
-        onPressed: _busy ? null : () => _purchaseSubscription(teamSku),
-        child: Text('Team — ${_formatIdr(teamPrice)}$periodLabel'),
-      ),
-      if (isAnnual) ...[
-        const SizedBox(height: 8),
-        Center(
-          child: Text(
-            '4 months free · Save 33%',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Center(
-          child: Text(
-            // Show per-month equivalent for the annual price.
-            'Pro ≈ ${_formatIdr(PricingConstants.proAnnualIdr ~/ 12)}/mo · '
-            'Team ≈ ${_formatIdr(PricingConstants.teamAnnualIdr ~/ 12)}/mo',
-            style: Theme.of(context).textTheme.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ],
-    ];
-  }
 }
 
-class _BillingPeriodToggle extends StatelessWidget {
-  const _BillingPeriodToggle({required this.value, required this.onChanged});
-  final _BillingPeriod value;
-  final ValueChanged<_BillingPeriod> onChanged;
+class _ProActiveCard extends StatelessWidget {
+  const _ProActiveCard({required this.profile});
+  final UserProfile? profile;
 
   @override
   Widget build(BuildContext context) {
-    return SegmentedButton<_BillingPeriod>(
-      segments: const [
-        ButtonSegment(
-          value: _BillingPeriod.monthly,
-          label: Text('Monthly'),
-        ),
-        ButtonSegment(
-          value: _BillingPeriod.annual,
-          label: Text('Annual · 4 months free'),
-        ),
-      ],
-      selected: {value},
-      onSelectionChanged: (s) => onChanged(s.first),
-    );
-  }
-}
-
-class _FeatureRow extends StatelessWidget {
-  const _FeatureRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+    final c = context.loitColors;
+    return Container(
+      margin: const EdgeInsets.only(top: 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: c.successSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: c.brand.withValues(alpha: 0.2)),
+      ),
       child: Row(
         children: [
-          Icon(icon, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: 16),
+          Icon(Icons.check_circle, color: c.brand, size: 22),
+          const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.titleSmall),
-                Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-              ],
+            child: Text(
+              'Your ${profile?.tier.toUpperCase() ?? 'PRO'} subscription is active.',
+              style: LoitTypography.bodyM.copyWith(
+                color: c.contentPrimary,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
-          Icon(Icons.check_circle,
-              color: Theme.of(context).colorScheme.primary, size: 20),
         ],
       ),
     );
@@ -438,13 +478,12 @@ class _FeatureRow extends StatelessWidget {
 String _formatIdr(int amount) {
   final fmt = NumberFormat.currency(
     locale: 'id_ID',
-    symbol: 'Rp',
+    symbol: 'Rp ',
     decimalDigits: 0,
   );
-  return fmt.format(amount);
+  return fmt.format(amount).trim();
 }
 
-/// Helper to show paywall from anywhere.
 void showPaywallSheet(BuildContext context, {required String feature}) {
   showModalBottomSheet(
     context: context,
@@ -452,8 +491,8 @@ void showPaywallSheet(BuildContext context, {required String feature}) {
     showDragHandle: true,
     builder: (_) => DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.85,
-      maxChildSize: 0.95,
+      initialChildSize: 0.92,
+      maxChildSize: 0.96,
       builder: (_, controller) => PaywallScreen(feature: feature),
     ),
   );

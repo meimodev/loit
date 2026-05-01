@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>LOIT · App Screens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; padding:0; background:#f0eee9; font-family: Inter, system-ui, sans-serif; }
+  @keyframes loit-spin { to { transform: rotate(360deg); } }
+  @keyframes loit-shimmer { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
+  .loit-skel { background: linear-gradient(90deg, #EAEAE4 0px, #F3F2ED 80px, #EAEAE4 160px); background-size: 400px 100%; animation: loit-shimmer 1400ms infinite linear; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="tokens.jsx"></script>
+<script type="text/babel" src="primitives.jsx"></script>
+<script type="text/babel" src="screen-helpers.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="screens-onboarding.jsx"></script>
+<script type="text/babel" src="screens-home-tx.jsx"></script>
+<script type="text/babel" src="screens-scan-add.jsx"></script>
+<script type="text/babel" src="screens-budgets-reports.jsx"></script>
+<script type="text/babel" src="screens-rooms.jsx"></script>
+<script type="text/babel" src="screens-system.jsx"></script>
+
+<script type="text/babel">
+function CoverBoard() {
+  return (
+    <div style={{background:'#0A5A4B', padding:'56px 56px', minHeight:680, color:'#fff', fontFamily:FONT, position:'relative', overflow:'hidden'}}>
+      <div style={{position:'absolute', top:-80, right:-60, width:420, height:420, borderRadius:'50%', background:'radial-gradient(circle, rgba(245,188,109,0.35), transparent 60%)'}}/>
+      <div style={{position:'absolute', bottom:-120, left:-80, width:380, height:380, borderRadius:'50%', background:'radial-gradient(circle, rgba(103,181,160,0.4), transparent 60%)'}}/>
+      <div style={{position:'relative'}}>
+        <div style={{fontSize:13, letterSpacing:2, textTransform:'uppercase', color:'#F5BC6D', fontWeight:600}}>LOIT · App Screens · v1.0</div>
+        <div style={{fontSize:80, fontWeight:600, letterSpacing:-1.5, lineHeight:'84px', marginTop:18, maxWidth:980}}>Every screen. Every state.<br/>Built from the system.</div>
+        <div style={{fontSize:18, color:'#C4E4DB', marginTop:22, maxWidth:680, lineHeight:'28px'}}>The complete LOIT app, designed against the v1.0 design system. 10 flows · 30+ screens · only system primitives, only system tokens. iOS shown — Android renders identically with platform-native chrome.</div>
+        <div style={{marginTop:40, display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:12, maxWidth:1040}}>
+          {[['A','Onboarding'],['B','Home'],['C','Transactions'],['D','Scan'],['E','Add expense'],['F','Budgets'],['G','Reports'],['H','Rooms'],['I','Settings'],['J','Pro']].map(([k,v]) => (
+            <div key={k} style={{padding:'12px 14px', background:'rgba(255,255,255,0.06)', border:'1px solid rgba(196,228,219,0.2)', borderRadius:10}}>
+              <div style={{fontSize:11, color:'#96CDBE', fontWeight:600, fontFamily:MONO, letterSpacing:0.5}}>{k}</div>
+              <div style={{fontSize:13, color:'#fff', marginTop:2, fontWeight:500}}>{v}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="overview" title="LOIT · App Screens" subtitle="Every flow, every state, built only from the design system.">
+        <DCArtboard id="cover" label="Cover" width={1240} height={680}><CoverBoard/></DCArtboard>
+      </DCSection>
+      <DCSection id="auth" title="A · Onboarding & Auth" subtitle="First-run welcome, sign-in, currency setup, permissions.">
+        <DCArtboard id="onboarding" label="A · Onboarding" width={1500} height={840}><OnboardingArtboard/></DCArtboard>
+      </DCSection>
+      <DCSection id="home" title="B · Home / Dashboard" subtitle="The most-returned-to surface — three states.">
+        <DCArtboard id="home" label="B · Home" width={1240} height={840}><HomeArtboard/></DCArtboard>
+      </DCSection>
+      <DCSection id="tx" title="C · Transactions" subtitle="Feed, detail, search, multi-select.">
+        <DCArtboard id="tx" label="C · Transactions" width={1500} height={840}><TransactionsArtboard/></DCArtboard>
+      </DCSection>
+      <DCSection id="scan" title="D · Scan flow" subtitle="The flagship interaction.">
+        <DCArtboard id="scan" label="D · Scan" width={1500} height={840}><ScanArtboard/></DCArtboard>
+      </DCSection>
+      <DCSection id="add" title="E · Add / Edit Expense" subtitle="Manual fallback to scan.">
+        <DCArtboard id="add" label="E · Add expense" width={1500} height={840}><AddExpenseArtboard/></DCArtboard>
+      </DCSection>
+      <DCSection id="budgets" title="F · Budgets" subtitle="Plan, track, drill-in.">
+        <DCArtboard id="budgets" label="F · Budgets" width={1240} height={840}><BudgetsArtboard/></DCArtboard>
+      </DCSection>
+      <DCSection id="reports" title="G · Reports & Insights" subtitle="Make sense without becoming a dashboard.">
+        <DCArtboard id="reports" label="G · Reports" width={1240} height={840}><ReportsArtboard/></DCArtboard>
+      </DCSection>
+      <DCSection id="rooms" title="H · Rooms" subtitle="Multiplayer mode — the LOIT differentiator.">
+        <DCArtboard id="rooms" label="H · Rooms" width={1740} height={840}><RoomsArtboard/></DCArtboard>
+      </DCSection>
+      <DCSection id="settings" title="I · Settings & Profile" subtitle="Where the system breathes.">
+        <DCArtboard id="settings" label="I · Settings" width={1240} height={840}><SettingsArtboard/></DCArtboard>
+      </DCSection>
+      <DCSection id="pro" title="J · Pro · Paywall · Errors" subtitle="Value-first, never dark-pattern.">
+        <DCArtboard id="pro" label="J · Pro & errors" width={1240} height={840}><PaywallArtboard/></DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

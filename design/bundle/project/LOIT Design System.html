@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>LOIT · Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; padding:0; background:#f0eee9; font-family: Inter, system-ui, sans-serif; }
+  @keyframes loit-spin { to { transform: rotate(360deg); } }
+  @keyframes loit-shimmer { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
+  .loit-skel {
+    background: linear-gradient(90deg, #EAEAE4 0px, #F3F2ED 80px, #EAEAE4 160px);
+    background-size: 400px 100%;
+    animation: loit-shimmer 1400ms infinite linear;
+  }
+  code { font-family: "JetBrains Mono", ui-monospace, monospace; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="tokens.jsx"></script>
+<script type="text/babel" src="primitives.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="foundations.jsx"></script>
+<script type="text/babel" src="components.jsx"></script>
+<script type="text/babel" src="patterns.jsx"></script>
+
+<script type="text/babel">
+function CoverBoard() {
+  return (
+    <div style={{background:'#0A5A4B', padding:'60px 56px', minHeight:720, color:'#fff', fontFamily:FONT, position:'relative', overflow:'hidden'}}>
+      <div style={{position:'absolute', top:-80, right:-60, width:420, height:420, borderRadius:'50%', background:'radial-gradient(circle, rgba(245,188,109,0.35), transparent 60%)'}}/>
+      <div style={{position:'absolute', bottom:-120, left:-80, width:380, height:380, borderRadius:'50%', background:'radial-gradient(circle, rgba(103,181,160,0.4), transparent 60%)'}}/>
+      <div style={{position:'relative'}}>
+        <div style={{fontSize:13, letterSpacing:2, textTransform:'uppercase', color:'#F5BC6D', fontWeight:600}}>LOIT · Design System v1.0</div>
+        <div style={{fontSize:96, fontWeight:600, letterSpacing:-2, lineHeight:'96px', marginTop:20, maxWidth:1000}}>Split bills, not friendships.</div>
+        <div style={{fontSize:20, color:'#C4E4DB', marginTop:24, maxWidth:680, lineHeight:'30px'}}>A warm, competent, money-aware design system for LOIT — the expense tracker that treats shared rooms as a feature, not a product. Built for Flutter on iOS & Android, English & Bahasa Indonesia, day one.</div>
+        <div style={{marginTop:48, display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:16, maxWidth:900}}>
+          {[['Tokens','110+ · structural + semantic'],['Components','14 core + states'],['Patterns','8 canonical flows'],['Themes','Light + Dark parity']].map(([k,v]) => (
+            <div key={k} style={{padding:16, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(196,228,219,0.2)', borderRadius:12}}>
+              <div style={{fontSize:11, color:'#96CDBE', fontWeight:600, letterSpacing:0.5, textTransform:'uppercase'}}>{k}</div>
+              <div style={{fontSize:15, color:'#fff', marginTop:4, fontWeight:500}}>{v}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:56, fontSize:12, fontFamily:MONO, color:'#96CDBE', letterSpacing:0.5}}>
+          FOUNDATIONS / COLOR / TYPE / SPACE / MOTION / ICONOGRAPHY / COMPONENTS / PATTERNS / VOICE / LOCALIZATION / PLATFORM / CHECKLIST
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="overview" title="Overview" subtitle="LOIT — the design system for the split-bills-not-friendships expense tracker.">
+        <DCArtboard id="cover" label="Cover" width={1240} height={720}><CoverBoard/></DCArtboard>
+        <DCArtboard id="principles" label="01 · Principles" width={1240} height={860}><PrinciplesBoard/></DCArtboard>
+      </DCSection>
+
+      <DCSection id="color" title="Color" subtitle="Primitives → semantic tokens → contrast proof.">
+        <DCArtboard id="primitives" label="02 · Color Primitives" width={1240} height={1040}><PrimitivesBoard/></DCArtboard>
+        <DCArtboard id="semantic" label="03 · Semantic Tokens (Light & Dark)" width={1240} height={1320}><SemanticBoard/></DCArtboard>
+        <DCArtboard id="contrast" label="04 · Accessibility & Contrast" width={1240} height={900}><ContrastBoard/></DCArtboard>
+      </DCSection>
+
+      <DCSection id="type" title="Typography" subtitle="Inter as the single text face · JetBrains Mono for system accents. Tabular numerics are a first-class feature.">
+        <DCArtboard id="type" label="05 · Type Scale & Numerics" width={1240} height={1320}><TypeBoard/></DCArtboard>
+      </DCSection>
+
+      <DCSection id="spacing" title="Spacing, Radius, Elevation, Motion" subtitle="The structural grammar of LOIT.">
+        <DCArtboard id="space" label="06 · Space Scale" width={1240} height={760}><SpaceBoard/></DCArtboard>
+        <DCArtboard id="radius" label="07 · Radius & Elevation" width={1240} height={900}><RadiusElevationBoard/></DCArtboard>
+        <DCArtboard id="motion" label="08 · Motion" width={1240} height={820}><MotionBoard/></DCArtboard>
+      </DCSection>
+
+      <DCSection id="iconography" title="Iconography" subtitle="Lucide @ 1.5px stroke. Category taxonomy is closed — 9 categories, locked.">
+        <DCArtboard id="icons" label="09 · Iconography" width={1240} height={940}><IconographyBoard/></DCArtboard>
+      </DCSection>
+
+      <DCSection id="components-core" title="Components · Core Controls" subtitle="The atoms. Every variant, every state, every size.">
+        <DCArtboard id="buttons" label="10 · Button" width={1240} height={900}><ButtonsBoard/></DCArtboard>
+        <DCArtboard id="iconbutton" label="11 · Icon Button" width={1240} height={380}><IconButtonBoard/></DCArtboard>
+        <DCArtboard id="inputs" label="12 · Text Input & Amount Input" width={1240} height={980}><InputsBoard/></DCArtboard>
+        <DCArtboard id="selection" label="13 · Selection Controls" width={1240} height={400}><SelectionBoard/></DCArtboard>
+        <DCArtboard id="chips" label="14 · Chip" width={1240} height={640}><ChipsBoard/></DCArtboard>
+      </DCSection>
+
+      <DCSection id="components-surfaces" title="Components · Surfaces & Data" subtitle="The canonical containers — where LOIT actually lives.">
+        <DCArtboard id="cards" label="15 · Card" width={1240} height={640}><CardBoard/></DCArtboard>
+        <DCArtboard id="listrow" label="16 · Transaction Row (most-rendered)" width={1240} height={1000}><ListRowBoard/></DCArtboard>
+        <DCArtboard id="amount" label="17 · Amount Display" width={1240} height={760}><AmountDisplayBoard/></DCArtboard>
+        <DCArtboard id="avatars" label="18 · Avatar, Badge & Tag" width={1240} height={860}><AvatarBadgeBoard/></DCArtboard>
+      </DCSection>
+
+      <DCSection id="components-system" title="Components · Navigation & System" subtitle="Shell chrome and system feedback.">
+        <DCArtboard id="nav" label="19 · Navigation" width={1240} height={840}><NavBoard/></DCArtboard>
+        <DCArtboard id="sheets" label="20 · Sheets & Modals" width={1240} height={680}><SheetsBoard/></DCArtboard>
+        <DCArtboard id="feedback" label="21 · Toast, Snackbar, Banner, Modal" width={1240} height={860}><FeedbackBoard/></DCArtboard>
+        <DCArtboard id="progress" label="22 · Progress & Loading" width={1240} height={820}><ProgressBoard/></DCArtboard>
+        <DCArtboard id="empty" label="23 · Empty States" width={1240} height={520}><EmptyStateBoard/></DCArtboard>
+      </DCSection>
+
+      <DCSection id="patterns" title="Patterns · Canonical Flows" subtitle="Compositions that solve recurring product problems. Built only from system primitives.">
+        <DCArtboard id="patterns" label="24 · Screens Library" width={1500} height={820}><PatternBoard/></DCArtboard>
+        <DCArtboard id="form" label="25 · Form Pattern" width={1240} height={820}><FormPatternBoard/></DCArtboard>
+        <DCArtboard id="offline" label="26 · Offline Pattern" width={1240} height={820}><OfflinePatternBoard/></DCArtboard>
+        <DCArtboard id="dark" label="27 · Dark Theme Parity" width={1500} height={820}><DarkPatternBoard/></DCArtboard>
+      </DCSection>
+
+      <DCSection id="content" title="Voice, Content & Localization" subtitle="Voice is part of the system. Indonesian and English are co-primary.">
+        <DCArtboard id="voice" label="28 · Voice & Content" width={1240} height={720}><VoiceBoard/></DCArtboard>
+        <DCArtboard id="l10n" label="29 · Localization" width={1240} height={780}><LocalizationBoard/></DCArtboard>
+      </DCSection>
+
+      <DCSection id="platform" title="Platform & Governance" subtitle="How LOIT adapts without fragmenting, and the gate every new piece of design must pass through.">
+        <DCArtboard id="platform" label="30 · Platform Adaptation" width={1240} height={740}><PlatformBoard/></DCArtboard>
+        <DCArtboard id="checklist" label="31 · Acceptance Checklist" width={1240} height={720}><ChecklistBoard/></DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

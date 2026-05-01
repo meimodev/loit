@@ -38,6 +38,9 @@ dependencies:
   # Navigation — declarative routing with deep-link support (used for Phase 2 invite links)
   go_router: ^14.6.0
 
+  # Typography — Inter (LOIT design system primary face)
+  google_fonts: ^6.2.1
+
   # HTTP — used for Edge Function calls and FX providers
   http: ^1.2.2
 
@@ -95,6 +98,9 @@ dependencies:
 
   # Deep linking (Phase 2 invite flow) — handles uni_links + custom schemes + universal links
   app_links: ^6.3.2
+
+  # Persisted user preferences (theme, locale, toggles)
+  shared_preferences: ^2.3.2
 
   # Export
   csv: ^6.0.0

@@ -133,9 +133,9 @@ class _RoomJoinScreenState extends ConsumerState<RoomJoinScreen> {
       ),
       bottomNavigationBar: SafeArea(
         child: Container(
-          color: c.surface,
           padding: const EdgeInsets.all(LoitSpacing.s4),
           decoration: BoxDecoration(
+              color: c.surface,
               border: Border(top: BorderSide(color: c.borderSubtle))),
           child: LoitButton.primary(
             size: LoitButtonSize.l,

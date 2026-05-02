@@ -83,10 +83,11 @@ final budgetStatusesProvider = Provider<List<BudgetStatus>>((ref) {
   return budgets.map((b) {
     final spent = txns
         .where((t) =>
+            !t.isTransfer &&
+            !t.isIncome &&
             (t.category ?? '') == b.category &&
-            t.amount > 0 &&
             t.createdAt.isAfter(monthStart))
-        .fold<double>(0, (sum, t) => sum + (t.amountHome ?? t.amount));
+        .fold<double>(0, (sum, t) => sum + (t.amountHome ?? t.amount).abs());
     return BudgetStatus(budget: b, spent: spent);
   }).toList();
 });

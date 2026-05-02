@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/config/categories.dart';
 import '../../shared/providers/room_providers.dart';
+import '../../shared/utils/amount_input.dart';
 
 class RoomBudgetsScreen extends ConsumerWidget {
   const RoomBudgetsScreen({super.key, required this.roomId});
@@ -105,7 +106,8 @@ class RoomBudgetsScreen extends ConsumerWidget {
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                  ThousandsInputFormatter(),
                 ],
                 decoration: InputDecoration(
                   labelText: 'Budget limit ($currency)',
@@ -121,7 +123,7 @@ class RoomBudgetsScreen extends ConsumerWidget {
             ),
             FilledButton(
               onPressed: () async {
-                final amount = double.tryParse(amountCtrl.text.trim());
+                final amount = parseAmountInput(amountCtrl.text);
                 if (amount == null || amount <= 0) return;
                 await ref.read(roomServiceProvider).upsertRoomBudget(
                       roomId: roomId,

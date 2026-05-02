@@ -58,9 +58,9 @@ class BudgetDetailScreen extends ConsumerWidget {
         padding: EdgeInsets.zero,
         children: [
           Container(
-            color: c.surface,
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
             decoration: BoxDecoration(
+              color: c.surface,
               border: Border(bottom: BorderSide(color: c.borderSubtle)),
             ),
             child: Column(
@@ -144,7 +144,7 @@ class BudgetDetailScreen extends ConsumerWidget {
           ),
           if (top5.isNotEmpty) const LoitGroupLabel(label: 'CONTRIBUTING · TOP 5'),
           ...top5.map((t) => LoitTxRow(
-                merchant: t.merchant ?? 'Unknown',
+                title: t.notes ?? '',
                 categoryKey: t.category,
                 subtitle: df.format(t.createdAt),
                 amount: fmt.format(t.amount),

@@ -81,10 +81,10 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           ),
           const LoitGroupLabel(label: 'Format'),
           Container(
-            color: c.surface,
             padding: const EdgeInsets.fromLTRB(
                 LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, LoitSpacing.s4),
             decoration: BoxDecoration(
+              color: c.surface,
               border: Border(bottom: BorderSide(color: c.borderSubtle)),
             ),
             child: Row(
@@ -164,9 +164,9 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       ),
       bottomNavigationBar: SafeArea(
         child: Container(
-          color: c.surface,
           padding: const EdgeInsets.all(LoitSpacing.s4),
           decoration: BoxDecoration(
+            color: c.surface,
             border: Border(top: BorderSide(color: c.borderSubtle)),
           ),
           child: LoitButton.primary(
@@ -261,10 +261,10 @@ class _LineRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        color: c.surface,
         padding: const EdgeInsets.symmetric(
             horizontal: LoitSpacing.s4, vertical: LoitSpacing.s4),
         decoration: BoxDecoration(
+          color: c.surface,
           border: Border(bottom: BorderSide(color: c.borderSubtle)),
         ),
         child: Row(
@@ -356,10 +356,10 @@ class _CheckRow extends StatelessWidget {
     return InkWell(
       onTap: disabled ? null : () => onChanged!(!value),
       child: Container(
-        color: c.surface,
         padding: const EdgeInsets.symmetric(
             horizontal: LoitSpacing.s4, vertical: LoitSpacing.s3),
         decoration: BoxDecoration(
+          color: c.surface,
           border: Border(
               bottom: isLast
                   ? BorderSide.none

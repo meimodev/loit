@@ -48,6 +48,31 @@ class SyncService {
           final tx = jsonDecode(item.transactionJson) as Map<String, dynamic>;
           tx['client_updated_at'] = item.clientUpdatedAt.toIso8601String();
 
+          // Normalize fields that are required after the accounts migration but
+          // may be absent from rows queued before the upgrade.
+          if (tx['type'] == null) {
+            final amt = (tx['amount'] as num?)?.toDouble() ?? 0;
+            tx['type'] = amt < 0 ? 'income' : 'expense';
+          }
+          if (tx['account_id'] == null) {
+            final userId = tx['user_id'] as String?;
+            if (userId == null) {
+              Log.i(_tag, 'No user_id in payload for item ${item.id}, skipping');
+              continue;
+            }
+            final cashRows = await _supabase
+                .from('accounts')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('name', 'Cash')
+                .limit(1);
+            if ((cashRows as List).isEmpty) {
+              Log.i(_tag, 'No Cash account for user $userId, skipping item ${item.id}');
+              continue;
+            }
+            tx['account_id'] = cashRows[0]['id'] as String;
+          }
+
           if (await _serverHasNewer(tx['id'] as String?, item.clientUpdatedAt)) {
             Log.d(_tag, 'Item ${item.id} superseded by server, skipping');
             await _db.markSynced(item.id);

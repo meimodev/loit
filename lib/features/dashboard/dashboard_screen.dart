@@ -8,6 +8,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/selected_month_provider.dart';
@@ -15,22 +16,19 @@ import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/budget_alert_banner.dart';
 import '../../shared/widgets/connectivity_banner.dart';
 import '../../shared/widgets/loit_budget_row.dart';
-import '../../shared/widgets/loit_month_app_bar.dart';
-import '../../shared/widgets/loit_fab_stack.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import '../../shared/widgets/loit_stat_triple.dart';
-import '../../shared/widgets/loit_tx_row.dart';
 import '../../shared/widgets/receipt_expiry_banner.dart';
 
 /// LOIT Home / Dashboard.
 ///
-/// Layout per design system (Home artboard, `screens-home-tx.jsx`):
-///   1. Month app bar (chevrons + label + actions)
-///   2. Stat triple (Income / Expenses / Total)
-///   3. Hero summary band (day-of-month + MTD amount + goal bar)
-///   4. Budgets group + edge-to-edge category rows
-///   5. Recent group + edge-to-edge tx rows
-///   6. FAB stack (scan + add) above bottom tab bar
+/// Layout:
+///   1. LOIT title bar with profile avatar
+///   2. Net worth strip (Assets / Liabilities / Net Worth)
+///   3. Accounts horizontal scroll
+///   4. Hero summary band (day-of-month + MTD amount + goal bar)
+///   5. Budget alerts and receipt expiry banners
+///   6. Budgets group + edge-to-edge category rows
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
@@ -40,6 +38,11 @@ class DashboardScreen extends ConsumerWidget {
     final profile = ref.watch(userProfileProvider).value;
     final budgetStatuses = ref.watch(budgetStatusesProvider);
     final month = ref.watch(selectedMonthProvider);
+    final accounts = ref.watch(activeAccountsProvider);
+    final balances = ref.watch(accountBalancesProvider);
+    final totalAssets = ref.watch(totalAssetsProvider);
+    final totalLiabilities = ref.watch(totalLiabilitiesProvider);
+    final netWorth = ref.watch(netWorthProvider);
     final c = context.loitColors;
     final now = DateTime.now();
     final isCurrentMonth = now.year == month.year && now.month == month.month;
@@ -52,17 +55,24 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: c.canvas,
-      appBar: LoitMonthAppBar(
+      appBar: AppBar(
+        title: const Text('LOIT'),
+        backgroundColor: c.canvas,
+        scrolledUnderElevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search, size: 20),
-            tooltip: 'Search',
-            onPressed: () => context.push('/transactions?focus=search'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.tune, size: 20),
-            tooltip: 'Filter',
-            onPressed: () {},
+          Padding(
+            padding: const EdgeInsets.only(right: LoitSpacing.s4),
+            child: GestureDetector(
+              onTap: () => context.push('/settings/profile'),
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: c.brand,
+                child: Text(
+                  _avatarInitial(profile),
+                  style: LoitTypography.labelS.copyWith(color: Colors.white),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -74,33 +84,66 @@ class DashboardScreen extends ConsumerWidget {
           data: (items) {
             final summary = _MonthSummary.fromTxns(items, month);
             final currency = profile?.homeCurrency ?? 'IDR';
-            final today = DateTime(now.year, now.month, now.day);
-            final todays = isCurrentMonth
-                ? items.where((t) => !t.createdAt.isBefore(today)).toList()
-                : <Txn>[];
             return CustomScrollView(
               slivers: [
                 const SliverToBoxAdapter(child: ConnectivityBanner()),
+                // Net worth strip
                 SliverToBoxAdapter(
                   child: LoitStatTriple(
                     stats: [
                       LoitStat(
-                        label: 'Income',
-                        amount: _fmt(summary.income, currency),
-                        color: c.info,
+                        label: 'Assets',
+                        amount: _fmt(totalAssets, currency),
+                        color: c.success,
                       ),
                       LoitStat(
-                        label: 'Expenses',
-                        amount: _fmt(summary.expenses, currency),
+                        label: 'Liabilities',
+                        amount: _fmt(totalLiabilities, currency),
                         color: c.danger,
                       ),
                       LoitStat(
-                        label: 'Total',
-                        amount: _fmt(summary.income - summary.expenses, currency),
+                        label: 'Net worth',
+                        amount: _fmt(netWorth, currency),
+                        color: netWorth >= 0 ? c.success : c.danger,
                       ),
                     ],
                   ),
                 ),
+                // Accounts list
+                if (accounts.isEmpty)
+                  SliverToBoxAdapter(
+                    child: _AddFirstAccountBanner(
+                      onTap: () => context.push('/accounts/new'),
+                    ),
+                  )
+                else ...[
+                  const SliverToBoxAdapter(
+                    child: LoitGroupLabel(label: 'Accounts'),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Container(
+                      color: c.surface,
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < accounts.length; i++)
+                            _AccountRow(
+                              account: accounts[i],
+                              balance: balances[accounts[i].id] ?? 0,
+                              currency: currency,
+                              showDivider: true,
+                              onTap: () => context.push(
+                                '/accounts/${accounts[i].id}/edit',
+                                extra: accounts[i],
+                              ),
+                            ),
+                          _AccountRow.add(
+                            onTap: () => context.push('/accounts/new'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 if (isDense) ...[
                   SliverToBoxAdapter(
                     child: _DenseAlertPill(
@@ -142,102 +185,35 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const SliverToBoxAdapter(child: LoitGroupLabel(label: 'Today')),
-                  if (todays.isEmpty)
-                    SliverToBoxAdapter(
-                      child: Container(
-                        color: c.surface,
-                        padding: const EdgeInsets.all(LoitSpacing.s4),
-                        child: Text(
-                          'No transactions yet today.',
-                          style: LoitTypography.bodyM
-                              .copyWith(color: c.contentTertiary),
-                        ),
-                      ),
-                    )
-                  else
-                    SliverList.builder(
-                      itemCount: todays.length,
-                      itemBuilder: (_, i) {
-                        final t = todays[i];
-                        return LoitTxRow(
-                          merchant: t.merchant ?? t.category ?? 'Transaction',
-                          categoryKey: t.category,
-                          subtitle: _txSubtitle(t),
-                          amount: _fmt(t.amount, t.currency),
-                          showDivider: i != todays.length - 1,
-                          onTap: () {},
-                        );
-                      },
-                    ),
                 ] else ...[
-                  SliverToBoxAdapter(
-                    child: _HeroSummary(
-                      dayOfMonth: dayOfMonth,
-                      daysInMonth: daysInMonth,
-                      spentLabel: _fmt(summary.expenses, currency),
-                      goalLabel:
-                          'Goal: ${_fmt(_estimatedGoal(summary), currency)}',
-                      progress: _goalProgress(summary),
-                    ),
-                  ),
                   const SliverToBoxAdapter(child: BudgetAlertBanner()),
                   const SliverToBoxAdapter(child: ReceiptExpiryBanner()),
-                  if (items.isEmpty)
-                    const SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: _EmptyState(),
-                    )
-                  else ...[
-                    if (budgetStatuses.isNotEmpty) ...[
-                      const SliverToBoxAdapter(
-                        child: LoitGroupLabel(label: 'Budgets'),
-                      ),
-                      SliverToBoxAdapter(
-                        child: Container(
-                          color: c.surface,
-                          child: Column(
-                            children: _topBudgetRows(
-                              context: context,
-                              statuses: budgetStatuses,
-                              currency: currency,
-                            ),
+                  const SliverToBoxAdapter(
+                    child: LoitGroupLabel(label: 'Budgets'),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Container(
+                      color: c.surface,
+                      child: Column(
+                        children: [
+                          ..._topBudgetRows(
+                            context: context,
+                            statuses: budgetStatuses,
+                            currency: currency,
                           ),
-                        ),
+                          _AddBudgetRow(
+                            onTap: () => context.push('/budgets/new'),
+                          ),
+                        ],
                       ),
-                    ],
-                    const SliverToBoxAdapter(
-                      child: LoitGroupLabel(label: 'Recent'),
                     ),
-                    SliverList.builder(
-                      itemCount: items.length,
-                      itemBuilder: (_, i) {
-                        final t = items[i];
-                        return LoitTxRow(
-                          merchant: t.merchant ?? t.category ?? 'Transaction',
-                          categoryKey: t.category,
-                          subtitle: _txSubtitle(t),
-                          amount: _fmt(t.amount, t.currency),
-                          showDivider: i != items.length - 1,
-                          onTap: () {},
-                        );
-                      },
-                    ),
-                  ],
+                  ),
                 ],
-                const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                const SliverToBoxAdapter(child: SizedBox(height: 80)),
               ],
             );
           },
         ),
-      ),
-      floatingActionButton: LoitFabStack(
-        onPrimary: () => context.push('/transactions/new'),
-        onSecondary: () => context.push('/scan'),
-        primaryTooltip: 'Add expense',
-        secondaryTooltip: 'Scan receipt',
-        primaryIcon: Icons.add,
-        secondaryIcon: Icons.document_scanner_outlined,
       ),
     );
   }
@@ -247,22 +223,14 @@ class DashboardScreen extends ConsumerWidget {
     return fmt.format(v);
   }
 
-  double _estimatedGoal(_MonthSummary s) =>
-      s.expenses == 0 ? 6200000 : (s.expenses / 0.68).roundToDouble();
-
-  double _goalProgress(_MonthSummary s) {
-    final goal = _estimatedGoal(s);
-    if (goal == 0) return 0;
-    return (s.expenses / goal).clamp(0, 1).toDouble();
-  }
-
-  String _txSubtitle(Txn t) {
-    final when = DateFormat.MMMd().add_jm().format(t.createdAt.toLocal());
-    final tags = <String>[
-      if (t.aiParsed) 'AI',
-      if (t.isManualFallback) 'Manual',
-    ];
-    return tags.isEmpty ? when : '$when · ${tags.join(' · ')}';
+  String _avatarInitial(UserProfile? profile) {
+    if (profile != null && profile.name.isNotEmpty) {
+      return profile.name[0].toUpperCase();
+    }
+    if (profile != null && profile.email.isNotEmpty) {
+      return profile.email[0].toUpperCase();
+    }
+    return '?';
   }
 }
 
@@ -283,11 +251,40 @@ List<Widget> _topBudgetRows({
         percent: (picked[i].ratio * 100).round(),
         subtitle:
             '${fmt.format(picked[i].spent)} of ${fmt.format(picked[i].budget.monthlyLimit)}',
-        showDivider: i != picked.length - 1,
+        showDivider: true,
         onTap: () =>
             GoRouter.of(context).push('/budgets/${picked[i].budget.id}'),
       ),
   ];
+}
+
+class _AddBudgetRow extends StatelessWidget {
+  const _AddBudgetRow({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: LoitSpacing.s4,
+          vertical: LoitSpacing.s3,
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.add, size: 18, color: c.brand),
+            const SizedBox(width: LoitSpacing.s3),
+            Text(
+              'Add budget',
+              style: LoitTypography.bodyM.copyWith(color: c.brand),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _MonthSummary {
@@ -301,82 +298,17 @@ class _MonthSummary {
     var income = 0.0;
     var expenses = 0.0;
     for (final t in items) {
+      if (t.isTransfer) continue;
       if (t.createdAt.isBefore(monthStart)) continue;
       if (!t.createdAt.isBefore(monthEnd)) continue;
       final v = t.amountHome ?? t.amount;
-      if (v < 0) {
-        income += -v;
+      if (t.isIncome) {
+        income += v.abs();
       } else {
-        expenses += v;
+        expenses += v.abs();
       }
     }
     return _MonthSummary(income: income, expenses: expenses);
-  }
-}
-
-class _HeroSummary extends StatelessWidget {
-  const _HeroSummary({
-    required this.dayOfMonth,
-    required this.daysInMonth,
-    required this.spentLabel,
-    required this.goalLabel,
-    required this.progress,
-  });
-
-  final int dayOfMonth;
-  final int daysInMonth;
-  final String spentLabel;
-  final String goalLabel;
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.loitColors;
-    return Container(
-      color: c.canvas,
-      padding: const EdgeInsets.fromLTRB(
-        LoitSpacing.s5,
-        LoitSpacing.s4,
-        LoitSpacing.s5,
-        LoitSpacing.s3,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                'DAY $dayOfMonth · $daysInMonth',
-                style: LoitTypography.labelS
-                    .copyWith(color: c.contentSecondary, letterSpacing: 0.5),
-              ),
-              Text(
-                goalLabel,
-                style: LoitTypography.bodyS.copyWith(color: c.contentTertiary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(spentLabel, style: LoitTypography.amountHero.copyWith(color: c.contentPrimary)),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: LoitRadius.brFull,
-            child: Container(
-              height: 5,
-              color: c.muted,
-              child: FractionallySizedBox(
-                alignment: Alignment.centerLeft,
-                widthFactor: progress,
-                child: Container(color: c.brand),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -468,60 +400,143 @@ class _QuickStatRow extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+class _AddFirstAccountBanner extends StatelessWidget {
+  const _AddFirstAccountBanner({required this.onTap});
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    return Padding(
-      padding: const EdgeInsets.all(LoitSpacing.s6),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              border: Border.all(color: c.borderDefault, style: BorderStyle.solid),
-              borderRadius: LoitRadius.brL,
-              color: c.surface,
-            ),
-            alignment: Alignment.center,
-            child: Icon(Icons.receipt_long_outlined, size: 40, color: c.brand),
-          ),
-          const SizedBox(height: LoitSpacing.s5),
-          Text(
-            'Ready when you are',
-            style: LoitTypography.titleM.copyWith(color: c.contentPrimary),
-          ),
-          const SizedBox(height: LoitSpacing.s2),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 260),
-            child: Text(
-              'Snap your first receipt or type in an expense — both take about five seconds.',
-              textAlign: TextAlign.center,
-              style: LoitTypography.bodyM.copyWith(color: c.contentSecondary),
-            ),
-          ),
-          const SizedBox(height: LoitSpacing.s5),
-          Wrap(
-            spacing: LoitSpacing.s3,
-            children: [
-              FilledButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                label: const Text('Scan'),
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(
+          LoitSpacing.s4,
+          LoitSpacing.s3,
+          LoitSpacing.s4,
+          LoitSpacing.s3,
+        ),
+        padding: const EdgeInsets.all(LoitSpacing.s4),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: LoitRadius.brM,
+          border: Border.all(color: c.borderSubtle),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.account_balance_wallet_outlined,
+                size: 20, color: c.brand),
+            const SizedBox(width: LoitSpacing.s3),
+            Expanded(
+              child: Text(
+                'Add your first account to start tracking balances.',
+                style:
+                    LoitTypography.bodyS.copyWith(color: c.contentSecondary),
               ),
-              OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add manually'),
+            ),
+            Icon(Icons.chevron_right, size: 16, color: c.contentTertiary),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AccountRow extends StatelessWidget {
+  const _AccountRow({
+    required this.account,
+    required this.balance,
+    required this.currency,
+    required this.onTap,
+    this.showDivider = true,
+  })  : isAdd = false;
+
+  const _AccountRow.add({required this.onTap})
+      : account = null,
+        balance = 0,
+        currency = '',
+        showDivider = false,
+        isAdd = true;
+
+  final Account? account;
+  final double balance;
+  final String currency;
+  final VoidCallback onTap;
+  final bool showDivider;
+  final bool isAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    final divider = showDivider
+        ? Border(bottom: BorderSide(color: c.borderSubtle, width: 1))
+        : null;
+
+    if (isAdd) {
+      return InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: LoitSpacing.s4,
+            vertical: LoitSpacing.s3,
+          ),
+          decoration: BoxDecoration(border: divider),
+          child: Row(
+            children: [
+              Icon(Icons.add, size: 18, color: c.brand),
+              const SizedBox(width: LoitSpacing.s3),
+              Text(
+                'Add account',
+                style: LoitTypography.bodyM.copyWith(color: c.brand),
               ),
             ],
           ),
-        ],
+        ),
+      );
+    }
+
+    final a = account!;
+    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: 0);
+    final isAsset = a.kind == AccountKind.asset;
+    final iconColor = isAsset ? c.success : c.danger;
+    final amountColor = balance < 0 ? c.danger : c.success;
+
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: LoitSpacing.s4,
+          vertical: LoitSpacing.s3,
+        ),
+        decoration: BoxDecoration(border: divider),
+        child: Row(
+          children: [
+            Icon(
+              isAsset
+                  ? Icons.account_balance_wallet_outlined
+                  : Icons.credit_card_outlined,
+              size: 18,
+              color: iconColor,
+            ),
+            const SizedBox(width: LoitSpacing.s3),
+            Expanded(
+              child: Text(
+                a.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: LoitTypography.bodyM.copyWith(color: c.contentPrimary),
+              ),
+            ),
+            Text(
+              fmt.format(balance),
+              style: LoitTypography.bodyM.copyWith(
+                color: amountColor,
+                fontWeight: FontWeight.w600,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

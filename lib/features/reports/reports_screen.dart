@@ -44,11 +44,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         .toList();
 
     final income = monthTxns
-        .where((t) => (t.amountHome ?? t.amount) < 0)
+        .where((t) => !t.isTransfer && t.isIncome)
         .fold<double>(0, (s, t) => s + (t.amountHome ?? t.amount).abs());
     final expenses = monthTxns
-        .where((t) => (t.amountHome ?? t.amount) >= 0)
-        .fold<double>(0, (s, t) => s + (t.amountHome ?? t.amount));
+        .where((t) => !t.isTransfer && !t.isIncome)
+        .fold<double>(0, (s, t) => s + (t.amountHome ?? t.amount).abs());
     final net = income - expenses;
 
     return Scaffold(
@@ -151,10 +151,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   Map<String, double> _incomeCategoryTotals(List<Txn> txns) {
     final out = <String, double>{};
     for (final t in txns) {
-      final v = t.amountHome ?? t.amount;
-      if (v >= 0) continue;
+      if (t.isTransfer || !t.isIncome) continue;
+      final v = (t.amountHome ?? t.amount).abs();
       final k = t.category ?? 'income_other';
-      out[k] = (out[k] ?? 0) + v.abs();
+      out[k] = (out[k] ?? 0) + v;
     }
     return out;
   }
@@ -174,11 +174,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       const SliverToBoxAdapter(child: LoitGroupLabel(label: 'Trend · this month')),
       SliverToBoxAdapter(
         child: Container(
-          color: c.surface,
           padding: const EdgeInsets.fromLTRB(
               LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4),
-          decoration:
-              BoxDecoration(border: Border(bottom: BorderSide(color: c.borderSubtle))),
+          decoration: BoxDecoration(
+              color: c.surface,
+              border: Border(bottom: BorderSide(color: c.borderSubtle))),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -257,10 +257,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       return allTxns
           .where((t) =>
               !t.createdAt.isBefore(m) && t.createdAt.isBefore(next))
-          .fold<double>(0, (s, t) {
-        final v = t.amountHome ?? t.amount;
-        return s + (v >= 0 ? v : 0);
-      });
+          .where((t) => !t.isTransfer && !t.isIncome)
+          .fold<double>(
+              0, (s, t) => s + (t.amountHome ?? t.amount).abs());
     }).toList();
     final maxY =
         (totals.fold<double>(0, (s, v) => v > s ? v : s)) * 1.2 + 1;
@@ -269,10 +268,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       const SliverToBoxAdapter(child: LoitGroupLabel(label: 'Last 6 months')),
       SliverToBoxAdapter(
         child: Container(
-          color: c.surface,
           padding: const EdgeInsets.fromLTRB(
               LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4),
           decoration: BoxDecoration(
+              color: c.surface,
               border: Border(bottom: BorderSide(color: c.borderSubtle))),
           child: SizedBox(
             height: 220,
@@ -332,10 +331,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         itemBuilder: (_, i) {
           final isLast = i == months.length - 1;
           return Container(
-            color: c.surface,
             padding: const EdgeInsets.symmetric(
                 horizontal: LoitSpacing.s4, vertical: LoitSpacing.s3),
             decoration: BoxDecoration(
+              color: c.surface,
               border: Border(
                   bottom: isLast
                       ? BorderSide.none
@@ -389,10 +388,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       final byMerchant = <String, int>{};
       final spendByMerchant = <String, double>{};
       for (final t in monthTxns) {
-        final m = t.merchant ?? 'Unknown';
+        final raw = (t.notes ?? '').trim();
+        final m = raw.isEmpty ? 'Unknown' : raw.split('\n').first;
         byMerchant[m] = (byMerchant[m] ?? 0) + 1;
-        final v = t.amountHome ?? t.amount;
-        if (v > 0) spendByMerchant[m] = (spendByMerchant[m] ?? 0) + v;
+        if (!t.isTransfer && !t.isIncome) {
+          spendByMerchant[m] =
+              (spendByMerchant[m] ?? 0) + (t.amountHome ?? t.amount).abs();
+        }
       }
       final repeats = byMerchant.entries.where((e) => e.value >= 3).toList()
         ..sort((a, b) => b.value.compareTo(a.value));
@@ -428,10 +430,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return [
       SliverToBoxAdapter(
         child: Container(
-          color: c.surface,
           padding: const EdgeInsets.fromLTRB(LoitSpacing.s4,
               LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4),
           decoration: BoxDecoration(
+            color: c.surface,
             border: Border(bottom: BorderSide(color: c.borderSubtle)),
           ),
           child: Column(
@@ -471,11 +473,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     const subCats = {'utilities', 'entertainment'};
     final byMerchant = <String, int>{};
     for (final t in monthTxns) {
-      final m = t.merchant;
-      if (m == null || m.isEmpty) continue;
+      final raw = (t.notes ?? '').trim();
+      if (raw.isEmpty) continue;
+      final m = raw.split('\n').first;
       if (!subCats.contains(t.category)) continue;
-      final v = t.amountHome ?? t.amount;
-      if (v <= 0) continue;
+      if (t.isTransfer || t.isIncome) continue;
       byMerchant[m] = (byMerchant[m] ?? 0) + 1;
     }
     return byMerchant.entries
@@ -488,8 +490,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final days = DateTime(month.year, month.month + 1, 0).day;
     final out = List<double>.filled(days, 0);
     for (final t in txns) {
-      final v = t.amountHome ?? t.amount;
-      if (v < 0) continue;
+      if (t.isTransfer || t.isIncome) continue;
+      final v = (t.amountHome ?? t.amount).abs();
       final d = t.createdAt.day;
       if (d >= 1 && d <= days) out[d - 1] += v;
     }
@@ -499,8 +501,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   Map<String, double> _categoryTotals(List<Txn> txns) {
     final out = <String, double>{};
     for (final t in txns) {
-      final v = t.amountHome ?? t.amount;
-      if (v < 0) continue;
+      if (t.isTransfer || t.isIncome) continue;
+      final v = (t.amountHome ?? t.amount).abs();
       final k = t.category ?? 'other';
       out[k] = (out[k] ?? 0) + v;
     }
@@ -700,10 +702,10 @@ class _CategoryLine extends StatelessWidget {
     final style = LoitCategories.resolve(entry.key);
     final pct = total <= 0 ? 0 : ((entry.value / total) * 100).round();
     return Container(
-      color: c.surface,
       padding: const EdgeInsets.symmetric(
           horizontal: LoitSpacing.s4, vertical: LoitSpacing.s3),
       decoration: BoxDecoration(
+        color: c.surface,
         border: Border(
           bottom: isLast
               ? BorderSide.none
@@ -759,8 +761,8 @@ class _InsightCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.loitColors;
     return Container(
-      color: c.surface,
       decoration: BoxDecoration(
+        color: c.surface,
         border: Border(bottom: BorderSide(color: c.borderSubtle)),
       ),
       child: IntrinsicHeight(

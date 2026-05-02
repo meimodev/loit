@@ -7,7 +7,6 @@ import 'services_providers.dart';
 /// Transaction row shape used by UI. Kept as a typed view over Map.
 class Txn {
   final String? id;
-  final String? merchant;
   final double amount;
   final String currency;
   final double? amountHome;
@@ -19,10 +18,12 @@ class Txn {
   final bool isManualFallback;
   final DateTime createdAt;
   final String? roomId;
+  final String type; // 'expense' | 'income' | 'transfer'
+  final String? accountId;
+  final String? toAccountId;
 
   const Txn({
     required this.id,
-    required this.merchant,
     required this.amount,
     required this.currency,
     required this.amountHome,
@@ -34,28 +35,46 @@ class Txn {
     required this.isManualFallback,
     required this.createdAt,
     this.roomId,
+    this.type = 'expense',
+    this.accountId,
+    this.toAccountId,
   });
 
-  factory Txn.fromRow(Map<String, dynamic> r) => Txn(
-    id: r['id'] as String?,
-    merchant: r['merchant'] as String?,
-    amount: ((r['amount'] as num?) ?? 0).toDouble(),
-    currency: (r['currency'] as String?) ?? 'IDR',
-    amountHome: (r['amount_home_currency'] as num?)?.toDouble(),
-    fxRate: (r['fx_rate'] as num?)?.toDouble(),
-    category: r['category'] as String?,
-    notes: r['notes'] as String?,
-    receiptUrl: r['receipt_url'] as String?,
-    aiParsed: (r['ai_parsed'] as bool?) ?? false,
-    isManualFallback: (r['is_manual_fallback'] as bool?) ?? false,
-    createdAt: DateTime.parse(
-      (r['created_at'] as String?) ?? DateTime.now().toUtc().toIso8601String(),
-    ),
-    roomId: r['room_id'] as String?,
-  );
+  factory Txn.fromRow(Map<String, dynamic> r) {
+    final rawType = r['type'] as String?;
+    // Backward-compatible: derive type from amount sign when column absent.
+    final String type;
+    if (rawType != null && (rawType == 'income' || rawType == 'expense' || rawType == 'transfer')) {
+      type = rawType;
+    } else {
+      final amt = ((r['amount'] as num?) ?? 0).toDouble();
+      type = amt < 0 ? 'expense' : 'income';
+    }
+    return Txn(
+      id: r['id'] as String?,
+      amount: ((r['amount'] as num?) ?? 0).toDouble(),
+      currency: (r['currency'] as String?) ?? 'IDR',
+      amountHome: (r['amount_home_currency'] as num?)?.toDouble(),
+      fxRate: (r['fx_rate'] as num?)?.toDouble(),
+      category: r['category'] as String?,
+      notes: r['notes'] as String?,
+      receiptUrl: r['receipt_url'] as String?,
+      aiParsed: (r['ai_parsed'] as bool?) ?? false,
+      isManualFallback: (r['is_manual_fallback'] as bool?) ?? false,
+      createdAt: DateTime.parse(
+        (r['created_at'] as String?) ?? DateTime.now().toUtc().toIso8601String(),
+      ),
+      roomId: r['room_id'] as String?,
+      type: type,
+      accountId: r['account_id'] as String?,
+      toAccountId: r['to_account_id'] as String?,
+    );
+  }
 
-  /// Income transactions are stored with a negative `amount` (sign convention).
-  bool get isIncome => amount < 0;
+  bool get isTransfer => type == 'transfer';
+
+  /// Income transactions: type == 'income' (or legacy negative amount).
+  bool get isIncome => type == 'income';
 
   /// Absolute amount for display.
   double get absAmount => amount.abs();
@@ -88,6 +107,27 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
 
     payload['user_id'] = user.id;
     payload['client_updated_at'] = DateTime.now().toUtc().toIso8601String();
+
+    // Defensive defaults: ensure type and account_id are present so offline-queued
+    // rows survive the accounts migration constraints when synced later.
+    payload['type'] ??= ((payload['amount'] as num?)?.toDouble() ?? 0) < 0
+        ? 'expense'
+        : 'income';
+    if (payload['account_id'] == null) {
+      // Best-effort: look up Cash account directly to avoid circular dependency
+      // with accountsProvider. SyncService also handles this for queued rows.
+      try {
+        final rows = await Supabase.instance.client
+            .from('accounts')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('name', 'Cash')
+            .limit(1);
+        if ((rows as List).isNotEmpty) {
+          payload['account_id'] = rows[0]['id'] as String;
+        }
+      } catch (_) {}
+    }
 
     // Optimistic local add
     final optimistic = Txn.fromRow({

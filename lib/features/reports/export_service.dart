@@ -11,10 +11,10 @@ class ExportService {
 
   Future<File> exportCsv(List<Txn> transactions) async {
     final rows = <List<dynamic>>[
-      ['Date', 'Merchant', 'Amount', 'Currency', 'Category', 'Notes'],
+      ['Date', 'Title', 'Amount', 'Currency', 'Category', 'Notes'],
       ...transactions.map((t) => [
             t.createdAt.toIso8601String(),
-            t.merchant ?? '',
+            (t.notes ?? '').split('\n').first,
             t.amount,
             t.currency,
             t.category ?? '',
@@ -43,11 +43,11 @@ class ExportService {
           pw.Text('Total: ${totalHome.toStringAsFixed(2)} $homeCurrency'),
           pw.SizedBox(height: 16),
           pw.TableHelper.fromTextArray(
-            headers: const ['Date', 'Merchant', 'Amount', 'Category'],
+            headers: const ['Date', 'Title', 'Amount', 'Category'],
             data: transactions
                 .map((t) => [
                       t.createdAt.toIso8601String().substring(0, 10),
-                      t.merchant ?? '',
+                      (t.notes ?? '').split('\n').first,
                       '${t.amount} ${t.currency}',
                       t.category ?? '',
                     ])

@@ -9,6 +9,7 @@ import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/budgets_provider.dart';
+import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/category_picker_sheet.dart';
 import '../../shared/widgets/loit_group_label.dart';
 
@@ -34,7 +35,7 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
     super.initState();
     final init = widget.budget;
     _amount = TextEditingController(
-        text: init == null ? '' : init.monthlyLimit.toStringAsFixed(0));
+        text: init == null ? '' : formatAmountInput(init.monthlyLimit));
     if (init != null) _category = init.category;
   }
 
@@ -45,7 +46,7 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
   }
 
   Future<void> _save() async {
-    final amt = double.tryParse(_amount.text.replaceAll('.', ''));
+    final amt = parseAmountInput(_amount.text);
     if (amt == null || amt <= 0) return;
     setState(() => _busy = true);
     try {
@@ -101,7 +102,9 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
                           textAlign: TextAlign.center,
                           keyboardType: TextInputType.number,
                           inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'[0-9.,]')),
+                            ThousandsInputFormatter(),
                           ],
                           style: LoitTypography.displayM.copyWith(
                             fontSize: 44,
@@ -213,9 +216,9 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
     return InkWell(
       onTap: onTap,
       child: Container(
-        color: c.surface,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
+          color: c.surface,
           border: Border(bottom: BorderSide(color: c.borderSubtle)),
         ),
         child: Row(
@@ -243,9 +246,9 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
       required ValueChanged<bool> onChanged}) {
     final c = context.loitColors;
     return Container(
-      color: c.surface,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
+        color: c.surface,
         border: Border(bottom: BorderSide(color: c.borderSubtle)),
       ),
       child: Row(

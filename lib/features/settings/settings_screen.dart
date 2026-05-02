@@ -100,6 +100,10 @@ class SettingsScreen extends ConsumerWidget {
 
           SettingsGroup(label: 'Money', children: [
             SettingsRow(
+              label: 'Accounts',
+              onTap: () => context.push('/accounts'),
+            ),
+            SettingsRow(
               label: 'Budgets',
               value: '${budgets.length} active',
               onTap: () => context.push('/budgets'),

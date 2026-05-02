@@ -26,7 +26,7 @@ const jwt = new JWT({
 type NotifyBody = {
   room_id: string;
   actor_id: string;
-  merchant?: string | null;
+  title?: string | null;
   amount: number | string;
   currency: string;
   // 'income' | 'expense'. Falls back to amount sign (negative ⇒ income) if absent.
@@ -85,7 +85,7 @@ async function sendMessage(
       message: {
         token: deviceToken,
         notification: {
-          title: body.merchant ??
+          title: body.title ??
             (isIncomePayload(body) ? 'Income recorded' : 'New expense'),
           body: `${isIncomePayload(body) ? '+' : ''}${formatAmount(body.amount)} ${body.currency}`,
         },
@@ -207,7 +207,7 @@ serve(async (req) => {
 
     // Insert in-app notification rows (one per recipient).
     const isIncome = isIncomePayload(body);
-    const notifTitle = body.merchant ?? (isIncome ? 'Income recorded' : 'New expense');
+    const notifTitle = body.title ?? (isIncome ? 'Income recorded' : 'New expense');
     const notifBody = `${isIncome ? '+' : ''}${formatAmount(body.amount)} ${body.currency}`;
     const notifRows = userIds.map((uid) => ({
       user_id: uid,

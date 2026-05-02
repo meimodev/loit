@@ -65,7 +65,7 @@ class _TransactionSearchScreenState
           padding: const EdgeInsets.only(right: LoitSpacing.s4),
           child: LoitInput(
             controller: _ctrl,
-            placeholder: 'Search merchant, notes, category…',
+            placeholder: 'Search notes, category…',
             leading: const Icon(Icons.search),
             trailing: _query.isEmpty
                 ? null
@@ -115,7 +115,7 @@ class _TransactionSearchScreenState
                     child: LoitEmptyState(
                       icon: Icons.search_rounded,
                       title: 'Search your transactions',
-                      body: 'Type a merchant, category, or note.',
+                      body: 'Type a category or note.',
                     ),
                   ),
                 const SizedBox(height: LoitSpacing.s4),
@@ -154,8 +154,7 @@ class _TransactionSearchScreenState
 
           final q = _query.toLowerCase();
           final results = items.where((t) {
-            return (t.merchant ?? '').toLowerCase().contains(q) ||
-                (t.notes ?? '').toLowerCase().contains(q) ||
+            return (t.notes ?? '').toLowerCase().contains(q) ||
                 (t.category ?? '').toLowerCase().contains(q);
           }).toList();
 
@@ -175,7 +174,7 @@ class _TransactionSearchScreenState
             itemBuilder: (_, i) {
               final t = results[i];
               return LoitTxRow(
-                merchant: t.merchant ?? t.category ?? 'Transaction',
+                title: t.notes ?? '',
                 categoryKey: t.category,
                 subtitle: DateFormat.MMMd().add_jm().format(t.createdAt.toLocal()),
                 amount: NumberFormat.simpleCurrency(

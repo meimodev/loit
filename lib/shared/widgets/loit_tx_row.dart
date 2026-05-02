@@ -11,22 +11,26 @@ import 'loit_category_avatar.dart';
 class LoitTxRow extends StatelessWidget {
   const LoitTxRow({
     super.key,
-    required this.merchant,
+    required this.title,
     required this.amount,
     this.categoryKey,
     this.subtitle,
     this.isIncome = false,
+    this.isTransfer = false,
+    this.accountLabel,
     this.amountColor,
     this.showDivider = true,
     this.onTap,
     this.trailingBadge,
   });
 
-  final String merchant;
+  final String title;
   final String amount;
   final String? categoryKey;
   final String? subtitle;
   final bool isIncome;
+  final bool isTransfer;
+  final String? accountLabel;
   final Color? amountColor;
   final bool showDivider;
   final VoidCallback? onTap;
@@ -36,7 +40,14 @@ class LoitTxRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.loitColors;
     final colorAmount = amountColor ??
-        (isIncome ? LoitStatusAliases.income(c) : LoitStatusAliases.expense(c));
+        (isTransfer
+            ? c.contentSecondary
+            : isIncome
+                ? LoitStatusAliases.income(c)
+                : LoitStatusAliases.expense(c));
+    final effectiveSubtitle = accountLabel != null
+        ? (subtitle != null ? '$subtitle · $accountLabel' : accountLabel)
+        : subtitle;
     final row = Container(
       color: c.surface,
       padding: const EdgeInsets.symmetric(
@@ -45,25 +56,36 @@ class LoitTxRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          LoitCategoryAvatar(categoryKey: categoryKey, size: 36),
+          isTransfer
+              ? Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: c.contentSecondary.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(Icons.swap_horiz, size: 18, color: c.contentSecondary),
+                )
+              : LoitCategoryAvatar(categoryKey: categoryKey, size: 36),
           const SizedBox(width: LoitSpacing.s4),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  merchant,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  title,
+                  softWrap: true,
                   style: LoitTypography.bodyM.copyWith(
                     color: c.contentPrimary,
                     fontWeight: FontWeight.w500,
+                    height: 1.25,
                   ),
                 ),
-                if (subtitle != null) ...[
+                if (effectiveSubtitle != null) ...[
                   const SizedBox(height: 2),
                   Text(
-                    subtitle!,
+                    effectiveSubtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: LoitTypography.bodyS.copyWith(

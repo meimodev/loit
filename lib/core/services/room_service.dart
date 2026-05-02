@@ -118,7 +118,7 @@ class RoomService {
 
   Future<void> notifyRoomTransaction({
     required String roomId,
-    String? merchant,
+    String? title,
     required num amount,
     required String currency,
     bool isIncome = false,
@@ -128,7 +128,7 @@ class RoomService {
       body: {
         'room_id': roomId,
         'actor_id': _uid,
-        'merchant': merchant,
+        'title': title,
         'amount': amount,
         'currency': currency,
         'type': isIncome ? 'income' : 'expense',

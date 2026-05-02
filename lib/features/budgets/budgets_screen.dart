@@ -45,27 +45,29 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
     final dayOfMonth = now.day;
 
     final totalLimit = statuses.fold<double>(
-        0, (s, b) => s + b.budget.monthlyLimit);
-    final totalSpent =
-        statuses.fold<double>(0, (s, b) => s + b.spent);
+      0,
+      (s, b) => s + b.budget.monthlyLimit,
+    );
+    final totalSpent = statuses.fold<double>(0, (s, b) => s + b.spent);
     final left = (totalLimit - totalSpent).clamp(0, double.infinity);
 
     final overCount = statuses.where((s) => s.isOver).length;
     final paceLabel = _paceLabel(
-        spent: totalSpent,
-        limit: totalLimit,
-        dayOfMonth: dayOfMonth,
-        daysInMonth: daysInMonth,
-        overCount: overCount);
+      spent: totalSpent,
+      limit: totalLimit,
+      dayOfMonth: dayOfMonth,
+      daysInMonth: daysInMonth,
+      overCount: overCount,
+    );
 
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: LoitAppBarMonth(
         label: monthLabel,
-        onPrev: () => setState(() =>
-            _month = DateTime(_month.year, _month.month - 1)),
-        onNext: () => setState(() =>
-            _month = DateTime(_month.year, _month.month + 1)),
+        onPrev: () =>
+            setState(() => _month = DateTime(_month.year, _month.month - 1)),
+        onNext: () =>
+            setState(() => _month = DateTime(_month.year, _month.month + 1)),
         actions: [
           IconButton(
             icon: const Icon(Icons.add, size: 20),
@@ -155,8 +157,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                       percent: pct,
                       subtitle: subtitleParts.join(' · '),
                       showDivider: i != statuses.length - 1,
-                      onTap: () =>
-                          context.push('/budgets/${s.budget.id}'),
+                      onTap: () => context.push('/budgets/${s.budget.id}'),
                     );
                   },
                 ),
@@ -169,10 +170,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
       floatingActionButton: LoitFabStack(
         primaryIcon: Icons.add,
         primaryTooltip: 'New budget',
-        secondaryIcon: Icons.bar_chart_outlined,
-        secondaryTooltip: 'Reports',
         onPrimary: _addBudget,
-        onSecondary: () => context.push('/reports'),
       ),
     );
   }
@@ -263,9 +261,7 @@ class _TabChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: active ? c.brand : c.surface,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: active ? c.brand : c.borderSubtle,
-          ),
+          border: Border.all(color: active ? c.brand : c.borderSubtle),
         ),
         child: Text(
           label,

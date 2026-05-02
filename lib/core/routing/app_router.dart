@@ -11,6 +11,8 @@ import '../../features/auth/sign_in_screen.dart';
 import '../../features/auth/sign_up_screen.dart';
 import '../../features/auth/splash_screen.dart';
 import '../../features/auth/welcome_screen.dart';
+import '../../features/accounts/account_form_screen.dart';
+import '../../features/accounts/accounts_screen.dart';
 import '../../features/billing/billing_history_screen.dart';
 import '../../features/billing/manage_subscription_screen.dart';
 import '../../features/paywall/pro_success_screen.dart';
@@ -19,6 +21,7 @@ import '../../features/budgets/budget_form_screen.dart';
 import '../../features/budgets/budgets_screen.dart';
 import '../../features/system/notifications_screen.dart' as system_notifs;
 import '../../features/system/update_required_screen.dart';
+import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/reports/export_screen.dart';
@@ -166,6 +169,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings/about',
         builder: (_, __) => const AboutScreen(),
+      ),
+      GoRoute(path: '/accounts', builder: (_, __) => const AccountsScreen()),
+      GoRoute(
+        path: '/accounts/new',
+        builder: (_, __) => const AccountFormScreen(),
+      ),
+      GoRoute(
+        path: '/accounts/:id/edit',
+        builder: (_, state) =>
+            AccountFormScreen(account: state.extra as Account?),
       ),
       GoRoute(path: '/budgets', builder: (_, __) => const BudgetsScreen()),
       GoRoute(

@@ -8,10 +8,12 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/loit_amount_text.dart';
 import '../../shared/widgets/loit_category_avatar.dart';
 import '../../shared/widgets/loit_group_label.dart';
+import 'notes_breakdown.dart';
 
 class TransactionDetailScreen extends ConsumerWidget {
   const TransactionDetailScreen({super.key, required this.transactionId});
@@ -22,6 +24,8 @@ class TransactionDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
     final txns = ref.watch(transactionsProvider);
+    final accounts = ref.watch(accountsProvider).value ?? const [];
+    final accountMap = {for (final a in accounts) a.id: a};
 
     return Scaffold(
       backgroundColor: c.canvas,
@@ -31,9 +35,22 @@ class TransactionDetailScreen extends ConsumerWidget {
           IconButton(
             tooltip: 'Edit',
             icon: const Icon(Icons.edit_outlined),
-            onPressed: () => context.push('/transactions/new', extra: {
-              '_edit_id': transactionId,
-            }),
+            onPressed: () {
+              final txns = ref.read(transactionsProvider).value ?? const [];
+              final t = txns.where((e) => e.id == transactionId).firstOrNull;
+              if (t == null) return;
+              context.push('/transactions/new', extra: {
+                '_edit_id': t.id,
+                'amount': t.absAmount,
+                'currency': t.currency,
+                'type': t.type,
+                'account_id': t.accountId,
+                'to_account_id': t.toAccountId,
+                'category': t.category,
+                'notes': t.notes,
+                'created_at': t.createdAt.toIso8601String(),
+              });
+            },
           ),
         ],
       ),
@@ -45,7 +62,6 @@ class TransactionDetailScreen extends ConsumerWidget {
             (e) => e.id == transactionId,
             orElse: () => Txn(
               id: null,
-              merchant: null,
               amount: 0,
               currency: 'IDR',
               amountHome: null,
@@ -55,9 +71,11 @@ class TransactionDetailScreen extends ConsumerWidget {
               receiptUrl: null,
               aiParsed: false,
               isManualFallback: false,
-              createdAt: DateTime.now(),
+              createdAt: DateTime.utc(1970),
             ),
           );
+          final fromAccount = t.accountId != null ? accountMap[t.accountId] : null;
+          final toAccount = t.toAccountId != null ? accountMap[t.toAccountId] : null;
           if (t.id == null) {
             return const Center(child: Text('Not found'));
           }
@@ -74,8 +92,13 @@ class TransactionDetailScreen extends ConsumerWidget {
               const LoitGroupLabel(label: 'Details'),
               _row(context, 'Date',
                   DateFormat.yMMMMEEEEd().add_jm().format(t.createdAt.toLocal())),
-              _row(context, 'Category',
-                  LoitCategories.resolve(t.category).label),
+              _row(context, 'Type', _typeName(t.type)),
+              if (fromAccount != null)
+                _row(context, 'Account', fromAccount.name),
+              if (toAccount != null)
+                _row(context, 'To account', toAccount.name),
+              if (!t.isTransfer)
+                _row(context, 'Category', LoitCategories.resolve(t.category).label),
               _row(context, 'Currency', t.currency),
               if (t.fxRate != null)
                 _row(context, 'FX rate', t.fxRate!.toStringAsFixed(4)),
@@ -93,17 +116,23 @@ class TransactionDetailScreen extends ConsumerWidget {
               if (t.notes != null && t.notes!.isNotEmpty) ...[
                 const SizedBox(height: LoitSpacing.s4),
                 const LoitGroupLabel(label: 'Notes'),
-                Container(
-                  padding: const EdgeInsets.all(LoitSpacing.s4),
-                  decoration: BoxDecoration(
-                    color: c.surface,
-                    borderRadius: LoitRadius.brM,
-                    border: Border.all(color: c.borderSubtle),
-                  ),
-                  child: Text(t.notes!,
-                      style: LoitTypography.bodyM
-                          .copyWith(color: c.contentPrimary)),
-                ),
+                Builder(builder: (_) {
+                  final parsed = parseBreakdown(t.notes);
+                  if (parsed == null) {
+                    return Container(
+                      padding: const EdgeInsets.all(LoitSpacing.s4),
+                      decoration: BoxDecoration(
+                        color: c.surface,
+                        borderRadius: LoitRadius.brM,
+                        border: Border.all(color: c.borderSubtle),
+                      ),
+                      child: Text(t.notes!,
+                          style: LoitTypography.bodyM
+                              .copyWith(color: c.contentPrimary)),
+                    );
+                  }
+                  return _BreakdownView(parsed: parsed);
+                }),
               ],
               if (t.receiptUrl != null) ...[
                 const SizedBox(height: LoitSpacing.s4),
@@ -165,6 +194,17 @@ class TransactionDetailScreen extends ConsumerWidget {
     );
   }
 
+  String _typeName(String type) {
+    switch (type) {
+      case 'income':
+        return 'Income';
+      case 'transfer':
+        return 'Transfer';
+      default:
+        return 'Expense';
+    }
+  }
+
   Widget _heroCard(BuildContext context, Txn t) {
     final c = context.loitColors;
     return Container(
@@ -179,19 +219,38 @@ class TransactionDetailScreen extends ConsumerWidget {
         children: [
           Row(
             children: [
-              LoitCategoryAvatar(categoryKey: t.category, size: 48),
+              if (t.isTransfer)
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: c.contentSecondary.withValues(alpha: 0.10),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(Icons.swap_horiz, color: c.contentSecondary, size: 24),
+                )
+              else
+                LoitCategoryAvatar(categoryKey: t.category, size: 48),
               const SizedBox(width: LoitSpacing.s4),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(t.merchant ?? 'Transaction',
-                        style: LoitTypography.titleM
-                            .copyWith(color: c.contentPrimary)),
+                    Builder(builder: (_) {
+                      final t0 = breakdownTitle(t.notes);
+                      final fallback = t.isTransfer ? 'Transfer' : 'Transaction';
+                      return Text(
+                          t0.isEmpty ? fallback : t0,
+                          style: LoitTypography.titleM
+                              .copyWith(color: c.contentPrimary));
+                    }),
                     const SizedBox(height: 2),
-                    Text(LoitCategories.resolve(t.category).label,
-                        style: LoitTypography.bodyS
-                            .copyWith(color: c.contentSecondary)),
+                    Text(
+                      t.isTransfer ? 'Transfer' : LoitCategories.resolve(t.category).label,
+                      style: LoitTypography.bodyS
+                          .copyWith(color: c.contentSecondary),
+                    ),
                   ],
                 ),
               ),
@@ -202,7 +261,7 @@ class TransactionDetailScreen extends ConsumerWidget {
             NumberFormat.simpleCurrency(
               name: t.currency,
               decimalDigits: 0,
-            ).format(t.amount),
+            ).format(t.isTransfer ? t.absAmount : t.amount),
             variant: LoitAmountVariant.hero,
           ),
         ],
@@ -235,3 +294,100 @@ class TransactionDetailScreen extends ConsumerWidget {
     );
   }
 }
+
+class _BreakdownView extends StatelessWidget {
+  const _BreakdownView({required this.parsed});
+  final NotesBreakdown parsed;
+
+  static final NumberFormat _f = NumberFormat('#,##0.##', 'id_ID');
+
+  String _itemRight(NotesBreakdownItem it) {
+    final parts = <String>[];
+    if (it.qty != null && it.unitPrice != null) {
+      parts.add('${_f.format(it.qty)} × ${_f.format(it.unitPrice)}');
+    } else if (it.qty != null) {
+      parts.add('${_f.format(it.qty)} ×');
+    } else if (it.unitPrice != null) {
+      parts.add('× ${_f.format(it.unitPrice)}');
+    }
+    if (it.totalPrice != null) {
+      parts.add('= ${_f.format(it.totalPrice)}');
+    }
+    return parts.join(' ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    return Container(
+      padding: const EdgeInsets.all(LoitSpacing.s4),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: LoitRadius.brM,
+        border: Border.all(color: c.borderSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (parsed.merchant.isNotEmpty)
+            Text(parsed.merchant,
+                style: LoitTypography.bodyL.copyWith(
+                  color: c.contentPrimary,
+                  fontWeight: FontWeight.w600,
+                )),
+          if (parsed.merchant.isNotEmpty)
+            const SizedBox(height: LoitSpacing.s3),
+          for (var i = 0; i < parsed.items.length; i++) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: LoitSpacing.s2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      parsed.items[i].name.isEmpty
+                          ? '—'
+                          : parsed.items[i].name,
+                      style: LoitTypography.bodyM
+                          .copyWith(color: c.contentPrimary),
+                    ),
+                  ),
+                  const SizedBox(width: LoitSpacing.s3),
+                  Text(_itemRight(parsed.items[i]),
+                      style: LoitTypography.bodyS
+                          .copyWith(color: c.contentSecondary)),
+                ],
+              ),
+            ),
+            if (i != parsed.items.length - 1)
+              Divider(height: 1, color: c.borderSubtle),
+          ],
+          if (parsed.total != null) ...[
+            const SizedBox(height: LoitSpacing.s3),
+            Divider(height: 1, color: c.borderSubtle),
+            Padding(
+              padding: const EdgeInsets.only(top: LoitSpacing.s3),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text('Total',
+                        style: LoitTypography.bodyM.copyWith(
+                          color: c.contentPrimary,
+                          fontWeight: FontWeight.w600,
+                        )),
+                  ),
+                  Text(_f.format(parsed.total),
+                      style: LoitTypography.bodyM.copyWith(
+                        color: c.contentPrimary,
+                        fontWeight: FontWeight.w600,
+                      )),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+

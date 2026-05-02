@@ -739,8 +739,14 @@ class _RoomTxRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.loitColors;
     final amount = (tx['amount'] as num?)?.toDouble() ?? 0;
-    final isIncome = amount < 0;
-    final merchant = tx['merchant'] as String? ?? (isIncome ? 'Income' : 'Expense');
+    // Prefer explicit type field; fall back to sign heuristic for legacy rows.
+    final txType = tx['type'] as String? ?? (amount < 0 ? 'income' : 'expense');
+    final isIncome = txType == 'income';
+    final isTransfer = txType == 'transfer';
+    final notes = (tx['notes'] as String?)?.trim();
+    final merchant = (notes != null && notes.isNotEmpty)
+        ? notes.split('\n').first
+        : (isTransfer ? 'Transfer' : isIncome ? 'Income' : 'Expense');
     final cat = tx['category'] as String?;
     final style = LoitCategories.resolve(cat);
     final user = tx['users'] as Map<String, dynamic>?;
@@ -781,9 +787,11 @@ class _RoomTxRow extends StatelessWidget {
                         fontWeight: FontWeight.w500)),
                 const SizedBox(height: 2),
                 Text(
-                  isIncome
-                      ? '${isYou ? 'You' : payer} received'
-                      : '${isYou ? 'You' : payer} paid · split equally',
+                  isTransfer
+                      ? '${isYou ? 'Your' : "$payer's"} transfer'
+                      : isIncome
+                          ? '${isYou ? 'You' : payer} received'
+                          : '${isYou ? 'You' : payer} paid · split equally',
                   style: LoitTypography.bodyS
                       .copyWith(color: c.contentSecondary),
                 ),
@@ -791,9 +799,13 @@ class _RoomTxRow extends StatelessWidget {
             ),
           ),
           Text(
-            '${isIncome ? '+' : ''}${fmt.format(amount.abs())}',
+            '${isTransfer ? '' : isIncome ? '+' : ''}${fmt.format(amount.abs())}',
             style: LoitTypography.bodyM.copyWith(
-                color: isIncome ? incomeColor : c.contentPrimary,
+                color: isTransfer
+                    ? c.contentSecondary
+                    : isIncome
+                        ? incomeColor
+                        : c.contentPrimary,
                 fontWeight: FontWeight.w600,
                 fontFeatures: const [FontFeature.tabularFigures()]),
           ),

@@ -6,18 +6,21 @@ import 'package:intl/intl.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/selected_month_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/loit_banner.dart';
 import '../../shared/widgets/loit_month_app_bar.dart';
-import '../../shared/widgets/loit_chip.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 import '../../shared/widgets/loit_fab_stack.dart';
 import '../../shared/widgets/loit_group_label.dart';
+import '../../shared/widgets/loit_stat_triple.dart';
 import '../../shared/widgets/loit_tx_row.dart';
+import 'notes_breakdown.dart';
 
-/// LOIT Transactions feed. Grouped by day, filter chips, search, multi-select.
+/// LOIT Transactions feed. Owns monthly summary (Income / Expenses / Total),
+/// filter chips, grouped-by-day rows, search, and add/scan FABs.
 class TransactionsScreen extends ConsumerStatefulWidget {
   const TransactionsScreen({super.key});
 
@@ -26,8 +29,6 @@ class TransactionsScreen extends ConsumerStatefulWidget {
 }
 
 class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
-  String _filter = 'all';
-
   // Multi-select
   bool _multiMode = false;
   final Set<String> _selected = {};
@@ -61,7 +62,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         await notifier.deleteTransaction(id);
       } catch (_) {}
     }
-    await notifier.refresh();
   }
 
   @override
@@ -71,6 +71,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final profile = ref.watch(userProfileProvider).value;
     final currency = profile?.homeCurrency ?? 'IDR';
     final month = ref.watch(selectedMonthProvider);
+    // Use full accountsProvider (includes archived) so archived-account transactions
+    // still display their account label.
+    final allAccounts = ref.watch(accountsProvider).value ?? const [];
+    final accountMap = {for (final a in allAccounts) a.id: a};
 
     return Scaffold(
       backgroundColor: c.canvas,
@@ -100,20 +104,49 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               final d = t.createdAt.toLocal();
               return d.year == month.year && d.month == month.month;
             }).toList();
-            final filtered = _applyFilter(monthItems);
+            final filtered = monthItems;
+
+            // Monthly summary from month items (excludes transfers)
+            var incomeSum = 0.0, expenseSum = 0.0;
+            for (final t in monthItems) {
+              if (t.isTransfer) continue;
+              final v = (t.amountHome ?? t.amount).abs();
+              if (t.isIncome)
+                incomeSum += v;
+              else
+                expenseSum += v;
+            }
+            final netTotal = incomeSum - expenseSum;
+            final summaryTriple = LoitStatTriple(
+              stats: [
+                LoitStat(
+                  label: 'Income',
+                  amount: _fmt(incomeSum, currency),
+                  color: c.info,
+                ),
+                LoitStat(
+                  label: 'Expenses',
+                  amount: _fmt(expenseSum, currency),
+                  color: c.danger,
+                ),
+                LoitStat(
+                  label: 'Total',
+                  amount: _fmt(netTotal, currency),
+                  color: netTotal >= 0 ? c.info : c.danger,
+                ),
+              ],
+            );
 
             if (filtered.isEmpty) {
               return ListView(
                 children: [
-                  _filterRow(),
+                  summaryTriple,
                   const SizedBox(height: 24),
                   LoitEmptyState(
                     icon: Icons.receipt_long_outlined,
-                    title: _filter == 'all'
-                        ? 'No transactions yet'
-                        : 'No $_filter transactions',
-                    body: 'Add an expense or scan a receipt to get started.',
-                    primaryCta: 'Add expense',
+                    title: 'No transactions yet',
+                    body: 'Add a transaction or scan a receipt to get started.',
+                    primaryCta: 'New transaction',
                     onPrimaryCta: () => context.push('/transactions/new'),
                     secondaryCta: 'Scan receipt',
                     onSecondaryCta: () => context.push('/scan'),
@@ -123,10 +156,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             }
 
             final grouped = _groupByDay(filtered);
+            final sortedDays = grouped.entries.toList()
+              ..sort((a, b) => b.key.compareTo(a.key));
 
             return CustomScrollView(
               slivers: [
-                SliverToBoxAdapter(child: _filterRow()),
+                SliverToBoxAdapter(child: summaryTriple),
                 if (_overBudgetCount(filtered) > 0)
                   SliverToBoxAdapter(
                     child: Padding(
@@ -146,20 +181,40 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       ),
                     ),
                   ),
-                for (final entry in grouped.entries) ...[
+                for (final entry in sortedDays) ...[
                   SliverToBoxAdapter(
-                    child: LoitGroupLabel(label: _dayLabel(entry.key)),
+                    child: LoitGroupLabel(
+                      label: _dayLabel(entry.key),
+                      trailing: _dayTotalsTrailing(
+                        context,
+                        _dayTotals(entry.value),
+                        currency,
+                      ),
+                    ),
                   ),
                   SliverList.builder(
                     itemCount: entry.value.length,
                     itemBuilder: (_, i) {
                       final t = entry.value[i];
                       final selected = t.id != null && _selected.contains(t.id);
+                      final fromName = t.accountId != null
+                          ? accountMap[t.accountId]?.name
+                          : null;
+                      final toName = t.toAccountId != null
+                          ? accountMap[t.toAccountId]?.name
+                          : null;
+                      final accountLabel =
+                          t.isTransfer && fromName != null && toName != null
+                          ? '$fromName → $toName'
+                          : fromName;
                       return LoitTxRow(
-                        merchant: t.merchant ?? t.category ?? 'Transaction',
-                        categoryKey: t.category,
+                        title: breakdownTitle(t.notes),
+                        categoryKey: t.isTransfer ? null : t.category,
                         subtitle: _txSubtitle(t),
                         amount: _fmt(t.amount, t.currency),
+                        isIncome: t.isIncome,
+                        isTransfer: t.isTransfer,
+                        accountLabel: accountLabel,
                         showDivider: i != entry.value.length - 1,
                         trailingBadge: _multiMode
                             ? Icon(
@@ -167,8 +222,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                     ? Icons.check_circle
                                     : Icons.radio_button_unchecked,
                                 size: 22,
-                                color:
-                                    selected ? c.brand : c.contentTertiary,
+                                color: selected ? c.brand : c.contentTertiary,
                               )
                             : null,
                         onTap: () {
@@ -187,8 +241,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     padding: const EdgeInsets.all(LoitSpacing.s5),
                     child: Text(
                       '${filtered.length} of ${items.length} total · ${_fmt(_sum(filtered), currency)}',
-                      style: LoitTypography.bodyS
-                          .copyWith(color: c.contentTertiary),
+                      style: LoitTypography.bodyS.copyWith(
+                        color: c.contentTertiary,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -203,22 +258,16 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           ? null
           : LoitFabStack(
               onPrimary: () => context.push('/transactions/new'),
-              onSecondary: () => context.push('/scan'),
-              primaryTooltip: 'Add expense',
-              secondaryTooltip: 'Scan receipt',
+              primaryTooltip: 'New transaction',
               primaryIcon: Icons.add,
-              secondaryIcon: Icons.document_scanner_outlined,
             ),
-      bottomSheet: _multiMode ? _selectionBar(context) : null,
+      bottomNavigationBar: _multiMode ? _selectionBar(context) : null,
     );
   }
 
   PreferredSizeWidget _multiAppBar(BuildContext context) {
     return AppBar(
-      leading: IconButton(
-        icon: const Icon(Icons.close),
-        onPressed: _exitMulti,
-      ),
+      leading: IconButton(icon: const Icon(Icons.close), onPressed: _exitMulti),
       title: Text('${_selected.length} selected'),
     );
   }
@@ -246,27 +295,28 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   onPressed: _selected.isEmpty
                       ? null
                       : () async {
+                          final count = _selected.length;
                           final ok = await showDialog<bool>(
                             context: context,
-                            builder: (_) => AlertDialog(
-                              title:
-                                  Text('Delete ${_selected.length} items?'),
+                            useRootNavigator: true,
+                            builder: (dialogCtx) => AlertDialog(
+                              title: Text('Delete $count items?'),
                               content: const Text('This cannot be undone.'),
                               actions: [
                                 TextButton(
                                   onPressed: () =>
-                                      Navigator.pop(context, false),
+                                      Navigator.pop(dialogCtx, false),
                                   child: const Text('Cancel'),
                                 ),
                                 FilledButton(
                                   onPressed: () =>
-                                      Navigator.pop(context, true),
+                                      Navigator.pop(dialogCtx, true),
                                   child: const Text('Delete'),
                                 ),
                               ],
                             ),
                           );
-                          if (ok == true) await _bulkDelete();
+                          if (ok == true && mounted) await _bulkDelete();
                         },
                 ),
               ),
@@ -275,37 +325,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         ),
       ),
     );
-  }
-
-  Widget _filterRow() {
-    const filters = ['all', 'dining', 'groceries', 'transport', 'shopping'];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(
-        LoitSpacing.s5,
-        LoitSpacing.s4,
-        LoitSpacing.s5,
-        LoitSpacing.s3,
-      ),
-      child: Row(
-        children: [
-          for (final f in filters) ...[
-            LoitChip(
-              label: f == 'all' ? 'All' : _capitalize(f),
-              selected: _filter == f,
-              onTap: () => setState(() => _filter = f),
-            ),
-            const SizedBox(width: LoitSpacing.s3),
-          ],
-        ],
-      ),
-    );
-  }
-
-  List<Txn> _applyFilter(List<Txn> items) {
-    if (_filter == 'all') return items;
-    return items.where((t) => (t.category ?? '').toLowerCase() == _filter)
-        .toList();
   }
 
   Map<DateTime, List<Txn>> _groupByDay(List<Txn> items) {
@@ -345,4 +364,34 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
   String _capitalize(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+  ({double income, double expense}) _dayTotals(List<Txn> items) {
+    var income = 0.0, expense = 0.0;
+    for (final t in items) {
+      if (t.isTransfer) continue;
+      final v = (t.amountHome ?? t.amount).abs();
+      if (t.isIncome) {
+        income += v;
+      } else {
+        expense += v;
+      }
+    }
+    return (income: income, expense: expense);
+  }
+
+  Widget? _dayTotalsTrailing(
+    BuildContext context,
+    ({double income, double expense}) totals,
+    String currency,
+  ) {
+    if (totals.income == 0 && totals.expense == 0) return null;
+    final c = context.loitColors;
+    final net = totals.income - totals.expense;
+    final color = net >= 0 ? c.info : c.danger;
+    final sign = net > 0 ? '+' : (net < 0 ? '−' : '');
+    return Text(
+      '$sign${_fmt(net.abs(), currency)}',
+      style: LoitTypography.labelS.copyWith(color: color),
+    );
+  }
 }

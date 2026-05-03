@@ -11,14 +11,17 @@ class SyncService {
   final OfflineDatabase _db;
   final _supabase = Supabase.instance.client;
   final _connectivity = Connectivity();
+  final bool Function() _isDebugOffline;
   StreamSubscription<List<ConnectivityResult>>? _sub;
   bool _syncing = false;
 
-  SyncService(this._db);
+  SyncService(this._db, {bool Function()? isDebugOffline})
+      : _isDebugOffline = isDebugOffline ?? (() => false);
 
   void startAutoSync() {
     Log.i(_tag, 'Auto-sync started');
     _sub = _connectivity.onConnectivityChanged.listen((results) {
+      if (_isDebugOffline()) return;
       final online = results.any((r) => r != ConnectivityResult.none);
       if (online) {
         Log.d(_tag, 'Connectivity restored, draining queue');
@@ -36,6 +39,7 @@ class SyncService {
   Future<void> syncPending() async {
     if (_syncing) return;
     if (_supabase.auth.currentSession == null) return;
+    if (_isDebugOffline()) return;
     _syncing = true;
     try {
       final pending = await _db.getPending();

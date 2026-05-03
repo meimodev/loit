@@ -13,6 +13,7 @@ import 'core/services/deep_link_service.dart';
 import 'core/services/log_service.dart';
 import 'core/services/push_service.dart';
 import 'core/services/revenuecat_payment_service.dart';
+import 'shared/widgets/persistent_connectivity_banner.dart';
 import 'shared/providers/auth_providers.dart';
 import 'shared/providers/notifications_provider.dart';
 import 'shared/providers/preferences_provider.dart';
@@ -169,6 +170,12 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
 
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
+      builder: (context, child) => Stack(
+        children: [
+          child!,
+          const PersistentConnectivityBanner(),
+        ],
+      ),
       title: 'LOIT',
       debugShowCheckedModeBanner: false,
       theme: LoitTheme.light(),

@@ -9,6 +9,7 @@ import '../../core/services/analytics_service.dart';
 import '../../core/services/push_service.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/budgets_provider.dart';
+import '../../shared/widgets/connectivity_banner.dart';
 import '../../shared/widgets/loit_button.dart';
 import '_widgets.dart';
 
@@ -171,6 +172,9 @@ class SettingsScreen extends ConsumerWidget {
           ]),
 
           const SizedBox(height: 24),
+          SettingsGroup(label: 'Debug', children: [
+            _OfflineToggle(),
+          ]),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: LoitButton.secondary(
@@ -243,5 +247,21 @@ class SettingsScreen extends ConsumerWidget {
     } catch (_) {}
     await Supabase.instance.client.auth.signOut();
     await Analytics.reset();
+  }
+}
+
+class _OfflineToggle extends ConsumerWidget {
+  const _OfflineToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final override = ref.watch(offlineDebugOverrideProvider);
+    return SettingsToggleRow(
+      label: 'Simulate offline',
+      helper: 'Show the offline banner for testing',
+      value: override == true,
+      onChanged: (v) =>
+          ref.read(offlineDebugOverrideProvider.notifier).set(v ? true : null),
+    );
   }
 }

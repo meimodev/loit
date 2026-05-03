@@ -9,7 +9,6 @@ import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/room_providers.dart';
-import '../../shared/widgets/connectivity_banner.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 import 'room_colors.dart';
 
@@ -46,7 +45,6 @@ class RoomsScreen extends ConsumerWidget {
         },
         child: CustomScrollView(
           slivers: [
-            const SliverToBoxAdapter(child: ConnectivityBanner()),
             invites.maybeWhen(
               data: (list) => list.isEmpty
                   ? const SliverToBoxAdapter(child: SizedBox.shrink())

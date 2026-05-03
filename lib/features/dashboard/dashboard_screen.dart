@@ -14,7 +14,6 @@ import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/selected_month_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/budget_alert_banner.dart';
-import '../../shared/widgets/connectivity_banner.dart';
 import '../../shared/widgets/loit_budget_row.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import '../../shared/widgets/loit_stat_triple.dart';
@@ -86,7 +85,6 @@ class DashboardScreen extends ConsumerWidget {
             final currency = profile?.homeCurrency ?? 'IDR';
             return CustomScrollView(
               slivers: [
-                const SliverToBoxAdapter(child: ConnectivityBanner()),
                 // Net worth strip
                 SliverToBoxAdapter(
                   child: LoitStatTriple(

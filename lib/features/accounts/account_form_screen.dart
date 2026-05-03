@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/config/categories.dart';
 import '../../core/theme/loit_colors.dart';
@@ -12,6 +13,8 @@ import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_input.dart';
+import '../../shared/widgets/loit_tx_row.dart';
+import '../transactions/notes_breakdown.dart';
 
 class AccountFormScreen extends ConsumerStatefulWidget {
   const AccountFormScreen({super.key, this.account});
@@ -190,6 +193,11 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
   Widget build(BuildContext context) {
     final c = context.loitColors;
     final isEdit = widget.account != null;
+    if (isEdit && _kind == AccountKind.liability) {
+      final balances = ref.watch(accountBalancesProvider);
+      final balance = balances[widget.account!.id] ?? 0;
+      _balanceCtrl.text = formatAmountInput(balance.abs());
+    }
 
     return Scaffold(
       backgroundColor: c.canvas,
@@ -251,6 +259,10 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
               ),
             ],
           ),
+          if (_kind == AccountKind.liability) ...[
+            const SizedBox(height: LoitSpacing.s4),
+            _liabilityInfoBox(),
+          ],
           const SizedBox(height: LoitSpacing.s4),
           _picker(
             label: 'Currency',
@@ -260,9 +272,8 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
           const SizedBox(height: LoitSpacing.s4),
           LoitInput(
             controller: _balanceCtrl,
-            label: _kind == AccountKind.liability
-                ? 'Opening balance (−)'
-                : 'Opening balance',
+            label: isEdit ? 'Current balance' : 'Opening balance',
+            enabled: _kind != AccountKind.liability,
             placeholder: '0',
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
@@ -282,10 +293,99 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
                   )
                 : Text(isEdit ? 'Save changes' : 'Create account'),
           ),
+          if (isEdit) _recentTransactions(widget.account!.id),
         ],
       ),
     );
   }
+
+  Widget _liabilityInfoBox() {
+    final c = context.loitColors;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: LoitSpacing.s4,
+        vertical: LoitSpacing.s3,
+      ),
+      decoration: BoxDecoration(
+        color: c.infoSurface,
+        borderRadius: LoitRadius.brM,
+        border: Border.all(color: c.info.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, size: 18, color: c.info),
+          const SizedBox(width: LoitSpacing.s2),
+          Expanded(
+            child: Text(
+              'For loans, create a Transfer from this liability account to an asset account.',
+              style: LoitTypography.bodyS.copyWith(
+                color: c.info,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _recentTransactions(String accountId) {
+    final c = context.loitColors;
+    final txns = ref.watch(transactionsProvider).value ?? const [];
+    final allAccounts = ref.watch(accountsProvider).value ?? const [];
+    final accountMap = {for (final a in allAccounts) a.id: a};
+
+    final recent = txns
+        .where((t) => t.accountId == accountId || t.toAccountId == accountId)
+        .toList();
+    recent.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final top10 = recent.take(10).toList();
+
+    if (top10.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: LoitSpacing.s6),
+        Text(
+          'Recent transactions',
+          style: LoitTypography.bodyM.copyWith(
+            color: c.contentPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: LoitSpacing.s3),
+        for (int i = 0; i < top10.length; i++) ...[
+          _txRow(top10[i], accountMap, i != top10.length - 1),
+        ],
+      ],
+    );
+  }
+
+  Widget _txRow(Txn t, Map<String, Account> accountMap, bool showDivider) {
+    final fromName = t.accountId != null ? accountMap[t.accountId]?.name : null;
+    final toName = t.toAccountId != null ? accountMap[t.toAccountId]?.name : null;
+    final accountLabel = t.isTransfer && fromName != null && toName != null
+        ? '$fromName → $toName'
+        : fromName;
+    final time = DateFormat.jm().format(t.createdAt.toLocal());
+    final cat = (t.category ?? 'other');
+
+    return LoitTxRow(
+      title: breakdownTitle(t.notes),
+      amount: NumberFormat.simpleCurrency(name: t.currency, decimalDigits: 0)
+          .format(t.amount),
+      categoryKey: t.isTransfer ? null : t.category,
+      subtitle: '${_capitalize(cat)} · $time',
+      isIncome: t.isIncome,
+      isTransfer: t.isTransfer,
+      accountLabel: accountLabel,
+      showDivider: showDivider,
+    );
+  }
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
   Widget _picker({
     required String label,

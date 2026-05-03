@@ -11,6 +11,7 @@ import '../../core/services/revenuecat_payment_service.dart';
 import '../../core/services/receipt_service.dart';
 import '../../core/services/scanner_service.dart';
 import '../../core/services/sync_service.dart';
+import '../widgets/connectivity_banner.dart';
 
 final offlineDbProvider = Provider<OfflineDatabase>((ref) {
   final db = OfflineDatabase();
@@ -20,7 +21,10 @@ final offlineDbProvider = Provider<OfflineDatabase>((ref) {
 
 final syncServiceProvider = Provider<SyncService>((ref) {
   final db = ref.watch(offlineDbProvider);
-  final svc = SyncService(db);
+  final svc = SyncService(
+    db,
+    isDebugOffline: () => ref.read(offlineDebugOverrideProvider) == true,
+  );
   ref.onDispose(svc.dispose);
   return svc;
 });

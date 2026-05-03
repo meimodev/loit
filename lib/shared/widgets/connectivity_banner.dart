@@ -4,13 +4,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'loit_banner.dart';
 
-/// Streams [ConnectivityResult] list. Empty / [ConnectivityResult.none] = offline.
+/// Debug override for testing offline behavior.
+/// `true` = simulate offline, `false` = simulate online, `null` = use real connectivity.
+final offlineDebugOverrideProvider = NotifierProvider<OfflineDebugOverride, bool?>(
+  OfflineDebugOverride.new,
+);
+
+class OfflineDebugOverride extends Notifier<bool?> {
+  @override
+  bool? build() => null;
+
+  void set(bool? v) => state = v;
+}
+
+/// Streams [ConnectivityResult] list. When [offlineDebugOverrideProvider] is
+/// non-null the platform stream is replaced with a simulated value so every
+/// downstream watcher (banner, SyncService, etc.) sees the simulated state.
 final connectivityProvider = StreamProvider<List<ConnectivityResult>>((ref) {
+  final override = ref.watch(offlineDebugOverrideProvider);
+  if (override != null) {
+    final result = override ? ConnectivityResult.none : ConnectivityResult.wifi;
+    return Stream.value([result]);
+  }
   final c = Connectivity();
   return c.onConnectivityChanged;
 });
 
-bool _isOffline(List<ConnectivityResult> rs) =>
+bool isOffline(List<ConnectivityResult> rs) =>
     rs.isEmpty || rs.every((r) => r == ConnectivityResult.none);
 
 /// Inline offline banner. Renders nothing when online.
@@ -23,7 +43,7 @@ class ConnectivityBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(connectivityProvider);
     final offline = async.maybeWhen(
-      data: _isOffline,
+      data: isOffline,
       orElse: () => false,
     );
     if (!offline) return const SizedBox.shrink();

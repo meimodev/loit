@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Category → tint + icon mapping per LOIT design system.
-///
-/// Mirrors `CAT_TINT` / `CAT_ICON` from `primitives.jsx`.
-/// Background tint = `tint @ 12% alpha` (light) or `@ 20%` (dark).
+/// Category visual style resolved from user_categories or defaults.
 class LoitCategoryStyle {
   const LoitCategoryStyle({
     required this.tint,
@@ -18,133 +15,104 @@ class LoitCategoryStyle {
 class LoitCategories {
   LoitCategories._();
 
-  static const dining = LoitCategoryStyle(
-    tint: Color(0xFFF2A85C),
-    icon: Icons.restaurant_outlined,
-    label: 'Dining',
-  );
-  static const groceries = LoitCategoryStyle(
-    tint: Color(0xFF2F8F5E),
-    icon: Icons.shopping_basket_outlined,
-    label: 'Groceries',
-  );
-  static const transport = LoitCategoryStyle(
-    tint: Color(0xFF3E7AC5),
-    icon: Icons.directions_car_outlined,
-    label: 'Transport',
-  );
-  static const shopping = LoitCategoryStyle(
-    tint: Color(0xFFB15FC0),
-    icon: Icons.shopping_bag_outlined,
-    label: 'Shopping',
-  );
-  static const entertainment = LoitCategoryStyle(
-    tint: Color(0xFFE06B8A),
-    icon: Icons.local_activity_outlined,
-    label: 'Entertainment',
-  );
-  static const utilities = LoitCategoryStyle(
-    tint: Color(0xFF5A6160),
-    icon: Icons.power_outlined,
-    label: 'Utilities',
-  );
-  static const health = LoitCategoryStyle(
-    tint: Color(0xFFC5443E),
-    icon: Icons.favorite_border,
-    label: 'Health',
-  );
-  static const travel = LoitCategoryStyle(
-    tint: Color(0xFF188268),
-    icon: Icons.flight_outlined,
-    label: 'Travel',
-  );
-  static const other = LoitCategoryStyle(
+  static const defaultOther = LoitCategoryStyle(
     tint: Color(0xFF9AA09E),
     icon: Icons.more_horiz,
     label: 'Other',
   );
 
-  // Income categories — green-family tints to read as positive at a glance.
-  static const _incomeTint = Color(0xFF2F8F5E);
-  static const incomeSalary = LoitCategoryStyle(
-    tint: _incomeTint,
-    icon: Icons.work_outline,
-    label: 'Salary',
-  );
-  static const incomeBonus = LoitCategoryStyle(
-    tint: Color(0xFF3CA876),
-    icon: Icons.card_giftcard,
-    label: 'Bonus',
-  );
-  static const incomeFreelance = LoitCategoryStyle(
-    tint: Color(0xFF188268),
-    icon: Icons.handyman_outlined,
-    label: 'Freelance',
-  );
-  static const incomeInvestment = LoitCategoryStyle(
-    tint: Color(0xFF4FA88B),
-    icon: Icons.trending_up,
-    label: 'Investment',
-  );
-  static const incomeGift = LoitCategoryStyle(
-    tint: Color(0xFFB7CF8C),
-    icon: Icons.redeem,
-    label: 'Gift',
-  );
-  static const incomeRefund = LoitCategoryStyle(
-    tint: Color(0xFF6EAA92),
-    icon: Icons.assignment_return_outlined,
-    label: 'Refund',
-  );
-  static const incomeOther = LoitCategoryStyle(
-    tint: Color(0xFF8FB7A6),
-    icon: Icons.savings_outlined,
-    label: 'Other income',
-  );
-
-  static const Map<String, LoitCategoryStyle> byKey = {
-    'dining': dining,
-    'groceries': groceries,
-    'transport': transport,
-    'shopping': shopping,
-    'entertainment': entertainment,
-    'utilities': utilities,
-    'health': health,
-    'travel': travel,
-    'other': other,
-    'income_salary': incomeSalary,
-    'income_bonus': incomeBonus,
-    'income_freelance': incomeFreelance,
-    'income_investment': incomeInvestment,
-    'income_gift': incomeGift,
-    'income_refund': incomeRefund,
-    'income_other': incomeOther,
+  static final Map<String, IconData> _nameToIcon = {
+    'restaurant_outlined': Icons.restaurant_outlined,
+    'local_grocery_store_outlined': Icons.local_grocery_store_outlined,
+    'shopping_basket_outlined': Icons.shopping_basket_outlined,
+    'shopping_bag_outlined': Icons.shopping_bag_outlined,
+    'shopping_cart_outlined': Icons.shopping_cart_outlined,
+    'directions_car_outlined': Icons.directions_car_outlined,
+    'directions_bus_outlined': Icons.directions_bus_outlined,
+    'flight_outlined': Icons.flight_outlined,
+    'local_activity_outlined': Icons.local_activity_outlined,
+    'movie_outlined': Icons.movie_outlined,
+    'sports_esports_outlined': Icons.sports_esports_outlined,
+    'power_outlined': Icons.power_outlined,
+    'bolt_outlined': Icons.bolt_outlined,
+    'water_drop_outlined': Icons.water_drop_outlined,
+    'medical_services_outlined': Icons.medical_services_outlined,
+    'favorite_border': Icons.favorite_border,
+    'local_hospital_outlined': Icons.local_hospital_outlined,
+    'more_horiz': Icons.more_horiz,
+    'category_outlined': Icons.category_outlined,
+    'receipt_long_outlined': Icons.receipt_long_outlined,
+    'work_outline': Icons.work_outline,
+    'card_giftcard': Icons.card_giftcard,
+    'handyman_outlined': Icons.handyman_outlined,
+    'trending_up': Icons.trending_up,
+    'redeem': Icons.redeem,
+    'savings_outlined': Icons.savings_outlined,
+    'assignment_return_outlined': Icons.assignment_return_outlined,
+    'school_outlined': Icons.school_outlined,
+    'pets_outlined': Icons.pets_outlined,
+    'home_outlined': Icons.home_outlined,
+    'child_care_outlined': Icons.child_care_outlined,
+    'fitness_center_outlined': Icons.fitness_center_outlined,
+    'phone_android_outlined': Icons.phone_android_outlined,
+    'devices_outlined': Icons.devices_outlined,
+    'coffee_outlined': Icons.coffee_outlined,
+    'emoji_events_outlined': Icons.emoji_events_outlined,
+    'volunteer_activism_outlined': Icons.volunteer_activism_outlined,
+    'support_outlined': Icons.support_outlined,
+    'attach_money_outlined': Icons.attach_money_outlined,
+    'account_balance_outlined': Icons.account_balance_outlined,
+    'request_quote_outlined': Icons.request_quote_outlined,
+    'currency_exchange_outlined': Icons.currency_exchange_outlined,
   };
 
-  static const List<String> expenseKeys = [
-    'dining',
-    'groceries',
-    'transport',
-    'shopping',
-    'entertainment',
-    'utilities',
-    'health',
-    'travel',
-    'other',
-  ];
-
-  static const List<String> incomeKeys = [
-    'income_salary',
-    'income_bonus',
-    'income_freelance',
-    'income_investment',
-    'income_gift',
-    'income_refund',
-    'income_other',
-  ];
-
-  static LoitCategoryStyle resolve(String? key) {
-    if (key == null) return other;
-    return byKey[key.toLowerCase()] ?? other;
+  static IconData? iconFromName(String? name) {
+    if (name == null) return null;
+    return _nameToIcon[name] ?? Icons.category_outlined;
   }
+
+  static const List<String> commonIconNames = [
+    'restaurant_outlined',
+    'local_grocery_store_outlined',
+    'shopping_basket_outlined',
+    'shopping_bag_outlined',
+    'shopping_cart_outlined',
+    'directions_car_outlined',
+    'directions_bus_outlined',
+    'flight_outlined',
+    'local_activity_outlined',
+    'movie_outlined',
+    'sports_esports_outlined',
+    'power_outlined',
+    'bolt_outlined',
+    'water_drop_outlined',
+    'medical_services_outlined',
+    'favorite_border',
+    'local_hospital_outlined',
+    'more_horiz',
+    'category_outlined',
+    'receipt_long_outlined',
+    'work_outline',
+    'card_giftcard',
+    'handyman_outlined',
+    'trending_up',
+    'redeem',
+    'savings_outlined',
+    'assignment_return_outlined',
+    'school_outlined',
+    'pets_outlined',
+    'home_outlined',
+    'child_care_outlined',
+    'fitness_center_outlined',
+    'phone_android_outlined',
+    'devices_outlined',
+    'coffee_outlined',
+    'emoji_events_outlined',
+    'volunteer_activism_outlined',
+    'support_outlined',
+    'attach_money_outlined',
+    'account_balance_outlined',
+    'request_quote_outlined',
+    'currency_exchange_outlined',
+  ];
 }

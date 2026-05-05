@@ -3,12 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/loit_categories.dart';
+import '../../core/services/log_service.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/budgets_provider.dart';
+import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/category_picker_sheet.dart';
 import '../../shared/widgets/loit_group_label.dart';
@@ -47,16 +48,26 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
 
   Future<void> _save() async {
     final amt = parseAmountInput(_amount.text);
-    if (amt == null || amt <= 0) return;
+    if (amt == null || amt <= 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter an amount greater than 0')),
+        );
+      }
+      return;
+    }
     setState(() => _busy = true);
     try {
+      Log.i('BudgetForm', 'Upserting budget: $_category = $amt');
       await ref.read(budgetsProvider.notifier).upsert(
             category: _category,
             monthlyLimit: amt,
             id: widget.budget?.id,
           );
+      Log.i('BudgetForm', 'Upsert completed successfully');
       if (mounted) context.pop();
     } catch (e) {
+      Log.e('BudgetForm', 'Upsert failed', error: e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
       }
@@ -68,7 +79,7 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    final style = LoitCategories.resolve(_category);
+    final style = ref.watch(categoryStyleProvider(_category));
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(

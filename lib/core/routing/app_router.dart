@@ -19,10 +19,13 @@ import '../../features/paywall/pro_success_screen.dart';
 import '../../features/budgets/budget_detail_screen.dart';
 import '../../features/budgets/budget_form_screen.dart';
 import '../../features/budgets/budgets_screen.dart';
+import '../../features/categories/categories_screen.dart';
+import '../../features/categories/category_form_screen.dart';
 import '../../features/system/notifications_screen.dart' as system_notifs;
 import '../../features/system/update_required_screen.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/budgets_provider.dart';
+import '../../shared/providers/user_categories_provider.dart';
 import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/reports/export_screen.dart';
 import '../../features/reports/reports_screen.dart';
@@ -46,6 +49,7 @@ import '../../features/transactions/transaction_form_screen.dart';
 import '../../features/transactions/transaction_search_screen.dart';
 import '../../features/transactions/transactions_screen.dart';
 import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/shell_scaffold.dart';
 
 class _AuthRefresh extends ChangeNotifier {
@@ -196,6 +200,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) =>
             BudgetFormScreen(budget: state.extra as Budget?),
       ),
+      GoRoute(
+        path: '/categories',
+        builder: (_, __) => const CategoriesScreen(),
+      ),
+      GoRoute(
+        path: '/categories/new',
+        builder: (_, __) => const CategoryFormScreen(),
+      ),
+      GoRoute(
+        path: '/categories/:id/edit',
+        builder: (_, state) =>
+            CategoryFormScreen(category: state.extra as UserCategory?),
+      ),
       GoRoute(path: '/reports', builder: (_, __) => const ReportsScreen()),
       GoRoute(
         path: '/reports/export',
@@ -219,6 +236,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/transactions/:id',
         builder: (_, state) => TransactionDetailScreen(
           transactionId: state.pathParameters['id']!,
+          txn: state.extra as Txn?,
         ),
       ),
       // Room flows (outside shell — no bottom nav)

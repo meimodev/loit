@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/config/categories.dart';
@@ -77,6 +78,13 @@ class PreferencesScreen extends ConsumerWidget {
                 current: _regionLabel(prefs.region),
                 onChosen: (v) => notifier.setRegion(_kRegionCodes[v] ?? 'ID'),
               ),
+            ),
+          ]),
+          SettingsGroup(label: 'Categories', children: [
+            SettingsRow(
+              label: 'Manage categories',
+              value: 'Customize',
+              onTap: () => context.push('/categories'),
             ),
           ]),
           SettingsGroup(label: 'Appearance', children: [
@@ -212,3 +220,4 @@ class PreferencesScreen extends ConsumerWidget {
     );
   }
 }
+

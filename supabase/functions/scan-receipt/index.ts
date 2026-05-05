@@ -23,7 +23,13 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const SCANNER_PROMPT = `You are a financial document parsing assistant. Analyze the image and return ONLY valid JSON.
+function buildPrompt(categories?: Array<{key: string; name: string; kind: string}>) {
+  const expenseCats = categories?.filter(c => c.kind === 'expense').map(c => c.key) ?? ['dining', 'groceries', 'transport', 'shopping', 'entertainment', 'utilities', 'health', 'travel', 'other'];
+  const incomeCats = categories?.filter(c => c.kind === 'income').map(c => c.key) ?? ['income_salary', 'income_bonus', 'income_freelance', 'income_investment', 'income_gift', 'income_refund', 'income_other'];
+  const expenseList = expenseCats.join('|');
+  const incomeList = incomeCats.join('|');
+
+  return `You are a financial document parsing assistant. Analyze the image and return ONLY valid JSON.
 Do not include any explanation, preamble, or markdown formatting.
 
 The image may be either an EXPENSE document (merchant receipt, invoice the user paid)
@@ -45,13 +51,14 @@ Set "type" accordingly.
   "tip": 0.00,
   "total": 0.00,
   "payment_method": "",
-  "category": "dining|groceries|transport|shopping|entertainment|utilities|health|travel|other|income_salary|income_bonus|income_freelance|income_investment|income_gift|income_refund|income_other"
+  "category": "${expenseList}|${incomeList}"
 }
 
 Pick "category" from the EXPENSE options when type is expense, or from the INCOME options
-(income_*) when type is income. The "total" field MUST be a positive number — sign is
+when type is income. The "total" field MUST be a positive number — sign is
 conveyed by "type", not by the value. If unsure, default type to "expense".
 If any other field cannot be determined, use null. Never guess — use null if unsure.`;
+}
 
 /**
  * Extract partial fields from malformed AI response using targeted regex patterns.
@@ -150,13 +157,13 @@ serve(async (req) => {
   const user = await getUserFromJWT(req);
   if (!user) return jsonResponse({ error: 'Unauthorized' }, 401);
 
-  let body: { image?: string; is_demo?: boolean };
+  let body: { image?: string; is_demo?: boolean; categories?: Array<{key: string; name: string; kind: string}> };
   try {
     body = await req.json();
   } catch {
     return jsonResponse({ error: 'Invalid JSON body' }, 400);
   }
-  const { image, is_demo } = body;
+  const { image, is_demo, categories } = body;
   if (!image) return jsonResponse({ error: 'Missing image' }, 400);
 
   // Defensive cap: refuse payloads > ~8 MB base64 (≈6 MB decoded).
@@ -191,7 +198,7 @@ serve(async (req) => {
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
-          { type: 'text', text: SCANNER_PROMPT },
+          { type: 'text', text: buildPrompt(categories) },
         ],
       }],
     });

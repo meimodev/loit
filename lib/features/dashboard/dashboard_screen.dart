@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/theme/loit_categories.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
@@ -13,6 +12,7 @@ import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/selected_month_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
+import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/budget_alert_banner.dart';
 import '../../shared/widgets/loit_budget_row.dart';
 import '../../shared/widgets/loit_group_label.dart';
@@ -196,6 +196,7 @@ class DashboardScreen extends ConsumerWidget {
                         children: [
                           ..._topBudgetRows(
                             context: context,
+                            ref: ref,
                             statuses: budgetStatuses,
                             currency: currency,
                           ),
@@ -204,6 +205,11 @@ class DashboardScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _ManageCategoriesCard(
+                      onTap: () => context.push('/categories'),
                     ),
                   ),
                 ],
@@ -215,7 +221,6 @@ class DashboardScreen extends ConsumerWidget {
       ),
     );
   }
-
   String _fmt(double v, String currency) {
     final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: 0);
     return fmt.format(v);
@@ -232,9 +237,57 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
+class _ManageCategoriesCard extends StatelessWidget {
+  const _ManageCategoriesCard({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: LoitRadius.brM,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(
+          LoitSpacing.s4,
+          LoitSpacing.s3,
+          LoitSpacing.s4,
+          LoitSpacing.s2,
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: LoitSpacing.s4,
+          vertical: LoitSpacing.s4,
+        ),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: LoitRadius.brM,
+          border: Border.all(color: c.borderSubtle),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.category_outlined, size: 20, color: c.brand),
+            const SizedBox(width: LoitSpacing.s3),
+            Expanded(
+              child: Text(
+                'Manage categories',
+                style: LoitTypography.bodyM.copyWith(
+                  color: c.brand,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 16, color: c.contentTertiary),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Top-3 budget rows by spend ratio (over-budget first, then approaching).
 List<Widget> _topBudgetRows({
   required BuildContext context,
+  required WidgetRef ref,
   required List<BudgetStatus> statuses,
   required String currency,
 }) {
@@ -244,7 +297,7 @@ List<Widget> _topBudgetRows({
   return [
     for (var i = 0; i < picked.length; i++)
       LoitBudgetRow(
-        label: LoitCategories.resolve(picked[i].budget.category).label,
+        label: ref.watch(categoryStyleProvider(picked[i].budget.category)).label,
         categoryKey: picked[i].budget.category,
         percent: (picked[i].ratio * 100).round(),
         subtitle:

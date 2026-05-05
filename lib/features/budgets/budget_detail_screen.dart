@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/theme/loit_categories.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/budgets_provider.dart';
+import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import '../../shared/widgets/loit_tx_row.dart';
@@ -32,7 +32,7 @@ class BudgetDetailScreen extends ConsumerWidget {
       );
     }
     final b = status.budget;
-    final style = LoitCategories.resolve(b.category);
+    final style = ref.watch(categoryStyleProvider(b.category));
     final pct = (status.ratio * 100).round();
     final over = status.isOver;
     final overAmt = (status.spent - b.monthlyLimit).clamp(0, double.infinity);
@@ -152,6 +152,52 @@ class BudgetDetailScreen extends ConsumerWidget {
                     ? null
                     : () => context.push('/transactions/${t.id}'),
               )),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                LoitSpacing.s5, LoitSpacing.s6, LoitSpacing.s5, LoitSpacing.s4),
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                foregroundColor: c.danger,
+                side: BorderSide(color: c.danger),
+              ),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Delete budget?'),
+                    content: Text(
+                      'This permanently deletes the ${style.label} budget. Transactions are kept. This cannot be undone.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(foregroundColor: c.danger),
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm != true) return;
+                if (!context.mounted) return;
+                try {
+                  await ref.read(budgetsProvider.notifier).delete(b.id);
+                  if (!context.mounted) return;
+                  context.pop();
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Delete failed: $e')),
+                  );
+                }
+              },
+              child: const Text('Delete budget'),
+            ),
+          ),
           const SizedBox(height: LoitSpacing.s10),
         ],
       ),

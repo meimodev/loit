@@ -10,15 +10,18 @@ import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
+import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/loit_amount_text.dart';
+import '../../shared/widgets/loit_banner.dart';
 import '../../shared/widgets/loit_category_avatar.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import 'notes_breakdown.dart';
 
 class TransactionDetailScreen extends ConsumerWidget {
-  const TransactionDetailScreen({super.key, required this.transactionId});
+  const TransactionDetailScreen({super.key, required this.transactionId, this.txn});
 
   final String transactionId;
+  final Txn? txn;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -26,6 +29,7 @@ class TransactionDetailScreen extends ConsumerWidget {
     final txns = ref.watch(transactionsProvider);
     final accounts = ref.watch(accountsProvider).value ?? const [];
     final accountMap = {for (final a in accounts) a.id: a};
+    final isUnsynced = txn != null;
 
     return Scaffold(
       backgroundColor: c.canvas,
@@ -36,8 +40,13 @@ class TransactionDetailScreen extends ConsumerWidget {
             tooltip: 'Edit',
             icon: const Icon(Icons.edit_outlined),
             onPressed: () {
-              final txns = ref.read(transactionsProvider).value ?? const [];
-              final t = txns.where((e) => e.id == transactionId).firstOrNull;
+              final Txn? t;
+              if (txn != null) {
+                t = txn;
+              } else {
+                final txns = ref.read(transactionsProvider).value ?? const [];
+                t = txns.where((e) => e.id == transactionId).firstOrNull;
+              }
               if (t == null) return;
               context.push('/transactions/new', extra: {
                 '_edit_id': t.id,
@@ -54,143 +63,168 @@ class TransactionDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: txns.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (items) {
-          final t = items.firstWhere(
-            (e) => e.id == transactionId,
-            orElse: () => Txn(
-              id: null,
-              amount: 0,
-              currency: 'IDR',
-              amountHome: null,
-              fxRate: null,
-              category: null,
-              notes: null,
-              receiptUrl: null,
-              aiParsed: false,
-              isManualFallback: false,
-              createdAt: DateTime.utc(1970),
-            ),
-          );
-          final fromAccount = t.accountId != null ? accountMap[t.accountId] : null;
-          final toAccount = t.toAccountId != null ? accountMap[t.toAccountId] : null;
-          if (t.id == null) {
-            return const Center(child: Text('Not found'));
-          }
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(
-              LoitSpacing.s5,
-              LoitSpacing.s5,
-              LoitSpacing.s5,
-              LoitSpacing.s8,
-            ),
-            children: [
-              _heroCard(context, t),
-              const SizedBox(height: LoitSpacing.s5),
-              const LoitGroupLabel(label: 'Details'),
-              _row(context, 'Date',
-                  DateFormat.yMMMMEEEEd().add_jm().format(t.createdAt.toLocal())),
-              _row(context, 'Type', _typeName(t.type)),
-              if (fromAccount != null)
-                _row(context, 'Account', fromAccount.name),
-              if (toAccount != null)
-                _row(context, 'To account', toAccount.name),
-              if (!t.isTransfer)
-                _row(context, 'Category', LoitCategories.resolve(t.category).label),
-              _row(context, 'Currency', t.currency),
-              if (t.fxRate != null)
-                _row(context, 'FX rate', t.fxRate!.toStringAsFixed(4)),
-              if (t.amountHome != null && t.amountHome != t.amount)
-                _row(
-                  context,
-                  'Home amount',
-                  NumberFormat.simpleCurrency(decimalDigits: 0)
-                      .format(t.amountHome),
-                ),
-              if (t.aiParsed)
-                _row(context, 'Source', 'AI scanned'),
-              if (t.isManualFallback)
-                _row(context, 'Source', 'Manual fallback'),
-              if (t.notes != null && t.notes!.isNotEmpty) ...[
-                const SizedBox(height: LoitSpacing.s4),
-                const LoitGroupLabel(label: 'Notes'),
-                Builder(builder: (_) {
-                  final parsed = parseBreakdown(t.notes);
-                  if (parsed == null) {
-                    return Container(
-                      padding: const EdgeInsets.all(LoitSpacing.s4),
-                      decoration: BoxDecoration(
-                        color: c.surface,
-                        borderRadius: LoitRadius.brM,
-                        border: Border.all(color: c.borderSubtle),
-                      ),
-                      child: Text(t.notes!,
-                          style: LoitTypography.bodyM
-                              .copyWith(color: c.contentPrimary)),
-                    );
-                  }
-                  return _BreakdownView(parsed: parsed);
-                }),
-              ],
-              if (t.receiptUrl != null) ...[
-                const SizedBox(height: LoitSpacing.s4),
-                const LoitGroupLabel(label: 'Receipt'),
-                ClipRRect(
-                  borderRadius: LoitRadius.brM,
-                  child: Image.network(
-                    t.receiptUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      height: 160,
-                      color: c.muted,
-                      alignment: Alignment.center,
-                      child: Icon(Icons.broken_image_outlined,
-                          color: c.contentTertiary),
-                    ),
+      body: isUnsynced
+          ? _buildDetail(context, ref, txn!, accountMap, isUnsynced: true)
+          : txns.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Error: $e')),
+              data: (items) {
+                final t = items.firstWhere(
+                  (e) => e.id == transactionId,
+                  orElse: () => Txn(
+                    id: null,
+                    amount: 0,
+                    currency: 'IDR',
+                    amountHome: null,
+                    fxRate: null,
+                    category: null,
+                    notes: null,
+                    receiptUrl: null,
+                    aiParsed: false,
+                    isManualFallback: false,
+                    createdAt: DateTime.utc(1970),
                   ),
-                ),
-              ],
-              const SizedBox(height: LoitSpacing.s6),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: c.danger,
-                  side: BorderSide(color: c.danger.withValues(alpha: 0.4)),
-                  minimumSize: const Size.fromHeight(48),
-                ),
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Delete transaction'),
-                onPressed: () async {
-                  final ok = await showDialog<bool>(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text('Delete transaction?'),
-                      content: const Text('This cannot be undone.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel'),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Delete'),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (ok == true) {
-                    await ref
-                        .read(transactionsProvider.notifier)
-                        .deleteTransaction(t.id!);
-                    if (context.mounted) context.pop();
-                  }
-                },
-              ),
-            ],
-          );
-        },
+                );
+                if (t.id == null) {
+                  return const Center(child: Text('Not found'));
+                }
+                return _buildDetail(context, ref, t, accountMap);
+              },
+            ),
+    );
+  }
+
+  Widget _buildDetail(
+    BuildContext context,
+    WidgetRef ref,
+    Txn t,
+    Map<String, Account> accountMap, {
+    bool isUnsynced = false,
+  }) {
+    final c = context.loitColors;
+    final catStyle = ref.watch(categoryStyleProvider(t.category));
+    final fromAccount = t.accountId != null ? accountMap[t.accountId] : null;
+    final toAccount = t.toAccountId != null ? accountMap[t.toAccountId] : null;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        LoitSpacing.s5,
+        LoitSpacing.s5,
+        LoitSpacing.s5,
+        LoitSpacing.s8,
       ),
+      children: [
+        if (isUnsynced) ...[
+          const LoitBanner(
+            kind: LoitBannerKind.warning,
+            title: 'Not synced',
+            body: 'This transaction hasn\'t synced yet. Edit to save it.',
+          ),
+          const SizedBox(height: LoitSpacing.s4),
+        ],
+        _heroCard(context, t, catStyle),
+        const SizedBox(height: LoitSpacing.s5),
+        const LoitGroupLabel(label: 'Details'),
+        _row(context, 'Date',
+            DateFormat.yMMMMEEEEd().add_jm().format(t.createdAt.toLocal())),
+        _row(context, 'Type', _typeName(t.type)),
+        if (fromAccount != null)
+          _row(context, 'Account', fromAccount.name),
+        if (toAccount != null)
+          _row(context, 'To account', toAccount.name),
+        if (!t.isTransfer)
+          _row(context, 'Category', catStyle.label),
+        _row(context, 'Currency', t.currency),
+        if (t.fxRate != null)
+          _row(context, 'FX rate', t.fxRate!.toStringAsFixed(4)),
+        if (t.amountHome != null && t.amountHome != t.amount)
+          _row(
+            context,
+            'Home amount',
+            NumberFormat.simpleCurrency(decimalDigits: 0)
+                .format(t.amountHome),
+          ),
+        if (t.aiParsed)
+          _row(context, 'Source', 'AI scanned'),
+        if (t.isManualFallback)
+          _row(context, 'Source', 'Manual fallback'),
+        if (t.notes != null && t.notes!.isNotEmpty) ...[
+          const SizedBox(height: LoitSpacing.s4),
+          const LoitGroupLabel(label: 'Notes'),
+          Builder(builder: (_) {
+            final parsed = parseBreakdown(t.notes);
+            if (parsed == null) {
+              return Container(
+                padding: const EdgeInsets.all(LoitSpacing.s4),
+                decoration: BoxDecoration(
+                  color: c.surface,
+                  borderRadius: LoitRadius.brM,
+                  border: Border.all(color: c.borderSubtle),
+                ),
+                child: Text(t.notes!,
+                    style: LoitTypography.bodyM
+                        .copyWith(color: c.contentPrimary)),
+              );
+            }
+            return _BreakdownView(parsed: parsed);
+          }),
+        ],
+        if (t.receiptUrl != null) ...[
+          const SizedBox(height: LoitSpacing.s4),
+          const LoitGroupLabel(label: 'Receipt'),
+          ClipRRect(
+            borderRadius: LoitRadius.brM,
+            child: Image.network(
+              t.receiptUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                height: 160,
+                color: c.muted,
+                alignment: Alignment.center,
+                child: Icon(Icons.broken_image_outlined,
+                    color: c.contentTertiary),
+              ),
+            ),
+          ),
+        ],
+        if (!isUnsynced) ...[
+          const SizedBox(height: LoitSpacing.s6),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: c.danger,
+              side: BorderSide(color: c.danger.withValues(alpha: 0.4)),
+              minimumSize: const Size.fromHeight(48),
+            ),
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Delete transaction'),
+            onPressed: () async {
+              final ok = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('Delete transaction?'),
+                  content: const Text('This cannot be undone.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Delete'),
+                    ),
+                  ],
+                ),
+              );
+              if (ok == true) {
+                await ref
+                    .read(transactionsProvider.notifier)
+                    .deleteTransaction(t.id!);
+                if (context.mounted) context.pop();
+              }
+            },
+          ),
+        ],
+      ],
     );
   }
 
@@ -205,7 +239,7 @@ class TransactionDetailScreen extends ConsumerWidget {
     }
   }
 
-  Widget _heroCard(BuildContext context, Txn t) {
+  Widget _heroCard(BuildContext context, Txn t, LoitCategoryStyle catStyle) {
     final c = context.loitColors;
     return Container(
       padding: const EdgeInsets.all(LoitSpacing.s5),
@@ -247,7 +281,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                     }),
                     const SizedBox(height: 2),
                     Text(
-                      t.isTransfer ? 'Transfer' : LoitCategories.resolve(t.category).label,
+                      t.isTransfer ? 'Transfer' : catStyle.label,
                       style: LoitTypography.bodyS
                           .copyWith(color: c.contentSecondary),
                     ),

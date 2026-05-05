@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme/loit_categories.dart';
 import '../../core/theme/loit_radius.dart';
+import '../../shared/providers/user_categories_provider.dart';
 
 /// Circular tinted icon bubble for a category.
 /// Background is the category tint at 12% (light) or 20% (dark).
-class LoitCategoryAvatar extends StatelessWidget {
+class LoitCategoryAvatar extends ConsumerWidget {
   const LoitCategoryAvatar({
     super.key,
     required this.categoryKey,
@@ -18,9 +19,9 @@ class LoitCategoryAvatar extends StatelessWidget {
   final double? iconSize;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final style = LoitCategories.resolve(categoryKey);
+    final style = ref.watch(categoryStyleProvider(categoryKey));
     final bg = style.tint.withValues(alpha: isDark ? 0.20 : 0.12);
     return Container(
       width: size,

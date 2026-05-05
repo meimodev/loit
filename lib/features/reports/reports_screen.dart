@@ -4,13 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/theme/loit_categories.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
+import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/loit_app_bar_month.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import '../../shared/widgets/loit_stat_triple.dart';
@@ -373,7 +373,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     // Top category card
     if (cats.isNotEmpty) {
       final top = cats.first;
-      final style = LoitCategories.resolve(top.key);
+      final style = ref.watch(categoryStyleProvider(top.key));
       cards.add(_InsightCard(
         title: '${style.label} leads spending',
         body:
@@ -650,13 +650,13 @@ class _MiniLineChart extends StatelessWidget {
   }
 }
 
-class _StackedBar extends StatelessWidget {
-  const _StackedBar({required this.parts, required this.total});
+class _StackedBar extends ConsumerWidget {
+  const _StackedBar({super.key, required this.parts, required this.total});
   final List<MapEntry<String, double>> parts;
   final double total;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
     if (parts.isEmpty || total <= 0) {
       return Container(
@@ -675,7 +675,7 @@ class _StackedBar extends StatelessWidget {
               Expanded(
                 flex: ((e.value / total) * 1000).round().clamp(1, 1000),
                 child:
-                    Container(color: LoitCategories.resolve(e.key).tint),
+                    Container(color: ref.watch(categoryStyleProvider(e.key)).tint),
               ),
           ],
         ),
@@ -684,8 +684,9 @@ class _StackedBar extends StatelessWidget {
   }
 }
 
-class _CategoryLine extends StatelessWidget {
+class _CategoryLine extends ConsumerWidget {
   const _CategoryLine({
+    super.key,
     required this.entry,
     required this.total,
     required this.fmt,
@@ -697,9 +698,9 @@ class _CategoryLine extends StatelessWidget {
   final bool isLast;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
-    final style = LoitCategories.resolve(entry.key);
+    final style = ref.watch(categoryStyleProvider(entry.key));
     final pct = total <= 0 ? 0 : ((entry.value / total) * 100).round();
     return Container(
       padding: const EdgeInsets.symmetric(

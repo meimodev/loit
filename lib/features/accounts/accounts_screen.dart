@@ -9,6 +9,7 @@ import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/loit_group_label.dart';
 
 class AccountsScreen extends ConsumerWidget {
@@ -52,14 +53,66 @@ class AccountsScreen extends ConsumerWidget {
                   child: Column(
                     children: [
                       for (var i = 0; i < assets.length; i++)
-                        _AccountRow(
-                          account: assets[i],
-                          balance: balances[assets[i].id] ?? 0,
-                          currency: currency,
-                          showDivider: i != assets.length - 1,
-                          onTap: () => context.push(
-                            '/accounts/${assets[i].id}/edit',
-                            extra: assets[i],
+                        Dismissible(
+                          key: ValueKey(assets[i].id),
+                          direction: DismissDirection.endToStart,
+                          confirmDismiss: (direction) async {
+                            final txns =
+                                ref.read(transactionsProvider).value ?? const [];
+                            final account = assets[i];
+                            final affected = txns
+                                .where((t) =>
+                                    t.accountId == account.id ||
+                                    t.toAccountId == account.id)
+                                .length;
+                            return await showDialog<bool>(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    title: const Text('Delete account?'),
+                                    content: Text(
+                                      affected == 0
+                                          ? 'This permanently deletes "${account.name}". This cannot be undone.'
+                                          : 'This permanently deletes "${account.name}" and $affected transaction${affected == 1 ? '' : 's'} that reference it. This cannot be undone.',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      FilledButton(
+                                        style: FilledButton.styleFrom(
+                                            backgroundColor: c.danger),
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: const Text('Delete'),
+                                      ),
+                                    ],
+                                  ),
+                                ) ??
+                                false;
+                          },
+                          onDismissed: (_) {
+                            ref
+                                .read(accountsProvider.notifier)
+                                .deleteAccount(assets[i].id);
+                          },
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            color: c.danger,
+                            child: const Icon(Icons.delete_outline,
+                                color: Colors.white),
+                          ),
+                          child: _AccountRow(
+                            account: assets[i],
+                            balance: balances[assets[i].id] ?? 0,
+                            currency: currency,
+                            showDivider: i != assets.length - 1,
+                            onTap: () => context.push(
+                              '/accounts/${assets[i].id}/edit',
+                              extra: assets[i],
+                            ),
                           ),
                         ),
                     ],
@@ -73,14 +126,66 @@ class AccountsScreen extends ConsumerWidget {
                   child: Column(
                     children: [
                       for (var i = 0; i < liabilities.length; i++)
-                        _AccountRow(
-                          account: liabilities[i],
-                          balance: balances[liabilities[i].id] ?? 0,
-                          currency: currency,
-                          showDivider: i != liabilities.length - 1,
-                          onTap: () => context.push(
-                            '/accounts/${liabilities[i].id}/edit',
-                            extra: liabilities[i],
+                        Dismissible(
+                          key: ValueKey(liabilities[i].id),
+                          direction: DismissDirection.endToStart,
+                          confirmDismiss: (direction) async {
+                            final txns =
+                                ref.read(transactionsProvider).value ?? const [];
+                            final account = liabilities[i];
+                            final affected = txns
+                                .where((t) =>
+                                    t.accountId == account.id ||
+                                    t.toAccountId == account.id)
+                                .length;
+                            return await showDialog<bool>(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    title: const Text('Delete account?'),
+                                    content: Text(
+                                      affected == 0
+                                          ? 'This permanently deletes "${account.name}". This cannot be undone.'
+                                          : 'This permanently deletes "${account.name}" and $affected transaction${affected == 1 ? '' : 's'} that reference it. This cannot be undone.',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      FilledButton(
+                                        style: FilledButton.styleFrom(
+                                            backgroundColor: c.danger),
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: const Text('Delete'),
+                                      ),
+                                    ],
+                                  ),
+                                ) ??
+                                false;
+                          },
+                          onDismissed: (_) {
+                            ref
+                                .read(accountsProvider.notifier)
+                                .deleteAccount(liabilities[i].id);
+                          },
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            color: c.danger,
+                            child: const Icon(Icons.delete_outline,
+                                color: Colors.white),
+                          ),
+                          child: _AccountRow(
+                            account: liabilities[i],
+                            balance: balances[liabilities[i].id] ?? 0,
+                            currency: currency,
+                            showDivider: i != liabilities.length - 1,
+                            onTap: () => context.push(
+                              '/accounts/${liabilities[i].id}/edit',
+                              extra: liabilities[i],
+                            ),
                           ),
                         ),
                     ],

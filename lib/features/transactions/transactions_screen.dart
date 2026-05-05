@@ -224,12 +224,16 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                 size: 22,
                                 color: selected ? c.brand : c.contentTertiary,
                               )
-                            : null,
+                            : (t.id == null
+                                ? const _SyncBadge()
+                                : null),
                         onTap: () {
                           if (_multiMode) {
                             _toggleMulti(t.id);
                           } else if (t.id != null) {
                             context.push('/transactions/${t.id}');
+                          } else {
+                            context.push('/transactions/pending', extra: t);
                           }
                         },
                       );
@@ -392,6 +396,19 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     return Text(
       '$sign${_fmt(net.abs(), currency)}',
       style: LoitTypography.labelS.copyWith(color: color),
+    );
+  }
+}
+
+class _SyncBadge extends StatelessWidget {
+  const _SyncBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    return Tooltip(
+      message: 'Not synced',
+      child: Icon(Icons.cloud_off_rounded, size: 16, color: c.warning),
     );
   }
 }

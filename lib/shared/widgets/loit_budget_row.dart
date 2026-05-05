@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme/loit_categories.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../shared/providers/user_categories_provider.dart';
 import 'loit_category_avatar.dart';
 
 /// Per-category budget row with progress bar.
-class LoitBudgetRow extends StatelessWidget {
+class LoitBudgetRow extends ConsumerWidget {
   const LoitBudgetRow({
     super.key,
     required this.label,
@@ -20,16 +21,17 @@ class LoitBudgetRow extends StatelessWidget {
   });
 
   final String label;
-  final int percent; // 0..200, >100 = over budget
+  final int percent;
   final String subtitle;
   final String? categoryKey;
   final bool showDivider;
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
-    final tint = LoitCategories.resolve(categoryKey).tint;
+    final style = ref.watch(categoryStyleProvider(categoryKey));
+    final tint = style.tint;
     final isOver = percent > 100;
     final pctColor = isOver ? c.danger : c.contentPrimary;
     final fillColor = isOver ? c.danger : tint;

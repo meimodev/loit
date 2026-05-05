@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/services/log_service.dart';
+import '../widgets/connectivity_banner.dart';
 import 'auth_providers.dart';
 import 'transactions_provider.dart';
 
@@ -59,13 +61,24 @@ class BudgetsNotifier extends AsyncNotifier<List<Budget>> {
       'monthly_limit': monthlyLimit,
       if (id != null) 'id': id,
     };
-    await Supabase.instance.client
+    if (ref.read(offlineDebugOverrideProvider) == true) {
+      ref.invalidateSelf();
+      return;
+    }
+    final result = await Supabase.instance.client
         .from('budgets')
-        .upsert(payload, onConflict: 'user_id,category');
+        .upsert(payload, onConflict: 'user_id,category')
+        .select();
+    Log.i('BudgetsNotifier',
+        'Upserted budget "$category", returned ${result.length} row(s)');
     ref.invalidateSelf();
   }
 
   Future<void> delete(String id) async {
+    if (ref.read(offlineDebugOverrideProvider) == true) {
+      ref.invalidateSelf();
+      return;
+    }
     await Supabase.instance.client.from('budgets').delete().eq('id', id);
     ref.invalidateSelf();
   }

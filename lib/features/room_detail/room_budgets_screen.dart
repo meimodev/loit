@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/config/categories.dart';
+import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/utils/amount_input.dart';
 
@@ -49,8 +49,7 @@ class RoomBudgetsScreen extends ConsumerWidget {
                   );
                   return ListTile(
                     leading: CircleAvatar(
-                      child: Icon(
-                          Categories.iconFor(b['category'] as String?)),
+                      child: Icon(ref.watch(categoryStyleProvider(b['category'] as String?)).icon),
                     ),
                     title: Text(b['category'] as String? ?? 'Budget'),
                     trailing: Text(
@@ -78,6 +77,7 @@ class RoomBudgetsScreen extends ConsumerWidget {
   ) {
     String category = 'dining';
     final amountCtrl = TextEditingController();
+    final categories = ref.read(expenseCategoriesProvider);
 
     showDialog(
       context: context,
@@ -94,8 +94,8 @@ class RoomBudgetsScreen extends ConsumerWidget {
                   border: OutlineInputBorder(),
                 ),
                 items: [
-                  for (final c in Categories.all)
-                    DropdownMenuItem(value: c, child: Text(c)),
+                  for (final c in categories)
+                    DropdownMenuItem(value: c.key, child: Text(c.name)),
                 ],
                 onChanged: (v) =>
                     setDialogState(() => category = v ?? 'dining'),

@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/theme/loit_categories.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/budgets_provider.dart';
+import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/loit_app_bar_month.dart';
 import '../../shared/widgets/loit_budget_row.dart';
 import '../../shared/widgets/loit_empty_state.dart';
@@ -152,7 +152,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                       if (s.isOver) '${fmt.format(overAmt)} over',
                     ];
                     return LoitBudgetRow(
-                      label: LoitCategories.resolve(s.budget.category).label,
+                      label: ref.watch(categoryStyleProvider(s.budget.category)).label,
                       categoryKey: s.budget.category,
                       percent: pct,
                       subtitle: subtitleParts.join(' · '),

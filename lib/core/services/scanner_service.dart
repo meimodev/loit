@@ -92,8 +92,8 @@ class ScannerService {
     return out;
   }
 
-  Future<ScanResult> scanReceipt(File imageFile, {bool isDemo = false}) async {
-    Log.i(_tag, 'Scanning receipt (demo=$isDemo)');
+  Future<ScanResult> scanReceipt(File imageFile, {bool isDemo = false, List<Map<String, String>>? categories}) async {
+    Log.i(_tag, 'Scanning receipt (demo=$isDemo, categories=${categories?.length ?? 0})');
     try {
       final imageBytes = await compressImage(imageFile);
       Log.d(_tag, 'Compressed to ${imageBytes.length} bytes');
@@ -105,6 +105,12 @@ class ScannerService {
         return ScanResult.serverError();
       }
 
+      final bodyMap = <String, dynamic>{
+        'image': base64Image,
+        'is_demo': isDemo,
+        if (categories != null) 'categories': categories,
+      };
+
       final response = await http
           .post(
             Uri.parse('${Env.supabaseUrl}/functions/v1/scan-receipt'),
@@ -112,7 +118,7 @@ class ScannerService {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer ${session.accessToken}',
             },
-            body: jsonEncode({'image': base64Image, 'is_demo': isDemo}),
+            body: jsonEncode(bodyMap),
           )
           .timeout(const Duration(seconds: 30));
 

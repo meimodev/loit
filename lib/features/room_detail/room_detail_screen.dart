@@ -4,13 +4,13 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/services/room_service.dart';
-import '../../core/theme/loit_categories.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/room_providers.dart';
+import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 import '../rooms/room_colors.dart';
 
@@ -724,9 +724,10 @@ class _DayGroup extends StatelessWidget {
   }
 }
 
-class _RoomTxRow extends StatelessWidget {
-  const _RoomTxRow(
-      {required this.tx,
+class _RoomTxRow extends ConsumerWidget {
+  const _RoomTxRow({
+      super.key,
+      required this.tx,
       required this.isLast,
       required this.fmt,
       required this.currentUserId});
@@ -736,10 +737,9 @@ class _RoomTxRow extends StatelessWidget {
   final String? currentUserId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
     final amount = (tx['amount'] as num?)?.toDouble() ?? 0;
-    // Prefer explicit type field; fall back to sign heuristic for legacy rows.
     final txType = tx['type'] as String? ?? (amount < 0 ? 'income' : 'expense');
     final isIncome = txType == 'income';
     final isTransfer = txType == 'transfer';
@@ -748,7 +748,7 @@ class _RoomTxRow extends StatelessWidget {
         ? notes.split('\n').first
         : (isTransfer ? 'Transfer' : isIncome ? 'Income' : 'Expense');
     final cat = tx['category'] as String?;
-    final style = LoitCategories.resolve(cat);
+    final style = ref.watch(categoryStyleProvider(cat));
     final user = tx['users'] as Map<String, dynamic>?;
     final payer = (user?['name'] as String?) ?? 'Member';
     final isYou = tx['user_id'] == currentUserId;
@@ -815,8 +815,9 @@ class _RoomTxRow extends StatelessWidget {
   }
 }
 
-class _BudgetTab extends StatelessWidget {
+class _BudgetTab extends ConsumerWidget {
   const _BudgetTab({
+    super.key,
     required this.roomId,
     required this.budgetsAsync,
     required this.fmt,
@@ -826,7 +827,7 @@ class _BudgetTab extends StatelessWidget {
   final NumberFormat fmt;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
     return budgetsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -851,7 +852,7 @@ class _BudgetTab extends StatelessWidget {
           itemBuilder: (_, i) {
             final b = list[i];
             final cat = b['category'] as String?;
-            final style = LoitCategories.resolve(cat);
+            final style = ref.watch(categoryStyleProvider(cat));
             final limit = (b['budget_limit'] as num?)?.toDouble() ?? 0;
             return Container(
               margin: const EdgeInsets.only(top: LoitSpacing.s2),

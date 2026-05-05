@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../widgets/connectivity_banner.dart';
 import 'auth_providers.dart';
 import 'services_providers.dart';
 
@@ -136,6 +137,12 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
     });
     state = AsyncData([optimistic, ...(state.value ?? const [])]);
 
+    if (ref.read(offlineDebugOverrideProvider) == true) {
+      final db = ref.read(offlineDbProvider);
+      await db.enqueue(payload);
+      return null;
+    }
+
     try {
       final inserted = await Supabase.instance.client
           .from('transactions')
@@ -160,17 +167,39 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
     Map<String, dynamic> payload,
   ) async {
     payload['client_updated_at'] = DateTime.now().toUtc().toIso8601String();
-    await Supabase.instance.client
-        .from('transactions')
-        .update(payload)
-        .eq('id', id);
+    payload['id'] = id;
+
+    if (ref.read(offlineDebugOverrideProvider) == true) {
+      await ref.read(offlineDbProvider).enqueue({...payload});
+      ref.invalidateSelf();
+      return;
+    }
+
+    try {
+      await Supabase.instance.client
+          .from('transactions')
+          .update(payload)
+          .eq('id', id);
+    } catch (_) {
+      await ref.read(offlineDbProvider).enqueue({...payload});
+    }
     ref.invalidateSelf();
   }
 
   Future<void> deleteTransaction(String id) async {
-    await Supabase.instance.client.from('transactions').delete().eq('id', id);
     final cur = state.value ?? const [];
     state = AsyncData(cur.where((t) => t.id != id).toList());
+
+    if (ref.read(offlineDebugOverrideProvider) == true) {
+      await ref.read(offlineDbProvider).enqueue({'_op': 'delete', 'id': id});
+      return;
+    }
+
+    try {
+      await Supabase.instance.client.from('transactions').delete().eq('id', id);
+    } catch (_) {
+      await ref.read(offlineDbProvider).enqueue({'_op': 'delete', 'id': id});
+    }
   }
 
   Future<void> refresh() => ref.refresh(transactionsProvider.future);

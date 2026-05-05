@@ -50,6 +50,17 @@ class SyncService {
       for (final item in pending) {
         try {
           final tx = jsonDecode(item.transactionJson) as Map<String, dynamic>;
+
+          if (tx['_op'] == 'delete') {
+            final id = tx['id'] as String?;
+            if (id != null) {
+              await _supabase.from('transactions').delete().eq('id', id);
+            }
+            await _db.markSynced(item.id);
+            Log.d(_tag, 'Synced delete for item ${item.id}');
+            continue;
+          }
+
           tx['client_updated_at'] = item.clientUpdatedAt.toIso8601String();
 
           // Normalize fields that are required after the accounts migration but

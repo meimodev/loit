@@ -11,7 +11,7 @@ import '../../core/config/categories.dart';
 import '../../core/services/analytics_service.dart';
 import '../../core/services/currency_service.dart';
 import '../../core/services/interaction_log_service.dart';
-import '../../core/theme/loit_categories.dart';
+import '../../shared/providers/user_categories_provider.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
@@ -43,7 +43,8 @@ class TransactionFormScreen extends ConsumerStatefulWidget {
       _TransactionFormScreenState();
 }
 
-class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
+class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _amount = TextEditingController();
   final _notes = TextEditingController();
@@ -66,8 +67,8 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
   // Notes breakdown editor state.
   _NotesMode _notesMode = _NotesMode.text;
   final _merchant = TextEditingController();
-  final _totalC = TextEditingController();
   final List<_ItemRowControllers> _itemRows = [];
+  late final TabController _notesTabController;
   bool _breakdownHintDismissed = false;
 
   @override
@@ -91,15 +92,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
       _currency = (p['currency'] as String?) ?? 'IDR';
       final cat = p['category'] as String?;
       if (cat != null) {
-        if (Categories.isIncomeKey(cat)) {
-          _type = 'income';
-          _category = cat;
-        } else if (Categories.expense.contains(cat)) {
-          _category = cat;
-        }
-      }
-      if (_type == 'income' && !Categories.isIncomeKey(_category)) {
-        _category = 'income_other';
+        _category = cat;
       }
       _editId = p['_edit_id'] as String?;
       _accountId = p['account_id'] as String?;
@@ -163,15 +156,13 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
                 total: it.totalPrice,
               ));
             }
-            if (parsed.total != null) {
-              _totalC.text =
-                  NumberFormat('#,##0.##', 'id_ID').format(parsed.total!);
-            }
           }
         }
       }
     }
     _notes.addListener(_onNotesTextChanged);
+    _notesTabController = TabController(length: 2, vsync: this);
+    _notesTabController.addListener(_onNotesTabChanged);
 
     // Auto-select first active account once accounts load; fires immediately if
     // already cached. Avoids post-frame mutation in build().
@@ -193,7 +184,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
     _notes.removeListener(_onNotesTextChanged);
     _notes.dispose();
     _merchant.dispose();
-    _totalC.dispose();
+    _notesTabController.dispose();
     for (final r in _itemRows) {
       r.dispose();
     }
@@ -203,6 +194,16 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
   void _onNotesTextChanged() {
     if (_notesMode != _NotesMode.text) return;
     setState(() {});
+  }
+
+  void _onNotesTabChanged() {
+    if (!_notesTabController.indexIsChanging) return;
+    final mode = _notesTabController.index == 0
+        ? _NotesMode.text
+        : _NotesMode.items;
+    if (mode != _notesMode) {
+      _setNotesMode(mode);
+    }
   }
 
   NotesBreakdown _collectBreakdown() {
@@ -225,12 +226,16 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
     return NotesBreakdown(
       merchant: _merchant.text.trim(),
       items: items,
-      total: parseAmountInput(_totalC.text),
+      total: null,
     );
   }
 
   void _setNotesMode(_NotesMode next) {
     if (next == _notesMode) return;
+    final targetIndex = next == _NotesMode.text ? 0 : 1;
+    if (_notesTabController.index != targetIndex) {
+      _notesTabController.index = targetIndex;
+    }
     if (next == _NotesMode.items) {
       // Try parse current notes text into editor.
       final parsed = parseBreakdown(_notes.text);
@@ -248,9 +253,6 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
             total: it.totalPrice,
           ));
         }
-        _totalC.text = parsed.total != null
-            ? NumberFormat('#,##0.##', 'id_ID').format(parsed.total!)
-            : '';
       } else {
         if (_notes.text.trim().isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -271,14 +273,6 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
         _notesMode = next;
       });
     }
-  }
-
-  bool _amountMismatch() {
-    final total = parseAmountInput(_totalC.text);
-    if (total == null) return false;
-    final amt = parseAmountInput(_amount.text);
-    if (amt == null || amt <= 0) return false;
-    return (total - amt).abs() > 0.005;
   }
 
   Widget _buildItemsEditor(LoitColors c) {
@@ -311,20 +305,6 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
                 _itemRows.add(_ItemRowControllers());
               });
             },
-          ),
-          const SizedBox(height: LoitSpacing.s3),
-          LoitInput(
-            controller: _totalC,
-            label: 'Total',
-            placeholder: 'Optional',
-            size: LoitInputSize.s,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-              ThousandsInputFormatter(),
-            ],
-            onChanged: (_) => setState(() {}),
           ),
         ],
       ),
@@ -630,9 +610,12 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
   void _setType(String type) {
     setState(() {
       _type = type;
-      if (type == 'income' && !Categories.isIncomeKey(_category)) {
+      final cats = ref.read(userCategoriesProvider).value ?? [];
+      final catKind =
+          cats.where((c) => c.key == _category).firstOrNull?.kind;
+      if (type == 'income' && catKind != 'income') {
         _category = 'income_other';
-      } else if (type == 'expense' && Categories.isIncomeKey(_category)) {
+      } else if (type == 'expense' && catKind == 'income') {
         _category = 'other';
       }
       if (type == 'transfer') _toAccountId = null;
@@ -715,7 +698,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
     final c = context.loitColors;
     final profile = ref.watch(userProfileProvider).value;
     final home = profile?.homeCurrency ?? 'IDR';
-    final catStyle = LoitCategories.resolve(_category);
+    final catStyle = ref.watch(categoryStyleProvider(_category));
 
     final activeAccounts = ref.watch(activeAccountsProvider);
 
@@ -926,9 +909,9 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
                   fontWeight: FontWeight.w600,
                 )),
             const SizedBox(height: 6),
-            _NotesModeToggle(
-              mode: _notesMode,
-              onChanged: _setNotesMode,
+            TabBar(
+              controller: _notesTabController,
+              tabs: const [Tab(text: 'Text'), Tab(text: 'Items')],
             ),
             const SizedBox(height: LoitSpacing.s3),
             if (_notesMode == _NotesMode.text) ...[
@@ -957,15 +940,6 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
               ],
             ] else ...[
               _buildItemsEditor(c),
-              if (_amountMismatch()) ...[
-                const SizedBox(height: LoitSpacing.s3),
-                LoitBanner(
-                  kind: LoitBannerKind.info,
-                  title: 'Total and amount differ',
-                  body:
-                      "The breakdown total doesn't match the transaction amount.",
-                ),
-              ],
             ],
             const SizedBox(height: LoitSpacing.s7),
             FilledButton(
@@ -1144,57 +1118,5 @@ class _ItemRowControllers {
     qtyC.dispose();
     unitC.dispose();
     totalC.dispose();
-  }
-}
-
-class _NotesModeToggle extends StatelessWidget {
-  const _NotesModeToggle({required this.mode, required this.onChanged});
-
-  final _NotesMode mode;
-  final ValueChanged<_NotesMode> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.loitColors;
-    Widget seg(String label, _NotesMode value, bool first, bool last) {
-      final selected = value == mode;
-      final radius = BorderRadius.horizontal(
-        left: first ? const Radius.circular(8) : Radius.zero,
-        right: last ? const Radius.circular(8) : Radius.zero,
-      );
-      return Expanded(
-        child: InkWell(
-          onTap: () => onChanged(value),
-          borderRadius: radius,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            height: 36,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: selected
-                  ? c.brand.withValues(alpha: 0.10)
-                  : c.surface,
-              borderRadius: radius,
-              border: Border.all(
-                color: selected ? c.brand : c.borderDefault,
-                width: selected ? 1.5 : 1,
-              ),
-            ),
-            child: Text(
-              label,
-              style: LoitTypography.bodyS.copyWith(
-                color: selected ? c.brand : c.contentSecondary,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Row(children: [
-      seg('Text', _NotesMode.text, true, false),
-      seg('Items', _NotesMode.items, false, true),
-    ]);
   }
 }

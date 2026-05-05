@@ -1,63 +1,148 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_elevation.dart';
 import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_spacing.dart';
 import 'connectivity_banner.dart';
 import 'loit_banner.dart';
 
-class PersistentConnectivityBanner extends ConsumerWidget {
+class PersistentConnectivityBanner extends ConsumerStatefulWidget {
   const PersistentConnectivityBanner({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(connectivityProvider);
-    final bool offline = async.maybeWhen(
-      data: isOffline,
-      orElse: () => false,
-    );
+  ConsumerState<PersistentConnectivityBanner> createState() =>
+      _PersistentConnectivityBannerState();
+}
 
-    return AnimatedSwitcher(
+class _PersistentConnectivityBannerState
+    extends ConsumerState<PersistentConnectivityBanner> {
+  bool _minimized = false;
+  Timer? _autoMinimizeTimer;
+
+  void _startAutoMinimizeTimer() {
+    _cancelTimer();
+    _autoMinimizeTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _minimized = true);
+    });
+  }
+
+  void _cancelTimer() {
+    _autoMinimizeTimer?.cancel();
+    _autoMinimizeTimer = null;
+  }
+
+  @override
+  void dispose() {
+    _cancelTimer();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(connectivityProvider, (prev, next) {
+      final wasOffline =
+          prev?.maybeWhen(data: isOffline, orElse: () => false) ?? false;
+      final isOfflineNow = next.maybeWhen(data: isOffline, orElse: () => false);
+      if (isOfflineNow && !wasOffline) {
+        _minimized = false;
+        _startAutoMinimizeTimer();
+      } else if (!isOfflineNow) {
+        _minimized = false;
+        _cancelTimer();
+      }
+    });
+
+    final async = ref.watch(connectivityProvider);
+    final bool offline =
+        async.maybeWhen(data: isOffline, orElse: () => false);
+
+    final bottomOffset =
+        64 + MediaQuery.of(context).padding.bottom + LoitSpacing.s2;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final double right = _minimized
+        ? screenWidth - LoitSpacing.s4 - 44
+        : LoitSpacing.s4;
+
+    return AnimatedPositioned(
+      left: LoitSpacing.s4,
+      right: right,
+      bottom: offline ? bottomOffset : -(96 + bottomOffset),
       duration: LoitMotion.base,
-      switchInCurve: LoitMotion.emphasizedCurve,
-      switchOutCurve: LoitMotion.easeOut,
-      transitionBuilder: (child, animation) {
-        final curved = CurvedAnimation(
-          parent: animation,
+      curve: LoitMotion.emphasizedCurve,
+      child: IgnorePointer(
+        ignoring: !offline,
+        child: AnimatedOpacity(
+          opacity: offline ? 1.0 : 0.0,
+          duration: LoitMotion.short,
           curve: LoitMotion.emphasizedCurve,
-          reverseCurve: LoitMotion.easeOut,
-        );
-        return FadeTransition(
-          opacity: curved,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, -0.2),
-              end: Offset.zero,
-            ).animate(curved),
-            child: child,
-          ),
-        );
-      },
-      child: offline
-          ? Padding(
-              key: const ValueKey('offline'),
-              padding: const EdgeInsets.fromLTRB(
-                LoitSpacing.s4,
-                LoitSpacing.s2,
-                LoitSpacing.s4,
-                0,
-              ),
-              child: SafeArea(
-                bottom: false,
-                child: const LoitBanner(
-                  kind: LoitBannerKind.offline,
-                  title: "You're offline",
-                  body:
-                      'Changes are saved locally and will sync when you reconnect.',
+          child: AnimatedSwitcher(
+            duration: LoitMotion.base,
+            switchInCurve: LoitMotion.emphasizedCurve,
+            switchOutCurve: LoitMotion.easeOut,
+            transitionBuilder: (child, animation) {
+              final curved = CurvedAnimation(
+                parent: animation,
+                curve: LoitMotion.emphasizedCurve,
+              );
+              return FadeTransition(
+                opacity: curved,
+                child: ScaleTransition(
+                  scale: Tween<double>(begin: 0.85, end: 1).animate(curved),
+                  child: child,
                 ),
-              ),
-            )
-          : const SizedBox(key: ValueKey('online')),
+              );
+            },
+            child: _minimized ? _iconButton() : _banner(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _banner() {
+    return SafeArea(
+      top: false,
+      child: LoitBanner(
+        key: const ValueKey('banner'),
+        kind: LoitBannerKind.offline,
+        title: "You're offline",
+        body: 'Changes are saved locally and will sync when you reconnect.',
+        onDismiss: () {
+          _cancelTimer();
+          setState(() => _minimized = true);
+        },
+      ),
+    );
+  }
+
+  Widget _iconButton() {
+    final c = context.loitColors;
+    return Container(
+      key: const ValueKey('icon'),
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: c.surface,
+        shape: BoxShape.circle,
+        border: Border.all(color: c.borderSubtle, width: 1),
+        boxShadow: LoitElevation.e2,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () {
+            _cancelTimer();
+            setState(() => _minimized = false);
+          },
+          child: Icon(Icons.cloud_off_rounded, size: 20, color: c.warning),
+        ),
+      ),
     );
   }
 }

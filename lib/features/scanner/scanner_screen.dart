@@ -15,6 +15,7 @@ import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/services_providers.dart';
+import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/loit_banner.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_sheet.dart';
@@ -63,7 +64,15 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
     final scanner = ref.read(scannerServiceProvider);
     final compressed = await scanner.compressToFile(file);
-    final result = await scanner.scanReceipt(compressed, isDemo: isDemo);
+    final userCats = ref.read(userCategoriesProvider).value ?? [];
+    final catList = userCats
+        .map((c) => {'key': c.key, 'name': c.name, 'kind': c.kind})
+        .toList();
+    final result = await scanner.scanReceipt(
+      compressed,
+      isDemo: isDemo,
+      categories: catList.isNotEmpty ? catList : null,
+    );
 
     if (!mounted) return;
 

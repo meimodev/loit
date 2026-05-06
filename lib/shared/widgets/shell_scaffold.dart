@@ -35,7 +35,16 @@ class ShellScaffold extends StatelessWidget {
       bottomNavigationBar: LoitTabBar(
         currentIndex: activeSlot,
         onTap: (slot) => _onTap(context, slot),
-        onScan: () => context.push('/scan'),
+        onScan: () {
+          // Detect if user is currently inside a specific room — if so,
+          // forward roomId so scanner locks to that room.
+          final loc = GoRouterState.of(context).uri.path;
+          final m = RegExp(r'^/rooms/([^/]+)$').firstMatch(loc);
+          final roomId = m?.group(1);
+          context.push(
+            roomId != null ? '/scan?roomId=$roomId' : '/scan',
+          );
+        },
       ),
     );
   }

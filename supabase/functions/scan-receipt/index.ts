@@ -70,8 +70,6 @@ Return this exact shape:
 {
   "type": "expense|income",
   "merchant": "string or null",
-  "date": "YYYY-MM-DD or null",
-  "time": "HH:MM or null",
   "currency": "ISO 4217 code or null",
   "items": [{ "name": "string", "qty": 1, "unit_price": 0.00, "total_price": 0.00 }],
   "total": 0.00,
@@ -83,7 +81,7 @@ Rules:
 - "category" must be exactly one key from the lists above; use EXPENSE keys for expense, INCOME keys for income.
 - Calculate "total" from individual items "total_price" if the "total" is not present or clearly incorrect.
 - Default "type" to "expense" when the document is ambiguous.
-- Use null for any field that cannot be read from the document.`;
+- Use null for any other field that cannot be read from the document.`;
 }
 
 // Extracts whatever fields are parseable from a malformed AI response.

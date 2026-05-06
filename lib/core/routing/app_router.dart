@@ -261,7 +261,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/scan',
-        builder: (_, __) => const ScannerScreen(),
+        builder: (_, state) => ScannerScreen(
+          roomId: state.uri.queryParameters['roomId'],
+        ),
       ),
       GoRoute(
         path: '/billing',

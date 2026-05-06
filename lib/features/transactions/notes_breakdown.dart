@@ -47,6 +47,34 @@ double? _parseLooseNumber(String s) {
   return double.tryParse(cleaned.replaceAll(RegExp(r'[.,]'), ''));
 }
 
+/// Fills missing unit_price ↔ total_price ↔ qty using the other two when
+/// possible. Treats `<= 0` as missing (AI sometimes emits 0 for unknown).
+/// Returns a new list; original instances are not mutated.
+List<NotesBreakdownItem> inferMissingItemMath(List<NotesBreakdownItem> items) {
+  bool valid(double? v) => v != null && v > 0;
+  return [
+    for (final it in items)
+      () {
+        var qty = valid(it.qty) ? it.qty : null;
+        var unit = valid(it.unitPrice) ? it.unitPrice : null;
+        var total = valid(it.totalPrice) ? it.totalPrice : null;
+        if (total == null && qty != null && unit != null) {
+          total = qty * unit;
+        } else if (unit == null && total != null && qty != null) {
+          unit = total / qty;
+        } else if (qty == null && total != null && unit != null) {
+          qty = total / unit;
+        }
+        return NotesBreakdownItem(
+          name: it.name,
+          qty: qty,
+          unitPrice: unit,
+          totalPrice: total,
+        );
+      }(),
+  ];
+}
+
 String formatBreakdown(NotesBreakdown b) {
   final lines = <String>[];
   if (b.merchant.trim().isNotEmpty) lines.add(b.merchant.trim());

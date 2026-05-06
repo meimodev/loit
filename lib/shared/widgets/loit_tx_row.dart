@@ -8,7 +8,7 @@ import 'loit_category_avatar.dart';
 
 /// Edge-to-edge transaction row.
 /// 60pt min-height per design; bordered bottom unless last in group.
-class LoitTxRow extends StatelessWidget {
+class LoitTxRow extends StatefulWidget {
   const LoitTxRow({
     super.key,
     required this.title,
@@ -21,7 +21,9 @@ class LoitTxRow extends StatelessWidget {
     this.amountColor,
     this.showDivider = true,
     this.onTap,
+    this.onLongPress,
     this.trailingBadge,
+    this.leadingSelector,
   });
 
   final String title;
@@ -34,20 +36,35 @@ class LoitTxRow extends StatelessWidget {
   final Color? amountColor;
   final bool showDivider;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final Widget? trailingBadge;
+
+  /// Optional widget shown at the very start of the row, ahead of the
+  /// category avatar. Slides in/out horizontally via AnimatedSwitcher when
+  /// it changes, used for the multi-select checkbox.
+  final Widget? leadingSelector;
+
+  @override
+  State<LoitTxRow> createState() => _LoitTxRowState();
+}
+
+class _LoitTxRowState extends State<LoitTxRow> {
+  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    final colorAmount = amountColor ??
-        (isTransfer
+    final colorAmount = widget.amountColor ??
+        (widget.isTransfer
             ? c.contentSecondary
-            : isIncome
+            : widget.isIncome
                 ? LoitStatusAliases.income(c)
                 : LoitStatusAliases.expense(c));
-    final effectiveSubtitle = accountLabel != null
-        ? (subtitle != null ? '$subtitle · $accountLabel' : accountLabel)
-        : subtitle;
+    final effectiveSubtitle = widget.accountLabel != null
+        ? (widget.subtitle != null
+            ? '${widget.subtitle} · ${widget.accountLabel}'
+            : widget.accountLabel)
+        : widget.subtitle;
     final row = Container(
       color: c.surface,
       padding: const EdgeInsets.symmetric(
@@ -56,7 +73,20 @@ class LoitTxRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          isTransfer
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (child, anim) => SizeTransition(
+              sizeFactor: anim,
+              axis: Axis.horizontal,
+              axisAlignment: -1,
+              child: FadeTransition(opacity: anim, child: child),
+            ),
+            child: widget.leadingSelector ??
+                const SizedBox.shrink(key: ValueKey('no-sel')),
+          ),
+          widget.isTransfer
               ? Container(
                   width: 36,
                   height: 36,
@@ -67,14 +97,14 @@ class LoitTxRow extends StatelessWidget {
                   alignment: Alignment.center,
                   child: Icon(Icons.swap_horiz, size: 18, color: c.contentSecondary),
                 )
-              : LoitCategoryAvatar(categoryKey: categoryKey, size: 36),
+              : LoitCategoryAvatar(categoryKey: widget.categoryKey, size: 36),
           const SizedBox(width: LoitSpacing.s4),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  widget.title,
                   softWrap: true,
                   style: LoitTypography.bodyM.copyWith(
                     color: c.contentPrimary,
@@ -96,26 +126,40 @@ class LoitTxRow extends StatelessWidget {
               ],
             ),
           ),
-          if (trailingBadge != null) ...[
-            trailingBadge!,
+          if (widget.trailingBadge != null) ...[
+            widget.trailingBadge!,
             const SizedBox(width: LoitSpacing.s3),
           ],
           Text(
-            amount,
+            widget.amount,
             style: LoitTypography.amountDefault.copyWith(color: colorAmount),
           ),
         ],
       ),
     );
 
-    final inkRow = onTap == null
+    final hasInteraction =
+        widget.onTap != null || widget.onLongPress != null;
+    final inkRow = !hasInteraction
         ? row
         : Material(
             color: c.surface,
-            child: InkWell(onTap: onTap, child: row),
+            child: InkWell(
+              onTap: widget.onTap,
+              onLongPress: widget.onLongPress,
+              onHighlightChanged: (v) {
+                if (mounted) setState(() => _pressed = v);
+              },
+              child: AnimatedScale(
+                scale: _pressed ? 0.97 : 1.0,
+                duration: const Duration(milliseconds: 140),
+                curve: Curves.easeOut,
+                child: row,
+              ),
+            ),
           );
 
-    if (!showDivider) return inkRow;
+    if (!widget.showDivider) return inkRow;
     return Column(
       children: [
         inkRow,

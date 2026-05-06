@@ -140,24 +140,16 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
             if (v is String) return double.tryParse(v);
             return null;
           }
-          _itemRows.add(_ItemRowControllers(
+          _addRow(_ItemRowControllers(
             name: name,
             qty: toD(m['qty']),
             unit: toD(m['unit_price']),
             total: toD(m['total_price']),
           ));
         }
-        // Infer missing unit_price ↔ total_price from each other, then derive
-        // transaction total from items if the AI didn't supply one.
+        // Infer missing unit_price ↔ total_price ↔ qty for each row.
         for (final r in _itemRows) {
-          final qty = parseAmountInput(r.qtyC.text);
-          final unit = parseAmountInput(r.unitC.text);
-          final total = parseAmountInput(r.totalC.text);
-          if (total == null && qty != null && unit != null) {
-            r.totalC.text = formatAmountInput(qty * unit);
-          } else if (unit == null && total != null && qty != null && qty > 0) {
-            r.unitC.text = formatAmountInput(total / qty);
-          }
+          _recalcRow(r);
         }
         if (_amount.text.isEmpty) {
           var sum = 0.0;
@@ -192,7 +184,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
               _notesMode = _NotesMode.items;
               _merchant.text = parsed.merchant;
               for (final it in parsed.items) {
-                _itemRows.add(_ItemRowControllers(
+                _addRow(_ItemRowControllers(
                   name: it.name,
                   qty: it.qty,
                   unit: it.unitPrice,
@@ -294,7 +286,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
         _itemRows.clear();
         _merchant.text = parsed.merchant;
         for (final it in parsed.items) {
-          _itemRows.add(_ItemRowControllers(
+          _addRow(_ItemRowControllers(
             name: it.name,
             qty: it.qty,
             unit: it.unitPrice,
@@ -350,7 +342,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
             label: const Text('Add item'),
             onPressed: () {
               setState(() {
-                _itemRows.add(_ItemRowControllers());
+                _addRow(_ItemRowControllers());
               });
             },
           ),
@@ -459,6 +451,50 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
         ],
       ),
     );
+  }
+
+  void _addRow(_ItemRowControllers r) {
+    _itemRows.add(r);
+    _attachItemListeners(r);
+  }
+
+  void _attachItemListeners(_ItemRowControllers r) {
+    void listener() => _recalcRow(r);
+    r.qtyC.addListener(listener);
+    r.unitC.addListener(listener);
+    r.totalC.addListener(listener);
+  }
+
+  /// Fills any single missing value among qty / unit / total when the other
+  /// two are present. `<= 0` is treated as missing. Re-entrancy guarded.
+  void _recalcRow(_ItemRowControllers r) {
+    if (r._suppress) return;
+    final qty = parseAmountInput(r.qtyC.text);
+    final unit = parseAmountInput(r.unitC.text);
+    final total = parseAmountInput(r.totalC.text);
+    final hasQty = qty != null && qty > 0;
+    final hasUnit = unit != null && unit > 0;
+    final hasTotal = total != null && total > 0;
+    void set(TextEditingController c, double v) {
+      final txt = formatAmountInput(v);
+      if (c.text == txt) return;
+      c.value = TextEditingValue(
+        text: txt,
+        selection: TextSelection.collapsed(offset: txt.length),
+      );
+    }
+    r._suppress = true;
+    try {
+      if (!hasTotal && hasQty && hasUnit) {
+        set(r.totalC, qty * unit);
+      } else if (!hasUnit && hasTotal && hasQty) {
+        set(r.unitC, total / qty);
+      } else if (!hasQty && hasTotal && hasUnit) {
+        set(r.qtyC, total / unit);
+      }
+    } finally {
+      r._suppress = false;
+    }
   }
 
   String get _currencySymbol {
@@ -653,7 +689,15 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
         },
       );
 
-      if (mounted) context.pop();
+      if (mounted) {
+        // When transaction targets a room, jump into the room view instead
+        // of popping back to the previous screen (typically scanner/form).
+        if (_roomId != null && _type != 'transfer') {
+          context.go('/rooms/$_roomId');
+        } else {
+          context.pop();
+        }
+      }
     } catch (e) {
       InteractionLog.error(
         action: 'transaction_save',
@@ -1181,17 +1225,20 @@ class _ItemRowControllers {
     double? unit,
     double? total,
   })  : nameC = TextEditingController(text: name ?? ''),
+        // Treat 0/null as "missing" so fallback math kicks in.
         qtyC = TextEditingController(
-            text: qty != null ? formatAmountInput(qty) : ''),
+            text: (qty != null && qty > 0) ? formatAmountInput(qty) : ''),
         unitC = TextEditingController(
-            text: unit != null ? formatAmountInput(unit) : ''),
+            text: (unit != null && unit > 0) ? formatAmountInput(unit) : ''),
         totalC = TextEditingController(
-            text: total != null ? formatAmountInput(total) : '');
+            text: (total != null && total > 0) ? formatAmountInput(total) : '');
 
   final TextEditingController nameC;
   final TextEditingController qtyC;
   final TextEditingController unitC;
   final TextEditingController totalC;
+
+  bool _suppress = false;
 
   void dispose() {
     nameC.dispose();

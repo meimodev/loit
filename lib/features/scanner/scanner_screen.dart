@@ -8,20 +8,27 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/config/pricing_constants.dart';
 import '../../core/services/analytics_service.dart';
+import '../../core/services/currency_service.dart';
 import '../../core/services/dummy_payment_service.dart';
+import '../../core/services/interaction_log_service.dart';
 import '../../core/services/log_service.dart';
 import '../../core/services/scanner_service.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/services_providers.dart';
+import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/loit_banner.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_sheet.dart';
+import '../paywall/feature_gate.dart';
 import '../paywall/paywall_screen.dart';
+import '../transactions/notes_breakdown.dart';
 
 /// LOIT scanner flow.
 ///
@@ -33,7 +40,12 @@ import '../paywall/paywall_screen.dart';
 /// Confirm step routes to `/transactions/new` (Phase 2 C form).
 /// Success surfaces via form's save snackbar.
 class ScannerScreen extends ConsumerStatefulWidget {
-  const ScannerScreen({super.key});
+  const ScannerScreen({super.key, this.roomId});
+
+  /// When non-null, scanner is locked to a specific room: the toggle is
+  /// preselected to Rooms and disabled, and the post-scan room picker
+  /// is bypassed.
+  final String? roomId;
 
   @override
   ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
@@ -51,9 +63,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   CameraController? _camCtrl;
   bool _camReady = false;
 
+  /// When true, scanned receipt is routed to a room. The user picks which
+  /// room after the scan completes (rooms vary, can't pre-select reliably).
+  bool _useRoom = false;
+
   @override
   void initState() {
     super.initState();
+    if (widget.roomId != null) _useRoom = true;
     _initCamera();
   }
 
@@ -142,16 +159,39 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
     if (!mounted) return;
 
+    // Resolve room target. When scanner is locked to a room (opened from
+    // RoomDetail), use that id directly — skip picker. Otherwise prompt.
+    String? roomId;
+    if (widget.roomId != null) {
+      roomId = widget.roomId;
+    } else if (_useRoom) {
+      final picked = await _pickRoom();
+      if (picked == null) {
+        if (mounted) setState(() => _phase = _ScanPhase.capture);
+        return;
+      }
+      roomId = picked;
+    }
+
     switch (result.errorType) {
       case null:
-        Log.i(_tag, 'Scan success → /transactions/new');
         final data = Map<String, dynamic>.from(result.parsedData ?? {});
         data['_ai_parsed'] = true;
         data['_image_path'] = compressed.path;
-        context.pushReplacement('/transactions/new', extra: data);
+        if (roomId != null) data['_room_id'] = roomId;
+        // Auto-save when we have enough to skip the form: full scan, total > 0,
+        // and at least one active account. Otherwise fall through to manual review.
+        if (await _autoSaveScan(data, compressed.path, roomId: roomId)) {
+          Log.i(_tag, 'Scan success → auto-saved');
+        } else {
+          Log.i(_tag, 'Scan success → /transactions/new (review)');
+          if (!mounted) return;
+          context.pushReplacement('/transactions/new', extra: data);
+        }
         break;
       case ScanErrorType.aiFailure:
         final data = Map<String, dynamic>.from(result.partialFields ?? {});
+        if (roomId != null) data['_room_id'] = roomId;
         // Raise bar: only show manual-fallback banner when nothing useful was
         // recovered. If total>0 or items present, treat as best-effort parse.
         final totalRaw = data['total'];
@@ -201,6 +241,198 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     }
   }
 
+  /// Try to commit the scan result without showing the review form.
+  /// Returns true on save (UI navigated away), false to fall back to form.
+  Future<bool> _autoSaveScan(
+    Map<String, dynamic> data,
+    String imagePath, {
+    String? roomId,
+  }) async {
+    try {
+      final totalRaw = data['total'];
+      final totalNum = totalRaw is num
+          ? totalRaw.toDouble()
+          : double.tryParse('${totalRaw ?? ''}');
+      if (totalNum == null || totalNum <= 0) return false;
+
+      final type = (data['type'] as String?) == 'income' ? 'income' : 'expense';
+      final accounts = ref.read(activeAccountsProvider);
+      if (accounts.isEmpty) return false;
+      final accountId = accounts.first.id;
+
+      final profile = ref.read(userProfileProvider).value;
+      final home = profile?.homeCurrency ?? 'IDR';
+      final currency = (data['currency'] as String?) ?? home;
+
+      // FX rate (best-effort; default 1.0 if lookup fails).
+      var rate = 1.0;
+      var fxStale = false;
+      if (currency != home && profile != null) {
+        try {
+          final fx = await ref.read(currencyServiceProvider).getRate(
+                from: currency,
+                to: home,
+                tier: UserTier.fromString(profile.tier),
+              );
+          rate = fx.rate;
+          fxStale = fx.isStale;
+        } catch (_) {}
+      }
+      // Stale FX is a confidence signal — let user review instead of silent save.
+      if (fxStale) return false;
+
+      // Date/time = phone clock at save time (AI no longer extracts date/time).
+      final date = DateTime.now();
+      final amount = type == 'expense' ? -totalNum : totalNum;
+
+      final notes = _buildNotesFromScan(data);
+      final category = (data['category'] as String?) ??
+          (type == 'income' ? 'income_other' : 'other');
+
+      final payload = <String, dynamic>{
+        'amount': amount,
+        'currency': currency,
+        'amount_home_currency': amount * rate,
+        'fx_rate': rate,
+        'type': type,
+        'account_id': accountId,
+        'category': category,
+        'notes': notes,
+        'ai_parsed': true,
+        'is_manual_fallback': false,
+        'created_at': date.toUtc().toIso8601String(),
+        if (roomId != null) 'room_id': roomId,
+      };
+
+      final insertedId = await ref
+          .read(transactionsProvider.notifier)
+          .addTransaction(payload);
+
+      if (insertedId != null) {
+        final tier = profile?.tier ?? 'free';
+        final canStore = FeatureFlags.forTier(tier).receiptStorage;
+        if (canStore) {
+          try {
+            final bytes = await File(imagePath).readAsBytes();
+            final user = ref.read(currentUserProvider);
+            if (user != null) {
+              await ref.read(receiptServiceProvider).uploadReceipt(
+                    userId: user.id,
+                    transactionId: insertedId,
+                    imageBytes: bytes,
+                  );
+            }
+          } catch (e) {
+            InteractionLog.error(
+              action: 'receipt_upload',
+              screen: 'scanner_autosave',
+              message: '$e',
+              metadata: {'txn_id': insertedId},
+            );
+          }
+        }
+      }
+
+      await Analytics.scanCompleted(aiSuccess: true);
+      await Analytics.transactionAdded(method: 'scan', category: category);
+
+      InteractionLog.success(
+        action: 'transaction_added',
+        screen: 'scanner_autosave',
+        message: 'scan / $category',
+        metadata: {
+          'method': 'scan_auto',
+          'category': category,
+          'amount': amount,
+          'currency': currency,
+        },
+      );
+
+      if (!mounted) return true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Receipt saved')),
+      );
+      // When transaction routed to a room, jump straight into the room view.
+      if (roomId != null) {
+        context.go('/rooms/$roomId');
+      } else {
+        context.pop();
+      }
+      return true;
+    } catch (e, st) {
+      Log.e(_tag, 'Auto-save failed, falling back to form', error: e, stack: st);
+      return false;
+    }
+  }
+
+  /// Bottom sheet — list rooms, return selected room id or null on cancel.
+  Future<String?> _pickRoom() async {
+    final rooms = await ref.read(myRoomsProvider.future);
+    if (!mounted) return null;
+    if (rooms.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No rooms yet — create one before scanning to a room.'),
+        ),
+      );
+      return null;
+    }
+    return showLoitSheet<String>(
+      context,
+      builder: (sheetCtx) => LoitSheet(
+        title: 'Send receipt to room',
+        child: SafeArea(
+          top: false,
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: rooms.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (_, i) {
+              final r = rooms[i];
+              final id = r['id'] as String;
+              final name = (r['name'] as String?) ?? 'Room';
+              return ListTile(
+                leading: const Icon(Icons.group_outlined),
+                title: Text(name),
+                onTap: () => Navigator.pop(sheetCtx, id),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  String? _buildNotesFromScan(Map<String, dynamic> data) {
+    final merchant = (data['merchant'] as String?)?.trim() ?? '';
+    final rawItems = data['items'];
+    final items = <NotesBreakdownItem>[];
+    if (rawItems is List) {
+      for (final raw in rawItems) {
+        if (raw is! Map) continue;
+        final m = Map<String, dynamic>.from(raw);
+        double? toD(Object? v) {
+          if (v is num) return v.toDouble();
+          if (v is String) return double.tryParse(v);
+          return null;
+        }
+        items.add(NotesBreakdownItem(
+          name: (m['name'] as String?)?.trim() ?? '',
+          qty: toD(m['qty']),
+          unitPrice: toD(m['unit_price']),
+          totalPrice: toD(m['total_price']),
+        ));
+      }
+    }
+    if (merchant.isEmpty && items.isEmpty) return null;
+    final formatted = formatBreakdown(NotesBreakdown(
+      merchant: merchant,
+      items: inferMissingItemMath(items),
+      total: null,
+    )).trim();
+    return formatted.isEmpty ? null : formatted;
+  }
+
   Future<void> _showQuotaSheet() async {
     await showLoitSheet<void>(
       context,
@@ -228,6 +460,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           onGallery: () => _pickAndScan(ImageSource.gallery),
           onClose: () => context.pop(),
           cameraController: _camReady ? _camCtrl : null,
+          useRoom: _useRoom,
+          lockedToRoom: widget.roomId != null,
+          onUseRoomChanged: (v) => setState(() => _useRoom = v),
         ),
       _ScanPhase.processing => const _ProcessingView(),
       _ScanPhase.error => _ErrorView(
@@ -244,11 +479,17 @@ class _CaptureView extends StatelessWidget {
     required this.onCamera,
     required this.onGallery,
     required this.onClose,
+    required this.useRoom,
+    required this.onUseRoomChanged,
+    this.lockedToRoom = false,
     this.cameraController,
   });
   final VoidCallback onCamera;
   final VoidCallback onGallery;
   final VoidCallback onClose;
+  final bool useRoom;
+  final ValueChanged<bool> onUseRoomChanged;
+  final bool lockedToRoom;
   final CameraController? cameraController;
 
   @override
@@ -311,12 +552,12 @@ class _CaptureView extends StatelessWidget {
             // Frame guide
             Positioned.fill(
               top: 80,
-              bottom: 220,
+              bottom: 280,
               left: 30,
               right: 30,
               child: const _FrameGuide(),
             ),
-            // Bottom controls
+            // Bottom controls (toggle above shutter row)
             Positioned(
               bottom: 0,
               left: 0,
@@ -324,46 +565,57 @@ class _CaptureView extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                   LoitSpacing.s5,
-                  LoitSpacing.s5,
+                  LoitSpacing.s4,
                   LoitSpacing.s5,
                   LoitSpacing.s6,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _CircleButton(
-                      icon: Icons.photo_library_outlined,
-                      onTap: onGallery,
-                      size: 48,
-                      iconSize: 22,
+                    _TargetToggle(
+                      useRoom: useRoom,
+                      onChanged: onUseRoomChanged,
+                      locked: lockedToRoom,
                     ),
-                    GestureDetector(
-                      onTap: onCamera,
-                      child: Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.4),
-                            width: 4,
+                    const SizedBox(height: LoitSpacing.s5),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        _CircleButton(
+                          icon: Icons.photo_library_outlined,
+                          onTap: onGallery,
+                          size: 48,
+                          iconSize: 22,
+                        ),
+                        GestureDetector(
+                          onTap: onCamera,
+                          child: Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.4),
+                                width: 4,
+                              ),
+                            ),
+                            child: Container(
+                              margin: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
                         ),
-                        child: Container(
-                          margin: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white,
-                          ),
+                        _CircleButton(
+                          icon: Icons.edit_outlined,
+                          onTap: () => onCamera,
+                          size: 48,
+                          iconSize: 22,
                         ),
-                      ),
-                    ),
-                    _CircleButton(
-                      icon: Icons.edit_outlined,
-                      onTap: () => onCamera,
-                      size: 48,
-                      iconSize: 22,
+                      ],
                     ),
                   ],
                 ),
@@ -463,6 +715,102 @@ const _corners = [
   _Corner(bottom: -2, left: -2, bl: true),
   _Corner(bottom: -2, right: -2, br: true),
 ];
+
+class _TargetToggle extends StatelessWidget {
+  const _TargetToggle({
+    required this.useRoom,
+    required this.onChanged,
+    this.locked = false,
+  });
+  final bool useRoom;
+  final ValueChanged<bool> onChanged;
+
+  /// When true, the toggle is fixed to Rooms — Personal is greyed out and
+  /// not tappable. Used when scanner is opened from a room context.
+  final bool locked;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: LoitRadius.brFull,
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.18),
+          width: 1,
+        ),
+      ),
+      padding: const EdgeInsets.all(5),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _segment(
+              icon: Icons.person_outline,
+              label: 'Personal',
+              selected: !useRoom,
+              disabled: locked,
+              onTap: locked ? null : () => onChanged(false)),
+          _segment(
+              icon: Icons.group_outlined,
+              label: 'Rooms',
+              selected: useRoom,
+              disabled: false,
+              onTap: locked ? null : () => onChanged(true)),
+        ],
+      ),
+    );
+  }
+
+  Widget _segment({
+    required IconData icon,
+    required String label,
+    required bool selected,
+    required bool disabled,
+    required VoidCallback? onTap,
+  }) {
+    final fg = disabled
+        ? Colors.white.withValues(alpha: 0.35)
+        : (selected ? Colors.black : Colors.white);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      decoration: BoxDecoration(
+        color: selected
+            ? (disabled
+                ? Colors.white.withValues(alpha: 0.25)
+                : Colors.white)
+            : Colors.transparent,
+        borderRadius: LoitRadius.brFull,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: LoitRadius.brFull,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: LoitSpacing.s5, vertical: LoitSpacing.s3),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 20, color: fg),
+                const SizedBox(width: LoitSpacing.s2),
+                Text(
+                  label,
+                  style: LoitTypography.bodyM.copyWith(
+                    color: fg,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _CornerPainter extends CustomPainter {
   _CornerPainter({required this.tl, required this.tr, required this.bl, required this.br});

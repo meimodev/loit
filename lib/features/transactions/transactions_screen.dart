@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -207,7 +210,38 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                           t.isTransfer && fromName != null && toName != null
                           ? '$fromName → $toName'
                           : fromName;
-                      return LoitTxRow(
+                      // Trailing badge keeps only the sync indicator. Multi-
+                      // select checkbox slides in from the leading edge.
+                      final Widget? badgeChild = t.id == null
+                          ? const _SyncBadge(key: ValueKey('sync'))
+                          : null;
+                      final animatedBadge = AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        transitionBuilder: (child, anim) => ScaleTransition(
+                          scale: anim,
+                          child: FadeTransition(opacity: anim, child: child),
+                        ),
+                        child: badgeChild ??
+                            const SizedBox.shrink(key: ValueKey('none')),
+                      );
+                      final leadingSelector = _multiMode
+                          ? Padding(
+                              key: ValueKey(
+                                  selected ? 'sel-check' : 'sel-radio'),
+                              padding: const EdgeInsets.only(
+                                  left: LoitSpacing.s5, right: LoitSpacing.s2),
+                              child: Icon(
+                                selected
+                                    ? Icons.check_circle
+                                    : Icons.radio_button_unchecked,
+                                size: 22,
+                                color: selected
+                                    ? c.brand
+                                    : c.contentTertiary,
+                              ),
+                            )
+                          : null;
+                      final row = LoitTxRow(
                         title: breakdownTitle(t.notes),
                         categoryKey: t.isTransfer ? null : t.category,
                         subtitle: _txSubtitle(t),
@@ -216,17 +250,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         isTransfer: t.isTransfer,
                         accountLabel: accountLabel,
                         showDivider: i != entry.value.length - 1,
-                        trailingBadge: _multiMode
-                            ? Icon(
-                                selected
-                                    ? Icons.check_circle
-                                    : Icons.radio_button_unchecked,
-                                size: 22,
-                                color: selected ? c.brand : c.contentTertiary,
-                              )
-                            : (t.id == null
-                                ? const _SyncBadge()
-                                : null),
+                        trailingBadge: animatedBadge,
+                        leadingSelector: leadingSelector,
                         onTap: () {
                           if (_multiMode) {
                             _toggleMulti(t.id);
@@ -236,6 +261,39 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                             context.push('/transactions/pending', extra: t);
                           }
                         },
+                        onLongPress: t.id == null
+                            ? null
+                            : () {
+                                HapticFeedback.mediumImpact();
+                                if (!_multiMode) {
+                                  setState(() {
+                                    _multiMode = true;
+                                    _selected.add(t.id!);
+                                  });
+                                } else {
+                                  _toggleMulti(t.id);
+                                }
+                              },
+                      );
+                      // Selection tint with smooth bg transition.
+                      final tinted = AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOut,
+                        color: selected
+                            ? c.brand.withValues(alpha: 0.08)
+                            : Colors.transparent,
+                        child: row,
+                      );
+                      // Swipe-to-delete only when not in multi-select and the
+                      // row has been synced (has id). Unsynced rows can't be
+                      // deleted server-side yet.
+                      if (_multiMode || t.id == null) return tinted;
+                      return Dismissible(
+                        key: ValueKey('tx-${t.id}'),
+                        direction: DismissDirection.endToStart,
+                        background: _swipeDeleteBackground(c),
+                        onDismissed: (_) => _deleteWithUndo(t),
+                        child: tinted,
                       );
                     },
                   ),
@@ -265,8 +323,99 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               primaryTooltip: 'New transaction',
               primaryIcon: Icons.add,
             ),
-      bottomNavigationBar: _multiMode ? _selectionBar(context) : null,
+      bottomNavigationBar: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeIn,
+        transitionBuilder: (child, anim) => SizeTransition(
+          sizeFactor: anim,
+          axisAlignment: -1,
+          child: FadeTransition(opacity: anim, child: child),
+        ),
+        child: _multiMode
+            ? _selectionBar(context)
+            : const SizedBox.shrink(key: ValueKey('no-bar')),
+      ),
     );
+  }
+
+  Widget _swipeDeleteBackground(LoitColors c) {
+    return Container(
+      color: c.danger,
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.symmetric(horizontal: LoitSpacing.s5),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.delete_outline, color: Colors.white),
+          SizedBox(width: LoitSpacing.s2),
+          Text('Delete', style: TextStyle(color: Colors.white)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteWithUndo(Txn t) async {
+    final id = t.id;
+    if (id == null) return;
+    final notifier = ref.read(transactionsProvider.notifier);
+    try {
+      await notifier.deleteTransaction(id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      }
+      return;
+    }
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    late ScaffoldFeatureController<SnackBar, SnackBarClosedReason> ctrl;
+    ctrl = messenger.showSnackBar(
+      SnackBar(
+        content: const Text('Transaction deleted'),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () async {
+            ctrl.close();
+            final payload = <String, dynamic>{
+              'amount': t.amount,
+              'currency': t.currency,
+              if (t.amountHome != null) 'amount_home_currency': t.amountHome,
+              if (t.fxRate != null) 'fx_rate': t.fxRate,
+              'type': t.type,
+              if (t.accountId != null) 'account_id': t.accountId,
+              if (t.toAccountId != null) 'to_account_id': t.toAccountId,
+              if (t.category != null) 'category': t.category,
+              if (t.notes != null) 'notes': t.notes,
+              'ai_parsed': t.aiParsed,
+              'is_manual_fallback': t.isManualFallback,
+              'created_at': t.createdAt.toUtc().toIso8601String(),
+              if (t.roomId != null) 'room_id': t.roomId,
+            };
+            try {
+              await notifier.addTransaction(payload);
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Undo failed: $e')),
+                );
+              }
+            }
+          },
+        ),
+      ),
+    );
+    // Backstop timer: Flutter disables SnackBar auto-dismiss when accessible
+    // navigation (e.g. TalkBack) is on. Force-close after the same duration
+    // so the toast never lingers.
+    Timer(const Duration(seconds: 3), () {
+      try {
+        ctrl.close();
+      } catch (_) {}
+    });
   }
 
   PreferredSizeWidget _multiAppBar(BuildContext context) {
@@ -279,6 +428,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   Widget _selectionBar(BuildContext context) {
     final c = context.loitColors;
     return Material(
+      key: const ValueKey('select-bar'),
       color: c.surface,
       elevation: 8,
       child: SafeArea(
@@ -401,7 +551,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 }
 
 class _SyncBadge extends StatelessWidget {
-  const _SyncBadge();
+  const _SyncBadge({super.key});
 
   @override
   Widget build(BuildContext context) {

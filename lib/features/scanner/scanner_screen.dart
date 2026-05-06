@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/config/pricing_constants.dart';
 import '../../core/services/analytics_service.dart';
 import '../../core/services/dummy_payment_service.dart';
+import '../../core/services/log_service.dart';
 import '../../core/services/scanner_service.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
@@ -40,10 +42,71 @@ class ScannerScreen extends ConsumerStatefulWidget {
 enum _ScanPhase { capture, processing, error }
 
 class _ScannerScreenState extends ConsumerState<ScannerScreen> {
+  static const _tag = 'ScannerScreen';
   final _picker = ImagePicker();
   _ScanPhase _phase = _ScanPhase.capture;
   String? _errorKind;
   File? _lastFile;
+
+  CameraController? _camCtrl;
+  bool _camReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initCamera();
+  }
+
+  Future<void> _initCamera() async {
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        Log.w(_tag, 'No cameras available');
+        return;
+      }
+      final back = cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
+      final ctrl = CameraController(back, ResolutionPreset.high,
+          enableAudio: false, imageFormatGroup: ImageFormatGroup.jpeg);
+      await ctrl.initialize();
+      if (!mounted) {
+        await ctrl.dispose();
+        return;
+      }
+      setState(() {
+        _camCtrl = ctrl;
+        _camReady = true;
+      });
+      Log.i(_tag, 'Camera ready: ${back.name}');
+    } catch (e, st) {
+      Log.e(_tag, 'Camera init failed', error: e, stack: st);
+    }
+  }
+
+  @override
+  void dispose() {
+    _camCtrl?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _captureFromCamera() async {
+    if (_camReady && _camCtrl != null) {
+      try {
+        Log.d(_tag, 'Taking picture via CameraController');
+        final xfile = await _camCtrl!.takePicture();
+        await _scan(File(xfile.path));
+        return;
+      } catch (e) {
+        Log.w(_tag, 'CameraController capture failed, falling back to picker', error: e);
+      }
+    }
+    Log.d(_tag, 'Using image_picker fallback for camera capture');
+    final x = await _picker.pickImage(source: ImageSource.camera, imageQuality: 95);
+    if (x == null) return;
+    await _scan(File(x.path));
+  }
 
   Future<void> _pickAndScan(ImageSource source) async {
     final x = await _picker.pickImage(source: source, imageQuality: 95);
@@ -57,6 +120,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       _errorKind = null;
       _lastFile = file;
     });
+    Log.i(_tag, 'Scan started: ${file.path}');
     await Analytics.scanStarted();
 
     final profile = ref.read(userProfileProvider).value;
@@ -64,10 +128,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
     final scanner = ref.read(scannerServiceProvider);
     final compressed = await scanner.compressToFile(file);
+    Log.d(_tag, 'Compressed to ${compressed.path}');
     final userCats = ref.read(userCategoriesProvider).value ?? [];
     final catList = userCats
         .map((c) => {'key': c.key, 'name': c.name, 'kind': c.kind})
         .toList();
+    Log.d(_tag, 'Sending to scan-receipt (isDemo=$isDemo, cats=${catList.length})');
     final result = await scanner.scanReceipt(
       compressed,
       isDemo: isDemo,
@@ -78,20 +144,38 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
     switch (result.errorType) {
       case null:
+        Log.i(_tag, 'Scan success → /transactions/new');
         final data = Map<String, dynamic>.from(result.parsedData ?? {});
         data['_ai_parsed'] = true;
         data['_image_path'] = compressed.path;
         context.pushReplacement('/transactions/new', extra: data);
         break;
       case ScanErrorType.aiFailure:
-        await Analytics.scanFailed('ai_failure');
         final data = Map<String, dynamic>.from(result.partialFields ?? {});
-        data['_manual_fallback'] = true;
+        // Raise bar: only show manual-fallback banner when nothing useful was
+        // recovered. If total>0 or items present, treat as best-effort parse.
+        final totalRaw = data['total'];
+        final totalNum = totalRaw is num
+            ? totalRaw.toDouble()
+            : double.tryParse('${totalRaw ?? ''}');
+        final hasItems = data['items'] is List &&
+            (data['items'] as List).isNotEmpty;
+        final hasUsable = (totalNum != null && totalNum > 0) || hasItems;
+        if (hasUsable) {
+          Log.w(_tag, 'AI partial parse → treat as ai_parsed');
+          await Analytics.scanFailed('ai_failure_partial');
+          data['_ai_parsed'] = true;
+        } else {
+          Log.w(_tag, 'AI parse failure → manual fallback');
+          await Analytics.scanFailed('ai_failure');
+          data['_manual_fallback'] = true;
+        }
         data['_image_path'] = compressed.path;
         if (!mounted) return;
         context.pushReplacement('/transactions/new', extra: data);
         break;
       case ScanErrorType.quotaExceeded:
+        Log.w(_tag, 'Quota exceeded → showing top-up sheet');
         await Analytics.scanFailed('quota_exceeded');
         await Analytics.scanTopupPromptShown();
         if (!mounted) return;
@@ -99,6 +183,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         await _showQuotaSheet();
         break;
       case ScanErrorType.connectionError:
+        Log.w(_tag, 'Connection error → error view');
         await Analytics.scanFailed('connection_error');
         setState(() {
           _errorKind = 'connection';
@@ -106,6 +191,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         });
         break;
       case ScanErrorType.serverError:
+        Log.w(_tag, 'Server error → error view');
         await Analytics.scanFailed('server_error');
         setState(() {
           _errorKind = 'server';
@@ -138,9 +224,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   Widget build(BuildContext context) {
     return switch (_phase) {
       _ScanPhase.capture => _CaptureView(
-          onCamera: () => _pickAndScan(ImageSource.camera),
+          onCamera: _captureFromCamera,
           onGallery: () => _pickAndScan(ImageSource.gallery),
           onClose: () => context.pop(),
+          cameraController: _camReady ? _camCtrl : null,
         ),
       _ScanPhase.processing => const _ProcessingView(),
       _ScanPhase.error => _ErrorView(
@@ -157,18 +244,36 @@ class _CaptureView extends StatelessWidget {
     required this.onCamera,
     required this.onGallery,
     required this.onClose,
+    this.cameraController,
   });
   final VoidCallback onCamera;
   final VoidCallback onGallery;
   final VoidCallback onClose;
+  final CameraController? cameraController;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0C0B),
-      body: SafeArea(
-        child: Stack(
-          children: [
+      body: Stack(
+        children: [
+          // Camera preview background — cover fill, no stretch
+          if (cameraController != null)
+            SizedBox.expand(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: cameraController!.value.previewSize!.height,
+                  height: cameraController!.value.previewSize!.width,
+                  child: CameraPreview(cameraController!),
+                ),
+              ),
+            )
+          else
+            const SizedBox.expand(child: ColoredBox(color: Color(0xFF0A0C0B))),
+          SafeArea(
+            child: Stack(
+              children: [
             // Top bar
             Positioned(
               top: 0,
@@ -266,6 +371,8 @@ class _CaptureView extends StatelessWidget {
             ),
           ],
         ),
+          ),
+        ],
       ),
     );
   }
@@ -412,29 +519,31 @@ class _ProcessingViewState extends State<_ProcessingView>
           onPressed: () {},
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(LoitSpacing.s5),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _ReceiptSkeleton(controller: _ctrl),
-            const SizedBox(height: LoitSpacing.s6),
-            Text(
-              'Reading your receipt…',
-              style: LoitTypography.titleM.copyWith(color: c.contentPrimary),
-            ),
-            const SizedBox(height: LoitSpacing.s2),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 260),
-              child: Text(
-                "Usually takes about 2 seconds. We're extracting merchant, total, and items.",
-                textAlign: TextAlign.center,
-                style: LoitTypography.bodyS.copyWith(color: c.contentSecondary),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(LoitSpacing.s5),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ReceiptSkeleton(controller: _ctrl),
+              const SizedBox(height: LoitSpacing.s6),
+              Text(
+                'Reading your receipt…',
+                style: LoitTypography.titleM.copyWith(color: c.contentPrimary),
               ),
-            ),
-            const SizedBox(height: LoitSpacing.s5),
-            _IndeterminateBar(controller: _ctrl),
-          ],
+              const SizedBox(height: LoitSpacing.s2),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 260),
+                child: Text(
+                  "Usually takes about 2 seconds. We're extracting merchant, total, and items.",
+                  textAlign: TextAlign.center,
+                  style: LoitTypography.bodyS.copyWith(color: c.contentSecondary),
+                ),
+              ),
+              const SizedBox(height: LoitSpacing.s5),
+              _IndeterminateBar(controller: _ctrl),
+            ],
+          ),
         ),
       ),
     );

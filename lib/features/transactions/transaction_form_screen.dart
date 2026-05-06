@@ -101,6 +101,22 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       _isManualFallback = (p['_manual_fallback'] as bool?) ?? false;
       _aiParsed = (p['_ai_parsed'] as bool?) ?? false;
       _imagePath = p['_image_path'] as String?;
+      // Scan AI returns separate date (YYYY-MM-DD) and time (HH:MM) fields.
+      final scanDate = p['date'] as String?;
+      final scanTime = p['time'] as String?;
+      if (scanDate != null) {
+        final d = DateTime.tryParse(scanDate);
+        if (d != null) {
+          var h = 0, m = 0;
+          if (scanTime != null) {
+            final parts = scanTime.split(':');
+            h = int.tryParse(parts.elementAtOrNull(0) ?? '') ?? 0;
+            m = int.tryParse(parts.elementAtOrNull(1) ?? '') ?? 0;
+          }
+          _date = DateTime(d.year, d.month, d.day, h, m);
+        }
+      }
+      // Edit mode passes created_at as a full ISO timestamp — takes precedence.
       final rawDate = p['created_at'];
       if (rawDate is String) {
         final parsed = DateTime.tryParse(rawDate);
@@ -131,6 +147,26 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
             total: toD(m['total_price']),
           ));
         }
+        // Infer missing unit_price ↔ total_price from each other, then derive
+        // transaction total from items if the AI didn't supply one.
+        for (final r in _itemRows) {
+          final qty = parseAmountInput(r.qtyC.text);
+          final unit = parseAmountInput(r.unitC.text);
+          final total = parseAmountInput(r.totalC.text);
+          if (total == null && qty != null && unit != null) {
+            r.totalC.text = formatAmountInput(qty * unit);
+          } else if (unit == null && total != null && qty != null && qty > 0) {
+            r.unitC.text = formatAmountInput(total / qty);
+          }
+        }
+        if (_amount.text.isEmpty) {
+          var sum = 0.0;
+          for (final r in _itemRows) {
+            final t = parseAmountInput(r.totalC.text);
+            if (t != null) sum += t;
+          }
+          if (sum > 0) _amount.text = formatAmountInput(sum);
+        }
         // Seed canonical text so saving without further edits writes structured notes.
         _notes.text = formatBreakdown(_collectBreakdown());
       } else {
@@ -140,28 +176,40 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
           if (notesPrefill != null && notesPrefill.isNotEmpty) notesPrefill,
         ].join('\n');
         if (composed.isNotEmpty) _notes.text = composed;
-        // Existing edited transaction: auto-detect breakdown so editor opens
-        // in items mode when notes follow the canonical format.
-        final editId = p['_edit_id'] as String?;
-        if (editId != null) {
-          final parsed = parseBreakdown(_notes.text);
-          if (parsed != null) {
-            _notesMode = _NotesMode.items;
-            _merchant.text = parsed.merchant;
-            for (final it in parsed.items) {
-              _itemRows.add(_ItemRowControllers(
-                name: it.name,
-                qty: it.qty,
-                unit: it.unitPrice,
-                total: it.totalPrice,
-              ));
+
+        if (_isManualFallback || _aiParsed) {
+          // Scan-origin form with no parsed items: open Items tab so user
+          // can add items manually. Merchant belongs in the items editor header.
+          _notesMode = _NotesMode.items;
+          _merchant.text = merchantPrefill ?? '';
+        } else {
+          // Existing edited transaction: auto-detect breakdown so editor opens
+          // in items mode when notes follow the canonical format.
+          final editId = p['_edit_id'] as String?;
+          if (editId != null) {
+            final parsed = parseBreakdown(_notes.text);
+            if (parsed != null) {
+              _notesMode = _NotesMode.items;
+              _merchant.text = parsed.merchant;
+              for (final it in parsed.items) {
+                _itemRows.add(_ItemRowControllers(
+                  name: it.name,
+                  qty: it.qty,
+                  unit: it.unitPrice,
+                  total: it.totalPrice,
+                ));
+              }
             }
           }
         }
       }
     }
     _notes.addListener(_onNotesTextChanged);
-    _notesTabController = TabController(length: 2, vsync: this);
+    _notesTabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: _notesMode == _NotesMode.items ? 1 : 0,
+    );
     _notesTabController.addListener(_onNotesTabChanged);
 
     // Auto-select first active account once accounts load; fires immediately if
@@ -313,6 +361,11 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
 
   Widget _itemRow(LoitColors c, int i) {
     final r = _itemRows[i];
+    final symbol = _currencySymbol;
+    Widget priceLeading() => Text(
+          symbol,
+          style: LoitTypography.bodyS.copyWith(color: c.contentSecondary),
+        );
     return Container(
       padding: const EdgeInsets.all(LoitSpacing.s3),
       decoration: BoxDecoration(
@@ -348,6 +401,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
           ),
           const SizedBox(height: LoitSpacing.s2),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: LoitInput(
@@ -362,12 +416,21 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                   ],
                 ),
               ),
-              const SizedBox(width: LoitSpacing.s2),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: LoitSpacing.s2),
+                child: Text(
+                  '×',
+                  style: LoitTypography.bodyM
+                      .copyWith(color: c.contentTertiary),
+                ),
+              ),
               Expanded(
                 child: LoitInput(
                   controller: r.unitC,
                   placeholder: 'Unit price',
                   size: LoitInputSize.s,
+                  leading: priceLeading(),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
@@ -382,6 +445,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                   controller: r.totalC,
                   placeholder: 'Total',
                   size: LoitInputSize.s,
+                  leading: priceLeading(),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
@@ -395,6 +459,15 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
         ],
       ),
     );
+  }
+
+  String get _currencySymbol {
+    try {
+      return NumberFormat.simpleCurrency(name: _currency, decimalDigits: 0)
+          .currencySymbol;
+    } catch (_) {
+      return _currency;
+    }
   }
 
   Future<void> _recomputeFx() async {
@@ -772,11 +845,18 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                     controller: _amount,
                     label: 'Amount',
                     placeholder: '0',
-                    leading: _type == 'expense'
-                        ? Text('−',
+                    leading: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_type == 'expense')
+                          Text('−',
+                              style: LoitTypography.bodyL
+                                  .copyWith(color: c.danger)),
+                        Text(_currencySymbol,
                             style: LoitTypography.bodyL
-                                .copyWith(color: c.danger))
-                        : null,
+                                .copyWith(color: c.contentSecondary)),
+                      ],
+                    ),
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: [

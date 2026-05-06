@@ -63,3 +63,6 @@ ios/Flutter/
 ios/Runner/GeneratedPluginRegistrant.*
 
 sentry.properties
+
+# Graphify artifacts
+graphify-out/

@@ -127,14 +127,19 @@ class ScannerService {
       switch (response.statusCode) {
         case 200:
           final parsed = jsonDecode(response.body) as Map<String, dynamic>;
-          Log.i(_tag, 'Scan success: merchant=${parsed['merchant']}');
+          Log.i(_tag,
+            'Scan success: type=${parsed['type']} merchant=${parsed['merchant']} '
+            'total=${parsed['total']} currency=${parsed['currency']} '
+            'category=${parsed['category']} items=${(parsed['items'] as List?)?.length ?? 0}',
+          );
+          Log.d(_tag, 'Scan response data: $parsed');
           return ScanResult.success(parsed);
 
         case 422:
           final body = jsonDecode(response.body) as Map<String, dynamic>;
           final partial =
               (body['partial_fields'] as Map<String, dynamic>?) ?? {};
-          Log.w(_tag, 'AI parse failure, partial fields: ${partial.keys}');
+          Log.w(_tag, 'AI parse failure, partial fields: $partial');
           return ScanResult.aiFailure(partial);
 
         case 402:

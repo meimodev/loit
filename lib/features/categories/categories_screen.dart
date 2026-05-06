@@ -10,11 +10,18 @@ import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/loit_category_avatar.dart';
 import '../../shared/widgets/loit_group_label.dart';
 
-class CategoriesScreen extends ConsumerWidget {
+class CategoriesScreen extends ConsumerStatefulWidget {
   const CategoriesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CategoriesScreen> createState() => _CategoriesScreenState();
+}
+
+class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
+  final _dismissed = <String>{};
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.loitColors;
     final catsAsync = ref.watch(userCategoriesProvider);
 
@@ -30,10 +37,11 @@ class CategoriesScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (cats) {
-          final expense = cats.where((cat) => cat.isExpense).toList();
-          final income = cats.where((cat) => cat.isIncome).toList();
+          final visible = cats.where((c) => !_dismissed.contains(c.id)).toList();
+          final expense = visible.where((cat) => cat.isExpense).toList();
+          final income = visible.where((cat) => cat.isIncome).toList();
 
-          if (cats.isEmpty) return const _EmptyCategoriesState();
+          if (visible.isEmpty) return const _EmptyCategoriesState();
 
           return ListView(
             children: [
@@ -49,7 +57,6 @@ class CategoriesScreen extends ConsumerWidget {
                       for (var i = 0; i < expense.length; i++)
                         _dismissibleRow(
                           context: context,
-                          ref: ref,
                           cat: expense[i],
                           showDivider: i != expense.length - 1,
                         ),
@@ -69,7 +76,6 @@ class CategoriesScreen extends ConsumerWidget {
                       for (var i = 0; i < income.length; i++)
                         _dismissibleRow(
                           context: context,
-                          ref: ref,
                           cat: income[i],
                           showDivider: i != income.length - 1,
                         ),
@@ -91,7 +97,6 @@ class CategoriesScreen extends ConsumerWidget {
 
   Widget _dismissibleRow({
     required BuildContext context,
-    required WidgetRef ref,
     required UserCategory cat,
     required bool showDivider,
   }) {
@@ -123,6 +128,7 @@ class CategoriesScreen extends ConsumerWidget {
             false;
       },
       onDismissed: (_) {
+        setState(() => _dismissed.add(cat.id));
         ref.read(userCategoriesProvider.notifier).delete(cat.id);
       },
       background: Container(

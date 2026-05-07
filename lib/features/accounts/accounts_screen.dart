@@ -10,6 +10,7 @@ import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
+import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_group_label.dart';
 
 class AccountsScreen extends ConsumerWidget {
@@ -224,7 +225,7 @@ class _AccountRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: 0);
+    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
     final isAsset = account.kind == AccountKind.asset;
     final iconColor = isAsset ? c.info : c.danger;
 

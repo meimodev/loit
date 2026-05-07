@@ -10,6 +10,7 @@ import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/room_providers.dart';
+import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_input.dart';
 import 'room_colors.dart';
@@ -206,6 +207,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
         metadata: {'currency': _currency, 'color_idx': _colorIdx},
       );
       ref.invalidate(myRoomsProvider);
+      ref.invalidate(userCategoriesProvider);
       if (mounted) {
         context.pushReplacement('/rooms/${room['id']}');
       }

@@ -373,7 +373,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
 
     return LoitTxRow(
       title: breakdownTitle(t.notes),
-      amount: NumberFormat.simpleCurrency(name: t.currency, decimalDigits: 0)
+      amount: NumberFormat.simpleCurrency(name: t.currency, decimalDigits: currencyDecimals(t.currency))
           .format(t.amount),
       categoryKey: t.isTransfer ? null : t.category,
       subtitle: '${_capitalize(cat)} · $time',

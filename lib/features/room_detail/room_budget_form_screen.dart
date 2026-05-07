@@ -8,36 +8,54 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
-import '../../shared/providers/budgets_provider.dart';
+import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/category_picker_sheet.dart';
 import '../../shared/widgets/loit_group_label.dart';
 
-class BudgetFormScreen extends ConsumerStatefulWidget {
-  const BudgetFormScreen({super.key, this.budget});
+class RoomBudgetFormScreen extends ConsumerStatefulWidget {
+  const RoomBudgetFormScreen({
+    super.key,
+    required this.roomId,
+    this.currency,
+    this.budget,
+    this.budgetId,
+  });
 
-  final Budget? budget;
+  final String roomId;
+  final String? currency;
+  final Map<String, dynamic>? budget;
+  final String? budgetId;
 
   @override
-  ConsumerState<BudgetFormScreen> createState() => _BudgetFormScreenState();
+  ConsumerState<RoomBudgetFormScreen> createState() =>
+      _RoomBudgetFormScreenState();
 }
 
-class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
+class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
   late final TextEditingController _amount;
   String _category = 'dining';
-  bool _alert70 = true;
-  bool _alert100 = true;
-  bool _alertDaily = false;
   bool _busy = false;
+  bool _hydrated = false;
+  Map<String, dynamic>? _budget;
+  String? _currency;
+
+  bool get _isEdit => widget.budget != null || widget.budgetId != null;
 
   @override
   void initState() {
     super.initState();
-    final init = widget.budget;
+    _budget = widget.budget;
+    _currency = widget.currency;
+    final init = _budget;
+    final initLimit = (init?['budget_limit'] as num?)?.toDouble();
     _amount = TextEditingController(
-        text: init == null ? '' : formatAmountInput(init.monthlyLimit));
-    if (init != null) _category = init.category;
+      text: initLimit == null ? '' : formatAmountInput(initLimit),
+    );
+    final initCat = init?['category'] as String?;
+    if (initCat != null && initCat.isNotEmpty) _category = initCat;
+    if (init != null && _currency != null) _hydrated = true;
   }
 
   @override
@@ -56,20 +74,77 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
       }
       return;
     }
+    final currency = _currency;
+    if (currency == null) return;
     setState(() => _busy = true);
     try {
-      Log.i('BudgetForm', 'Upserting budget: $_category = $amt');
-      await ref.read(budgetsProvider.notifier).upsert(
-            category: _category,
-            monthlyLimit: amt,
-            id: widget.budget?.id,
-          );
-      Log.i('BudgetForm', 'Upsert completed successfully');
+      final svc = ref.read(roomServiceProvider);
+      final existingId = _budget?['id'] as String? ?? widget.budgetId;
+      if (_isEdit && existingId != null) {
+        Log.i('RoomBudgetForm', 'Updating $existingId → $_category=$amt');
+        await svc.updateRoomBudget(
+          budgetId: existingId,
+          roomId: widget.roomId,
+          category: _category,
+          budgetLimit: amt,
+          currency: currency,
+        );
+      } else {
+        Log.i('RoomBudgetForm', 'Upserting $_category=$amt');
+        await svc.upsertRoomBudget(
+          roomId: widget.roomId,
+          category: _category,
+          budgetLimit: amt,
+          currency: currency,
+        );
+      }
+      ref.invalidate(roomBudgetsProvider(widget.roomId));
       if (mounted) context.pop();
     } catch (e) {
-      Log.e('BudgetForm', 'Upsert failed', error: e);
+      Log.e('RoomBudgetForm', 'Save failed', error: e);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _delete() async {
+    final existingId = _budget?['id'] as String? ?? widget.budgetId;
+    if (existingId == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete budget?'),
+        content: const Text('This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _busy = true);
+    try {
+      await ref.read(roomServiceProvider).deleteRoomBudget(
+            budgetId: existingId,
+            roomId: widget.roomId,
+          );
+      ref.invalidate(roomBudgetsProvider(widget.roomId));
+      if (mounted) context.pop();
+    } catch (e) {
+      Log.e('RoomBudgetForm', 'Delete failed', error: e);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -79,17 +154,86 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+
+    // Hydrate from server when route extra is absent.
+    if (!_hydrated) {
+      // Currency from room detail if not provided.
+      if (_currency == null) {
+        final roomAsync = ref.watch(roomDetailProvider(widget.roomId));
+        roomAsync.whenData((r) {
+          final cur = r['base_currency'] as String? ?? 'IDR';
+          if (mounted && _currency != cur) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              setState(() => _currency = cur);
+            });
+          }
+        });
+      }
+      // Budget row from id if edit mode and not pre-supplied.
+      if (_budget == null && widget.budgetId != null) {
+        final budgetAsync = ref.watch(roomBudgetProvider(RoomBudgetKey(
+          roomId: widget.roomId,
+          budgetId: widget.budgetId!,
+        )));
+        return budgetAsync.when(
+          loading: () => const Scaffold(
+              body: Center(child: CircularProgressIndicator())),
+          error: (e, _) => Scaffold(
+              appBar: AppBar(),
+              body: Center(child: Text('Error: $e'))),
+          data: (row) {
+            if (row == null) {
+              return Scaffold(
+                appBar: AppBar(title: const Text('Edit room budget')),
+                body: const Center(child: Text('Budget not found')),
+              );
+            }
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              final limit = (row['budget_limit'] as num?)?.toDouble();
+              final cat = row['category'] as String?;
+              setState(() {
+                _budget = row;
+                _amount.text =
+                    limit == null ? '' : formatAmountInput(limit);
+                if (cat != null && cat.isNotEmpty) _category = cat;
+                _currency ??= row['currency'] as String?;
+                if (_currency != null) _hydrated = true;
+              });
+            });
+            return const Scaffold(
+                body: Center(child: CircularProgressIndicator()));
+          },
+        );
+      }
+      if (_currency == null) {
+        return const Scaffold(
+            body: Center(child: CircularProgressIndicator()));
+      }
+      _hydrated = true;
+    }
+
+    final currency = _currency!;
     final style = ref.watch(categoryStyleProvider(_category));
-    final catLabel = ref
-        .watch(categoryLabelProvider(CategoryLabelKey(key: _category)));
+    final catLabel = ref.watch(categoryLabelProvider(
+        CategoryLabelKey(key: _category, activeRoomId: widget.roomId)));
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: Text(widget.budget == null ? 'New budget' : 'Edit budget'),
+        title: Text(_isEdit ? 'Edit room budget' : 'New room budget'),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          if (_isEdit)
+            IconButton(
+              tooltip: 'Delete',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _busy ? null : _delete,
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -129,7 +273,7 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
                             border: InputBorder.none,
                             hintText: '0',
                             hintStyle: TextStyle(color: c.contentTertiary),
-                            prefixText: 'Rp ',
+                            prefixText: _currencyPrefix(currency),
                             prefixStyle: LoitTypography.titleL
                                 .copyWith(color: c.contentSecondary),
                           ),
@@ -155,19 +299,13 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
                   ),
                   onTap: () async {
                     final picked = await pickLoitCategory(context,
-                        selectedKey: _category);
+                        selectedKey: _category,
+                        activeRoomId: widget.roomId);
                     if (picked != null) setState(() => _category = picked);
                   },
                 ),
+                _row(context, label: 'Currency', value: currency),
                 _row(context, label: 'Period', value: 'Monthly · 1st'),
-                _row(context, label: 'Resets on', value: 'Day 1'),
-                const LoitGroupLabel(label: 'ALERTS'),
-                _toggle(context, label: 'At 70%', value: _alert70,
-                    onChanged: (v) => setState(() => _alert70 = v)),
-                _toggle(context, label: 'At 100%', value: _alert100,
-                    onChanged: (v) => setState(() => _alert100 = v)),
-                _toggle(context, label: 'Daily over budget', value: _alertDaily,
-                    onChanged: (v) => setState(() => _alertDaily = v)),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
                   child: Container(
@@ -184,7 +322,7 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                              "You'll see this in Personal only. Room budgets are set in each room.",
+                              'Room budgets apply to this room only. All members can see them.',
                               style: LoitTypography.bodyS.copyWith(
                                   color: LoitPalette.teal800, height: 1.4)),
                         ),
@@ -208,9 +346,7 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
                 height: 52,
                 child: FilledButton(
                   onPressed: _busy ? null : _save,
-                  child: Text(widget.budget == null
-                      ? 'Create budget'
-                      : 'Save changes'),
+                  child: Text(_isEdit ? 'Save changes' : 'Create budget'),
                 ),
               ),
             ),
@@ -218,6 +354,19 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
         ],
       ),
     );
+  }
+
+  String _currencyPrefix(String code) {
+    switch (code.toUpperCase()) {
+      case 'IDR':
+        return 'Rp ';
+      case 'USD':
+        return r'$ ';
+      case 'EUR':
+        return '€ ';
+      default:
+        return '$code ';
+    }
   }
 
   Widget _row(BuildContext context,
@@ -245,34 +394,12 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
             Text(value,
                 style: LoitTypography.bodyL.copyWith(
                     color: c.contentSecondary, fontWeight: FontWeight.w500)),
-            const SizedBox(width: 6),
-            Icon(Icons.chevron_right, size: 18, color: c.contentTertiary),
+            if (onTap != null) ...[
+              const SizedBox(width: 6),
+              Icon(Icons.chevron_right, size: 18, color: c.contentTertiary),
+            ],
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _toggle(BuildContext context,
-      {required String label,
-      required bool value,
-      required ValueChanged<bool> onChanged}) {
-    final c = context.loitColors;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: c.surface,
-        border: Border(bottom: BorderSide(color: c.borderSubtle)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(label,
-                style: LoitTypography.bodyL
-                    .copyWith(color: c.contentPrimary)),
-          ),
-          Switch(value: value, onChanged: onChanged),
-        ],
       ),
     );
   }

@@ -31,7 +31,8 @@ class RoomService {
   Future<Map<String, dynamic>> getRoom(String roomId) async {
     return _client
         .from('rooms')
-        .select('*, room_members(user_id, role, users(name, avatar_url))')
+        .select(
+            '*, room_members(user_id, role, users:room_member_profile(name, email, avatar_url))')
         .eq('id', roomId)
         .single();
   }
@@ -137,6 +138,18 @@ class RoomService {
   }
 
   // Room budgets
+  Future<Map<String, dynamic>?> getRoomBudget({
+    required String roomId,
+    required String budgetId,
+  }) async {
+    return _client
+        .from('room_budgets')
+        .select()
+        .eq('id', budgetId)
+        .eq('room_id', roomId)
+        .maybeSingle();
+  }
+
   Future<List<Map<String, dynamic>>> getRoomBudgets(String roomId) async {
     return _client
         .from('room_budgets')
@@ -161,5 +174,30 @@ class RoomService {
       },
       onConflict: 'room_id,category',
     );
+  }
+
+  Future<void> updateRoomBudget({
+    required String budgetId,
+    required String roomId,
+    required String category,
+    required num budgetLimit,
+    required String currency,
+  }) async {
+    await _client.from('room_budgets').update({
+      'category': category,
+      'budget_limit': budgetLimit,
+      'currency': currency,
+    }).eq('id', budgetId).eq('room_id', roomId);
+  }
+
+  Future<void> deleteRoomBudget({
+    required String budgetId,
+    required String roomId,
+  }) async {
+    await _client
+        .from('room_budgets')
+        .delete()
+        .eq('id', budgetId)
+        .eq('room_id', roomId);
   }
 }

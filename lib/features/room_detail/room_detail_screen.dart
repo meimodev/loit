@@ -9,8 +9,11 @@ import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/presence_provider.dart';
 import '../../shared/providers/room_providers.dart';
+import '../../shared/providers/selected_month_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
+import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 import '../rooms/room_colors.dart';
 
@@ -48,7 +51,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
             [];
         final accent = RoomColors.forId(widget.roomId);
         final currency = room['base_currency'] as String? ?? 'IDR';
-        final fmt = NumberFormat.simpleCurrency(name: currency);
+        final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
 
         return Scaffold(
           backgroundColor: c.canvas,
@@ -77,14 +80,17 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                       ref.invalidate(roomFeedProvider(widget.roomId));
                       ref.invalidate(roomDetailProvider(widget.roomId));
                       ref.invalidate(roomBudgetsProvider(widget.roomId));
+                      ref.invalidate(userCategoriesProvider);
                     },
                     child: _tabBody(
                       feedAsync: feedAsync,
                       budgetsAsync: budgetsAsync,
                       members: members,
                       currentUserId: user?.id,
+                      isCreator: isCreator,
                       accent: accent,
                       fmt: fmt,
+                      currency: currency,
                       isArchived: isArchived,
                     ),
                   ),
@@ -92,14 +98,34 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
               ],
             ),
           ),
-          floatingActionButton: isArchived || _tab != 0
+          floatingActionButton: isArchived
               ? null
-              : FloatingActionButton(
-                  backgroundColor: accent,
-                  foregroundColor: Colors.white,
-                  onPressed: () => _addExpense(room),
-                  child: const Icon(Icons.add),
-                ),
+              : _tab == 0
+                  ? FloatingActionButton(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.white,
+                      onPressed: () => _addExpense(room),
+                      child: const Icon(Icons.add),
+                    )
+                  : _tab == 1
+                      ? FloatingActionButton(
+                          backgroundColor: accent,
+                          foregroundColor: Colors.white,
+                          onPressed: () => context.push(
+                            '/rooms/${widget.roomId}/budgets/new',
+                            extra: <String, dynamic>{'currency': currency},
+                          ),
+                          child: const Icon(Icons.add),
+                        )
+                      : _tab == 2 && isCreator
+                          ? FloatingActionButton(
+                              backgroundColor: accent,
+                              foregroundColor: Colors.white,
+                              onPressed: () => context.push(
+                                  '/rooms/${widget.roomId}/categories/new'),
+                              child: const Icon(Icons.add),
+                            )
+                          : null,
         );
       },
     );
@@ -110,8 +136,10 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     required AsyncValue<List<Map<String, dynamic>>> budgetsAsync,
     required List<Map<String, dynamic>> members,
     required String? currentUserId,
+    required bool isCreator,
     required Color accent,
     required NumberFormat fmt,
+    required String currency,
     required bool isArchived,
   }) {
     switch (_tab) {
@@ -119,24 +147,25 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         return _BudgetTab(
             roomId: widget.roomId,
             budgetsAsync: budgetsAsync,
-            fmt: fmt);
+            fmt: fmt,
+            currency: currency,
+            isArchived: isArchived);
       case 2:
-        return _BalancesTab(
-          roomId: widget.roomId,
-          feedAsync: feedAsync,
-          members: members,
-          currentUserId: currentUserId,
-          fmt: fmt,
-        );
+        return _CategoriesTab(
+            roomId: widget.roomId,
+            isCreator: isCreator,
+            isArchived: isArchived);
       case 0:
       default:
         return _FeedTab(
+          roomId: widget.roomId,
           feedAsync: feedAsync,
           members: members,
           accent: accent,
           fmt: fmt,
           isArchived: isArchived,
           currentUserId: currentUserId,
+          isCreator: isCreator,
         );
     }
   }
@@ -203,21 +232,75 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     showModalBottomSheet(
       context: context,
       builder: (_) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('Members',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-            ),
-            for (final m in members)
-              ListTile(
-                leading: _MemberAvatar(member: m, size: 36),
-                title: Text(_memberName(m)),
-                trailing: Text((m['role'] as String?) ?? 'member'),
-              ),
-          ],
+        child: Consumer(
+          builder: (ctx, ref, _) {
+            final onlineIds =
+                ref.watch(onlineUsersProvider).value ?? const <String>{};
+            final c = ctx.loitColors;
+            final onlineCount = members
+                .where((m) => onlineIds.contains(m['user_id'] as String?))
+                .length;
+            return ListView(
+              shrinkWrap: true,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      const Text('Members',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 16)),
+                      const Spacer(),
+                      if (onlineCount > 0)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF22C55E),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text('$onlineCount online',
+                                style: TextStyle(
+                                    color: c.contentSecondary, fontSize: 13)),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+                for (final m in members)
+                  ListTile(
+                    leading: _MemberAvatar(member: m, size: 36),
+                    title: Text(_memberName(m)),
+                    subtitle: onlineIds.contains(m['user_id'] as String?)
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF22C55E),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Text('Online',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          )
+                        : null,
+                    trailing: Text((m['role'] as String?) ?? 'member'),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -225,8 +308,12 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
 }
 
 String _memberName(Map<String, dynamic> m) {
-  final n = (m['users']?['name'] as String?) ?? '';
-  return n.isNotEmpty ? n : 'Member';
+  final n = ((m['users']?['name'] as String?) ?? '').trim();
+  if (n.isNotEmpty) return n;
+  final email = ((m['users']?['email'] as String?) ?? '').trim();
+  if (email.contains('@')) return email.split('@').first;
+  if (email.isNotEmpty) return email;
+  return 'Unknown';
 }
 
 class _Header extends StatelessWidget {
@@ -341,11 +428,55 @@ class _Header extends StatelessWidget {
                 _AvatarStack(members: members),
                 const SizedBox(width: LoitSpacing.s2),
                 Expanded(
-                  child: Text(
-                    '${members.length} member${members.length == 1 ? '' : 's'}',
-                    style: LoitTypography.bodyS
-                        .copyWith(color: c.contentSecondary),
-                  ),
+                  child: Consumer(builder: (_, ref, __) {
+                    final onlineIds = ref.watch(onlineUsersProvider).value ??
+                        const <String>{};
+                    final onlineCount = members
+                        .where((m) => onlineIds.contains(m['user_id'] as String?))
+                        .length;
+                    final base =
+                        '${members.length} member${members.length == 1 ? '' : 's'}';
+                    return Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: base,
+                            style: LoitTypography.bodyS
+                                .copyWith(color: c.contentSecondary),
+                          ),
+                          if (onlineCount > 0) ...[
+                            TextSpan(
+                              text: '  · ',
+                              style: LoitTypography.bodyS
+                                  .copyWith(color: c.contentTertiary),
+                            ),
+                            const WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: Padding(
+                                padding: EdgeInsets.only(right: 4),
+                                child: SizedBox(
+                                  width: 8,
+                                  height: 8,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: Color(0xFF22C55E),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            TextSpan(
+                              text: '$onlineCount online',
+                              style: LoitTypography.bodyS.copyWith(
+                                  color: c.contentPrimary,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  }),
                 ),
               ],
             ),
@@ -379,38 +510,66 @@ class _AvatarStack extends StatelessWidget {
   }
 }
 
-class _MemberAvatar extends StatelessWidget {
+class _MemberAvatar extends ConsumerWidget {
   const _MemberAvatar({required this.member, required this.size});
   final Map<String, dynamic> member;
   final double size;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
     final url = member['users']?['avatar_url'] as String?;
     final name = _memberName(member);
     final color = RoomColors.forId(name);
-    return Container(
+    final userId = member['user_id'] as String?;
+    final onlineIds = ref.watch(onlineUsersProvider).value ?? const <String>{};
+    final isOnline = userId != null && onlineIds.contains(userId);
+
+    final dotSize = (size * 0.32).clamp(8.0, 14.0);
+    return SizedBox(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(color: c.surface, width: 2),
-        image: url != null && url.isNotEmpty
-            ? DecorationImage(image: NetworkImage(url), fit: BoxFit.cover)
-            : null,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(color: c.surface, width: 2),
+              image: url != null && url.isNotEmpty
+                  ? DecorationImage(image: NetworkImage(url), fit: BoxFit.cover)
+                  : null,
+            ),
+            alignment: Alignment.center,
+            child: url == null || url.isEmpty
+                ? Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: size * 0.4,
+                        fontWeight: FontWeight.w600),
+                  )
+                : null,
+          ),
+          if (isOnline)
+            Positioned(
+              right: -1,
+              bottom: -1,
+              child: Container(
+                width: dotSize,
+                height: dotSize,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF22C55E),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: c.surface, width: 2),
+                ),
+              ),
+            ),
+        ],
       ),
-      alignment: Alignment.center,
-      child: url == null || url.isEmpty
-          ? Text(
-              name.isNotEmpty ? name[0].toUpperCase() : '?',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: size * 0.4,
-                  fontWeight: FontWeight.w600),
-            )
-          : null,
     );
   }
 }
@@ -423,7 +582,7 @@ class _TabStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    const labels = ['Feed', 'Budget', 'Balances'];
+    const labels = ['Feed', 'Budget', 'Categories'];
     return Container(
       margin: const EdgeInsets.fromLTRB(
           LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, LoitSpacing.s2),
@@ -464,70 +623,89 @@ class _TabStrip extends StatelessWidget {
   }
 }
 
-class _FeedTab extends StatelessWidget {
+class _FeedTab extends ConsumerWidget {
   const _FeedTab({
+    required this.roomId,
     required this.feedAsync,
     required this.members,
     required this.accent,
     required this.fmt,
     required this.isArchived,
     required this.currentUserId,
+    required this.isCreator,
   });
+  final String roomId;
   final AsyncValue<List<Map<String, dynamic>>> feedAsync;
   final List<Map<String, dynamic>> members;
   final Color accent;
   final NumberFormat fmt;
   final bool isArchived;
   final String? currentUserId;
+  final bool isCreator;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pending = ref.watch(pendingRoomTxDeletesProvider);
+    final month = ref.watch(selectedMonthProvider);
+    final monthBar = _MonthBar(month: month);
     return feedAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
-      data: (txns) {
+      data: (allTxns) {
+        final visible = allTxns
+            .where((t) => !pending.contains(t['id'] as String?))
+            .toList();
+        double expensesTotal = 0;
+        double incomeTotal = 0;
+        for (final t in visible) {
+          final amt = (t['amount'] as num?)?.toDouble() ?? 0;
+          final type = (t['type'] as String?) ??
+              (amt > 0 ? 'income' : 'expense');
+          if (type == 'transfer') continue;
+          final mag = amt.abs();
+          if (type == 'income') {
+            incomeTotal += mag;
+          } else {
+            expensesTotal += mag;
+          }
+        }
+        final summaryCard = _TotalSpentCard(
+          total: expensesTotal,
+          income: incomeTotal,
+          fmt: fmt,
+        );
+        final txns = visible.where((t) {
+          final dt = DateTime.tryParse((t['created_at'] as String?) ?? '');
+          if (dt == null) return false;
+          return dt.year == month.year && dt.month == month.month;
+        }).toList();
         if (txns.isEmpty) {
           return ListView(
+            padding: const EdgeInsets.fromLTRB(
+                LoitSpacing.s4, 0, LoitSpacing.s4, 100),
             children: [
+              summaryCard,
+              monthBar,
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: LoitSpacing.s7),
                 child: LoitEmptyState(
                   icon: Icons.receipt_long_outlined,
-                  title: isArchived ? 'No activity' : 'No activity yet',
+                  title: isArchived ? 'No activity' : 'No activity this month',
                   body: isArchived
                       ? 'This room is archived'
-                      : 'Be the first to log an expense or income.',
+                      : 'Try a different month or log a new expense.',
                 ),
               ),
             ],
           );
-        }
-        double expensesTotal = 0;
-        double incomeTotal = 0;
-        final perMember = <String, double>{};
-        for (final t in txns) {
-          final amt = (t['amount'] as num?)?.toDouble() ?? 0;
-          if (amt < 0) {
-            incomeTotal += amt.abs();
-          } else {
-            expensesTotal += amt;
-          }
-          final uid = t['user_id'] as String?;
-          if (uid == null || amt < 0) continue;
-          perMember[uid] = (perMember[uid] ?? 0) + amt;
         }
         final grouped = _groupByDay(txns);
         return ListView(
           padding: const EdgeInsets.fromLTRB(
               LoitSpacing.s4, 0, LoitSpacing.s4, 100),
           children: [
-            _TotalSpentCard(
-              total: expensesTotal,
-              income: incomeTotal,
-              perMember: perMember,
-              members: members,
-              fmt: fmt,
-            ),
+            summaryCard,
+            monthBar,
             for (final entry in grouped.entries) ...[
               Padding(
                 padding: const EdgeInsets.only(
@@ -542,9 +720,11 @@ class _FeedTab extends StatelessWidget {
                 ),
               ),
               _DayGroup(
+                  roomId: roomId,
                   txns: entry.value,
                   fmt: fmt,
-                  currentUserId: currentUserId),
+                  currentUserId: currentUserId,
+                  isCreator: isCreator),
             ],
           ],
         );
@@ -579,24 +759,66 @@ class _FeedTab extends StatelessWidget {
   }
 }
 
+class _MonthBar extends ConsumerWidget {
+  const _MonthBar({required this.month});
+  final DateTime month;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.loitColors;
+    final notifier = ref.read(selectedMonthProvider.notifier);
+    return Container(
+      margin: const EdgeInsets.only(top: LoitSpacing.s2),
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        color: c.surface,
+        border: Border.all(color: c.borderSubtle),
+        borderRadius: LoitRadius.brM,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.chevron_left, size: 22),
+            color: c.contentSecondary,
+            onPressed: notifier.prev,
+          ),
+          Expanded(
+            child: Center(
+              child: Text(
+                DateFormat.yMMM().format(month),
+                style: LoitTypography.bodyM.copyWith(
+                  color: c.contentPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right, size: 22),
+            color: c.contentSecondary,
+            onPressed: notifier.next,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TotalSpentCard extends StatelessWidget {
   const _TotalSpentCard({
     required this.total,
     required this.income,
-    required this.perMember,
-    required this.members,
     required this.fmt,
   });
   final double total;
   final double income;
-  final Map<String, double> perMember;
-  final List<Map<String, dynamic>> members;
   final NumberFormat fmt;
 
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
     final incomeColor = const Color(0xFF2F8F5E);
+    final expenseColor = c.danger;
     return Container(
       margin: const EdgeInsets.only(top: LoitSpacing.s3),
       padding: const EdgeInsets.all(LoitSpacing.s3),
@@ -608,83 +830,32 @@ class _TotalSpentCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('TOTAL SPENT',
-              style: LoitTypography.labelS.copyWith(
-                  color: c.contentSecondary, letterSpacing: 0.4)),
-          const SizedBox(height: 4),
-          Text(fmt.format(total),
-              style: LoitTypography.titleL.copyWith(
-                  color: c.contentPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontFeatures: const [FontFeature.tabularFigures()])),
-          if (income > 0) ...[
-            const SizedBox(height: LoitSpacing.s2),
-            Row(
-              children: [
-                Icon(Icons.trending_up, size: 14, color: incomeColor),
-                const SizedBox(width: 6),
-                Text(
-                  'Income · ${fmt.format(income)}',
-                  style: LoitTypography.bodyS.copyWith(
-                    color: incomeColor,
-                    fontWeight: FontWeight.w600,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _SummaryStat(
+                  label: 'EXPENSES',
+                  value: fmt.format(total),
+                  icon: Icons.trending_down,
+                  tint: expenseColor,
                 ),
-                const SizedBox(width: 10),
-                Text(
-                  'Net ${fmt.format(income - total)}',
-                  style: LoitTypography.bodyS.copyWith(
-                    color: c.contentSecondary,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
+              ),
+              Container(
+                width: 1,
+                height: 40,
+                margin: const EdgeInsets.symmetric(horizontal: LoitSpacing.s3),
+                color: c.borderSubtle,
+              ),
+              Expanded(
+                child: _SummaryStat(
+                  label: 'INCOME',
+                  value: fmt.format(income),
+                  icon: Icons.trending_up,
+                  tint: incomeColor,
                 ),
-              ],
-            ),
-          ],
-          if (perMember.isNotEmpty) ...[
-            const SizedBox(height: LoitSpacing.s2),
-            Wrap(
-              spacing: 14,
-              runSpacing: 6,
-              children: [
-                for (final m in members)
-                  _MemberSplitChip(
-                    name: _memberName(m),
-                    amount: perMember[m['user_id']] ?? 0,
-                    fmt: fmt,
-                  ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _MemberSplitChip extends StatelessWidget {
-  const _MemberSplitChip(
-      {required this.name, required this.amount, required this.fmt});
-  final String name;
-  final double amount;
-  final NumberFormat fmt;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.loitColors;
-    return RichText(
-      text: TextSpan(
-        style:
-            LoitTypography.bodyS.copyWith(color: c.contentSecondary),
-        children: [
-          TextSpan(text: '$name: '),
-          TextSpan(
-            text: fmt.format(amount),
-            style: TextStyle(
-                color: c.contentPrimary,
-                fontWeight: FontWeight.w600,
-                fontFeatures: const [FontFeature.tabularFigures()]),
+              ),
+            ],
           ),
         ],
       ),
@@ -692,12 +863,62 @@ class _MemberSplitChip extends StatelessWidget {
   }
 }
 
+class _SummaryStat extends StatelessWidget {
+  const _SummaryStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.tint,
+  });
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color tint;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 12, color: c.contentSecondary),
+            const SizedBox(width: 4),
+            Text(label,
+                style: LoitTypography.labelS.copyWith(
+                    color: c.contentSecondary, letterSpacing: 0.4)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: LoitTypography.titleM.copyWith(
+            color: tint,
+            fontWeight: FontWeight.w700,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+}
+
+
 class _DayGroup extends StatelessWidget {
   const _DayGroup(
-      {required this.txns, required this.fmt, required this.currentUserId});
+      {required this.roomId,
+      required this.txns,
+      required this.fmt,
+      required this.currentUserId,
+      required this.isCreator});
+  final String roomId;
   final List<Map<String, dynamic>> txns;
   final NumberFormat fmt;
   final String? currentUserId;
+  final bool isCreator;
 
   @override
   Widget build(BuildContext context) {
@@ -713,10 +934,12 @@ class _DayGroup extends StatelessWidget {
         children: [
           for (var i = 0; i < txns.length; i++)
             _RoomTxRow(
+              roomId: roomId,
               tx: txns[i],
               isLast: i == txns.length - 1,
               fmt: fmt,
               currentUserId: currentUserId,
+              isCreator: isCreator,
             ),
         ],
       ),
@@ -726,21 +949,24 @@ class _DayGroup extends StatelessWidget {
 
 class _RoomTxRow extends ConsumerWidget {
   const _RoomTxRow({
-      super.key,
+      required this.roomId,
       required this.tx,
       required this.isLast,
       required this.fmt,
-      required this.currentUserId});
+      required this.currentUserId,
+      required this.isCreator});
+  final String roomId;
   final Map<String, dynamic> tx;
   final bool isLast;
   final NumberFormat fmt;
   final String? currentUserId;
+  final bool isCreator;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
     final amount = (tx['amount'] as num?)?.toDouble() ?? 0;
-    final txType = tx['type'] as String? ?? (amount < 0 ? 'income' : 'expense');
+    final txType = tx['type'] as String? ?? (amount > 0 ? 'income' : 'expense');
     final isIncome = txType == 'income';
     final isTransfer = txType == 'transfer';
     final notes = (tx['notes'] as String?)?.trim();
@@ -749,65 +975,234 @@ class _RoomTxRow extends ConsumerWidget {
         : (isTransfer ? 'Transfer' : isIncome ? 'Income' : 'Expense');
     final cat = tx['category'] as String?;
     final style = ref.watch(categoryStyleProvider(cat));
+    final catLabel = ref.watch(categoryLabelProvider(
+        CategoryLabelKey(key: cat, activeRoomId: roomId)));
     final user = tx['users'] as Map<String, dynamic>?;
-    final payer = (user?['name'] as String?) ?? 'Member';
-    final isYou = tx['user_id'] == currentUserId;
+    final rawName = (user?['name'] as String?)?.trim();
+    final email = (user?['email'] as String?)?.trim();
+    final emailHandle =
+        (email != null && email.contains('@')) ? email.split('@').first : email;
+    final payer = (rawName != null && rawName.isNotEmpty)
+        ? rawName
+        : (emailHandle != null && emailHandle.isNotEmpty)
+            ? emailHandle
+            : 'Unknown';
     final incomeColor = const Color(0xFF2F8F5E);
 
-    return Container(
+    final createdRaw = tx['created_at'] as String?;
+    final created =
+        createdRaw != null ? DateTime.tryParse(createdRaw)?.toLocal() : null;
+    final timeText = created != null ? DateFormat.jm().format(created) : null;
+
+    final txId = tx['id'] as String?;
+
+    final body = Container(
       padding: const EdgeInsets.symmetric(
           horizontal: LoitSpacing.s4, vertical: LoitSpacing.s3),
       decoration: BoxDecoration(
+        color: c.surface,
         border: Border(
-          bottom: isLast
-              ? BorderSide.none
-              : BorderSide(color: c.borderSubtle),
+          bottom: isLast ? BorderSide.none : BorderSide(color: c.borderSubtle),
         ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: style.tint.withValues(alpha: 0.16),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Icon(style.icon, size: 18, color: style.tint),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: style.tint.withValues(alpha: 0.16),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Icon(style.icon, size: 20, color: style.tint),
+              ),
+              if (user != null)
+                Positioned(
+                  right: -3,
+                  bottom: -3,
+                  child: _PayerBadge(member: {
+                    'user_id': tx['user_id'],
+                    'users': user,
+                  }),
+                ),
+            ],
           ),
           const SizedBox(width: LoitSpacing.s3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(merchant,
-                    style: LoitTypography.bodyM.copyWith(
-                        color: c.contentPrimary,
-                        fontWeight: FontWeight.w500)),
+                Text(
+                  merchant,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: LoitTypography.bodyM.copyWith(
+                      color: c.contentPrimary,
+                      fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 2),
                 Text(
-                  isTransfer
-                      ? '${isYou ? 'Your' : "$payer's"} transfer'
-                      : isIncome
-                          ? '${isYou ? 'You' : payer} received'
-                          : '${isYou ? 'You' : payer} paid · split equally',
+                  '$payer · $catLabel',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: LoitTypography.bodyS
                       .copyWith(color: c.contentSecondary),
                 ),
+                if (isIncome) ...[
+                  const SizedBox(height: 6),
+                  _RoomChip(
+                    icon: Icons.call_received,
+                    label: 'Income',
+                    tint: incomeColor,
+                  ),
+                ],
               ],
             ),
           ),
+          const SizedBox(width: LoitSpacing.s2),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${isTransfer ? '' : isIncome ? '+' : '−'}${fmt.format(amount.abs())}',
+                style: LoitTypography.bodyM.copyWith(
+                    color: isTransfer
+                        ? c.contentSecondary
+                        : isIncome
+                            ? incomeColor
+                            : c.danger,
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: const [FontFeature.tabularFigures()]),
+              ),
+              if (timeText != null) ...[
+                const SizedBox(height: 2),
+                Text(timeText,
+                    style: LoitTypography.bodyS
+                        .copyWith(color: c.contentTertiary)),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+
+    if (txId == null) return body;
+    final tappable = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => context.push(
+          '/rooms/$roomId/transactions/$txId',
+          extra: tx,
+        ),
+        child: body,
+      ),
+    );
+    if (!isCreator) return tappable;
+    return Dismissible(
+      key: ValueKey('room-tx-$txId'),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) => _scheduleDeleteWithUndo(context, ref, txId, merchant),
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: c.danger,
+        child: const Icon(Icons.delete_outline, color: Colors.white),
+      ),
+      child: tappable,
+    );
+  }
+
+  void _scheduleDeleteWithUndo(
+      BuildContext context, WidgetRef ref, String txId, String label) {
+    const window = Duration(seconds: 5);
+    ref
+        .read(pendingRoomTxDeletesProvider.notifier)
+        .schedule(txId: txId, roomId: roomId, delay: window);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        duration: window,
+        content: Text('Deleted "$label"'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () =>
+              ref.read(pendingRoomTxDeletesProvider.notifier).undo(txId),
+        ),
+      ),
+    );
+  }
+}
+
+class _PayerBadge extends ConsumerWidget {
+  const _PayerBadge({required this.member});
+  final Map<String, dynamic> member;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.loitColors;
+    final url = member['users']?['avatar_url'] as String?;
+    final name = _memberName(member);
+    final color = RoomColors.forId(name);
+    return Container(
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: c.surface, width: 2),
+        image: url != null && url.isNotEmpty
+            ? DecorationImage(image: NetworkImage(url), fit: BoxFit.cover)
+            : null,
+      ),
+      alignment: Alignment.center,
+      child: url == null || url.isEmpty
+          ? Text(
+              name.isNotEmpty ? name[0].toUpperCase() : '?',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700),
+            )
+          : null,
+    );
+  }
+}
+
+class _RoomChip extends StatelessWidget {
+  const _RoomChip({required this.label, required this.tint, this.icon});
+  final String label;
+  final Color tint;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+          horizontal: icon != null ? 6 : 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 11, color: tint),
+            const SizedBox(width: 3),
+          ],
           Text(
-            '${isTransfer ? '' : isIncome ? '+' : ''}${fmt.format(amount.abs())}',
-            style: LoitTypography.bodyM.copyWith(
-                color: isTransfer
-                    ? c.contentSecondary
-                    : isIncome
-                        ? incomeColor
-                        : c.contentPrimary,
-                fontWeight: FontWeight.w600,
-                fontFeatures: const [FontFeature.tabularFigures()]),
+            label,
+            style: LoitTypography.labelS.copyWith(
+              color: tint,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
+            ),
           ),
         ],
       ),
@@ -817,14 +1212,17 @@ class _RoomTxRow extends ConsumerWidget {
 
 class _BudgetTab extends ConsumerWidget {
   const _BudgetTab({
-    super.key,
     required this.roomId,
     required this.budgetsAsync,
     required this.fmt,
+    required this.currency,
+    required this.isArchived,
   });
   final String roomId;
   final AsyncValue<List<Map<String, dynamic>>> budgetsAsync;
   final NumberFormat fmt;
+  final String currency;
+  final bool isArchived;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -834,57 +1232,101 @@ class _BudgetTab extends ConsumerWidget {
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (list) {
         if (list.isEmpty) {
-          return ListView(children: const [
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: LoitSpacing.s7),
-              child: LoitEmptyState(
+          return ListView(
+            padding: const EdgeInsets.symmetric(vertical: LoitSpacing.s7),
+            children: [
+              const LoitEmptyState(
                 icon: Icons.savings_outlined,
                 title: 'No budgets set',
                 body: 'Set category caps so the room knows when to slow down.',
               ),
-            ),
-          ]);
+              if (!isArchived) ...[
+                const SizedBox(height: LoitSpacing.s4),
+                Center(
+                  child: FilledButton.icon(
+                    onPressed: () => context.push(
+                      '/rooms/$roomId/budgets/new',
+                      extra: <String, dynamic>{'currency': currency},
+                    ),
+                    icon: const Icon(Icons.add),
+                    label: const Text('New budget'),
+                  ),
+                ),
+              ],
+            ],
+          );
         }
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(
-              LoitSpacing.s4, 0, LoitSpacing.s4, 100),
+              LoitSpacing.s4, LoitSpacing.s2, LoitSpacing.s4, 100),
           itemCount: list.length,
           itemBuilder: (_, i) {
             final b = list[i];
             final cat = b['category'] as String?;
             final style = ref.watch(categoryStyleProvider(cat));
+            final budgetLabel = ref.watch(categoryLabelProvider(
+                CategoryLabelKey(key: cat, activeRoomId: roomId)));
             final limit = (b['budget_limit'] as num?)?.toDouble() ?? 0;
+            final budgetCurrency = b['currency'] as String? ?? currency;
+            final rowFmt = budgetCurrency == currency
+                ? fmt
+                : NumberFormat.simpleCurrency(name: budgetCurrency, decimalDigits: currencyDecimals(budgetCurrency));
             return Container(
               margin: const EdgeInsets.only(top: LoitSpacing.s2),
-              padding: const EdgeInsets.all(LoitSpacing.s3),
               decoration: BoxDecoration(
                 color: c.surface,
                 border: Border.all(color: c.borderSubtle),
                 borderRadius: LoitRadius.brM,
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: style.tint.withValues(alpha: 0.16),
-                      shape: BoxShape.circle,
+              clipBehavior: Clip.antiAlias,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: isArchived
+                      ? null
+                      : () => context.push(
+                            '/rooms/$roomId/budgets/${b['id']}/edit',
+                            extra: <String, dynamic>{
+                              'budget': b,
+                              'currency': currency,
+                            },
+                          ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(LoitSpacing.s3),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: style.tint.withValues(alpha: 0.16),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(style.icon, size: 18, color: style.tint),
+                        ),
+                        const SizedBox(width: LoitSpacing.s3),
+                        Expanded(
+                          child: Text(budgetLabel,
+                              style: LoitTypography.bodyM
+                                  .copyWith(color: c.contentPrimary)),
+                        ),
+                        Text(rowFmt.format(limit),
+                            style: LoitTypography.bodyM.copyWith(
+                                color: c.contentPrimary,
+                                fontWeight: FontWeight.w600,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ])),
+                        if (!isArchived) ...[
+                          const SizedBox(width: 6),
+                          Icon(Icons.chevron_right,
+                              size: 18, color: c.contentTertiary),
+                        ],
+                      ],
                     ),
-                    alignment: Alignment.center,
-                    child:
-                        Icon(style.icon, size: 18, color: style.tint),
                   ),
-                  const SizedBox(width: LoitSpacing.s3),
-                  Expanded(
-                      child: Text(style.label,
-                          style: LoitTypography.bodyM
-                              .copyWith(color: c.contentPrimary))),
-                  Text(fmt.format(limit),
-                      style: LoitTypography.bodyM.copyWith(
-                          color: c.contentPrimary,
-                          fontWeight: FontWeight.w600)),
-                ],
+                ),
               ),
             );
           },
@@ -894,277 +1336,287 @@ class _BudgetTab extends ConsumerWidget {
   }
 }
 
-class _BalancesTab extends StatelessWidget {
-  const _BalancesTab({
+class _CategoriesTab extends ConsumerWidget {
+  const _CategoriesTab({
     required this.roomId,
-    required this.feedAsync,
-    required this.members,
-    required this.currentUserId,
-    required this.fmt,
+    required this.isCreator,
+    required this.isArchived,
   });
   final String roomId;
-  final AsyncValue<List<Map<String, dynamic>>> feedAsync;
-  final List<Map<String, dynamic>> members;
-  final String? currentUserId;
-  final NumberFormat fmt;
+  final bool isCreator;
+  final bool isArchived;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
-    return feedAsync.when(
+    final asyncCats = ref.watch(userCategoriesProvider);
+    final canManage = isCreator && !isArchived;
+    return asyncCats.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
-      data: (txns) {
-        final balances = _computeBalances(txns, members);
-        final myBalance = currentUserId == null
-            ? 0.0
-            : (balances[currentUserId] ?? 0.0);
-        final settlements = _suggestSettlements(balances, members);
+      data: (cats) {
+        final roomCats =
+            cats.where((cat) => cat.roomId == roomId).toList()
+              ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+        final expense = roomCats.where((cat) => cat.isExpense).toList();
+        final income = roomCats.where((cat) => cat.isIncome).toList();
+
+        if (roomCats.isEmpty) {
+          return ListView(
+            padding: const EdgeInsets.symmetric(vertical: LoitSpacing.s7),
+            children: [
+              const LoitEmptyState(
+                icon: Icons.category_outlined,
+                title: 'No categories yet',
+                body:
+                    'Add room-specific categories so members tag transactions consistently.',
+              ),
+              if (canManage) ...[
+                const SizedBox(height: LoitSpacing.s4),
+                Center(
+                  child: FilledButton.icon(
+                    onPressed: () =>
+                        context.push('/rooms/$roomId/categories/new'),
+                    icon: const Icon(Icons.add),
+                    label: const Text('New category'),
+                  ),
+                ),
+              ],
+            ],
+          );
+        }
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(
-              LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, 100),
+              LoitSpacing.s4, LoitSpacing.s2, LoitSpacing.s4, 100),
           children: [
-            Center(
-              child: Column(
-                children: [
-                  Text('YOUR BALANCE',
-                      style: LoitTypography.labelS.copyWith(
-                          color: c.contentSecondary, letterSpacing: 0.4)),
-                  const SizedBox(height: 4),
-                  Text(
-                    (myBalance >= 0 ? '+ ' : '− ') +
-                        fmt.format(myBalance.abs()),
-                    style: LoitTypography.titleL.copyWith(
-                      color: myBalance >= 0 ? c.success : c.danger,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 32,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    myBalance > 0
-                        ? 'You are owed in this room'
-                        : myBalance < 0
-                            ? 'You owe in this room'
-                            : 'You are settled',
-                    style: LoitTypography.bodyS
-                        .copyWith(color: c.contentSecondary),
-                  ),
-                ],
+            if (expense.isNotEmpty) ...[
+              _SectionLabel(label: 'EXPENSE', count: expense.length),
+              _CategoryGroup(
+                roomId: roomId,
+                cats: expense,
+                canManage: canManage,
               ),
-            ),
-            const SizedBox(height: LoitSpacing.s5),
-            Text('SUGGESTED SETTLEMENTS',
-                style: LoitTypography.labelS.copyWith(
-                    color: c.contentSecondary, letterSpacing: 0.5)),
-            const SizedBox(height: LoitSpacing.s2),
-            if (settlements.isEmpty)
+            ],
+            if (income.isNotEmpty) ...[
+              const SizedBox(height: LoitSpacing.s4),
+              _SectionLabel(label: 'INCOME', count: income.length),
+              _CategoryGroup(
+                roomId: roomId,
+                cats: income,
+                canManage: canManage,
+              ),
+            ],
+            if (!canManage) ...[
+              const SizedBox(height: LoitSpacing.s4),
               Container(
-                padding: const EdgeInsets.all(LoitSpacing.s4),
+                padding: const EdgeInsets.all(LoitSpacing.s3),
                 decoration: BoxDecoration(
-                  color: c.surface,
-                  border: Border.all(color: c.borderSubtle),
+                  color: c.muted,
                   borderRadius: LoitRadius.brM,
                 ),
-                child: Text('Everyone is settled.',
-                    style: LoitTypography.bodyM
-                        .copyWith(color: c.contentSecondary)),
-              )
-            else
-              Container(
-                decoration: BoxDecoration(
-                  color: c.surface,
-                  border: Border.all(color: c.borderSubtle),
-                  borderRadius: LoitRadius.brM,
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  children: [
-                    for (var i = 0; i < settlements.length; i++)
-                      _SettlementRow(
-                        s: settlements[i],
-                        members: members,
-                        currentUserId: currentUserId,
-                        fmt: fmt,
-                        isLast: i == settlements.length - 1,
-                      ),
-                  ],
+                child: Text(
+                  isArchived
+                      ? 'Room is archived. Categories are read-only.'
+                      : 'Only the room creator can add or edit categories.',
+                  style: LoitTypography.bodyS
+                      .copyWith(color: c.contentSecondary),
                 ),
               ),
-            const SizedBox(height: LoitSpacing.s4),
-            Container(
-              padding: const EdgeInsets.all(LoitSpacing.s3),
-              decoration: BoxDecoration(
-                color: c.muted,
-                borderRadius: LoitRadius.brM,
-              ),
-              child: Text(
-                'LOIT records the settlement; the payment happens in your wallet of choice.',
-                style: LoitTypography.bodyS
-                    .copyWith(color: c.contentSecondary),
-              ),
-            ),
+            ],
           ],
         );
       },
     );
   }
-
-  /// Equal-split heuristic: each tx is split equally among all members,
-  /// payer gets credit for the full amount.
-  Map<String, double> _computeBalances(
-      List<Map<String, dynamic>> txns, List<Map<String, dynamic>> members) {
-    final out = <String, double>{};
-    if (members.isEmpty) return out;
-    final memberIds =
-        members.map((m) => m['user_id'] as String?).whereType<String>().toList();
-    if (memberIds.isEmpty) return out;
-    for (final id in memberIds) {
-      out[id] = 0;
-    }
-    for (final t in txns) {
-      final payer = t['user_id'] as String?;
-      final amount = (t['amount'] as num?)?.toDouble() ?? 0;
-      if (payer == null || amount <= 0) continue;
-      final share = amount / memberIds.length;
-      out[payer] = (out[payer] ?? 0) + amount;
-      for (final m in memberIds) {
-        out[m] = (out[m] ?? 0) - share;
-      }
-    }
-    return out;
-  }
-
-  List<_Settlement> _suggestSettlements(
-      Map<String, double> balances, List<Map<String, dynamic>> members) {
-    final entries = balances.entries.toList()
-      ..sort((a, b) => a.value.compareTo(b.value));
-    final debtors = <MapEntry<String, double>>[];
-    final creditors = <MapEntry<String, double>>[];
-    for (final e in entries) {
-      if (e.value < -0.01) debtors.add(e);
-      if (e.value > 0.01) creditors.add(e);
-    }
-    final out = <_Settlement>[];
-    var di = 0, ci = creditors.length - 1;
-    final dvals = debtors.map((e) => e.value).toList();
-    final cvals = creditors.map((e) => e.value).toList();
-    while (di < debtors.length && ci >= 0) {
-      final pay = (-dvals[di]).clamp(0, cvals[ci]).toDouble();
-      if (pay < 0.01) break;
-      out.add(_Settlement(
-        from: debtors[di].key,
-        to: creditors[ci].key,
-        amount: pay,
-      ));
-      dvals[di] += pay;
-      cvals[ci] -= pay;
-      if (dvals[di].abs() < 0.01) di++;
-      if (cvals[ci].abs() < 0.01) ci--;
-    }
-    return out;
-  }
 }
 
-class _Settlement {
-  _Settlement({required this.from, required this.to, required this.amount});
-  final String from;
-  final String to;
-  final double amount;
-}
-
-class _SettlementRow extends StatelessWidget {
-  const _SettlementRow({
-    required this.s,
-    required this.members,
-    required this.currentUserId,
-    required this.fmt,
-    required this.isLast,
-  });
-  final _Settlement s;
-  final List<Map<String, dynamic>> members;
-  final String? currentUserId;
-  final NumberFormat fmt;
-  final bool isLast;
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.label, required this.count});
+  final String label;
+  final int count;
 
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    final fromName = _nameFor(s.from, members);
-    final toName = _nameFor(s.to, members);
-    final fromIsYou = s.from == currentUserId;
-    final toIsYou = s.to == currentUserId;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: LoitSpacing.s4, vertical: LoitSpacing.s3),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: isLast
-              ? BorderSide.none
-              : BorderSide(color: c.borderSubtle),
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, LoitSpacing.s3, 4, 6),
       child: Row(
         children: [
-          _MiniAvatar(name: fromName),
-          const SizedBox(width: LoitSpacing.s2),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: LoitTypography.bodyS
-                    .copyWith(color: c.contentPrimary),
-                children: [
-                  TextSpan(text: fromIsYou ? 'You' : fromName),
-                  TextSpan(
-                      text: ' pay ',
-                      style: TextStyle(color: c.contentSecondary)),
-                  TextSpan(text: toIsYou ? 'you' : toName),
-                ],
-              ),
+          Text(label,
+              style: LoitTypography.labelS.copyWith(
+                  color: c.contentSecondary, letterSpacing: 0.5)),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(
+              color: c.muted,
+              borderRadius: BorderRadius.circular(8),
             ),
-          ),
-          Text(
-            fmt.format(s.amount),
-            style: LoitTypography.bodyM.copyWith(
-              color: c.contentPrimary,
-              fontWeight: FontWeight.w600,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
+            child: Text('$count',
+                style: LoitTypography.labelS
+                    .copyWith(color: c.contentSecondary)),
           ),
         ],
       ),
     );
   }
+}
 
-  String _nameFor(String id, List<Map<String, dynamic>> members) {
-    for (final m in members) {
-      if (m['user_id'] == id) return _memberName(m);
-    }
-    return 'Member';
+class _CategoryGroup extends ConsumerWidget {
+  const _CategoryGroup({
+    required this.roomId,
+    required this.cats,
+    required this.canManage,
+  });
+  final String roomId;
+  final List<UserCategory> cats;
+  final bool canManage;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.loitColors;
+    return Container(
+      decoration: BoxDecoration(
+        color: c.surface,
+        border: Border.all(color: c.borderSubtle),
+        borderRadius: LoitRadius.brM,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (var i = 0; i < cats.length; i++)
+            _row(context, ref, cats[i], i != cats.length - 1),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(
+      BuildContext context, WidgetRef ref, UserCategory cat, bool divider) {
+    final row = _CategoryRow(
+      roomId: roomId,
+      cat: cat,
+      divider: divider,
+      canManage: canManage,
+    );
+    if (!canManage) return row;
+    final c = context.loitColors;
+    return Dismissible(
+      key: ValueKey(cat.id),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) => _confirmDelete(context, cat),
+      onDismissed: (_) {
+        ref.read(userCategoriesProvider.notifier).delete(cat.id);
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: c.danger,
+        child: const Icon(Icons.delete_outline, color: Colors.white),
+      ),
+      child: row,
+    );
+  }
+
+  Future<bool> _confirmDelete(BuildContext context, UserCategory cat) async {
+    final c = context.loitColors;
+    return await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text('Delete "${cat.name}"?'),
+            content: const Text(
+                'Transactions or budgets using this category will fall back to "Other".'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel')),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: c.danger),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 }
 
-class _MiniAvatar extends StatelessWidget {
-  const _MiniAvatar({required this.name});
-  final String name;
+class _CategoryRow extends StatelessWidget {
+  const _CategoryRow({
+    required this.roomId,
+    required this.cat,
+    required this.divider,
+    required this.canManage,
+  });
+  final String roomId;
+  final UserCategory cat;
+  final bool divider;
+  final bool canManage;
 
   @override
   Widget build(BuildContext context) {
-    final color = RoomColors.forId(name);
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      alignment: Alignment.center,
-      child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : '?',
-        style: const TextStyle(
-            color: Colors.white,
-            fontSize: 12,
-            fontWeight: FontWeight.w600),
+    final c = context.loitColors;
+    final tap = canManage
+        ? () => context.push('/rooms/$roomId/categories/${cat.id}/edit',
+            extra: cat)
+        : null;
+    final body = InkWell(
+      onTap: tap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: LoitSpacing.s4, vertical: LoitSpacing.s3),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: cat.tintColor.withValues(alpha: 0.16),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Icon(cat.iconData, size: 18, color: cat.tintColor),
+            ),
+            const SizedBox(width: LoitSpacing.s3),
+            Expanded(
+              child: Text(cat.name,
+                  style: LoitTypography.bodyM.copyWith(
+                      color: c.contentPrimary,
+                      fontWeight: FontWeight.w500)),
+            ),
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: cat.tintColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: c.borderSubtle),
+              ),
+            ),
+            const SizedBox(width: LoitSpacing.s3),
+            Icon(
+              canManage ? Icons.chevron_right : Icons.lock_outline,
+              size: canManage ? 18 : 14,
+              color: c.contentTertiary,
+            ),
+          ],
+        ),
       ),
+    );
+
+    if (!divider) return body;
+    return Column(
+      children: [
+        body,
+        Container(
+          height: 1,
+          color: c.borderSubtle,
+          margin: const EdgeInsets.only(
+              left: LoitSpacing.s4 + 36 + LoitSpacing.s3),
+        ),
+      ],
     );
   }
 }

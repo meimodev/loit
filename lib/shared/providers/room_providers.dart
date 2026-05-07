@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -25,6 +27,30 @@ final roomBudgetsProvider =
   return ref.watch(roomServiceProvider).getRoomBudgets(roomId);
 });
 
+class RoomBudgetKey {
+  const RoomBudgetKey({required this.roomId, required this.budgetId});
+  final String roomId;
+  final String budgetId;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RoomBudgetKey &&
+          other.roomId == roomId &&
+          other.budgetId == budgetId;
+
+  @override
+  int get hashCode => Object.hash(roomId, budgetId);
+}
+
+final roomBudgetProvider =
+    FutureProvider.family<Map<String, dynamic>?, RoomBudgetKey>(
+        (ref, key) async {
+  return ref
+      .watch(roomServiceProvider)
+      .getRoomBudget(roomId: key.roomId, budgetId: key.budgetId);
+});
+
 // Pending invites for current user
 final pendingInvitesProvider =
     FutureProvider<List<Map<String, dynamic>>>((ref) async {
@@ -38,7 +64,8 @@ final roomFeedProvider = FutureProvider.family<List<Map<String, dynamic>>, Strin
 
   final initial = await supabase
       .from('transactions')
-      .select('*, users(name, avatar_url)')
+      .select(
+          '*, users:room_member_profile(name, email, avatar_url)')
       .eq('room_id', roomId)
       .order('created_at', ascending: false)
       .limit(50);
@@ -66,6 +93,88 @@ final roomFeedProvider = FutureProvider.family<List<Map<String, dynamic>>, Strin
 
   return List<Map<String, dynamic>>.from(initial);
 });
+
+// Single transaction inside a room (for room tx detail fallback when no
+// route extra is provided). Keys by `(roomId, txId)`.
+class RoomTxKey {
+  const RoomTxKey({required this.roomId, required this.txId});
+  final String roomId;
+  final String txId;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RoomTxKey && other.roomId == roomId && other.txId == txId;
+
+  @override
+  int get hashCode => Object.hash(roomId, txId);
+}
+
+final roomTransactionProvider =
+    FutureProvider.family<Map<String, dynamic>?, RoomTxKey>(
+        (ref, key) async {
+  final supabase = Supabase.instance.client;
+  final row = await supabase
+      .from('transactions')
+      .select(
+          '*, users:room_member_profile(name, email, avatar_url)')
+      .eq('room_id', key.roomId)
+      .eq('id', key.txId)
+      .maybeSingle();
+  return row;
+});
+
+// Pending room-tx deletes (txId set) — feed filters these out so the
+// row disappears immediately on swipe; a timer commits the actual
+// Supabase delete after the snackbar window unless the user undoes.
+class PendingRoomTxDeletes extends Notifier<Set<String>> {
+  final Map<String, Timer> _timers = {};
+
+  @override
+  Set<String> build() {
+    ref.onDispose(() {
+      for (final t in _timers.values) {
+        t.cancel();
+      }
+      _timers.clear();
+    });
+    return const {};
+  }
+
+  void schedule({
+    required String txId,
+    required String roomId,
+    Duration delay = const Duration(seconds: 5),
+  }) {
+    _timers[txId]?.cancel();
+    state = {...state, txId};
+    _timers[txId] = Timer(delay, () async {
+      _timers.remove(txId);
+      if (!state.contains(txId)) return;
+      try {
+        await Supabase.instance.client
+            .from('transactions')
+            .delete()
+            .eq('id', txId);
+      } finally {
+        state = {...state}..remove(txId);
+        ref.invalidate(roomFeedProvider(roomId));
+      }
+    });
+  }
+
+  void undo(String txId) {
+    _timers[txId]?.cancel();
+    _timers.remove(txId);
+    if (!state.contains(txId)) return;
+    state = {...state}..remove(txId);
+  }
+}
+
+final pendingRoomTxDeletesProvider =
+    NotifierProvider<PendingRoomTxDeletes, Set<String>>(
+  PendingRoomTxDeletes.new,
+);
 
 // Room member count — derived from detail
 final roomMemberCountProvider =

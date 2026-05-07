@@ -720,6 +720,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       context,
       selectedKey: _category,
       isIncome: _type == 'income',
+      activeRoomId: _roomId,
     );
     if (picked != null) setState(() => _category = picked);
   }
@@ -731,12 +732,22 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       final catKind =
           cats.where((c) => c.key == _category).firstOrNull?.kind;
       if (type == 'income' && catKind != 'income') {
-        _category = 'income_other';
+        _category = _fallbackKey('income', cats);
       } else if (type == 'expense' && catKind == 'income') {
-        _category = 'other';
+        _category = _fallbackKey('expense', cats);
       }
       if (type == 'transfer') _toAccountId = null;
     });
+  }
+
+  String _fallbackKey(String kind, List<UserCategory> cats) {
+    // Prefer current-room category, then personal default key.
+    if (_roomId != null) {
+      final inRoom = cats.where(
+          (c) => c.isRoom && c.roomId == _roomId && c.kind == kind);
+      if (inRoom.isNotEmpty) return inRoom.first.key;
+    }
+    return kind == 'income' ? 'income_other' : 'other';
   }
 
   Future<void> _pickAccount() async {
@@ -815,7 +826,8 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
     final c = context.loitColors;
     final profile = ref.watch(userProfileProvider).value;
     final home = profile?.homeCurrency ?? 'IDR';
-    final catStyle = ref.watch(categoryStyleProvider(_category));
+    final catLabel = ref.watch(categoryLabelProvider(
+        CategoryLabelKey(key: _category, activeRoomId: _roomId)));
 
     final activeAccounts = ref.watch(activeAccountsProvider);
 
@@ -989,7 +1001,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                   children: [
                     LoitCategoryAvatar(categoryKey: _category, size: 28),
                     const SizedBox(width: LoitSpacing.s3),
-                    Text(catStyle.label,
+                    Text(catLabel,
                         style: LoitTypography.bodyL
                             .copyWith(color: c.contentPrimary)),
                   ],

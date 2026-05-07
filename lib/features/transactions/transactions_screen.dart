@@ -13,6 +13,8 @@ import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/selected_month_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
+import '../../shared/providers/user_categories_provider.dart';
+import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_banner.dart';
 import '../../shared/widgets/loit_month_app_bar.dart';
 import '../../shared/widgets/loit_empty_state.dart';
@@ -507,17 +509,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
   String _txSubtitle(Txn t) {
     final time = DateFormat.jm().format(t.createdAt.toLocal());
-    final cat = (t.category ?? 'other');
-    return '${_capitalize(cat)} · $time';
+    final label = ref.read(categoryLabelProvider(
+        CategoryLabelKey(key: t.category)));
+    return '$label · $time';
   }
 
   String _fmt(double v, String currency) {
-    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: 0);
+    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
     return fmt.format(v);
   }
-
-  String _capitalize(String s) =>
-      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
   ({double income, double expense}) _dayTotals(List<Txn> items) {
     var income = 0.0, expense = 0.0;

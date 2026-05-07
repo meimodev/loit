@@ -17,8 +17,9 @@ const _kCategoryPalette = [
 ];
 
 class CategoryFormScreen extends ConsumerStatefulWidget {
-  const CategoryFormScreen({super.key, this.category});
+  const CategoryFormScreen({super.key, this.category, this.roomId});
   final UserCategory? category;
+  final String? roomId;
 
   @override
   ConsumerState<CategoryFormScreen> createState() =>
@@ -32,6 +33,12 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
   String _tint = '#9AA09E';
   bool _busy = false;
   String? _nameError;
+
+  bool get _isRoom =>
+      widget.category?.isRoom == true || widget.roomId != null;
+
+  String? get _effectiveRoomId =>
+      widget.category?.roomId ?? widget.roomId;
 
   @override
   void initState() {
@@ -65,6 +72,10 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
         .replaceAll(RegExp(r'_+'), '_')
         .trimChar('_');
     final prefix = kind == 'income' ? 'income_' : '';
+    final roomId = _effectiveRoomId;
+    if (roomId != null) {
+      return 'room:$roomId:$prefix$slug';
+    }
     return '$prefix$slug';
   }
 
@@ -74,20 +85,22 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
     try {
       final notifier = ref.read(userCategoriesProvider.notifier);
       final name = _nameCtrl.text.trim();
-      final key = _generateKey(name, _kind);
       if (widget.category == null) {
+        final key = _generateKey(name, _kind);
         await notifier.create(
           key: key,
           name: name,
           kind: _kind,
           iconName: _iconName,
           tint: _tint,
+          roomId: _effectiveRoomId,
         );
       } else {
+        // Preserve the existing storage key so referencing transactions and
+        // budgets keep their category association after a rename.
         await notifier.updateCategory(
           id: widget.category!.id,
           name: name,
-          key: key,
           kind: _kind,
           iconName: _iconName,
           tint: _tint,
@@ -149,10 +162,12 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
     final isEdit = widget.category != null;
     final tintColor = _parseColor(_tint);
 
+    final titlePrefix = _isRoom ? 'room ' : '';
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: Text(isEdit ? 'Edit category' : 'New category'),
+        title: Text(
+            isEdit ? 'Edit ${titlePrefix}category' : 'New ${titlePrefix}category'),
         actions: [
           if (isEdit)
             IconButton(

@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/loit_categories.dart';
 import 'auth_providers.dart';
 
+enum CategorySource { personal, room }
+
 class UserCategory {
   final String id;
   final String key;
@@ -13,6 +15,10 @@ class UserCategory {
   final String? iconName;
   final String? tint;
   final int sortOrder;
+  final CategorySource source;
+  final String? roomId;
+  final String? roomName;
+  final String? roomCreatedBy;
 
   const UserCategory({
     required this.id,
@@ -22,10 +28,31 @@ class UserCategory {
     this.iconName,
     this.tint,
     required this.sortOrder,
+    this.source = CategorySource.personal,
+    this.roomId,
+    this.roomName,
+    this.roomCreatedBy,
   });
 
   bool get isIncome => kind == 'income';
   bool get isExpense => kind == 'expense';
+  bool get isPersonal => source == CategorySource.personal;
+  bool get isRoom => source == CategorySource.room;
+
+  bool canManageBy(String? userId) {
+    if (isPersonal) return true;
+    return userId != null && roomCreatedBy == userId;
+  }
+
+  /// Display label given an active room context. Personal labels are
+  /// always raw. Room labels are raw inside their owning room and
+  /// `<Room name> <Category name>` elsewhere.
+  String displayLabel({String? activeRoomId}) {
+    if (isPersonal) return name;
+    if (roomId != null && roomId == activeRoomId) return name;
+    final r = (roomName ?? '').trim();
+    return r.isEmpty ? name : '$r $name';
+  }
 
   Color get tintColor {
     if (tint == null) return LoitCategories.defaultOther.tint;
@@ -42,7 +69,7 @@ class UserCategory {
         label: name,
       );
 
-  factory UserCategory.fromRow(Map<String, dynamic> r) => UserCategory(
+  factory UserCategory.fromPersonalRow(Map<String, dynamic> r) => UserCategory(
         id: r['id'] as String,
         key: r['key'] as String,
         name: r['name'] as String,
@@ -50,7 +77,29 @@ class UserCategory {
         iconName: r['icon_name'] as String?,
         tint: r['tint'] as String?,
         sortOrder: (r['sort_order'] as int?) ?? 0,
+        source: CategorySource.personal,
       );
+
+  factory UserCategory.fromRoomRow(Map<String, dynamic> r) {
+    final room = r['rooms'] as Map<String, dynamic>?;
+    return UserCategory(
+      id: r['id'] as String,
+      key: r['key'] as String,
+      name: r['name'] as String,
+      kind: r['kind'] as String,
+      iconName: r['icon_name'] as String?,
+      tint: r['tint'] as String?,
+      sortOrder: (r['sort_order'] as int?) ?? 0,
+      source: CategorySource.room,
+      roomId: r['room_id'] as String?,
+      roomName: room?['name'] as String?,
+      roomCreatedBy: room?['created_by'] as String?,
+    );
+  }
+
+  /// Backwards-compat alias used in older call sites.
+  factory UserCategory.fromRow(Map<String, dynamic> r) =>
+      UserCategory.fromPersonalRow(r);
 }
 
 class UserCategoriesNotifier extends AsyncNotifier<List<UserCategory>> {
@@ -58,14 +107,23 @@ class UserCategoriesNotifier extends AsyncNotifier<List<UserCategory>> {
   Future<List<UserCategory>> build() async {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const [];
-    final rows = await Supabase.instance.client
+    final client = Supabase.instance.client;
+    final personal = await client
         .from('user_categories')
         .select()
         .eq('user_id', user.id)
         .order('sort_order', ascending: true);
-    return (rows as List)
-        .map((r) => UserCategory.fromRow(r as Map<String, dynamic>))
-        .toList();
+    final roomRows = await client
+        .from('room_categories')
+        .select('*, rooms(name, created_by)')
+        .order('sort_order', ascending: true);
+    final out = <UserCategory>[
+      for (final r in (personal as List))
+        UserCategory.fromPersonalRow(r as Map<String, dynamic>),
+      for (final r in (roomRows as List))
+        UserCategory.fromRoomRow(r as Map<String, dynamic>),
+    ];
+    return out;
   }
 
   Future<void> create({
@@ -74,23 +132,40 @@ class UserCategoriesNotifier extends AsyncNotifier<List<UserCategory>> {
     required String kind,
     String? iconName,
     String? tint,
+    String? roomId,
   }) async {
     final user = ref.read(currentUserProvider);
     if (user == null) throw StateError('Not signed in');
     final cats = state.value ?? [];
-    final maxSort = cats.isEmpty
+    final scoped = roomId == null
+        ? cats.where((c) => c.isPersonal)
+        : cats.where((c) => c.roomId == roomId);
+    final maxSort = scoped.isEmpty
         ? 0
-        : cats.map((c) => c.sortOrder).reduce((a, b) => a > b ? a : b);
-    final payload = {
-      'user_id': user.id,
-      'key': key,
-      'name': name,
-      'kind': kind,
-      'icon_name': iconName,
-      'tint': tint,
-      'sort_order': maxSort + 1,
-    };
-    await Supabase.instance.client.from('user_categories').insert(payload);
+        : scoped.map((c) => c.sortOrder).reduce((a, b) => a > b ? a : b);
+    final client = Supabase.instance.client;
+    if (roomId == null) {
+      await client.from('user_categories').insert({
+        'user_id': user.id,
+        'key': key,
+        'name': name,
+        'kind': kind,
+        'icon_name': iconName,
+        'tint': tint,
+        'sort_order': maxSort + 1,
+      });
+    } else {
+      await client.from('room_categories').insert({
+        'room_id': roomId,
+        'key': key,
+        'name': name,
+        'kind': kind,
+        'icon_name': iconName,
+        'tint': tint,
+        'sort_order': maxSort + 1,
+        'created_by': user.id,
+      });
+    }
     ref.invalidateSelf();
   }
 
@@ -102,6 +177,12 @@ class UserCategoriesNotifier extends AsyncNotifier<List<UserCategory>> {
     String? iconName,
     String? tint,
   }) async {
+    final cats = state.value ?? [];
+    final cat = cats.where((c) => c.id == id).firstOrNull;
+    final user = ref.read(currentUserProvider);
+    if (cat != null && cat.isRoom && !cat.canManageBy(user?.id)) {
+      throw StateError('Only the room creator can edit room categories');
+    }
     final payload = <String, dynamic>{};
     if (name != null) payload['name'] = name;
     if (key != null) payload['key'] = key;
@@ -109,25 +190,37 @@ class UserCategoriesNotifier extends AsyncNotifier<List<UserCategory>> {
     if (iconName != null) payload['icon_name'] = iconName;
     if (tint != null) payload['tint'] = tint;
     payload['updated_at'] = DateTime.now().toUtc().toIso8601String();
+    final table = (cat?.isRoom ?? false) ? 'room_categories' : 'user_categories';
     await Supabase.instance.client
-        .from('user_categories')
+        .from(table)
         .update(payload)
         .eq('id', id);
     ref.invalidateSelf();
   }
 
   Future<void> delete(String id) async {
-    await Supabase.instance.client
-        .from('user_categories')
-        .delete()
-        .eq('id', id);
+    final cats = state.value ?? [];
+    final cat = cats.where((c) => c.id == id).firstOrNull;
+    final user = ref.read(currentUserProvider);
+    if (cat != null && cat.isRoom && !cat.canManageBy(user?.id)) {
+      throw StateError('Only the room creator can delete room categories');
+    }
+    final table = (cat?.isRoom ?? false) ? 'room_categories' : 'user_categories';
+    await Supabase.instance.client.from(table).delete().eq('id', id);
     ref.invalidateSelf();
   }
 
   Future<void> reorder(List<String> orderedIds) async {
+    final cats = state.value ?? [];
+    final byId = {for (final c in cats) c.id: c};
+    final client = Supabase.instance.client;
     for (var i = 0; i < orderedIds.length; i++) {
-      await Supabase.instance.client
-          .from('user_categories')
+      final cat = byId[orderedIds[i]];
+      final table = (cat?.isRoom ?? false)
+          ? 'room_categories'
+          : 'user_categories';
+      await client
+          .from(table)
           .update({'sort_order': i})
           .eq('id', orderedIds[i]);
     }
@@ -138,12 +231,26 @@ class UserCategoriesNotifier extends AsyncNotifier<List<UserCategory>> {
 final userCategoriesProvider = AsyncNotifierProvider<UserCategoriesNotifier,
     List<UserCategory>>(UserCategoriesNotifier.new);
 
+/// Personal-only expense categories (used by personal flows).
 final expenseCategoriesProvider = Provider<List<UserCategory>>((ref) {
+  final cats = ref.watch(userCategoriesProvider).value ?? [];
+  return cats.where((c) => c.isExpense && c.isPersonal).toList();
+});
+
+/// Personal-only income categories.
+final incomeCategoriesProvider = Provider<List<UserCategory>>((ref) {
+  final cats = ref.watch(userCategoriesProvider).value ?? [];
+  return cats.where((c) => c.isIncome && c.isPersonal).toList();
+});
+
+/// Personal + inherited room categories filtered to expense.
+final allExpenseCategoriesProvider = Provider<List<UserCategory>>((ref) {
   final cats = ref.watch(userCategoriesProvider).value ?? [];
   return cats.where((c) => c.isExpense).toList();
 });
 
-final incomeCategoriesProvider = Provider<List<UserCategory>>((ref) {
+/// Personal + inherited room categories filtered to income.
+final allIncomeCategoriesProvider = Provider<List<UserCategory>>((ref) {
   final cats = ref.watch(userCategoriesProvider).value ?? [];
   return cats.where((c) => c.isIncome).toList();
 });
@@ -171,4 +278,36 @@ final categoryStyleProvider =
 final categoryKindProvider = Provider.family<String?, String>((ref, key) {
   final cats = ref.watch(userCategoriesProvider).value ?? [];
   return cats.where((c) => c.key == key).firstOrNull?.kind;
+});
+
+/// Room-aware label lookup for a category key. When the active room
+/// matches the category's owning room, returns the bare name; otherwise
+/// prefixes with `<Room name> ` so the user can disambiguate.
+class CategoryLabelKey {
+  const CategoryLabelKey({required this.key, this.activeRoomId});
+  final String? key;
+  final String? activeRoomId;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CategoryLabelKey &&
+          other.key == key &&
+          other.activeRoomId == activeRoomId;
+
+  @override
+  int get hashCode => Object.hash(key, activeRoomId);
+}
+
+final categoryLabelProvider =
+    Provider.family<String, CategoryLabelKey>((ref, k) {
+  if (k.key == null) return LoitCategories.defaultOther.label;
+  final cats = ref.watch(userCategoriesProvider).value ?? const <UserCategory>[];
+  final cat = cats.where((c) => c.key == k.key).firstOrNull;
+  if (cat == null) {
+    return ref
+        .watch(categoryStyleProvider(k.key))
+        .label;
+  }
+  return cat.displayLabel(activeRoomId: k.activeRoomId);
 });

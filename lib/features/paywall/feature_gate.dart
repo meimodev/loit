@@ -12,6 +12,10 @@ class FeatureFlags {
   final int? scanLimitPerMonth;
   final int budgetCategoryLimit;
 
+  /// `null` = unlimited rooms. Otherwise the maximum number of rooms the
+  /// user may belong to / create.
+  final int? roomLimit;
+
   const FeatureFlags({
     required this.unlimitedBudgets,
     required this.customCategories,
@@ -21,9 +25,11 @@ class FeatureFlags {
     required this.fullHistory,
     required this.scanLimitPerMonth,
     required this.budgetCategoryLimit,
+    required this.roomLimit,
   });
 
   bool get hasUnlimitedScans => scanLimitPerMonth == null;
+  bool get hasUnlimitedRooms => roomLimit == null;
 
   factory FeatureFlags.forTier(String tier) => switch (tier) {
         'pro' || 'team' => const FeatureFlags(
@@ -35,6 +41,7 @@ class FeatureFlags {
             fullHistory: true,
             scanLimitPerMonth: null, // Pro and Team — unlimited scans
             budgetCategoryLimit: 1 << 30,
+            roomLimit: null, // Pro and Team — unlimited rooms
           ),
         _ => const FeatureFlags(
             unlimitedBudgets: false,
@@ -45,6 +52,7 @@ class FeatureFlags {
             fullHistory: false,
             scanLimitPerMonth: 8,
             budgetCategoryLimit: 3,
+            roomLimit: 1,
           ),
       };
 }

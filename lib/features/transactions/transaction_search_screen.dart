@@ -7,6 +7,8 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/transactions_provider.dart';
+import '../../shared/providers/user_categories_provider.dart';
+import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_chip.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 import '../../shared/widgets/loit_group_label.dart';
@@ -153,9 +155,13 @@ class _TransactionSearchScreenState
           }
 
           final q = _query.toLowerCase();
+          String labelFor(String? key) => ref.read(categoryLabelProvider(
+              CategoryLabelKey(key: key)));
           final results = items.where((t) {
+            final label = labelFor(t.category).toLowerCase();
             return (t.notes ?? '').toLowerCase().contains(q) ||
-                (t.category ?? '').toLowerCase().contains(q);
+                (t.category ?? '').toLowerCase().contains(q) ||
+                label.contains(q);
           }).toList();
 
           if (results.isEmpty) {
@@ -173,13 +179,16 @@ class _TransactionSearchScreenState
             itemCount: results.length,
             itemBuilder: (_, i) {
               final t = results[i];
+              final label = labelFor(t.category);
+              final dateStr =
+                  DateFormat.MMMd().add_jm().format(t.createdAt.toLocal());
               return LoitTxRow(
                 title: t.notes ?? '',
                 categoryKey: t.category,
-                subtitle: DateFormat.MMMd().add_jm().format(t.createdAt.toLocal()),
+                subtitle: '$label · $dateStr',
                 amount: NumberFormat.simpleCurrency(
                   name: t.currency,
-                  decimalDigits: 0,
+                  decimalDigits: currencyDecimals(t.currency),
                 ).format(t.amount),
                 showDivider: i != results.length - 1,
                 onTap: () {

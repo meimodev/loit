@@ -11,6 +11,7 @@ import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
+import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_app_bar_month.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import '../../shared/widgets/loit_stat_triple.dart';
@@ -33,7 +34,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final txns = ref.watch(transactionsProvider).value ?? const [];
     final profile = ref.watch(userProfileProvider).value;
     final home = profile?.homeCurrency ?? 'IDR';
-    final fmt = NumberFormat.simpleCurrency(name: home, decimalDigits: 0);
+    final fmt = NumberFormat.simpleCurrency(name: home, decimalDigits: currencyDecimals(home));
 
     final monthStart = _month;
     final monthEnd = DateTime(_month.year, _month.month + 1, 1);

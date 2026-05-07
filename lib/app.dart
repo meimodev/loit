@@ -17,6 +17,7 @@ import 'shared/widgets/persistent_connectivity_banner.dart';
 import 'shared/providers/auth_providers.dart';
 import 'shared/providers/notifications_provider.dart';
 import 'shared/providers/preferences_provider.dart';
+import 'shared/providers/presence_provider.dart';
 import 'shared/providers/room_providers.dart';
 import 'shared/providers/services_providers.dart';
 
@@ -167,6 +168,10 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
 
     // Push notification open → navigate to room
     _wirePushNavigation();
+
+    // Keep presence channel alive app-wide so the user appears online to
+    // room members regardless of which screen is currently mounted.
+    ref.watch(onlineUsersProvider);
 
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(

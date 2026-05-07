@@ -30,8 +30,10 @@ import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/reports/export_screen.dart';
 import '../../features/reports/reports_screen.dart';
 import '../../features/paywall/paywall_screen.dart';
+import '../../features/room_detail/room_budget_form_screen.dart';
 import '../../features/room_detail/room_budgets_screen.dart';
 import '../../features/room_detail/room_detail_screen.dart';
+import '../../features/room_detail/room_transaction_detail_screen.dart';
 import '../../features/rooms/room_create_screen.dart';
 import '../../features/rooms/room_invite_screen.dart';
 import '../../features/rooms/room_join_screen.dart';
@@ -131,6 +133,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/rooms',
                 builder: (_, __) => const RoomsScreen(),
                 routes: [
+                  // Static segments must precede the `:roomId` parameter
+                  // route so `/rooms/new` and `/rooms/join` don't get
+                  // captured as room ids (which would be sent to Postgres
+                  // as a uuid and 22p02 out).
+                  GoRoute(
+                    path: 'new',
+                    builder: (_, __) => const RoomCreateScreen(),
+                  ),
+                  GoRoute(
+                    path: 'join',
+                    builder: (_, __) => const RoomJoinScreen(),
+                  ),
                   GoRoute(
                     path: ':roomId',
                     builder: (_, state) => RoomDetailScreen(
@@ -213,6 +227,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) =>
             CategoryFormScreen(category: state.extra as UserCategory?),
       ),
+      GoRoute(
+        path: '/rooms/:roomId/categories/new',
+        builder: (_, state) => CategoryFormScreen(
+          roomId: state.pathParameters['roomId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/rooms/:roomId/categories/:id/edit',
+        builder: (_, state) => CategoryFormScreen(
+          roomId: state.pathParameters['roomId']!,
+          category: state.extra as UserCategory?,
+        ),
+      ),
       GoRoute(path: '/reports', builder: (_, __) => const ReportsScreen()),
       GoRoute(
         path: '/reports/export',
@@ -240,8 +267,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       // Room flows (outside shell — no bottom nav)
-      GoRoute(path: '/rooms/new', builder: (_, __) => const RoomCreateScreen()),
-      GoRoute(path: '/rooms/join', builder: (_, __) => const RoomJoinScreen()),
+      // /rooms/new and /rooms/join now live inside the /rooms shell branch
+      // so the shell's `:roomId` matcher doesn't capture the literal "new".
       GoRoute(
         path: '/rooms/:roomId/invite',
         builder: (_, state) => RoomInviteScreen(
@@ -257,6 +284,36 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/rooms/:roomId/budgets',
         builder: (_, state) => RoomBudgetsScreen(
           roomId: state.pathParameters['roomId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/rooms/:roomId/budgets/new',
+        builder: (_, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return RoomBudgetFormScreen(
+            roomId: state.pathParameters['roomId']!,
+            currency: extra?['currency'] as String?,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/rooms/:roomId/budgets/:budgetId/edit',
+        builder: (_, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return RoomBudgetFormScreen(
+            roomId: state.pathParameters['roomId']!,
+            budgetId: state.pathParameters['budgetId']!,
+            currency: extra?['currency'] as String?,
+            budget: extra?['budget'] as Map<String, dynamic>?,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/rooms/:roomId/transactions/:transactionId',
+        builder: (_, state) => RoomTransactionDetailScreen(
+          roomId: state.pathParameters['roomId']!,
+          transactionId: state.pathParameters['transactionId']!,
+          txn: state.extra as Map<String, dynamic>?,
         ),
       ),
       GoRoute(

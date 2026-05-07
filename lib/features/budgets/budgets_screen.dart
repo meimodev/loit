@@ -9,6 +9,7 @@ import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
+import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_app_bar_month.dart';
 import '../../shared/widgets/loit_budget_row.dart';
 import '../../shared/widgets/loit_empty_state.dart';
@@ -37,7 +38,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
     final statuses = ref.watch(budgetStatusesProvider);
     final profile = ref.watch(userProfileProvider).value;
     final currency = profile?.homeCurrency ?? 'IDR';
-    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: 0);
+    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
     final monthLabel = DateFormat.yMMM().format(_month);
 
     final now = DateTime.now();
@@ -152,7 +153,8 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                       if (s.isOver) '${fmt.format(overAmt)} over',
                     ];
                     return LoitBudgetRow(
-                      label: ref.watch(categoryStyleProvider(s.budget.category)).label,
+                      label: ref.watch(categoryLabelProvider(
+                          CategoryLabelKey(key: s.budget.category))),
                       categoryKey: s.budget.category,
                       percent: pct,
                       subtitle: subtitleParts.join(' · '),

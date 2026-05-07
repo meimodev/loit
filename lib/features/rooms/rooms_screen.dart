@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/services/analytics_service.dart';
 import '../../core/services/interaction_log_service.dart';
@@ -8,8 +9,12 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/presence_provider.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/widgets/loit_empty_state.dart';
+import '../paywall/feature_gate.dart';
+import '../paywall/paywall_screen.dart';
 import 'room_colors.dart';
 
 class RoomsScreen extends ConsumerWidget {
@@ -45,6 +50,11 @@ class RoomsScreen extends ConsumerWidget {
         },
         child: CustomScrollView(
           slivers: [
+            SliverToBoxAdapter(
+              child: _MembershipCard(
+                roomCount: rooms.value?.length ?? 0,
+              ),
+            ),
             invites.maybeWhen(
               data: (list) => list.isEmpty
                   ? const SliverToBoxAdapter(child: SizedBox.shrink())
@@ -95,19 +105,45 @@ class RoomsScreen extends ConsumerWidget {
   }
 }
 
-class _RoomTile extends StatelessWidget {
+class _RoomTile extends ConsumerWidget {
   const _RoomTile({required this.room});
   final Map<String, dynamic> room;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
     final id = room['id'] as String? ?? '';
     final name = room['name'] as String? ?? 'Untitled';
-    final members = room['room_members'] as List?;
-    final memberCount = members?.length ?? 0;
+    final description = (room['description'] as String?)?.trim();
+    final baseCurrency = (room['base_currency'] as String?) ?? 'IDR';
+    final createdBy = room['created_by'] as String?;
+    final createdAt = DateTime.tryParse(
+        (room['created_at'] as String?) ?? '')?.toLocal();
+    final members =
+        (room['room_members'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final memberCount = members.length;
     final isArchived = room['is_archived'] as bool? ?? false;
     final color = RoomColors.forId(id);
+
+    final currentUserId = ref.watch(currentUserProvider)?.id;
+    final myRole = members
+        .firstWhere((m) => m['user_id'] == currentUserId,
+            orElse: () => const <String, dynamic>{})['role'] as String?;
+    final isOwner = createdBy != null && createdBy == currentUserId;
+
+    // Presence — count members of this room that are online right now,
+    // excluding self (we already know we're online).
+    final onlineIds = ref.watch(onlineUsersProvider).value ?? const <String>{};
+    final memberIds = members
+        .map((m) => m['user_id'] as String?)
+        .whereType<String>()
+        .toSet();
+    final onlineMemberIds = memberIds.intersection(onlineIds);
+    final othersOnline = onlineMemberIds
+        .where((id) => id != currentUserId)
+        .length;
+    final selfOnline =
+        currentUserId != null && onlineMemberIds.contains(currentUserId);
 
     return InkWell(
       onTap: () => context.push('/rooms/$id'),
@@ -120,20 +156,40 @@ class _RoomTile extends StatelessWidget {
           borderRadius: LoitRadius.brM,
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: isArchived ? c.muted : color,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                name.isNotEmpty ? name[0].toUpperCase() : 'R',
-                style: LoitTypography.titleM.copyWith(
-                    color: Colors.white, fontWeight: FontWeight.w600),
-              ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: isArchived ? c.muted : color,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : 'R',
+                    style: LoitTypography.titleM.copyWith(
+                        color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                if (onlineMemberIds.isNotEmpty && !isArchived)
+                  Positioned(
+                    right: -2,
+                    bottom: -2,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF22C55E),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: c.surface, width: 2),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(width: LoitSpacing.s3),
             Expanded(
@@ -141,6 +197,7 @@ class _RoomTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Flexible(
                         child: Text(name,
@@ -149,25 +206,258 @@ class _RoomTile extends StatelessWidget {
                                 fontWeight: FontWeight.w600),
                             overflow: TextOverflow.ellipsis),
                       ),
-                      const SizedBox(width: 6),
-                      Text('· $memberCount members',
-                          style: LoitTypography.bodyS
-                              .copyWith(color: c.contentTertiary)),
+                      const SizedBox(width: LoitSpacing.s2),
+                      _Pill(label: baseCurrency, color: c.contentSecondary),
+                      if (isArchived) ...[
+                        const SizedBox(width: 4),
+                        _Pill(label: 'Archived', color: c.warning),
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    isArchived ? 'Archived' : 'Tap to open feed',
-                    style: LoitTypography.bodyS
-                        .copyWith(color: c.contentSecondary),
+                  if (description != null && description.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: LoitTypography.bodyS
+                          .copyWith(color: c.contentSecondary, height: 1.3),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'No description set — tap to add one.',
+                      style: LoitTypography.bodyS.copyWith(
+                          color: c.contentTertiary,
+                          fontStyle: FontStyle.italic),
+                    ),
+                  ],
+                  const SizedBox(height: LoitSpacing.s2),
+                  Wrap(
+                    spacing: LoitSpacing.s3,
+                    runSpacing: 4,
+                    children: [
+                      _MetaItem(
+                        icon: Icons.group_outlined,
+                        text: memberCount == 1
+                            ? '1 member'
+                            : '$memberCount members',
+                      ),
+                      if (onlineMemberIds.isNotEmpty && !isArchived)
+                        _OnlineMeta(
+                          othersOnline: othersOnline,
+                          selfOnline: selfOnline,
+                        ),
+                      if (isOwner)
+                        const _MetaItem(
+                            icon: Icons.shield_outlined, text: 'You own this')
+                      else if (myRole != null)
+                        _MetaItem(
+                            icon: Icons.badge_outlined,
+                            text:
+                                'You · ${myRole[0].toUpperCase()}${myRole.substring(1)}'),
+                      if (createdAt != null)
+                        _MetaItem(
+                          icon: Icons.event_outlined,
+                          text:
+                              'Created ${DateFormat.yMMMd().format(createdAt)}',
+                        ),
+                    ],
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: LoitSpacing.s2),
             Icon(Icons.chevron_right, size: 18, color: c.contentTertiary),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MembershipCard extends ConsumerWidget {
+  const _MembershipCard({required this.roomCount});
+  final int roomCount;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.loitColors;
+    final profile = ref.watch(userProfileProvider).value;
+    final tier = profile?.tier ?? 'free';
+    final flags = FeatureFlags.forTier(tier);
+    final limit = flags.roomLimit;
+    final unlimited = flags.hasUnlimitedRooms;
+    final atLimit = limit != null && roomCount >= limit;
+    final tierLabel = switch (tier) {
+      'pro' => 'Pro',
+      'team' => 'Team',
+      _ => 'Free',
+    };
+    final tierColor = switch (tier) {
+      'pro' => c.brand,
+      'team' => c.info,
+      _ => c.contentSecondary,
+    };
+    final progress = unlimited
+        ? 0.0
+        : (limit == 0 ? 0.0 : (roomCount / limit!).clamp(0.0, 1.0));
+    final roomWord = roomCount == 1 ? 'room' : 'rooms';
+    final usageText = unlimited
+        ? '$roomCount $roomWord / ∞'
+        : '$roomCount $roomWord / $limit';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+          LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, 0),
+      padding: const EdgeInsets.all(LoitSpacing.s4),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: LoitRadius.brM,
+        border: Border.all(
+          color: atLimit ? c.warning.withValues(alpha: 0.5) : c.borderSubtle,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.workspace_premium_outlined,
+                  size: 18, color: tierColor),
+              const SizedBox(width: 6),
+              Text(
+                'Membership',
+                style: LoitTypography.bodyS
+                    .copyWith(color: c.contentSecondary),
+              ),
+              const Spacer(),
+              _Pill(label: tierLabel.toUpperCase(), color: tierColor),
+            ],
+          ),
+          const SizedBox(height: LoitSpacing.s3),
+          Text(
+            usageText,
+            style: LoitTypography.bodyL.copyWith(
+                color: c.contentPrimary, fontWeight: FontWeight.w600),
+          ),
+          if (!unlimited) ...[
+            const SizedBox(height: LoitSpacing.s2),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: c.muted,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                    atLimit ? c.warning : tierColor),
+              ),
+            ),
+          ],
+          if (atLimit) ...[
+            const SizedBox(height: LoitSpacing.s3),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    "You've reached the room limit on $tierLabel.",
+                    style: LoitTypography.bodyS
+                        .copyWith(color: c.contentSecondary),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () =>
+                      showPaywallSheet(context, feature: 'more_rooms'),
+                  child: const Text('Upgrade'),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.label, required this.color});
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: LoitTypography.labelS.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+}
+
+class _OnlineMeta extends StatelessWidget {
+  const _OnlineMeta({required this.othersOnline, required this.selfOnline});
+  final int othersOnline;
+  final bool selfOnline;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    final String text;
+    if (othersOnline == 0 && selfOnline) {
+      text = 'Only you online';
+    } else if (othersOnline == 0) {
+      text = 'Online';
+    } else if (selfOnline) {
+      text = 'You + $othersOnline online';
+    } else {
+      text = '$othersOnline online';
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: const BoxDecoration(
+            color: Color(0xFF22C55E),
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(text,
+            style: LoitTypography.bodyS.copyWith(
+                color: c.contentPrimary, fontWeight: FontWeight.w600)),
+      ],
+    );
+  }
+}
+
+class _MetaItem extends StatelessWidget {
+  const _MetaItem({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: c.contentTertiary),
+        const SizedBox(width: 4),
+        Text(text,
+            style: LoitTypography.bodyS.copyWith(color: c.contentTertiary)),
+      ],
     );
   }
 }

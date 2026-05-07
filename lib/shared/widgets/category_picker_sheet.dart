@@ -10,26 +10,36 @@ import 'loit_category_avatar.dart';
 import 'loit_sheet.dart';
 
 /// Bottom sheet for picking a category. Returns the selected key.
-/// When [isIncome] is true, only income categories are shown; otherwise expense.
+/// Personal + inherited room categories are listed together, grouped
+/// by source. When [activeRoomId] is set, that room's categories
+/// surface first and render unprefixed; other rooms' categories show
+/// prefixed with the room name so users can disambiguate.
 Future<String?> pickLoitCategory(
   BuildContext context, {
   String? selectedKey,
   bool isIncome = false,
+  String? activeRoomId,
 }) {
   return showLoitSheet<String>(
     context,
     builder: (_) => _CategoryPickerSheet(
       selectedKey: selectedKey,
       isIncome: isIncome,
+      activeRoomId: activeRoomId,
     ),
   );
 }
 
 class _CategoryPickerSheet extends ConsumerStatefulWidget {
-  const _CategoryPickerSheet({this.selectedKey, this.isIncome = false});
+  const _CategoryPickerSheet({
+    this.selectedKey,
+    this.isIncome = false,
+    this.activeRoomId,
+  });
 
   final String? selectedKey;
   final bool isIncome;
+  final String? activeRoomId;
 
   @override
   ConsumerState<_CategoryPickerSheet> createState() =>
@@ -46,19 +56,53 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
     super.dispose();
   }
 
+  bool _matches(UserCategory cat) {
+    if (_query.isEmpty) return true;
+    final q = _query.toLowerCase();
+    final raw = cat.name.toLowerCase();
+    final display =
+        cat.displayLabel(activeRoomId: widget.activeRoomId).toLowerCase();
+    final key = cat.key.toLowerCase();
+    return raw.contains(q) || display.contains(q) || key.contains(q);
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    final cats = ref.watch(widget.isIncome
-        ? incomeCategoriesProvider
-        : expenseCategoriesProvider);
-    final filtered = _query.isEmpty
-        ? cats
-        : cats
-            .where((cat) =>
-                cat.name.toLowerCase().contains(_query.toLowerCase()) ||
-                cat.key.toLowerCase().contains(_query.toLowerCase()))
-            .toList();
+    final all = ref.watch(widget.isIncome
+        ? allIncomeCategoriesProvider
+        : allExpenseCategoriesProvider);
+
+    final activeRoomCats = <UserCategory>[];
+    final personalCats = <UserCategory>[];
+    final otherRoomCats = <Map<String, dynamic>>[];
+    final otherRoomBuckets = <String, List<UserCategory>>{};
+
+    for (final cat in all) {
+      if (!_matches(cat)) continue;
+      if (cat.isPersonal) {
+        personalCats.add(cat);
+      } else if (cat.roomId == widget.activeRoomId &&
+          widget.activeRoomId != null) {
+        activeRoomCats.add(cat);
+      } else {
+        final id = cat.roomId ?? '';
+        otherRoomBuckets.putIfAbsent(id, () => []).add(cat);
+      }
+    }
+    otherRoomBuckets.forEach((id, list) {
+      otherRoomCats.add({
+        'roomId': id,
+        'roomName': list.first.roomName ?? 'Room',
+        'cats': list,
+      });
+    });
+    otherRoomCats.sort((a, b) =>
+        (a['roomName'] as String).compareTo(b['roomName'] as String));
+
+    final empty = activeRoomCats.isEmpty &&
+        personalCats.isEmpty &&
+        otherRoomCats.isEmpty;
 
     return LoitSheet(
       title: widget.isIncome ? 'Income category' : 'Category',
@@ -92,7 +136,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
             onChanged: (v) => setState(() => _query = v),
           ),
           const SizedBox(height: LoitSpacing.s4),
-          if (filtered.isEmpty)
+          if (empty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: LoitSpacing.s6),
               child: Text(
@@ -102,35 +146,66 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                     .copyWith(color: c.contentTertiary),
               ),
             )
-          else
-            for (final cat in filtered)
-              InkWell(
-                borderRadius: LoitRadius.brM,
-                onTap: () => Navigator.of(context).pop(cat.key),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: LoitSpacing.s3,
-                    horizontal: LoitSpacing.s2,
-                  ),
-                  child: Row(
-                    children: [
-                      LoitCategoryAvatar(categoryKey: cat.key, size: 36),
-                      const SizedBox(width: LoitSpacing.s4),
-                      Expanded(
-                        child: Text(
-                          cat.name,
-                          style: LoitTypography.bodyL
-                              .copyWith(color: c.contentPrimary),
-                        ),
-                      ),
-                      if (cat.key == widget.selectedKey)
-                        Icon(Icons.check_rounded,
-                            color: c.brand, size: 22),
-                    ],
-                  ),
-                ),
-              ),
+          else ...[
+            if (activeRoomCats.isNotEmpty) ...[
+              _sectionHeader(c, 'This room'),
+              for (final cat in activeRoomCats) _row(cat, c),
+              const SizedBox(height: LoitSpacing.s2),
+            ],
+            if (personalCats.isNotEmpty) ...[
+              _sectionHeader(c, 'Personal'),
+              for (final cat in personalCats) _row(cat, c),
+              const SizedBox(height: LoitSpacing.s2),
+            ],
+            for (final group in otherRoomCats) ...[
+              _sectionHeader(c, group['roomName'] as String),
+              for (final cat in group['cats'] as List<UserCategory>)
+                _row(cat, c),
+              const SizedBox(height: LoitSpacing.s2),
+            ],
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _sectionHeader(LoitColors c, String label) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          LoitSpacing.s2, LoitSpacing.s2, LoitSpacing.s2, 6),
+      child: Text(
+        label.toUpperCase(),
+        style: LoitTypography.labelS
+            .copyWith(color: c.contentSecondary, letterSpacing: 0.5),
+      ),
+    );
+  }
+
+  Widget _row(UserCategory cat, LoitColors c) {
+    final label = cat.displayLabel(activeRoomId: widget.activeRoomId);
+    return InkWell(
+      borderRadius: LoitRadius.brM,
+      onTap: () => Navigator.of(context).pop(cat.key),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          vertical: LoitSpacing.s3,
+          horizontal: LoitSpacing.s2,
+        ),
+        child: Row(
+          children: [
+            LoitCategoryAvatar(categoryKey: cat.key, size: 36),
+            const SizedBox(width: LoitSpacing.s4),
+            Expanded(
+              child: Text(
+                label,
+                style:
+                    LoitTypography.bodyL.copyWith(color: c.contentPrimary),
+              ),
+            ),
+            if (cat.key == widget.selectedKey)
+              Icon(Icons.check_rounded, color: c.brand, size: 22),
+          ],
+        ),
       ),
     );
   }

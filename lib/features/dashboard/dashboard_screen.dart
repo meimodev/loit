@@ -13,6 +13,7 @@ import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/selected_month_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
+import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/budget_alert_banner.dart';
 import '../../shared/widgets/loit_budget_row.dart';
 import '../../shared/widgets/loit_group_label.dart';
@@ -222,7 +223,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
   String _fmt(double v, String currency) {
-    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: 0);
+    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
     return fmt.format(v);
   }
 
@@ -291,13 +292,14 @@ List<Widget> _topBudgetRows({
   required List<BudgetStatus> statuses,
   required String currency,
 }) {
-  final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: 0);
+  final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
   final sorted = [...statuses]..sort((a, b) => b.ratio.compareTo(a.ratio));
   final picked = sorted.take(3).toList();
   return [
     for (var i = 0; i < picked.length; i++)
       LoitBudgetRow(
-        label: ref.watch(categoryStyleProvider(picked[i].budget.category)).label,
+        label: ref.watch(categoryLabelProvider(
+            CategoryLabelKey(key: picked[i].budget.category))),
         categoryKey: picked[i].budget.category,
         percent: (picked[i].ratio * 100).round(),
         subtitle:
@@ -547,7 +549,7 @@ class _AccountRow extends StatelessWidget {
     }
 
     final a = account!;
-    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: 0);
+    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
     final isAsset = a.kind == AccountKind.asset;
     final iconColor = isAsset ? c.success : c.danger;
     final amountColor = balance < 0 ? c.danger : c.success;

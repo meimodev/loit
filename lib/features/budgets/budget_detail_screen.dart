@@ -33,6 +33,8 @@ class BudgetDetailScreen extends ConsumerWidget {
     }
     final b = status.budget;
     final style = ref.watch(categoryStyleProvider(b.category));
+    final catLabel = ref.watch(
+        categoryLabelProvider(CategoryLabelKey(key: b.category)));
     final pct = (status.ratio * 100).round();
     final over = status.isOver;
     final overAmt = (status.spent - b.monthlyLimit).clamp(0, double.infinity);
@@ -82,7 +84,7 @@ class BudgetDetailScreen extends ConsumerWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${style.label.toUpperCase()} · MONTHLY',
+                        Text('${catLabel.toUpperCase()} · MONTHLY',
                             style: LoitTypography.bodyS.copyWith(
                               color: c.contentSecondary,
                               fontWeight: FontWeight.w600,
@@ -167,7 +169,7 @@ class BudgetDetailScreen extends ConsumerWidget {
                   builder: (ctx) => AlertDialog(
                     title: const Text('Delete budget?'),
                     content: Text(
-                      'This permanently deletes the ${style.label} budget. Transactions are kept. This cannot be undone.',
+                      'This permanently deletes the $catLabel budget. Transactions are kept. This cannot be undone.',
                     ),
                     actions: [
                       TextButton(

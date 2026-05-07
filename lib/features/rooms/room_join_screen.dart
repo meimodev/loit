@@ -9,6 +9,7 @@ import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/room_providers.dart';
+import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_input.dart';
 
@@ -66,6 +67,8 @@ class _RoomJoinScreenState extends ConsumerState<RoomJoinScreen> {
           action: 'room_joined', screen: 'join_room', message: '$roomId');
       ref.invalidate(myRoomsProvider);
       ref.invalidate(pendingInvitesProvider);
+      ref.invalidate(userCategoriesProvider);
+      if (roomId != null) ref.invalidate(roomDetailProvider(roomId));
       if (mounted && roomId != null) {
         context.pushReplacement('/rooms/$roomId');
       } else if (mounted) {

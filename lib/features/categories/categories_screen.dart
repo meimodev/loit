@@ -6,6 +6,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/loit_category_avatar.dart';
 import '../../shared/widgets/loit_group_label.dart';
@@ -24,6 +25,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
   Widget build(BuildContext context) {
     final c = context.loitColors;
     final catsAsync = ref.watch(userCategoriesProvider);
+    final user = ref.watch(currentUserProvider);
 
     return Scaffold(
       backgroundColor: c.canvas,
@@ -38,50 +40,98 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (cats) {
           final visible = cats.where((c) => !_dismissed.contains(c.id)).toList();
-          final expense = visible.where((cat) => cat.isExpense).toList();
-          final income = visible.where((cat) => cat.isIncome).toList();
-
           if (visible.isEmpty) return const _EmptyCategoriesState();
+
+          final personalExpense =
+              visible.where((cat) => cat.isPersonal && cat.isExpense).toList();
+          final personalIncome =
+              visible.where((cat) => cat.isPersonal && cat.isIncome).toList();
+
+          // Bucket room categories by roomId, preserving sort_order.
+          final roomBuckets = <String, List<UserCategory>>{};
+          for (final cat in visible) {
+            if (!cat.isRoom) continue;
+            final id = cat.roomId ?? '';
+            roomBuckets.putIfAbsent(id, () => []).add(cat);
+          }
+          final roomGroups = roomBuckets.entries.toList()
+            ..sort((a, b) {
+              final an = a.value.first.roomName ?? '';
+              final bn = b.value.first.roomName ?? '';
+              return an.compareTo(bn);
+            });
 
           return ListView(
             children: [
-              if (expense.isNotEmpty) ...[
+              if (personalExpense.isNotEmpty) ...[
                 LoitGroupLabel(
-                  label: 'Expense',
-                  trailing: _CountBadge(count: expense.length),
+                  label: 'Personal · Expense',
+                  trailing: _CountBadge(count: personalExpense.length),
                 ),
-                Container(
-                  color: c.surface,
-                  child: Column(
-                    children: [
-                      for (var i = 0; i < expense.length; i++)
-                        _dismissibleRow(
-                          context: context,
-                          cat: expense[i],
-                          showDivider: i != expense.length - 1,
-                        ),
-                    ],
-                  ),
+                _RowGroup(
+                  cats: personalExpense,
+                  onEdit: (cat) =>
+                      context.push('/categories/${cat.id}/edit', extra: cat),
+                  onDelete: _confirmDelete,
+                  canManage: true,
                 ),
               ],
-              if (income.isNotEmpty) ...[
+              if (personalIncome.isNotEmpty) ...[
                 LoitGroupLabel(
-                  label: 'Income',
-                  trailing: _CountBadge(count: income.length),
+                  label: 'Personal · Income',
+                  trailing: _CountBadge(count: personalIncome.length),
                 ),
-                Container(
-                  color: c.surface,
-                  child: Column(
+                _RowGroup(
+                  cats: personalIncome,
+                  onEdit: (cat) =>
+                      context.push('/categories/${cat.id}/edit', extra: cat),
+                  onDelete: _confirmDelete,
+                  canManage: true,
+                ),
+              ],
+              for (final group in roomGroups) ...[
+                Builder(builder: (_) {
+                  final first = group.value.first;
+                  final canManage = first.canManageBy(user?.id);
+                  final roomName = first.roomName ?? 'Room';
+                  return Column(
                     children: [
-                      for (var i = 0; i < income.length; i++)
-                        _dismissibleRow(
-                          context: context,
-                          cat: income[i],
-                          showDivider: i != income.length - 1,
+                      LoitGroupLabel(
+                        label: 'Room · $roomName',
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _CountBadge(count: group.value.length),
+                            if (canManage) ...[
+                              const SizedBox(width: 8),
+                              InkWell(
+                                onTap: () => context.push(
+                                    '/rooms/${group.key}/categories/new'),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  child: Icon(Icons.add,
+                                      size: 18, color: c.contentSecondary),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
+                      ),
+                      _RowGroup(
+                        cats: group.value,
+                        canManage: canManage,
+                        onEdit: canManage
+                            ? (cat) => context.push(
+                                '/rooms/${group.key}/categories/${cat.id}/edit',
+                                extra: cat,
+                              )
+                            : null,
+                        onDelete: canManage ? _confirmDelete : null,
+                      ),
                     ],
-                  ),
-                ),
+                  );
+                }),
               ],
               const SizedBox(height: 80),
             ],
@@ -95,40 +145,69 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
     );
   }
 
-  Widget _dismissibleRow({
-    required BuildContext context,
-    required UserCategory cat,
-    required bool showDivider,
-  }) {
+  Future<bool> _confirmDelete(UserCategory cat) async {
+    final c = context.loitColors;
+    return await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text('Delete "${cat.name}"?'),
+            content: const Text(
+              'Transactions or budgets with this category key will fall back to "Other".',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: c.danger),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+}
+
+class _RowGroup extends ConsumerWidget {
+  const _RowGroup({
+    required this.cats,
+    required this.canManage,
+    this.onEdit,
+    this.onDelete,
+  });
+  final List<UserCategory> cats;
+  final bool canManage;
+  final void Function(UserCategory)? onEdit;
+  final Future<bool> Function(UserCategory)? onDelete;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.loitColors;
+    return Container(
+      color: c.surface,
+      child: Column(
+        children: [
+          for (var i = 0; i < cats.length; i++)
+            _row(context, ref, cats[i], i != cats.length - 1),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(BuildContext context, WidgetRef ref, UserCategory cat,
+      bool showDivider) {
+    final tap = (canManage && onEdit != null) ? () => onEdit!(cat) : null;
+    final row = _CategoryRow(cat: cat, showDivider: showDivider, onTap: tap);
+    if (!canManage || onDelete == null) return row;
     final c = context.loitColors;
     return Dismissible(
       key: ValueKey(cat.id),
       direction: DismissDirection.endToStart,
-      confirmDismiss: (_) async {
-        return await showDialog<bool>(
-              context: context,
-              builder: (_) => AlertDialog(
-                title: Text('Delete "${cat.name}"?'),
-                content: const Text(
-                  'Transactions or budgets with this category key will fall back to "Other".',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text('Cancel'),
-                  ),
-                  FilledButton(
-                    style: FilledButton.styleFrom(backgroundColor: c.danger),
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const Text('Delete'),
-                  ),
-                ],
-              ),
-            ) ??
-            false;
-      },
+      confirmDismiss: (_) async => onDelete!(cat),
       onDismissed: (_) {
-        setState(() => _dismissed.add(cat.id));
         ref.read(userCategoriesProvider.notifier).delete(cat.id);
       },
       background: Container(
@@ -137,12 +216,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
         color: c.danger,
         child: const Icon(Icons.delete_outline, color: Colors.white),
       ),
-      child: _CategoryRow(
-        cat: cat,
-        showDivider: showDivider,
-        onTap: () =>
-            context.push('/categories/${cat.id}/edit', extra: cat),
-      ),
+      child: row,
     );
   }
 }
@@ -156,11 +230,12 @@ class _CategoryRow extends StatelessWidget {
 
   final UserCategory cat;
   final bool showDivider;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final readOnly = onTap == null;
     final row = InkWell(
       onTap: onTap,
       child: Padding(
@@ -173,12 +248,26 @@ class _CategoryRow extends StatelessWidget {
             LoitCategoryAvatar(categoryKey: cat.key, size: 36),
             const SizedBox(width: LoitSpacing.s4),
             Expanded(
-              child: Text(
-                cat.name,
-                style: LoitTypography.bodyM.copyWith(
-                  color: c.contentPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    cat.name,
+                    style: LoitTypography.bodyM.copyWith(
+                      color: c.contentPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (readOnly && cat.isRoom)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        'Inherited · read-only',
+                        style: LoitTypography.bodyS
+                            .copyWith(color: c.contentTertiary),
+                      ),
+                    ),
+                ],
               ),
             ),
             Container(
@@ -191,7 +280,10 @@ class _CategoryRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: LoitSpacing.s3),
-            Icon(Icons.chevron_right, size: 16, color: c.contentTertiary),
+            if (!readOnly)
+              Icon(Icons.chevron_right, size: 16, color: c.contentTertiary)
+            else
+              Icon(Icons.lock_outline, size: 14, color: c.contentTertiary),
           ],
         ),
       ),

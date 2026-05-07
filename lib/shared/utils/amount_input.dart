@@ -57,6 +57,10 @@ double? parseAmountInput(String s) {
   return double.tryParse(cleaned.replaceAll(RegExp(r'[.,]'), ''));
 }
 
+/// Decimal digits to render for a given currency code in display contexts.
+/// IDR uses 0 (whole rupiah); other currencies use 2.
+int currencyDecimals(String? code) => code == 'IDR' ? 0 : 2;
+
 /// Format a numeric value into the input text (id_ID thousand sep, no symbol).
 String formatAmountInput(double v) {
   if (v == v.truncateToDouble()) {

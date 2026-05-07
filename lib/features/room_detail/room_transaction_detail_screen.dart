@@ -2,114 +2,158 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/loit_categories.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
-import '../../shared/providers/accounts_provider.dart';
-import '../../shared/providers/transactions_provider.dart';
+import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/preferences_provider.dart';
+import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_amount_text.dart';
-import '../../shared/widgets/loit_banner.dart';
 import '../../shared/widgets/loit_category_avatar.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import '../../shared/widgets/loit_receipt_image.dart';
-import 'notes_breakdown.dart';
+import '../rooms/room_colors.dart';
+import '../transactions/notes_breakdown.dart';
 
-class TransactionDetailScreen extends ConsumerWidget {
-  const TransactionDetailScreen({super.key, required this.transactionId, this.txn});
+class RoomTransactionDetailScreen extends ConsumerWidget {
+  const RoomTransactionDetailScreen({
+    super.key,
+    required this.roomId,
+    required this.transactionId,
+    this.txn,
+  });
 
+  final String roomId;
   final String transactionId;
-  final Txn? txn;
+  final Map<String, dynamic>? txn;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
-    final txns = ref.watch(transactionsProvider);
-    final accounts = ref.watch(accountsProvider).value ?? const [];
-    final accountMap = {for (final a in accounts) a.id: a};
-    final isUnsynced = txn != null;
+    final roomAsync = ref.watch(roomDetailProvider(roomId));
+    final user = ref.watch(currentUserProvider);
+    final isCreator = roomAsync.maybeWhen(
+      data: (r) => r['created_by'] == user?.id,
+      orElse: () => false,
+    );
 
+    AppBar appBar() => AppBar(
+          title: const Text('Transaction'),
+          actions: [
+            if (isCreator)
+              IconButton(
+                tooltip: 'Delete',
+                icon: Icon(Icons.delete_outline, color: c.danger),
+                onPressed: () => _confirmAndDelete(context, ref),
+              ),
+          ],
+        );
+
+    if (txn != null) {
+      return Scaffold(
+        backgroundColor: c.canvas,
+        appBar: appBar(),
+        body: _buildDetail(context, ref, txn!),
+      );
+    }
+
+    final async = ref.watch(roomTransactionProvider(
+        RoomTxKey(roomId: roomId, txId: transactionId)));
     return Scaffold(
       backgroundColor: c.canvas,
-      appBar: AppBar(
-        title: const Text('Transaction'),
+      appBar: appBar(),
+      body: async.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Error: $e')),
+        data: (row) {
+          if (row == null) return const Center(child: Text('Not found'));
+          return _buildDetail(context, ref, row);
+        },
+      ),
+    );
+  }
+
+  Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
+    final c = context.loitColors;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete transaction?'),
+        content: const Text(
+            'This removes the transaction from the room for everyone. Cannot be undone.'),
         actions: [
-          IconButton(
-            tooltip: 'Edit',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () {
-              final Txn? t;
-              if (txn != null) {
-                t = txn;
-              } else {
-                final txns = ref.read(transactionsProvider).value ?? const [];
-                t = txns.where((e) => e.id == transactionId).firstOrNull;
-              }
-              if (t == null) return;
-              context.push('/transactions/new', extra: {
-                '_edit_id': t.id,
-                'amount': t.absAmount,
-                'currency': t.currency,
-                'type': t.type,
-                'account_id': t.accountId,
-                'to_account_id': t.toAccountId,
-                'category': t.category,
-                'notes': t.notes,
-                'created_at': t.createdAt.toIso8601String(),
-              });
-            },
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: c.danger),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
           ),
         ],
       ),
-      body: isUnsynced
-          ? _buildDetail(context, ref, txn!, accountMap, isUnsynced: true)
-          : txns.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
-              data: (items) {
-                final t = items.firstWhere(
-                  (e) => e.id == transactionId,
-                  orElse: () => Txn(
-                    id: null,
-                    amount: 0,
-                    currency: 'IDR',
-                    amountHome: null,
-                    fxRate: null,
-                    category: null,
-                    notes: null,
-                    receiptUrl: null,
-                    aiParsed: false,
-                    isManualFallback: false,
-                    createdAt: DateTime.utc(1970),
-                  ),
-                );
-                if (t.id == null) {
-                  return const Center(child: Text('Not found'));
-                }
-                return _buildDetail(context, ref, t, accountMap);
-              },
-            ),
     );
+    if (ok != true) return;
+    try {
+      await Supabase.instance.client
+          .from('transactions')
+          .delete()
+          .eq('id', transactionId);
+    } finally {
+      ref.invalidate(roomFeedProvider(roomId));
+      ref.invalidate(roomTransactionProvider(
+          RoomTxKey(roomId: roomId, txId: transactionId)));
+      if (context.mounted) context.pop();
+    }
   }
 
   Widget _buildDetail(
     BuildContext context,
     WidgetRef ref,
-    Txn t,
-    Map<String, Account> accountMap, {
-    bool isUnsynced = false,
-  }) {
+    Map<String, dynamic> t,
+  ) {
     final c = context.loitColors;
-    final catStyle = ref.watch(categoryStyleProvider(t.category));
+    final amount = (t['amount'] as num?)?.toDouble() ?? 0;
+    final type = t['type'] as String? ?? (amount < 0 ? 'income' : 'expense');
+    final isIncome = type == 'income';
+    final isTransfer = type == 'transfer';
+    final category = t['category'] as String?;
+    final catStyle = ref.watch(categoryStyleProvider(category));
     final catLabel = ref.watch(categoryLabelProvider(
-        CategoryLabelKey(key: t.category)));
-    final fromAccount = t.accountId != null ? accountMap[t.accountId] : null;
-    final toAccount = t.toAccountId != null ? accountMap[t.toAccountId] : null;
+        CategoryLabelKey(key: category, activeRoomId: roomId)));
+    final notes = t['notes'] as String?;
+    final currency = t['currency'] as String? ?? 'IDR';
+    final fxRate = (t['fx_rate'] as num?)?.toDouble();
+    final amountHome = (t['amount_home_currency'] as num?)?.toDouble() ??
+        (t['amount_home'] as num?)?.toDouble();
+    final receiptUrl = t['receipt_url'] as String?;
+    final aiParsed = t['ai_parsed'] == true;
+    final isManualFallback = t['is_manual_fallback'] == true;
+
+    final user = t['users'] as Map<String, dynamic>?;
+    final rawName = (user?['name'] as String?)?.trim();
+    final email = (user?['email'] as String?)?.trim();
+    final emailHandle =
+        (email != null && email.contains('@')) ? email.split('@').first : email;
+    final payer = (rawName != null && rawName.isNotEmpty)
+        ? rawName
+        : (emailHandle != null && emailHandle.isNotEmpty)
+            ? emailHandle
+            : 'Unknown';
+    final avatarUrl = user?['avatar_url'] as String?;
+
+    final createdRaw = t['created_at'] as String?;
+    final created = createdRaw != null
+        ? DateTime.tryParse(createdRaw)?.toLocal() ?? DateTime.now()
+        : DateTime.now();
+
+    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
     final homeCurrency = ref.watch(preferencesProvider).maybeWhen(
           data: (p) => p.currency,
           orElse: () => 'IDR',
@@ -123,47 +167,41 @@ class TransactionDetailScreen extends ConsumerWidget {
         LoitSpacing.s8,
       ),
       children: [
-        if (isUnsynced) ...[
-          const LoitBanner(
-            kind: LoitBannerKind.warning,
-            title: 'Not synced',
-            body: 'This transaction hasn\'t synced yet. Edit to save it.',
-          ),
-          const SizedBox(height: LoitSpacing.s4),
-        ],
-        _heroCard(context, t, catStyle, catLabel),
+        _heroCard(context, t, catStyle, catLabel, fmt, isTransfer),
         const SizedBox(height: LoitSpacing.s5),
+        const LoitGroupLabel(label: 'Created by'),
+        _creatorRow(context, payer, avatarUrl, email),
+        const SizedBox(height: LoitSpacing.s4),
         const LoitGroupLabel(label: 'Details'),
         _row(context, 'Date',
-            DateFormat.yMMMMEEEEd().add_jm().format(t.createdAt.toLocal())),
-        _row(context, 'Type', _typeName(t.type)),
-        if (fromAccount != null)
-          _row(context, 'Account', fromAccount.name),
-        if (toAccount != null)
-          _row(context, 'To account', toAccount.name),
-        if (!t.isTransfer)
+            DateFormat.yMMMMEEEEd().add_jm().format(created)),
+        _row(context, 'Type', _typeName(type)),
+        if (!isTransfer)
           _row(context, 'Category', catLabel),
-        _row(context, 'Currency', t.currency),
-        if (t.fxRate != null)
-          _row(context, 'FX rate', t.fxRate!.toStringAsFixed(4)),
-        if (t.amountHome != null && t.amountHome != t.amount)
+        _row(context, 'Currency', currency),
+        if (fxRate != null)
+          _row(context, 'FX rate', fxRate.toStringAsFixed(4)),
+        if (amountHome != null && amountHome != amount)
           _row(
             context,
             'Home amount',
             NumberFormat.simpleCurrency(
               name: homeCurrency,
               decimalDigits: currencyDecimals(homeCurrency),
-            ).format(t.amountHome),
+            ).format(amountHome),
           ),
-        if (t.aiParsed)
-          _row(context, 'Source', 'AI scanned'),
-        if (t.isManualFallback)
-          _row(context, 'Source', 'Manual fallback'),
-        if (t.notes != null && t.notes!.isNotEmpty) ...[
+        _row(
+          context,
+          'Amount',
+          '${isTransfer ? '' : isIncome ? '+' : ''}${fmt.format(amount.abs())}',
+        ),
+        if (aiParsed) _row(context, 'Source', 'AI scanned'),
+        if (isManualFallback) _row(context, 'Source', 'Manual fallback'),
+        if (notes != null && notes.isNotEmpty) ...[
           const SizedBox(height: LoitSpacing.s4),
           const LoitGroupLabel(label: 'Notes'),
           Builder(builder: (_) {
-            final parsed = parseBreakdown(t.notes);
+            final parsed = parseBreakdown(notes);
             if (parsed == null) {
               return Container(
                 padding: const EdgeInsets.all(LoitSpacing.s4),
@@ -172,7 +210,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                   borderRadius: LoitRadius.brM,
                   border: Border.all(color: c.borderSubtle),
                 ),
-                child: Text(t.notes!,
+                child: Text(notes,
                     style: LoitTypography.bodyM
                         .copyWith(color: c.contentPrimary)),
               );
@@ -180,49 +218,12 @@ class TransactionDetailScreen extends ConsumerWidget {
             return _BreakdownView(parsed: parsed);
           }),
         ],
-        if (t.receiptUrl != null) ...[
+        if (receiptUrl != null && receiptUrl.isNotEmpty) ...[
           const SizedBox(height: LoitSpacing.s4),
           const LoitGroupLabel(label: 'Receipt'),
           ClipRRect(
             borderRadius: LoitRadius.brM,
-            child: LoitReceiptImage(path: t.receiptUrl!),
-          ),
-        ],
-        if (!isUnsynced) ...[
-          const SizedBox(height: LoitSpacing.s6),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: c.danger,
-              side: BorderSide(color: c.danger.withValues(alpha: 0.4)),
-              minimumSize: const Size.fromHeight(48),
-            ),
-            icon: const Icon(Icons.delete_outline),
-            label: const Text('Delete transaction'),
-            onPressed: () async {
-              final ok = await showDialog<bool>(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: const Text('Delete transaction?'),
-                  content: const Text('This cannot be undone.'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
-                    ),
-                    FilledButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Delete'),
-                    ),
-                  ],
-                ),
-              );
-              if (ok == true) {
-                await ref
-                    .read(transactionsProvider.notifier)
-                    .deleteTransaction(t.id!);
-                if (context.mounted) context.pop();
-              }
-            },
+            child: LoitReceiptImage(path: receiptUrl),
           ),
         ],
       ],
@@ -240,9 +241,18 @@ class TransactionDetailScreen extends ConsumerWidget {
     }
   }
 
-  Widget _heroCard(BuildContext context, Txn t, LoitCategoryStyle catStyle,
-      String catLabel) {
+  Widget _heroCard(
+    BuildContext context,
+    Map<String, dynamic> t,
+    LoitCategoryStyle catStyle,
+    String catLabel,
+    NumberFormat fmt,
+    bool isTransfer,
+  ) {
     final c = context.loitColors;
+    final notes = t['notes'] as String?;
+    final amount = (t['amount'] as num?)?.toDouble() ?? 0;
+    final category = t['category'] as String?;
     return Container(
       padding: const EdgeInsets.all(LoitSpacing.s5),
       decoration: BoxDecoration(
@@ -255,7 +265,7 @@ class TransactionDetailScreen extends ConsumerWidget {
         children: [
           Row(
             children: [
-              if (t.isTransfer)
+              if (isTransfer)
                 Container(
                   width: 48,
                   height: 48,
@@ -264,18 +274,20 @@ class TransactionDetailScreen extends ConsumerWidget {
                     shape: BoxShape.circle,
                   ),
                   alignment: Alignment.center,
-                  child: Icon(Icons.swap_horiz, color: c.contentSecondary, size: 24),
+                  child: Icon(Icons.swap_horiz,
+                      color: c.contentSecondary, size: 24),
                 )
               else
-                LoitCategoryAvatar(categoryKey: t.category, size: 48),
+                LoitCategoryAvatar(categoryKey: category, size: 48),
               const SizedBox(width: LoitSpacing.s4),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Builder(builder: (_) {
-                      final t0 = breakdownTitle(t.notes);
-                      final fallback = t.isTransfer ? 'Transfer' : 'Transaction';
+                      final t0 = breakdownTitle(notes);
+                      final fallback =
+                          isTransfer ? 'Transfer' : 'Transaction';
                       return Text(
                           t0.isEmpty ? fallback : t0,
                           style: LoitTypography.titleM
@@ -283,7 +295,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                     }),
                     const SizedBox(height: 2),
                     Text(
-                      t.isTransfer ? 'Transfer' : catLabel,
+                      isTransfer ? 'Transfer' : catLabel,
                       style: LoitTypography.bodyS
                           .copyWith(color: c.contentSecondary),
                     ),
@@ -294,11 +306,68 @@ class TransactionDetailScreen extends ConsumerWidget {
           ),
           const SizedBox(height: LoitSpacing.s5),
           LoitAmountText(
-            NumberFormat.simpleCurrency(
-              name: t.currency,
-              decimalDigits: currencyDecimals(t.currency),
-            ).format(t.isTransfer ? t.absAmount : t.amount),
+            fmt.format(isTransfer ? amount.abs() : amount),
             variant: LoitAmountVariant.hero,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _creatorRow(
+    BuildContext context,
+    String name,
+    String? avatarUrl,
+    String? email,
+  ) {
+    final c = context.loitColors;
+    final color = RoomColors.forId(name);
+    return Container(
+      padding: const EdgeInsets.all(LoitSpacing.s4),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: LoitRadius.brM,
+        border: Border.all(color: c.borderSubtle),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              image: avatarUrl != null && avatarUrl.isNotEmpty
+                  ? DecorationImage(
+                      image: NetworkImage(avatarUrl), fit: BoxFit.cover)
+                  : null,
+            ),
+            alignment: Alignment.center,
+            child: avatarUrl == null || avatarUrl.isEmpty
+                ? Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700),
+                  )
+                : null,
+          ),
+          const SizedBox(width: LoitSpacing.s3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    style: LoitTypography.bodyM.copyWith(
+                        color: c.contentPrimary,
+                        fontWeight: FontWeight.w600)),
+                if (email != null && email.isNotEmpty)
+                  Text(email,
+                      style: LoitTypography.bodyS
+                          .copyWith(color: c.contentSecondary)),
+              ],
+            ),
           ),
         ],
       ),
@@ -426,4 +495,3 @@ class _BreakdownView extends StatelessWidget {
     );
   }
 }
-

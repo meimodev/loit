@@ -24,6 +24,8 @@ class LoitTxRow extends StatefulWidget {
     this.onLongPress,
     this.trailingBadge,
     this.leadingSelector,
+    this.roomBadge,
+    this.accentStripeColor,
   });
 
   final String title;
@@ -43,6 +45,15 @@ class LoitTxRow extends StatefulWidget {
   /// category avatar. Slides in/out horizontally via AnimatedSwitcher when
   /// it changes, used for the multi-select checkbox.
   final Widget? leadingSelector;
+
+  /// Optional badge rendered below the subtitle. Used to surface the
+  /// originating room for transactions inherited from a shared room.
+  final Widget? roomBadge;
+
+  /// Optional accent color rendered as a thin vertical stripe along the
+  /// leading edge. Used to visually mark room-inherited transactions with
+  /// the room's accent.
+  final Color? accentStripeColor;
 
   @override
   State<LoitTxRow> createState() => _LoitTxRowState();
@@ -65,7 +76,7 @@ class _LoitTxRowState extends State<LoitTxRow> {
             ? '${widget.subtitle} · ${widget.accountLabel}'
             : widget.accountLabel)
         : widget.subtitle;
-    final row = Container(
+    final rowBody = Container(
       color: c.surface,
       padding: const EdgeInsets.symmetric(
         horizontal: LoitSpacing.s5,
@@ -123,6 +134,10 @@ class _LoitTxRowState extends State<LoitTxRow> {
                     ),
                   ),
                 ],
+                if (widget.roomBadge != null) ...[
+                  const SizedBox(height: 4),
+                  widget.roomBadge!,
+                ],
               ],
             ),
           ),
@@ -137,6 +152,23 @@ class _LoitTxRowState extends State<LoitTxRow> {
         ],
       ),
     );
+
+    final row = widget.accentStripeColor == null
+        ? rowBody
+        : Stack(
+            children: [
+              rowBody,
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: 3,
+                  color: widget.accentStripeColor,
+                ),
+              ),
+            ],
+          );
 
     final hasInteraction =
         widget.onTap != null || widget.onLongPress != null;

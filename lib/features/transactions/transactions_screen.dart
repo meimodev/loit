@@ -14,13 +14,18 @@ import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/selected_month_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/loit_banner.dart';
+import '../../shared/widgets/loit_chip.dart';
 import '../../shared/widgets/loit_month_app_bar.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 import '../../shared/widgets/loit_fab_stack.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import '../../shared/widgets/loit_stat_triple.dart';
 import '../../shared/widgets/loit_tx_row.dart';
+import '../rooms/room_colors.dart';
 import 'notes_breakdown.dart';
+
+/// Source filter applied to the transactions feed.
+enum _SourceFilter { all, personal, rooms }
 
 /// LOIT Transactions feed. Owns monthly summary (Income / Expenses / Total),
 /// filter chips, grouped-by-day rows, search, and add/scan FABs.
@@ -35,6 +40,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   // Multi-select
   bool _multiMode = false;
   final Set<String> _selected = {};
+
+  // Source filter (all / personal-only / rooms-only)
+  _SourceFilter _sourceFilter = _SourceFilter.all;
 
   void _toggleMulti(String? id) {
     if (id == null) return;
@@ -107,17 +115,28 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               final d = t.createdAt.toLocal();
               return d.year == month.year && d.month == month.month;
             }).toList();
-            final filtered = monthItems;
+            final filtered = monthItems.where((t) {
+              switch (_sourceFilter) {
+                case _SourceFilter.all:
+                  return true;
+                case _SourceFilter.personal:
+                  return t.roomId == null;
+                case _SourceFilter.rooms:
+                  return t.roomId != null;
+              }
+            }).toList();
 
-            // Monthly summary from month items (excludes transfers)
+            // Monthly summary respects the active source filter so totals
+            // reconcile with the rows visible below.
             var incomeSum = 0.0, expenseSum = 0.0;
-            for (final t in monthItems) {
+            for (final t in filtered) {
               if (t.isTransfer) continue;
               final v = (t.amountHome ?? t.amount).abs();
-              if (t.isIncome)
+              if (t.isIncome) {
                 incomeSum += v;
-              else
+              } else {
                 expenseSum += v;
+              }
             }
             final netTotal = incomeSum - expenseSum;
             final summaryTriple = LoitStatTriple(
@@ -141,18 +160,29 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             );
 
             if (filtered.isEmpty) {
+              final isFiltered = _sourceFilter != _SourceFilter.all;
               return ListView(
                 children: [
                   summaryTriple,
+                  _filterChips(context),
                   const SizedBox(height: 24),
                   LoitEmptyState(
                     icon: Icons.receipt_long_outlined,
-                    title: 'No transactions yet',
-                    body: 'Add a transaction or scan a receipt to get started.',
-                    primaryCta: 'New transaction',
-                    onPrimaryCta: () => context.push('/transactions/new'),
-                    secondaryCta: 'Scan receipt',
-                    onSecondaryCta: () => context.push('/scan'),
+                    title: isFiltered
+                        ? 'No transactions match this filter'
+                        : 'No transactions yet',
+                    body: isFiltered
+                        ? 'Try switching to All to see every transaction this month.'
+                        : 'Add a transaction or scan a receipt to get started.',
+                    primaryCta:
+                        isFiltered ? 'Show all' : 'New transaction',
+                    onPrimaryCta: isFiltered
+                        ? () => setState(
+                            () => _sourceFilter = _SourceFilter.all)
+                        : () => context.push('/transactions/new'),
+                    secondaryCta: isFiltered ? null : 'Scan receipt',
+                    onSecondaryCta:
+                        isFiltered ? null : () => context.push('/scan'),
                   ),
                 ],
               );
@@ -165,6 +195,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             return CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(child: summaryTriple),
+                SliverToBoxAdapter(child: _filterChips(context)),
                 if (_overBudgetCount(filtered) > 0)
                   SliverToBoxAdapter(
                     child: Padding(
@@ -241,6 +272,16 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                               ),
                             )
                           : null;
+                      final isRoomTx = t.roomId != null;
+                      final roomAccent = isRoomTx
+                          ? RoomColors.forId(t.roomId!)
+                          : null;
+                      final roomBadge = isRoomTx
+                          ? _RoomOriginBadge(
+                              accent: roomAccent!,
+                              name: t.roomName ?? 'Room',
+                            )
+                          : null;
                       final row = LoitTxRow(
                         title: breakdownTitle(t.notes),
                         categoryKey: t.isTransfer ? null : t.category,
@@ -252,9 +293,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         showDivider: i != entry.value.length - 1,
                         trailingBadge: animatedBadge,
                         leadingSelector: leadingSelector,
+                        roomBadge: roomBadge,
+                        accentStripeColor: roomAccent,
                         onTap: () {
                           if (_multiMode) {
                             _toggleMulti(t.id);
+                          } else if (isRoomTx) {
+                            // Room-inherited txn: jump to the room detail
+                            // rather than the personal txn detail.
+                            context.push('/rooms/${t.roomId}');
                           } else if (t.id != null) {
                             context.push('/transactions/${t.id}');
                           } else {
@@ -533,6 +580,43 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     return (income: income, expense: expense);
   }
 
+  Widget _filterChips(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        LoitSpacing.s5,
+        LoitSpacing.s2,
+        LoitSpacing.s5,
+        LoitSpacing.s2,
+      ),
+      child: Row(
+        children: [
+          LoitChip(
+            label: 'All',
+            selected: _sourceFilter == _SourceFilter.all,
+            onTap: () =>
+                setState(() => _sourceFilter = _SourceFilter.all),
+          ),
+          const SizedBox(width: LoitSpacing.s2),
+          LoitChip(
+            label: 'Personal',
+            leading: Icons.person_outline,
+            selected: _sourceFilter == _SourceFilter.personal,
+            onTap: () =>
+                setState(() => _sourceFilter = _SourceFilter.personal),
+          ),
+          const SizedBox(width: LoitSpacing.s2),
+          LoitChip(
+            label: 'Rooms',
+            leading: Icons.groups_outlined,
+            selected: _sourceFilter == _SourceFilter.rooms,
+            onTap: () =>
+                setState(() => _sourceFilter = _SourceFilter.rooms),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget? _dayTotalsTrailing(
     BuildContext context,
     ({double income, double expense}) totals,
@@ -559,6 +643,51 @@ class _SyncBadge extends StatelessWidget {
     return Tooltip(
       message: 'Not synced',
       child: Icon(Icons.cloud_off_rounded, size: 16, color: c.warning),
+    );
+  }
+}
+
+/// Compact pill rendered below the transaction subtitle to surface the
+/// originating room. Tinted by the room's accent so the row reads as
+/// "inherited from room" at a glance.
+class _RoomOriginBadge extends StatelessWidget {
+  const _RoomOriginBadge({required this.accent, required this.name});
+
+  final Color accent;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.32)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 180),
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: LoitTypography.labelS.copyWith(
+                color: accent,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -175,6 +175,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'iOS version coming soon'**
   String get iosComingSoon;
+
+  /// No description provided for @fxRateStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Rates may be outdated'**
+  String get fxRateStale;
+
+  /// No description provided for @fxConvertedFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'≈ {amount} {currency}'**
+  String fxConvertedFrom(String amount, String currency);
 }
 
 class _AppLocalizationsDelegate

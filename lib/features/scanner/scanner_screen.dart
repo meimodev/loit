@@ -147,10 +147,20 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     final compressed = await scanner.compressToFile(file);
     Log.d(_tag, 'Compressed to ${compressed.path}');
     final userCats = ref.read(userCategoriesProvider).value ?? [];
-    final catList = userCats
+    // Scope categories to the active context: when scanning from a room,
+    // include personal + that room's categories so the AI can match
+    // room-specific labels. Otherwise send personal-only — other rooms'
+    // categories are noise and may collide on `key`.
+    final scopedCats = widget.roomId != null
+        ? userCats
+            .where((c) => c.isPersonal || c.roomId == widget.roomId)
+            .toList()
+        : userCats.where((c) => c.isPersonal).toList();
+    final catList = scopedCats
         .map((c) => {'key': c.key, 'name': c.name, 'kind': c.kind})
         .toList();
-    Log.d(_tag, 'Sending to scan-receipt (isDemo=$isDemo, cats=${catList.length})');
+    Log.d(_tag,
+        'Sending to scan-receipt (isDemo=$isDemo, cats=${catList.length}, roomScoped=${widget.roomId != null})');
     final result = await scanner.scanReceipt(
       compressed,
       isDemo: isDemo,
@@ -354,9 +364,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       );
       // When transaction routed to a room, jump straight into the room view.
       if (roomId != null) {
-        context.go('/rooms/$roomId');
+        context.go('/rooms/$roomId?highlight=$insertedId');
       } else {
-        context.pop();
+        // Personal scan: surface the new row on the transactions tab so the
+        // user can see what just landed (with a one-shot flash highlight).
+        context.go('/transactions?highlight=$insertedId');
       }
       return true;
     } catch (e, st) {

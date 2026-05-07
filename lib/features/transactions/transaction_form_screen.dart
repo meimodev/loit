@@ -499,8 +499,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
 
   String get _currencySymbol {
     try {
-      return NumberFormat.simpleCurrency(name: _currency, decimalDigits: 0)
-          .currencySymbol;
+      return currencySymbol(_currency);
     } catch (_) {
       return _currency;
     }
@@ -693,7 +692,14 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
         // When transaction targets a room, jump into the room view instead
         // of popping back to the previous screen (typically scanner/form).
         if (_roomId != null && _type != 'transfer') {
-          context.go('/rooms/$_roomId');
+          final highlight = insertedId != null ? '?highlight=$insertedId' : '';
+          context.go('/rooms/$_roomId$highlight');
+        } else if ((_aiParsed || _isManualFallback) &&
+            _editId == null &&
+            insertedId != null) {
+          // Scan-originated review save — surface the new row on the
+          // transactions tab so the user can see the landing.
+          context.go('/transactions?highlight=$insertedId');
         } else {
           context.pop();
         }

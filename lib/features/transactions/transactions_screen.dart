@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -11,16 +10,17 @@ import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/selected_month_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_banner.dart';
-import '../../shared/widgets/loit_chip.dart';
 import '../../shared/widgets/loit_month_app_bar.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 import '../../shared/widgets/loit_fab_stack.dart';
 import '../../shared/widgets/loit_group_label.dart';
+import '../../shared/widgets/loit_sheet.dart';
 import '../../shared/widgets/loit_stat_triple.dart';
 import '../../shared/widgets/loit_tx_row.dart';
 import '../rooms/room_colors.dart';
@@ -32,49 +32,64 @@ enum _SourceFilter { all, personal, rooms }
 /// LOIT Transactions feed. Owns monthly summary (Income / Expenses / Total),
 /// filter chips, grouped-by-day rows, search, and add/scan FABs.
 class TransactionsScreen extends ConsumerStatefulWidget {
-  const TransactionsScreen({super.key});
+  const TransactionsScreen({super.key, this.highlightTxId});
+  final String? highlightTxId;
 
   @override
   ConsumerState<TransactionsScreen> createState() => _TransactionsScreenState();
 }
 
 class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
-  // Multi-select
-  bool _multiMode = false;
-  final Set<String> _selected = {};
-
   // Source filter (all / personal-only / rooms-only)
   _SourceFilter _sourceFilter = _SourceFilter.all;
 
-  void _toggleMulti(String? id) {
-    if (id == null) return;
-    setState(() {
-      if (_selected.contains(id)) {
-        _selected.remove(id);
-        if (_selected.isEmpty) _multiMode = false;
-      } else {
-        _selected.add(id);
-        _multiMode = true;
+  String? _pendingScrollTxId;
+  bool _scrollScheduled = false;
+  final GlobalKey _highlightRowKey = GlobalKey(debugLabel: 'tx-highlight-row');
+
+  @override
+  void initState() {
+    super.initState();
+    _pendingScrollTxId = widget.highlightTxId;
+  }
+
+  void _maybeScrollToHighlight() {
+    if (_pendingScrollTxId == null || _scrollScheduled) return;
+    _scrollScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctx = _highlightRowKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeOut,
+          alignment: 0.3,
+        );
       }
+      if (mounted) setState(() => _pendingScrollTxId = null);
     });
   }
 
-  void _exitMulti() {
-    setState(() {
-      _multiMode = false;
-      _selected.clear();
-    });
-  }
-
-  Future<void> _bulkDelete() async {
-    final notifier = ref.read(transactionsProvider.notifier);
-    final ids = _selected.toList();
-    _exitMulti();
-    for (final id in ids) {
-      try {
-        await notifier.deleteTransaction(id);
-      } catch (_) {}
-    }
+  void _showRoomDeleteRedirect(Txn t) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    final roomName = t.roomName ?? 'the room';
+    final roomId = t.roomId;
+    messenger.showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 5),
+        content: Text(
+            'This transaction belongs to "$roomName". Delete it from the room.'),
+        action: roomId == null
+            ? null
+            : SnackBarAction(
+                label: 'Open room',
+                onPressed: () =>
+                    context.go('/rooms/$roomId?highlight=${t.id}'),
+              ),
+      ),
+    );
   }
 
   @override
@@ -88,31 +103,35 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     // still display their account label.
     final allAccounts = ref.watch(accountsProvider).value ?? const [];
     final accountMap = {for (final a in allAccounts) a.id: a};
+    // Fallback room-name lookup when the transactions join did not embed
+    // the related room (e.g. RLS edge cases or stale optimistic rows).
+    final myRooms = ref.watch(myRoomsProvider).value ?? const [];
+    final roomNameById = <String, String>{
+      for (final r in myRooms)
+        if (r['id'] is String && r['name'] is String)
+          r['id'] as String: r['name'] as String,
+    };
 
     return Scaffold(
       backgroundColor: c.canvas,
-      appBar: _multiMode
-          ? _multiAppBar(context)
-          : LoitMonthAppBar(
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.search, size: 20),
-                  tooltip: 'Search',
-                  onPressed: () => context.push('/transactions/search'),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.checklist_rounded, size: 20),
-                  tooltip: 'Select',
-                  onPressed: () => setState(() => _multiMode = true),
-                ),
-              ],
-            ),
+      appBar: LoitMonthAppBar(
+        actions: [
+          _buildFilterAction(context),
+          IconButton(
+            icon: const Icon(Icons.search, size: 20),
+            tooltip: 'Search',
+            onPressed: () => context.push('/transactions/search'),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () => ref.read(transactionsProvider.notifier).refresh(),
         child: txns.when(
+          skipLoadingOnReload: true,
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Error: $e')),
           data: (items) {
+            _maybeScrollToHighlight();
             final monthItems = items.where((t) {
               final d = t.createdAt.toLocal();
               return d.year == month.year && d.month == month.month;
@@ -166,7 +185,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               return ListView(
                 children: [
                   summaryTriple,
-                  _filterChips(context),
                   const SizedBox(height: 24),
                   LoitEmptyState(
                     icon: Icons.receipt_long_outlined,
@@ -197,7 +215,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             return CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(child: summaryTriple),
-                SliverToBoxAdapter(child: _filterChips(context)),
                 if (_overBudgetCount(filtered) > 0)
                   SliverToBoxAdapter(
                     child: Padding(
@@ -232,7 +249,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     itemCount: entry.value.length,
                     itemBuilder: (_, i) {
                       final t = entry.value[i];
-                      final selected = t.id != null && _selected.contains(t.id);
                       final fromName = t.accountId != null
                           ? accountMap[t.accountId]?.name
                           : null;
@@ -243,8 +259,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                           t.isTransfer && fromName != null && toName != null
                           ? '$fromName → $toName'
                           : fromName;
-                      // Trailing badge keeps only the sync indicator. Multi-
-                      // select checkbox slides in from the leading edge.
+                      // Trailing badge keeps only the sync indicator.
                       final Widget? badgeChild = t.id == null
                           ? const _SyncBadge(key: ValueKey('sync'))
                           : null;
@@ -257,23 +272,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         child: badgeChild ??
                             const SizedBox.shrink(key: ValueKey('none')),
                       );
-                      final leadingSelector = _multiMode
-                          ? Padding(
-                              key: ValueKey(
-                                  selected ? 'sel-check' : 'sel-radio'),
-                              padding: const EdgeInsets.only(
-                                  left: LoitSpacing.s5, right: LoitSpacing.s2),
-                              child: Icon(
-                                selected
-                                    ? Icons.check_circle
-                                    : Icons.radio_button_unchecked,
-                                size: 22,
-                                color: selected
-                                    ? c.brand
-                                    : c.contentTertiary,
-                              ),
-                            )
-                          : null;
                       final isRoomTx = t.roomId != null;
                       final roomAccent = isRoomTx
                           ? RoomColors.forId(t.roomId!)
@@ -281,7 +279,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       final roomBadge = isRoomTx
                           ? _RoomOriginBadge(
                               accent: roomAccent!,
-                              name: t.roomName ?? 'Room',
+                              name: t.roomName ??
+                                  roomNameById[t.roomId!] ??
+                                  'Room',
                             )
                           : null;
                       final row = LoitTxRow(
@@ -289,60 +289,64 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         categoryKey: t.isTransfer ? null : t.category,
                         subtitle: _txSubtitle(t),
                         amount: _fmt(t.amount, t.currency),
+                        subAmount: (t.currency != currency &&
+                                t.amountHome != null)
+                            ? '≈ ${_fmt(t.amountHome!.abs(), currency)}'
+                            : null,
                         isIncome: t.isIncome,
                         isTransfer: t.isTransfer,
                         accountLabel: accountLabel,
                         showDivider: i != entry.value.length - 1,
                         trailingBadge: animatedBadge,
-                        leadingSelector: leadingSelector,
                         roomBadge: roomBadge,
                         accentStripeColor: roomAccent,
                         onTap: () {
-                          if (_multiMode) {
-                            _toggleMulti(t.id);
-                          } else if (isRoomTx) {
-                            // Room-inherited txn: jump to the room detail
-                            // rather than the personal txn detail.
-                            context.push('/rooms/${t.roomId}');
+                          if (isRoomTx) {
+                            // Room-inherited txn: jump to room detail under
+                            // the Rooms tab so the bottom-nav active branch
+                            // matches the destination.
+                            context.go('/rooms/${t.roomId}');
                           } else if (t.id != null) {
                             context.push('/transactions/${t.id}');
                           } else {
                             context.push('/transactions/pending', extra: t);
                           }
                         },
-                        onLongPress: t.id == null
-                            ? null
-                            : () {
-                                HapticFeedback.mediumImpact();
-                                if (!_multiMode) {
-                                  setState(() {
-                                    _multiMode = true;
-                                    _selected.add(t.id!);
-                                  });
-                                } else {
-                                  _toggleMulti(t.id);
-                                }
-                              },
                       );
-                      // Selection tint with smooth bg transition.
-                      final tinted = AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        curve: Curves.easeOut,
-                        color: selected
-                            ? c.brand.withValues(alpha: 0.08)
-                            : Colors.transparent,
-                        child: row,
-                      );
-                      // Swipe-to-delete only when not in multi-select and the
-                      // row has been synced (has id). Unsynced rows can't be
-                      // deleted server-side yet.
-                      if (_multiMode || t.id == null) return tinted;
+                      final bool isHighlight = widget.highlightTxId != null &&
+                          t.id != null &&
+                          widget.highlightTxId == t.id;
+                      final Widget rowOrFlash = isHighlight
+                          ? _TxFlashWrapper(
+                              key: _highlightRowKey,
+                              tint: c.brand,
+                              child: row,
+                            )
+                          : row;
+                      // Swipe-to-delete only when the row has been synced
+                      // (has id). Unsynced rows can't be deleted server-side
+                      // yet.
+                      if (t.id == null) return rowOrFlash;
+                      // Room-inherited rows are owned by the originating room;
+                      // delete must happen there, not from the personal list.
+                      if (t.roomId != null) {
+                        return Dismissible(
+                          key: ValueKey('tx-${t.id}'),
+                          direction: DismissDirection.endToStart,
+                          background: _swipeDeleteBackground(c),
+                          confirmDismiss: (_) async {
+                            _showRoomDeleteRedirect(t);
+                            return false;
+                          },
+                          child: rowOrFlash,
+                        );
+                      }
                       return Dismissible(
                         key: ValueKey('tx-${t.id}'),
                         direction: DismissDirection.endToStart,
                         background: _swipeDeleteBackground(c),
                         onDismissed: (_) => _deleteWithUndo(t),
-                        child: tinted,
+                        child: rowOrFlash,
                       );
                     },
                   ),
@@ -365,25 +369,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           },
         ),
       ),
-      floatingActionButton: _multiMode
-          ? null
-          : LoitFabStack(
-              onPrimary: () => context.push('/transactions/new'),
-              primaryTooltip: 'New transaction',
-              primaryIcon: Icons.add,
-            ),
-      bottomNavigationBar: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 220),
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeIn,
-        transitionBuilder: (child, anim) => SizeTransition(
-          sizeFactor: anim,
-          axisAlignment: -1,
-          child: FadeTransition(opacity: anim, child: child),
-        ),
-        child: _multiMode
-            ? _selectionBar(context)
-            : const SizedBox.shrink(key: ValueKey('no-bar')),
+      floatingActionButton: LoitFabStack(
+        onPrimary: () => context.push('/transactions/new'),
+        primaryTooltip: 'New transaction',
+        primaryIcon: Icons.add,
       ),
     );
   }
@@ -467,69 +456,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     });
   }
 
-  PreferredSizeWidget _multiAppBar(BuildContext context) {
-    return AppBar(
-      leading: IconButton(icon: const Icon(Icons.close), onPressed: _exitMulti),
-      title: Text('${_selected.length} selected'),
-    );
-  }
-
-  Widget _selectionBar(BuildContext context) {
-    final c = context.loitColors;
-    return Material(
-      key: const ValueKey('select-bar'),
-      color: c.surface,
-      elevation: 8,
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            LoitSpacing.s5,
-            LoitSpacing.s3,
-            LoitSpacing.s5,
-            LoitSpacing.s3,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.delete_outline),
-                  label: const Text('Delete'),
-                  onPressed: _selected.isEmpty
-                      ? null
-                      : () async {
-                          final count = _selected.length;
-                          final ok = await showDialog<bool>(
-                            context: context,
-                            useRootNavigator: true,
-                            builder: (dialogCtx) => AlertDialog(
-                              title: Text('Delete $count items?'),
-                              content: const Text('This cannot be undone.'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.pop(dialogCtx, false),
-                                  child: const Text('Cancel'),
-                                ),
-                                FilledButton(
-                                  onPressed: () =>
-                                      Navigator.pop(dialogCtx, true),
-                                  child: const Text('Delete'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (ok == true && mounted) await _bulkDelete();
-                        },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Map<DateTime, List<Txn>> _groupByDay(List<Txn> items) {
     final map = <DateTime, List<Txn>>{};
     for (final t in items) {
@@ -561,10 +487,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     return '$label · $time';
   }
 
-  String _fmt(double v, String currency) {
-    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
-    return fmt.format(v);
-  }
+  String _fmt(double v, String currency) => formatMoney(v, currency);
 
   ({double income, double expense}) _dayTotals(List<Txn> items) {
     var income = 0.0, expense = 0.0;
@@ -580,40 +503,96 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     return (income: income, expense: expense);
   }
 
-  Widget _filterChips(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        LoitSpacing.s5,
-        LoitSpacing.s2,
-        LoitSpacing.s5,
-        LoitSpacing.s2,
+  Widget _buildFilterAction(BuildContext context) {
+    final c = context.loitColors;
+    final isActive = _sourceFilter != _SourceFilter.all;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          icon: Icon(
+            isActive ? Icons.filter_alt : Icons.filter_alt_outlined,
+            size: 20,
+            color: isActive ? c.accent : null,
+          ),
+          tooltip: 'Filter source',
+          onPressed: _openFilterSheet,
+        ),
+        if (isActive)
+          Positioned(
+            top: 10,
+            right: 10,
+            child: IgnorePointer(
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: c.accent,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: c.surface, width: 1.5),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _openFilterSheet() async {
+    final picked = await showLoitSheet<_SourceFilter>(
+      context,
+      builder: (sheetCtx) => LoitSheet(
+        title: 'Filter transactions',
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _filterTile(
+              sheetCtx,
+              icon: Icons.all_inclusive,
+              label: 'All',
+              value: _SourceFilter.all,
+            ),
+            _filterTile(
+              sheetCtx,
+              icon: Icons.person_outline,
+              label: 'Personal',
+              value: _SourceFilter.personal,
+            ),
+            _filterTile(
+              sheetCtx,
+              icon: Icons.groups_outlined,
+              label: 'Rooms',
+              value: _SourceFilter.rooms,
+            ),
+          ],
+        ),
       ),
-      child: Row(
-        children: [
-          LoitChip(
-            label: 'All',
-            selected: _sourceFilter == _SourceFilter.all,
-            onTap: () =>
-                setState(() => _sourceFilter = _SourceFilter.all),
-          ),
-          const SizedBox(width: LoitSpacing.s2),
-          LoitChip(
-            label: 'Personal',
-            leading: Icons.person_outline,
-            selected: _sourceFilter == _SourceFilter.personal,
-            onTap: () =>
-                setState(() => _sourceFilter = _SourceFilter.personal),
-          ),
-          const SizedBox(width: LoitSpacing.s2),
-          LoitChip(
-            label: 'Rooms',
-            leading: Icons.groups_outlined,
-            selected: _sourceFilter == _SourceFilter.rooms,
-            onTap: () =>
-                setState(() => _sourceFilter = _SourceFilter.rooms),
-          ),
-        ],
+    );
+    if (picked != null && mounted) {
+      setState(() => _sourceFilter = picked);
+    }
+  }
+
+  Widget _filterTile(
+    BuildContext sheetCtx, {
+    required IconData icon,
+    required String label,
+    required _SourceFilter value,
+  }) {
+    final c = context.loitColors;
+    final selected = _sourceFilter == value;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: selected ? c.accent : c.contentSecondary),
+      title: Text(
+        label,
+        style: LoitTypography.bodyM.copyWith(
+          color: selected ? c.accent : c.contentPrimary,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+        ),
       ),
+      trailing: selected ? Icon(Icons.check, color: c.accent, size: 20) : null,
+      onTap: () => Navigator.of(sheetCtx).pop(value),
     );
   }
 
@@ -688,6 +667,80 @@ class _RoomOriginBadge extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Plays a one-shot two-pulse flash overlay over its child once on mount.
+class _TxFlashWrapper extends StatefulWidget {
+  const _TxFlashWrapper({super.key, required this.child, required this.tint});
+  final Widget child;
+  final Color tint;
+
+  @override
+  State<_TxFlashWrapper> createState() => _TxFlashWrapperState();
+}
+
+class _TxFlashWrapperState extends State<_TxFlashWrapper>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _anim = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.0, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 200,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 300,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 0.0, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 200,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 500,
+      ),
+    ]).animate(_ctrl);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ctrl.forward());
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, child) => Stack(
+        children: [
+          child!,
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Container(
+                color: widget.tint.withValues(alpha: 0.24 * _anim.value),
+              ),
+            ),
+          ),
+        ],
+      ),
+      child: widget.child,
     );
   }
 }

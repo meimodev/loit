@@ -67,3 +67,6 @@ sentry.properties
 # Graphify artifacts
 graphify-out/
 .claude/worktrees/
+
+# FVM Version Cache
+.fvm/

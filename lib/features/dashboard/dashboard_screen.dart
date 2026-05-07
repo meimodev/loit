@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
@@ -79,6 +78,7 @@ class DashboardScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () => ref.read(transactionsProvider.notifier).refresh(),
         child: txns.when(
+          skipLoadingOnReload: true,
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Error: $e')),
           data: (items) {
@@ -222,10 +222,7 @@ class DashboardScreen extends ConsumerWidget {
       ),
     );
   }
-  String _fmt(double v, String currency) {
-    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
-    return fmt.format(v);
-  }
+  String _fmt(double v, String currency) => formatMoney(v, currency);
 
   String _avatarInitial(UserProfile? profile) {
     if (profile != null && profile.name.isNotEmpty) {
@@ -292,7 +289,6 @@ List<Widget> _topBudgetRows({
   required List<BudgetStatus> statuses,
   required String currency,
 }) {
-  final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
   final sorted = [...statuses]..sort((a, b) => b.ratio.compareTo(a.ratio));
   final picked = sorted.take(3).toList();
   return [
@@ -303,7 +299,7 @@ List<Widget> _topBudgetRows({
         categoryKey: picked[i].budget.category,
         percent: (picked[i].ratio * 100).round(),
         subtitle:
-            '${fmt.format(picked[i].spent)} of ${fmt.format(picked[i].budget.monthlyLimit)}',
+            '${formatMoney(picked[i].spent, currency)} of ${formatMoney(picked[i].budget.monthlyLimit, currency)}',
         showDivider: true,
         onTap: () =>
             GoRouter.of(context).push('/budgets/${picked[i].budget.id}'),
@@ -549,7 +545,6 @@ class _AccountRow extends StatelessWidget {
     }
 
     final a = account!;
-    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
     final isAsset = a.kind == AccountKind.asset;
     final iconColor = isAsset ? c.success : c.danger;
     final amountColor = balance < 0 ? c.danger : c.success;
@@ -581,7 +576,7 @@ class _AccountRow extends StatelessWidget {
               ),
             ),
             Text(
-              fmt.format(balance),
+              formatMoney(balance, currency),
               style: LoitTypography.bodyM.copyWith(
                 color: amountColor,
                 fontWeight: FontWeight.w600,

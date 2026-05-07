@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/services/room_service.dart';
+import 'transactions_provider.dart';
 
 // Service singleton
 final roomServiceProvider = Provider<RoomService>((ref) => RoomService());
@@ -25,6 +26,32 @@ final roomBudgetsProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>(
         (ref, roomId) async {
   return ref.watch(roomServiceProvider).getRoomBudgets(roomId);
+});
+
+// Current-month spend grouped by (category, currency) for a room.
+// Key: 'category|currency' → summed positive expense amount.
+final roomBudgetSpendProvider =
+    FutureProvider.family<Map<String, double>, String>((ref, roomId) async {
+  final supabase = Supabase.instance.client;
+  final now = DateTime.now();
+  final monthStart = DateTime(now.year, now.month, 1).toUtc().toIso8601String();
+  final rows = await supabase
+      .from('transactions')
+      .select('category, currency, amount, type')
+      .eq('room_id', roomId)
+      .eq('type', 'expense')
+      .gte('created_at', monthStart);
+  final out = <String, double>{};
+  for (final r in (rows as List)) {
+    final m = r as Map<String, dynamic>;
+    final cat = m['category'] as String?;
+    final cur = m['currency'] as String?;
+    final amt = (m['amount'] as num?)?.toDouble() ?? 0;
+    if (cat == null || cur == null) continue;
+    final key = '$cat|$cur';
+    out[key] = (out[key] ?? 0) + amt.abs();
+  }
+  return out;
 });
 
 class RoomBudgetKey {
@@ -159,6 +186,7 @@ class PendingRoomTxDeletes extends Notifier<Set<String>> {
       } finally {
         state = {...state}..remove(txId);
         ref.invalidate(roomFeedProvider(roomId));
+        ref.invalidate(transactionsProvider);
       }
     });
   }

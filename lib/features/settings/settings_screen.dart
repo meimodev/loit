@@ -349,25 +349,34 @@ class SettingsScreen extends ConsumerWidget {
                   )),
             ),
             const SizedBox(height: 8),
-            for (final o in options)
-              InkWell(
-                onTap: () => Navigator.pop(ctx, o),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 14),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(o,
-                            style: LoitTypography.bodyL
-                                .copyWith(color: c.contentPrimary)),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final o in options)
+                      InkWell(
+                        onTap: () => Navigator.pop(ctx, o),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 14),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(o,
+                                    style: LoitTypography.bodyL.copyWith(
+                                        color: c.contentPrimary)),
+                              ),
+                              if (o == current)
+                                Icon(Icons.check, size: 20, color: c.brand),
+                            ],
+                          ),
+                        ),
                       ),
-                      if (o == current)
-                        Icon(Icons.check, size: 20, color: c.brand),
-                    ],
-                  ),
+                  ],
                 ),
               ),
+            ),
             const SizedBox(height: 8),
           ],
         ),

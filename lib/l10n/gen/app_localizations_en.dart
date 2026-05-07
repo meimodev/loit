@@ -48,4 +48,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get iosComingSoon => 'iOS version coming soon';
+
+  @override
+  String get fxRateStale => 'Rates may be outdated';
+
+  @override
+  String fxConvertedFrom(String amount, String currency) {
+    return '≈ $amount $currency';
+  }
 }

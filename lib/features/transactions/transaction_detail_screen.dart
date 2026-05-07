@@ -131,7 +131,7 @@ class TransactionDetailScreen extends ConsumerWidget {
           ),
           const SizedBox(height: LoitSpacing.s4),
         ],
-        _heroCard(context, t, catStyle, catLabel),
+        _heroCard(context, t, catStyle, catLabel, homeCurrency),
         const SizedBox(height: LoitSpacing.s5),
         const LoitGroupLabel(label: 'Details'),
         _row(context, 'Date',
@@ -150,10 +150,7 @@ class TransactionDetailScreen extends ConsumerWidget {
           _row(
             context,
             'Home amount',
-            NumberFormat.simpleCurrency(
-              name: homeCurrency,
-              decimalDigits: currencyDecimals(homeCurrency),
-            ).format(t.amountHome),
+            formatMoney(t.amountHome!, homeCurrency),
           ),
         if (t.aiParsed)
           _row(context, 'Source', 'AI scanned'),
@@ -241,7 +238,7 @@ class TransactionDetailScreen extends ConsumerWidget {
   }
 
   Widget _heroCard(BuildContext context, Txn t, LoitCategoryStyle catStyle,
-      String catLabel) {
+      String catLabel, String homeCurrency) {
     final c = context.loitColors;
     return Container(
       padding: const EdgeInsets.all(LoitSpacing.s5),
@@ -293,12 +290,18 @@ class TransactionDetailScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: LoitSpacing.s5),
-          LoitAmountText(
-            NumberFormat.simpleCurrency(
-              name: t.currency,
-              decimalDigits: currencyDecimals(t.currency),
-            ).format(t.isTransfer ? t.absAmount : t.amount),
+          LoitAmountText.money(
+            amount: t.isTransfer ? t.absAmount : t.amount,
+            currency: t.currency,
             variant: LoitAmountVariant.hero,
+            convertedAmount: (!t.isTransfer && t.amountHome != null &&
+                    t.currency != homeCurrency)
+                ? t.amountHome
+                : null,
+            convertedCurrency: (!t.isTransfer && t.amountHome != null &&
+                    t.currency != homeCurrency)
+                ? homeCurrency
+                : null,
           ),
         ],
       ),

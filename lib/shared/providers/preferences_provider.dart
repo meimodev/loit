@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../core/services/log_service.dart';
 
 class AppPreferences {
   final ThemeMode themeMode;
@@ -159,6 +162,29 @@ class PreferencesNotifier extends AsyncNotifier<AppPreferences> {
     await _sp.setString(_Keys.currency, v);
     final cur = state.value ?? const AppPreferences();
     await _update(cur.copyWith(currency: v));
+    // Write-through to DB so server-side reports + other devices pick up the
+    // change. Best-effort: SharedPreferences remains the offline-safe mirror.
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      try {
+        await Supabase.instance.client
+            .from('users')
+            .update({'home_currency': v})
+            .eq('id', user.id);
+      } catch (e) {
+        Log.w('Preferences', 'home_currency DB write failed', error: e);
+      }
+    }
+  }
+
+  /// Pull DB-canonical home_currency into SharedPreferences. Called by
+  /// `app.dart` from realtime updates and on `AppLifecycleState.resumed`
+  /// so the local mirror eventually catches up to webhook/multi-device edits.
+  Future<void> syncCurrencyFromDb(String dbValue) async {
+    final cur = state.value ?? const AppPreferences();
+    if (cur.currency == dbValue) return;
+    await _sp.setString(_Keys.currency, dbValue);
+    await _update(cur.copyWith(currency: dbValue));
   }
 
   Future<void> setBool(String key, bool value) async {

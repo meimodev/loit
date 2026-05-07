@@ -34,7 +34,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final txns = ref.watch(transactionsProvider).value ?? const [];
     final profile = ref.watch(userProfileProvider).value;
     final home = profile?.homeCurrency ?? 'IDR';
-    final fmt = NumberFormat.simpleCurrency(name: home, decimalDigits: currencyDecimals(home));
+    String fmt(double v) => formatMoney(v, home);
 
     final monthStart = _month;
     final monthEnd = DateTime(_month.year, _month.month + 1, 1);
@@ -81,15 +81,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               stats: [
                 LoitStat(
                     label: 'Income',
-                    amount: fmt.format(income),
+                    amount: fmt(income),
                     color: c.info),
                 LoitStat(
                     label: 'Expenses',
-                    amount: fmt.format(expenses),
+                    amount: fmt(expenses),
                     color: c.danger),
                 LoitStat(
                   label: 'Net',
-                  amount: fmt.format(net),
+                  amount: fmt(net),
                   color: net >= 0 ? c.success : c.danger,
                 ),
               ],
@@ -106,7 +106,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     BuildContext context,
     List<Txn> allTxns,
     List<Txn> monthTxns,
-    NumberFormat fmt,
+    String Function(double) fmt,
     String home,
   ) {
     switch (_tab) {
@@ -124,7 +124,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }
   }
 
-  List<Widget> _incomeSlivers(List<Txn> monthTxns, NumberFormat fmt) {
+  List<Widget> _incomeSlivers(List<Txn> monthTxns, String Function(double) fmt) {
     final cats = _incomeCategoryTotals(monthTxns).entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final total = cats.fold<double>(0, (s, e) => s + e.value);
@@ -160,7 +160,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return out;
   }
 
-  List<Widget> _overviewSlivers(List<Txn> monthTxns, NumberFormat fmt) {
+  List<Widget> _overviewSlivers(List<Txn> monthTxns, String Function(double) fmt) {
     final c = context.loitColors;
     final byDay = _spendByDay(monthTxns, _month);
     final avgDay = byDay.isEmpty
@@ -187,7 +187,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _MetricCell(
-                      label: 'AVG/DAY', value: fmt.format(avgDay), align: TextAlign.left),
+                      label: 'AVG/DAY', value: fmt(avgDay), align: TextAlign.left),
                   _MetricCell(
                       label: 'DAYS',
                       value: '${byDay.where((v) => v > 0).length} / ${byDay.length}',
@@ -224,7 +224,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     ];
   }
 
-  List<Widget> _categoriesSlivers(List<Txn> monthTxns, NumberFormat fmt) {
+  List<Widget> _categoriesSlivers(List<Txn> monthTxns, String Function(double) fmt) {
     final cats = _categoryTotals(monthTxns).entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final total = cats.fold<double>(0, (s, e) => s + e.value);
@@ -248,7 +248,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     ];
   }
 
-  List<Widget> _trendSlivers(List<Txn> allTxns, NumberFormat fmt) {
+  List<Widget> _trendSlivers(List<Txn> allTxns, String Function(double) fmt) {
     final c = context.loitColors;
     final now = DateTime.now();
     final months = List.generate(
@@ -351,7 +351,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   ),
                 ),
                 Text(
-                  fmt.format(totals[i]),
+                  fmt(totals[i]),
                   style: LoitTypography.bodyM.copyWith(
                     color: c.contentPrimary,
                     fontWeight: FontWeight.w600,
@@ -365,7 +365,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     ];
   }
 
-  List<Widget> _insightsSlivers(List<Txn> monthTxns, NumberFormat fmt) {
+  List<Widget> _insightsSlivers(List<Txn> monthTxns, String Function(double) fmt) {
     final c = context.loitColors;
     final cats = _categoryTotals(monthTxns).entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
@@ -378,7 +378,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       cards.add(_InsightCard(
         title: '${style.label} leads spending',
         body:
-            '${fmt.format(top.value)} this month — your biggest category.',
+            '${fmt(top.value)} this month — your biggest category.',
         color: style.tint,
         icon: style.icon,
       ));
@@ -404,7 +404,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         cards.add(_InsightCard(
           title: '${r.key} · ${r.value} visits',
           body:
-              'Most spent here: ${fmt.format(spendByMerchant[r.key] ?? 0)}. Consider a budget cap.',
+              'Most spent here: ${fmt(spendByMerchant[r.key] ?? 0)}. Consider a budget cap.',
           color: c.info,
           icon: Icons.repeat,
         ));
@@ -695,7 +695,7 @@ class _CategoryLine extends ConsumerWidget {
   });
   final MapEntry<String, double> entry;
   final double total;
-  final NumberFormat fmt;
+  final String Function(double) fmt;
   final bool isLast;
 
   @override
@@ -730,7 +730,7 @@ class _CategoryLine extends ConsumerWidget {
                 style: LoitTypography.bodyM
                     .copyWith(color: c.contentPrimary)),
           ),
-          Text(fmt.format(entry.value),
+          Text(fmt(entry.value),
               style: LoitTypography.bodyM.copyWith(
                   color: c.contentPrimary, fontWeight: FontWeight.w600)),
           const SizedBox(width: LoitSpacing.s3),

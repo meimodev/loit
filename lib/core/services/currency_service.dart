@@ -1,7 +1,4 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../config/env.dart';
 import 'log_service.dart';
 
 enum UserTier {
@@ -20,6 +17,9 @@ class FxRate {
   const FxRate({required this.rate, required this.isStale});
 }
 
+/// Client-side FX service. Reads `fx_rates` table directly when fresh; on
+/// cache miss or staleness invokes the `fx-rate` edge function (which holds
+/// the OXR secret + enforces tier-based source selection).
 class CurrencyService {
   static const _tag = 'CurrencyService';
   static const _staleness = {
@@ -37,52 +37,56 @@ class CurrencyService {
   }) async {
     if (from == to) return const FxRate(rate: 1.0, isStale: false);
 
-    Log.d(_tag, 'Getting rate $from→$to (tier=$tier)');
     final cached = await _getCachedRate(from, to);
     final threshold = _staleness[tier]!;
 
     if (cached != null) {
       final age = DateTime.now().toUtc().difference(cached.$2);
       if (age < threshold) {
-        Log.d(_tag, 'Cache hit $from→$to rate=${cached.$1}');
         return FxRate(rate: cached.$1, isStale: false);
       }
     }
 
     try {
-      final rate = tier == UserTier.free
-          ? await _fetchFrankfurter(from, to)
-          : await _fetchOxr(from, to);
-      await _cacheRate(from, to, rate);
-      Log.i(_tag, 'Fetched $from→$to rate=$rate');
-      return FxRate(rate: rate, isStale: false);
+      final res = await _supabase.functions.invoke(
+        'fx-rate',
+        body: {'from': from, 'to': to},
+      );
+      final data = res.data;
+      if (data is! Map || data['rate'] is! num) {
+        throw StateError('fx-rate: malformed response: $data');
+      }
+      final rate = (data['rate'] as num).toDouble();
+      final isStale = data['isStale'] == true;
+      Log.i(_tag, 'fx-rate $from→$to rate=$rate stale=$isStale '
+          'src=${data['source']}');
+      return FxRate(rate: rate, isStale: isStale);
     } catch (e) {
       if (cached != null) {
-        Log.w(_tag, 'Fetch failed, using stale rate $from→$to', error: e);
+        Log.w(_tag, 'fx-rate invoke failed, using stale cache $from→$to',
+            error: e);
         return FxRate(rate: cached.$1, isStale: true);
       }
-      Log.e(_tag, 'FX fetch failed, no cache', error: e);
+      Log.e(_tag, 'fx-rate invoke failed, no cache', error: e);
       rethrow;
     }
   }
 
-  Future<double> _fetchFrankfurter(String from, String to) async {
-    final uri = Uri.parse('https://api.frankfurter.app/latest?from=$from&to=$to');
-    final res = await http.get(uri).timeout(const Duration(seconds: 10));
-    if (res.statusCode != 200) throw Exception('Frankfurter fetch failed');
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
-    return (data['rates'][to] as num).toDouble();
-  }
-
-  Future<double> _fetchOxr(String from, String to) async {
-    final uri = Uri.parse(
-      'https://openexchangerates.org/api/latest.json'
-      '?app_id=${Env.openExchangeRatesAppId}&base=$from&symbols=$to',
-    );
-    final res = await http.get(uri).timeout(const Duration(seconds: 10));
-    if (res.statusCode != 200) throw Exception('OXR fetch failed');
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
-    return (data['rates'][to] as num).toDouble();
+  /// Batch rate fetch for room/report aggregations. Distinct pairs only.
+  /// Returned map keyed by `'$from→$to'`.
+  Future<Map<String, FxRate>> getRates({
+    required Set<(String, String)> pairs,
+    required UserTier tier,
+  }) async {
+    final out = <String, FxRate>{};
+    for (final (from, to) in pairs) {
+      try {
+        out['$from→$to'] = await getRate(from: from, to: to, tier: tier);
+      } catch (_) {
+        // Best-effort — skip pairs that fail; caller decides UX.
+      }
+    }
+    return out;
   }
 
   Future<(double, DateTime)?> _getCachedRate(String from, String to) async {
@@ -97,14 +101,5 @@ class CurrencyService {
       (result['rate'] as num).toDouble(),
       DateTime.parse(result['fetched_at'] as String),
     );
-  }
-
-  Future<void> _cacheRate(String from, String to, double rate) async {
-    await _supabase.from('fx_rates').upsert({
-      'base_currency': from,
-      'target_currency': to,
-      'rate': rate,
-      'fetched_at': DateTime.now().toUtc().toIso8601String(),
-    });
   }
 }

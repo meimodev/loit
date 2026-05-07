@@ -8,8 +8,10 @@ import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/budgets_provider.dart';
+import '../../shared/providers/home_currency_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
+import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import '../../shared/widgets/loit_tx_row.dart';
 
@@ -37,10 +39,10 @@ class BudgetDetailScreen extends ConsumerWidget {
         categoryLabelProvider(CategoryLabelKey(key: b.category)));
     final pct = (status.ratio * 100).round();
     final over = status.isOver;
-    final overAmt = (status.spent - b.monthlyLimit).clamp(0, double.infinity);
+    final overAmt = (status.spent - b.monthlyLimit).clamp(0, double.infinity).toDouble();
 
-    final fmt = NumberFormat.currency(
-        locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final currency = ref.watch(homeCurrencyProvider);
+    String fmt(double v) => formatMoney(v, currency);
     final contributing = txs
         .where((t) => t.category == b.category)
         .toList()
@@ -98,9 +100,9 @@ class BudgetDetailScreen extends ConsumerWidget {
                               fontWeight: FontWeight.w600,
                             ),
                             children: [
-                              TextSpan(text: fmt.format(status.spent)),
+                              TextSpan(text: fmt(status.spent)),
                               TextSpan(
-                                text: ' / ${fmt.format(b.monthlyLimit)}',
+                                text: ' / ${fmt(b.monthlyLimit)}',
                                 style: LoitTypography.bodyM.copyWith(
                                   color: c.contentSecondary,
                                   fontWeight: FontWeight.w500,
@@ -129,7 +131,7 @@ class BudgetDetailScreen extends ConsumerWidget {
                   children: [
                     Text(
                       over
-                          ? '$pct% — ${fmt.format(overAmt)} over'
+                          ? '$pct% — ${fmt(overAmt)} over'
                           : '$pct% used',
                       style: LoitTypography.bodyS.copyWith(
                         color: over ? c.danger : c.contentSecondary,
@@ -149,7 +151,7 @@ class BudgetDetailScreen extends ConsumerWidget {
                 title: t.notes ?? '',
                 categoryKey: t.category,
                 subtitle: df.format(t.createdAt),
-                amount: fmt.format(t.amount),
+                amount: fmt(t.amount),
                 onTap: t.id == null
                     ? null
                     : () => context.push('/transactions/${t.id}'),

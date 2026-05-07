@@ -186,10 +186,7 @@ class _TransactionSearchScreenState
                 title: t.notes ?? '',
                 categoryKey: t.category,
                 subtitle: '$label · $dateStr',
-                amount: NumberFormat.simpleCurrency(
-                  name: t.currency,
-                  decimalDigits: currencyDecimals(t.currency),
-                ).format(t.amount),
+                amount: formatMoney(t.amount, t.currency),
                 showDivider: i != results.length - 1,
                 onTap: () {
                   _commit(_query);

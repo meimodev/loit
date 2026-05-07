@@ -12,5 +12,13 @@
   "storageExtensionPrice": "Rp19,000 for 6 months",
   "paymentGooglePlayOnly": "Payments processed securely via Google Play",
   "restorePurchases": "Restore purchases",
-  "iosComingSoon": "iOS version coming soon"
+  "iosComingSoon": "iOS version coming soon",
+  "fxRateStale": "Rates may be outdated",
+  "fxConvertedFrom": "≈ {amount} {currency}",
+  "@fxConvertedFrom": {
+    "placeholders": {
+      "amount": {"type": "String"},
+      "currency": {"type": "String"}
+    }
+  }
 }

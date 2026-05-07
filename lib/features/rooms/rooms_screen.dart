@@ -63,6 +63,7 @@ class RoomsScreen extends ConsumerWidget {
                   const SliverToBoxAdapter(child: SizedBox.shrink()),
             ),
             rooms.when(
+              skipLoadingOnReload: true,
               loading: () => const SliverFillRemaining(
                   child: Center(child: CircularProgressIndicator())),
               error: (e, _) => SliverFillRemaining(

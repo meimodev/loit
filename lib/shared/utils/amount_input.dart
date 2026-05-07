@@ -68,3 +68,19 @@ String formatAmountInput(double v) {
   }
   return NumberFormat('#,##0.##', 'id_ID').format(v);
 }
+
+/// Locale-aware money formatter shared across the app. IDR gets 0 decimals,
+/// everything else 2. Pass [showSign] to render +/- prefix.
+String formatMoney(double amount, String currency, {bool showSign = false}) {
+  final fmt = NumberFormat.simpleCurrency(
+    name: currency,
+    decimalDigits: currencyDecimals(currency),
+  );
+  final formatted = fmt.format(amount.abs());
+  if (!showSign) return formatted;
+  return amount < 0 ? '-$formatted' : '+$formatted';
+}
+
+/// Currency symbol for [currency] under the current locale.
+String currencySymbol(String currency) =>
+    NumberFormat.simpleCurrency(name: currency).currencySymbol;

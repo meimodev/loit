@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
@@ -225,7 +224,6 @@ class _AccountRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
     final isAsset = account.kind == AccountKind.asset;
     final iconColor = isAsset ? c.info : c.danger;
 
@@ -276,7 +274,7 @@ class _AccountRow extends StatelessWidget {
               ),
             ),
             Text(
-              fmt.format(balance),
+              formatMoney(balance, currency),
               style: LoitTypography.amountDefault.copyWith(
                 // Assets: red when overdrawn. Liabilities: red when owed (> 0).
                 color: isAsset

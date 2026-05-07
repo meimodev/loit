@@ -9,7 +9,9 @@ import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/home_currency_provider.dart';
 import '../../shared/providers/presence_provider.dart';
+import '../../shared/providers/room_aggregations_provider.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/selected_month_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
@@ -18,16 +20,56 @@ import '../../shared/widgets/loit_empty_state.dart';
 import '../rooms/room_colors.dart';
 
 class RoomDetailScreen extends ConsumerStatefulWidget {
-  const RoomDetailScreen({super.key, required this.roomId, this.initialTab = 0});
+  const RoomDetailScreen({
+    super.key,
+    required this.roomId,
+    this.initialTab = 0,
+    this.highlightTxId,
+  });
   final String roomId;
   final int initialTab;
+  final String? highlightTxId;
 
   @override
   ConsumerState<RoomDetailScreen> createState() => _RoomDetailScreenState();
 }
 
 class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
-  late int _tab = widget.initialTab.clamp(0, 2);
+  late int _tab =
+      widget.highlightTxId != null ? 0 : widget.initialTab.clamp(0, 2);
+  String? _pendingScrollTxId;
+  bool _scrollScheduled = false;
+  final GlobalKey _highlightRowKey = GlobalKey(debugLabel: 'highlight-row');
+
+  @override
+  void initState() {
+    super.initState();
+    _pendingScrollTxId = widget.highlightTxId;
+  }
+
+  void _maybeScrollToHighlight() {
+    if (_pendingScrollTxId == null || _scrollScheduled) return;
+    _scrollScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctx = _highlightRowKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeOut,
+          alignment: 0.3,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Transaction not in recent feed'),
+          ),
+        );
+      }
+      if (mounted) setState(() => _pendingScrollTxId = null);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +79,12 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     final budgetsAsync = ref.watch(roomBudgetsProvider(widget.roomId));
     final user = ref.watch(currentUserProvider);
 
+    if (feedAsync.hasValue && _tab == 0) {
+      _maybeScrollToHighlight();
+    }
+
     return roomAsync.when(
+      skipLoadingOnReload: true,
       loading: () => const Scaffold(
           body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(
@@ -51,7 +98,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
             [];
         final accent = RoomColors.forId(widget.roomId);
         final currency = room['base_currency'] as String? ?? 'IDR';
-        final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
+        String fmt(double v) => formatMoney(v, currency);
 
         return Scaffold(
           backgroundColor: c.canvas,
@@ -138,7 +185,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     required String? currentUserId,
     required bool isCreator,
     required Color accent,
-    required NumberFormat fmt,
+    required String Function(double) fmt,
     required String currency,
     required bool isArchived,
   }) {
@@ -166,6 +213,8 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
           isArchived: isArchived,
           currentUserId: currentUserId,
           isCreator: isCreator,
+          highlightTxId: widget.highlightTxId,
+          highlightRowKey: _highlightRowKey,
         );
     }
   }
@@ -633,46 +682,63 @@ class _FeedTab extends ConsumerWidget {
     required this.isArchived,
     required this.currentUserId,
     required this.isCreator,
+    this.highlightTxId,
+    this.highlightRowKey,
   });
   final String roomId;
   final AsyncValue<List<Map<String, dynamic>>> feedAsync;
   final List<Map<String, dynamic>> members;
   final Color accent;
-  final NumberFormat fmt;
+  final String Function(double) fmt;
   final bool isArchived;
   final String? currentUserId;
   final bool isCreator;
+  final String? highlightTxId;
+  final GlobalKey? highlightRowKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pending = ref.watch(pendingRoomTxDeletesProvider);
     final month = ref.watch(selectedMonthProvider);
     final monthBar = _MonthBar(month: month);
+    final fxAsync = ref.watch(roomFxRatesProvider(roomId));
     return feedAsync.when(
+      skipLoadingOnReload: true,
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (allTxns) {
         final visible = allTxns
             .where((t) => !pending.contains(t['id'] as String?))
             .toList();
+        // Read-time conversion: each row keeps its original currency, but
+        // totals are normalized to room.base_currency for the summary card.
+        final fxRates = fxAsync.value;
         double expensesTotal = 0;
         double incomeTotal = 0;
+        int expensesCount = 0;
+        int incomeCount = 0;
         for (final t in visible) {
           final amt = (t['amount'] as num?)?.toDouble() ?? 0;
           final type = (t['type'] as String?) ??
               (amt > 0 ? 'income' : 'expense');
           if (type == 'transfer') continue;
-          final mag = amt.abs();
+          final txCur = (t['currency'] as String?) ?? (fxRates?.baseCurrency ?? 'IDR');
+          final converted = fxRates?.convert(amt.abs(), txCur) ?? amt.abs();
           if (type == 'income') {
-            incomeTotal += mag;
+            incomeTotal += converted;
+            incomeCount++;
           } else {
-            expensesTotal += mag;
+            expensesTotal += converted;
+            expensesCount++;
           }
         }
         final summaryCard = _TotalSpentCard(
           total: expensesTotal,
           income: incomeTotal,
+          expensesCount: expensesCount,
+          incomeCount: incomeCount,
           fmt: fmt,
+          isStale: fxRates?.isStale ?? false,
         );
         final txns = visible.where((t) {
           final dt = DateTime.tryParse((t['created_at'] as String?) ?? '');
@@ -724,7 +790,9 @@ class _FeedTab extends ConsumerWidget {
                   txns: entry.value,
                   fmt: fmt,
                   currentUserId: currentUserId,
-                  isCreator: isCreator),
+                  isCreator: isCreator,
+                  highlightTxId: highlightTxId,
+                  highlightRowKey: highlightRowKey),
             ],
           ],
         );
@@ -808,11 +876,17 @@ class _TotalSpentCard extends StatelessWidget {
   const _TotalSpentCard({
     required this.total,
     required this.income,
+    required this.expensesCount,
+    required this.incomeCount,
     required this.fmt,
+    this.isStale = false,
   });
   final double total;
   final double income;
-  final NumberFormat fmt;
+  final int expensesCount;
+  final int incomeCount;
+  final String Function(double) fmt;
+  final bool isStale;
 
   @override
   Widget build(BuildContext context) {
@@ -830,15 +904,31 @@ class _TotalSpentCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (isStale)
+            Padding(
+              padding: const EdgeInsets.only(bottom: LoitSpacing.s2),
+              child: Row(
+                children: [
+                  Icon(Icons.schedule, size: 14, color: c.contentTertiary),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Rates may be outdated',
+                    style: LoitTypography.bodyS
+                        .copyWith(color: c.contentTertiary),
+                  ),
+                ],
+              ),
+            ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: _SummaryStat(
                   label: 'EXPENSES',
-                  value: fmt.format(total),
+                  value: fmt(total),
                   icon: Icons.trending_down,
                   tint: expenseColor,
+                  count: expensesCount,
                 ),
               ),
               Container(
@@ -850,9 +940,10 @@ class _TotalSpentCard extends StatelessWidget {
               Expanded(
                 child: _SummaryStat(
                   label: 'INCOME',
-                  value: fmt.format(income),
+                  value: fmt(income),
                   icon: Icons.trending_up,
                   tint: incomeColor,
+                  count: incomeCount,
                 ),
               ),
             ],
@@ -869,11 +960,13 @@ class _SummaryStat extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.tint,
+    required this.count,
   });
   final String label;
   final String value;
   final IconData icon;
   final Color tint;
+  final int count;
 
   @override
   Widget build(BuildContext context) {
@@ -888,6 +981,18 @@ class _SummaryStat extends StatelessWidget {
             Text(label,
                 style: LoitTypography.labelS.copyWith(
                     color: c.contentSecondary, letterSpacing: 0.4)),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: c.muted,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text('$count',
+                  style: LoitTypography.labelS.copyWith(
+                      color: c.contentSecondary,
+                      fontFeatures: const [FontFeature.tabularFigures()])),
+            ),
           ],
         ),
         const SizedBox(height: 4),
@@ -913,12 +1018,16 @@ class _DayGroup extends StatelessWidget {
       required this.txns,
       required this.fmt,
       required this.currentUserId,
-      required this.isCreator});
+      required this.isCreator,
+      this.highlightTxId,
+      this.highlightRowKey});
   final String roomId;
   final List<Map<String, dynamic>> txns;
-  final NumberFormat fmt;
+  final String Function(double) fmt;
   final String? currentUserId;
   final bool isCreator;
+  final String? highlightTxId;
+  final GlobalKey? highlightRowKey;
 
   @override
   Widget build(BuildContext context) {
@@ -934,12 +1043,18 @@ class _DayGroup extends StatelessWidget {
         children: [
           for (var i = 0; i < txns.length; i++)
             _RoomTxRow(
+              key: (highlightTxId != null &&
+                      highlightTxId == txns[i]['id'] &&
+                      highlightRowKey != null)
+                  ? highlightRowKey
+                  : null,
               roomId: roomId,
               tx: txns[i],
               isLast: i == txns.length - 1,
               fmt: fmt,
               currentUserId: currentUserId,
               isCreator: isCreator,
+              highlightTxId: highlightTxId,
             ),
         ],
       ),
@@ -947,25 +1062,101 @@ class _DayGroup extends StatelessWidget {
   }
 }
 
-class _RoomTxRow extends ConsumerWidget {
+class _RoomTxRow extends ConsumerStatefulWidget {
   const _RoomTxRow({
+      super.key,
       required this.roomId,
       required this.tx,
       required this.isLast,
       required this.fmt,
       required this.currentUserId,
-      required this.isCreator});
+      required this.isCreator,
+      this.highlightTxId});
   final String roomId;
   final Map<String, dynamic> tx;
   final bool isLast;
-  final NumberFormat fmt;
+  final String Function(double) fmt;
   final String? currentUserId;
   final bool isCreator;
+  final String? highlightTxId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_RoomTxRow> createState() => _RoomTxRowState();
+}
+
+class _RoomTxRowState extends ConsumerState<_RoomTxRow>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _flashCtrl;
+  Animation<double>? _flashAnim;
+  bool _didFlash = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _maybeStartFlash();
+  }
+
+  @override
+  void didUpdateWidget(covariant _RoomTxRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _maybeStartFlash();
+  }
+
+  void _maybeStartFlash() {
+    if (_didFlash) return;
+    final txId = widget.tx['id'] as String?;
+    if (txId == null || widget.highlightTxId != txId) return;
+    _didFlash = true;
+    _flashCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _flashAnim = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.0, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 200,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 300,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 0.0, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 200,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 500,
+      ),
+    ]).animate(_flashCtrl!);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _flashCtrl?.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _flashCtrl?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tx = widget.tx;
+    final roomId = widget.roomId;
+    final isLast = widget.isLast;
+    final currentUserId = widget.currentUserId;
     final c = context.loitColors;
     final amount = (tx['amount'] as num?)?.toDouble() ?? 0;
+    final txCurrency = (tx['currency'] as String?) ?? 'IDR';
+    final homeCurrency = ref.watch(homeCurrencyProvider);
+    final storedHome = (tx['amount_home_currency'] as num?)?.toDouble();
+    final isForeign = txCurrency != homeCurrency;
+    final convertedAmount = storedHome?.abs();
     final txType = tx['type'] as String? ?? (amount > 0 ? 'income' : 'expense');
     final isIncome = txType == 'income';
     final isTransfer = txType == 'transfer';
@@ -1069,7 +1260,7 @@ class _RoomTxRow extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${isTransfer ? '' : isIncome ? '+' : '−'}${fmt.format(amount.abs())}',
+                '${isTransfer ? '' : isIncome ? '+' : '−'}${formatMoney(amount.abs(), txCurrency)}',
                 style: LoitTypography.bodyM.copyWith(
                     color: isTransfer
                         ? c.contentSecondary
@@ -1079,6 +1270,16 @@ class _RoomTxRow extends ConsumerWidget {
                     fontWeight: FontWeight.w700,
                     fontFeatures: const [FontFeature.tabularFigures()]),
               ),
+              if (isForeign && convertedAmount != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  '≈ ${formatMoney(convertedAmount, homeCurrency)}',
+                  style: LoitTypography.bodyS.copyWith(
+                    color: c.contentTertiary,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
               if (timeText != null) ...[
                 const SizedBox(height: 2),
                 Text(timeText,
@@ -1091,29 +1292,61 @@ class _RoomTxRow extends ConsumerWidget {
       ),
     );
 
-    if (txId == null) return body;
-    final tappable = Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => context.push(
-          '/rooms/$roomId/transactions/$txId',
-          extra: tx,
+    final Widget core;
+    if (txId == null) {
+      core = body;
+    } else {
+      final tappable = Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => context.push(
+            '/rooms/$roomId/transactions/$txId',
+            extra: tx,
+          ),
+          child: body,
         ),
-        child: body,
-      ),
-    );
-    if (!isCreator) return tappable;
-    return Dismissible(
-      key: ValueKey('room-tx-$txId'),
-      direction: DismissDirection.endToStart,
-      onDismissed: (_) => _scheduleDeleteWithUndo(context, ref, txId, merchant),
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        color: c.danger,
-        child: const Icon(Icons.delete_outline, color: Colors.white),
-      ),
-      child: tappable,
+      );
+      final isOwner =
+          currentUserId != null && tx['user_id'] == currentUserId;
+      if (!isOwner) {
+        core = tappable;
+      } else {
+        core = Dismissible(
+          key: ValueKey('room-tx-$txId'),
+          direction: DismissDirection.endToStart,
+          onDismissed: (_) =>
+              _scheduleDeleteWithUndo(context, ref, txId, merchant),
+          background: Container(
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            color: c.danger,
+            child: const Icon(Icons.delete_outline, color: Colors.white),
+          ),
+          child: tappable,
+        );
+      }
+    }
+
+    final flash = _flashAnim;
+    if (flash == null) return core;
+    final accent = RoomColors.forId(roomId);
+    return AnimatedBuilder(
+      animation: flash,
+      builder: (_, child) {
+        return Stack(
+          children: [
+            child!,
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  color: accent.withValues(alpha: 0.24 * flash.value),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      child: core,
     );
   }
 
@@ -1122,7 +1355,7 @@ class _RoomTxRow extends ConsumerWidget {
     const window = Duration(seconds: 5);
     ref
         .read(pendingRoomTxDeletesProvider.notifier)
-        .schedule(txId: txId, roomId: roomId, delay: window);
+        .schedule(txId: txId, roomId: widget.roomId, delay: window);
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
@@ -1220,14 +1453,18 @@ class _BudgetTab extends ConsumerWidget {
   });
   final String roomId;
   final AsyncValue<List<Map<String, dynamic>>> budgetsAsync;
-  final NumberFormat fmt;
+  final String Function(double) fmt;
   final String currency;
   final bool isArchived;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final spendAsync = ref.watch(roomBudgetSpendConvertedProvider(roomId));
+    final spendData = spendAsync.value;
+    final spendMap = spendData?.spend ?? const <String, double>{};
     return budgetsAsync.when(
+      skipLoadingOnReload: true,
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (list) {
@@ -1268,9 +1505,24 @@ class _BudgetTab extends ConsumerWidget {
                 CategoryLabelKey(key: cat, activeRoomId: roomId)));
             final limit = (b['budget_limit'] as num?)?.toDouble() ?? 0;
             final budgetCurrency = b['currency'] as String? ?? currency;
-            final rowFmt = budgetCurrency == currency
+            final String Function(double) rowFmt = budgetCurrency == currency
                 ? fmt
-                : NumberFormat.simpleCurrency(name: budgetCurrency, decimalDigits: currencyDecimals(budgetCurrency));
+                : (v) => formatMoney(v, budgetCurrency);
+            final spent = spendMap['${cat ?? ''}|$budgetCurrency'] ?? 0;
+            final ratio = limit <= 0 ? 0.0 : (spent / limit).clamp(0.0, 1.0);
+            final isOver = limit > 0 && spent >= limit;
+            final isNear = !isOver && ratio >= 0.8;
+            final progressColor = isOver
+                ? c.danger
+                : isNear
+                    ? c.warning
+                    : style.tint;
+            final now = DateTime.now();
+            final nextMonth = DateTime(now.year, now.month + 1, 1);
+            final daysLeft = nextMonth.difference(now).inDays;
+            final durationLabel = daysLeft <= 1
+                ? 'Monthly · resets tomorrow'
+                : 'Monthly · resets in ${daysLeft}d';
             return Container(
               margin: const EdgeInsets.only(top: LoitSpacing.s2),
               decoration: BoxDecoration(
@@ -1293,36 +1545,92 @@ class _BudgetTab extends ConsumerWidget {
                           ),
                   child: Padding(
                     padding: const EdgeInsets.all(LoitSpacing.s3),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: style.tint.withValues(alpha: 0.16),
-                            shape: BoxShape.circle,
+                        Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: style.tint.withValues(alpha: 0.16),
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: Icon(style.icon, size: 18, color: style.tint),
+                            ),
+                            const SizedBox(width: LoitSpacing.s3),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(budgetLabel,
+                                      style: LoitTypography.bodyM
+                                          .copyWith(color: c.contentPrimary)),
+                                  const SizedBox(height: 2),
+                                  Text(durationLabel,
+                                      style: LoitTypography.bodyS.copyWith(
+                                        color: c.contentTertiary,
+                                      )),
+                                ],
+                              ),
+                            ),
+                            Text(rowFmt(limit),
+                                style: LoitTypography.bodyM.copyWith(
+                                    color: c.contentPrimary,
+                                    fontWeight: FontWeight.w600,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures()
+                                    ])),
+                            if (!isArchived) ...[
+                              const SizedBox(width: 6),
+                              Icon(Icons.chevron_right,
+                                  size: 18, color: c.contentTertiary),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: LoitSpacing.s2),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            value: ratio,
+                            minHeight: 6,
+                            backgroundColor: c.borderSubtle,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(progressColor),
                           ),
-                          alignment: Alignment.center,
-                          child: Icon(style.icon, size: 18, color: style.tint),
                         ),
-                        const SizedBox(width: LoitSpacing.s3),
-                        Expanded(
-                          child: Text(budgetLabel,
-                              style: LoitTypography.bodyM
-                                  .copyWith(color: c.contentPrimary)),
-                        ),
-                        Text(rowFmt.format(limit),
-                            style: LoitTypography.bodyM.copyWith(
-                                color: c.contentPrimary,
-                                fontWeight: FontWeight.w600,
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${rowFmt(spent)} spent',
+                              style: LoitTypography.bodyS.copyWith(
+                                color: isOver
+                                    ? c.danger
+                                    : isNear
+                                        ? c.warning
+                                        : c.contentSecondary,
                                 fontFeatures: const [
                                   FontFeature.tabularFigures()
-                                ])),
-                        if (!isArchived) ...[
-                          const SizedBox(width: 6),
-                          Icon(Icons.chevron_right,
-                              size: 18, color: c.contentTertiary),
-                        ],
+                                ],
+                              ),
+                            ),
+                            Text(
+                              limit <= 0
+                                  ? '—'
+                                  : '${(ratio * 100).round()}%',
+                              style: LoitTypography.bodyS.copyWith(
+                                color: c.contentTertiary,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -1350,14 +1658,17 @@ class _CategoriesTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
     final asyncCats = ref.watch(userCategoriesProvider);
+    final pending = ref.watch(pendingCategoryDeletesProvider);
     final canManage = isCreator && !isArchived;
     return asyncCats.when(
+      skipLoadingOnReload: true,
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (cats) {
-        final roomCats =
-            cats.where((cat) => cat.roomId == roomId).toList()
-              ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+        final roomCats = cats
+            .where((cat) => cat.roomId == roomId && !pending.contains(cat.id))
+            .toList()
+          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
         final expense = roomCats.where((cat) => cat.isExpense).toList();
         final income = roomCats.where((cat) => cat.isIncome).toList();
 
@@ -1505,10 +1816,7 @@ class _CategoryGroup extends ConsumerWidget {
     return Dismissible(
       key: ValueKey(cat.id),
       direction: DismissDirection.endToStart,
-      confirmDismiss: (_) => _confirmDelete(context, cat),
-      onDismissed: (_) {
-        ref.read(userCategoriesProvider.notifier).delete(cat.id);
-      },
+      onDismissed: (_) => _scheduleDeleteWithUndo(context, ref, cat),
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
@@ -1519,27 +1827,29 @@ class _CategoryGroup extends ConsumerWidget {
     );
   }
 
-  Future<bool> _confirmDelete(BuildContext context, UserCategory cat) async {
-    final c = context.loitColors;
-    return await showDialog<bool>(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: Text('Delete "${cat.name}"?'),
-            content: const Text(
-                'Transactions or budgets using this category will fall back to "Other".'),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel')),
-              FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: c.danger),
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+  void _scheduleDeleteWithUndo(
+      BuildContext context, WidgetRef ref, UserCategory cat) {
+    const window = Duration(seconds: 4);
+    ref
+        .read(pendingCategoryDeletesProvider.notifier)
+        .schedule(categoryId: cat.id, delay: window);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    final controller = messenger.showSnackBar(
+      SnackBar(
+        duration: window,
+        content: Text('Deleted "${cat.name}"'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => ref
+              .read(pendingCategoryDeletesProvider.notifier)
+              .undo(cat.id),
+        ),
+      ),
+    );
+    Future.delayed(window, () {
+      controller.close();
+    });
   }
 }
 

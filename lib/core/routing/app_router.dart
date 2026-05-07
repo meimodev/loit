@@ -124,7 +124,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                   path: '/transactions',
-                  builder: (_, __) => const TransactionsScreen()),
+                  builder: (_, state) => TransactionsScreen(
+                        highlightTxId:
+                            state.uri.queryParameters['highlight'],
+                      )),
             ],
           ),
           StatefulShellBranch(
@@ -152,6 +155,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       initialTab: int.tryParse(
                               state.uri.queryParameters['tab'] ?? '') ??
                           0,
+                      highlightTxId: state.uri.queryParameters['highlight'],
                     ),
                   ),
                 ],

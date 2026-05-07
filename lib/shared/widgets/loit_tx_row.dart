@@ -13,6 +13,7 @@ class LoitTxRow extends StatefulWidget {
     super.key,
     required this.title,
     required this.amount,
+    this.subAmount,
     this.categoryKey,
     this.subtitle,
     this.isIncome = false,
@@ -30,6 +31,7 @@ class LoitTxRow extends StatefulWidget {
 
   final String title;
   final String amount;
+  final String? subAmount;
   final String? categoryKey;
   final String? subtitle;
   final bool isIncome;
@@ -145,9 +147,24 @@ class _LoitTxRowState extends State<LoitTxRow> {
             widget.trailingBadge!,
             const SizedBox(width: LoitSpacing.s3),
           ],
-          Text(
-            widget.amount,
-            style: LoitTypography.amountDefault.copyWith(color: colorAmount),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.amount,
+                style:
+                    LoitTypography.amountDefault.copyWith(color: colorAmount),
+              ),
+              if (widget.subAmount != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  widget.subAmount!,
+                  style: LoitTypography.bodyS
+                      .copyWith(color: c.contentTertiary),
+                ),
+              ],
+            ],
           ),
         ],
       ),

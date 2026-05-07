@@ -38,7 +38,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
     final statuses = ref.watch(budgetStatusesProvider);
     final profile = ref.watch(userProfileProvider).value;
     final currency = profile?.homeCurrency ?? 'IDR';
-    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
+    String fmt(double v) => formatMoney(v, currency);
     final monthLabel = DateFormat.yMMM().format(_month);
 
     final now = DateTime.now();
@@ -50,7 +50,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
       (s, b) => s + b.budget.monthlyLimit,
     );
     final totalSpent = statuses.fold<double>(0, (s, b) => s + b.spent);
-    final left = (totalLimit - totalSpent).clamp(0, double.infinity);
+    final left = (totalLimit - totalSpent).clamp(0, double.infinity).toDouble();
 
     final overCount = statuses.where((s) => s.isOver).length;
     final paceLabel = _paceLabel(
@@ -99,17 +99,17 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                   stats: [
                     LoitStat(
                       label: 'Limit',
-                      amount: fmt.format(totalLimit),
+                      amount: fmt(totalLimit),
                       color: c.info,
                     ),
                     LoitStat(
                       label: 'Spent',
-                      amount: fmt.format(totalSpent),
+                      amount: fmt(totalSpent),
                       color: c.danger,
                     ),
                     LoitStat(
                       label: 'Left',
-                      amount: fmt.format(left),
+                      amount: fmt(left),
                       color: c.brand,
                     ),
                   ],
@@ -149,8 +149,8 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                     final pct = (s.ratio * 100).round();
                     final overAmt = s.spent - s.budget.monthlyLimit;
                     final subtitleParts = [
-                      '${fmt.format(s.spent)} of ${fmt.format(s.budget.monthlyLimit)}',
-                      if (s.isOver) '${fmt.format(overAmt)} over',
+                      '${fmt(s.spent)} of ${fmt(s.budget.monthlyLimit)}',
+                      if (s.isOver) '${fmt(overAmt)} over',
                     ];
                     return LoitBudgetRow(
                       label: ref.watch(categoryLabelProvider(

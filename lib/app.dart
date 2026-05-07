@@ -156,6 +156,19 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       }
     });
 
+    // Mirror DB-canonical home_currency into the SharedPreferences cache so
+    // local reads stay in sync after webhook/multi-device edits.
+    ref.listen<AsyncValue<UserProfile?>>(userProfileProvider, (_, next) {
+      final profile = next.value;
+      if (profile == null) return;
+      final notifier = ref.read(preferencesProvider.notifier);
+      notifier.syncCurrencyFromDb(profile.homeCurrency).catchError(
+        (Object e, StackTrace st) {
+          Log.w('App', 'home_currency local sync failed', error: e);
+        },
+      );
+    });
+
     // Deep link → navigate to joined room
     ref.listen(deepLinkRoomIdProvider, (_, next) {
       next.whenData((roomId) {

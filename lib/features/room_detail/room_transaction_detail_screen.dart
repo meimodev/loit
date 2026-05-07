@@ -9,11 +9,14 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
-import '../../shared/providers/preferences_provider.dart';
+import '../../shared/providers/home_currency_provider.dart';
 import '../../shared/providers/room_providers.dart';
+import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
+import '../../shared/widgets/account_picker_sheet.dart';
 import '../../shared/widgets/loit_amount_text.dart';
 import '../../shared/widgets/loit_category_avatar.dart';
 import '../../shared/widgets/loit_group_label.dart';
@@ -36,17 +39,12 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
-    final roomAsync = ref.watch(roomDetailProvider(roomId));
     final user = ref.watch(currentUserProvider);
-    final isCreator = roomAsync.maybeWhen(
-      data: (r) => r['created_by'] == user?.id,
-      orElse: () => false,
-    );
 
-    AppBar appBar() => AppBar(
+    AppBar appBar({required bool isOwner}) => AppBar(
           title: const Text('Transaction'),
           actions: [
-            if (isCreator)
+            if (isOwner)
               IconButton(
                 tooltip: 'Delete',
                 icon: Icon(Icons.delete_outline, color: c.danger),
@@ -55,10 +53,13 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
           ],
         );
 
+    bool ownerOf(Map<String, dynamic>? row) =>
+        row != null && user != null && row['user_id'] == user.id;
+
     if (txn != null) {
       return Scaffold(
         backgroundColor: c.canvas,
-        appBar: appBar(),
+        appBar: appBar(isOwner: ownerOf(txn)),
         body: _buildDetail(context, ref, txn!),
       );
     }
@@ -67,7 +68,10 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
         RoomTxKey(roomId: roomId, txId: transactionId)));
     return Scaffold(
       backgroundColor: c.canvas,
-      appBar: appBar(),
+      appBar: appBar(isOwner: async.maybeWhen(
+        data: ownerOf,
+        orElse: () => false,
+      )),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
@@ -109,6 +113,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
       ref.invalidate(roomFeedProvider(roomId));
       ref.invalidate(roomTransactionProvider(
           RoomTxKey(roomId: roomId, txId: transactionId)));
+      ref.invalidate(transactionsProvider);
       if (context.mounted) context.pop();
     }
   }
@@ -153,11 +158,10 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
         ? DateTime.tryParse(createdRaw)?.toLocal() ?? DateTime.now()
         : DateTime.now();
 
-    final fmt = NumberFormat.simpleCurrency(name: currency, decimalDigits: currencyDecimals(currency));
-    final homeCurrency = ref.watch(preferencesProvider).maybeWhen(
-          data: (p) => p.currency,
-          orElse: () => 'IDR',
-        );
+    String fmt(double v) => formatMoney(v, currency);
+    final homeCurrency = ref.watch(homeCurrencyProvider);
+    final currentUser = ref.watch(currentUserProvider);
+    final isOwner = currentUser != null && t['user_id'] == currentUser.id;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -185,18 +189,21 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
           _row(
             context,
             'Home amount',
-            NumberFormat.simpleCurrency(
-              name: homeCurrency,
-              decimalDigits: currencyDecimals(homeCurrency),
-            ).format(amountHome),
+            formatMoney(amountHome, homeCurrency),
           ),
         _row(
           context,
           'Amount',
-          '${isTransfer ? '' : isIncome ? '+' : ''}${fmt.format(amount.abs())}',
+          '${isTransfer ? '' : isIncome ? '+' : ''}${fmt(amount.abs())}',
         ),
         if (aiParsed) _row(context, 'Source', 'AI scanned'),
         if (isManualFallback) _row(context, 'Source', 'Manual fallback'),
+        if (isOwner)
+          _AccountRow(
+            roomId: roomId,
+            transactionId: transactionId,
+            fallbackAccountId: t['account_id'] as String?,
+          ),
         if (notes != null && notes.isNotEmpty) ...[
           const SizedBox(height: LoitSpacing.s4),
           const LoitGroupLabel(label: 'Notes'),
@@ -246,7 +253,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
     Map<String, dynamic> t,
     LoitCategoryStyle catStyle,
     String catLabel,
-    NumberFormat fmt,
+    String Function(double) fmt,
     bool isTransfer,
   ) {
     final c = context.loitColors;
@@ -306,7 +313,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
           ),
           const SizedBox(height: LoitSpacing.s5),
           LoitAmountText(
-            fmt.format(isTransfer ? amount.abs() : amount),
+            fmt(isTransfer ? amount.abs() : amount),
             variant: LoitAmountVariant.hero,
           ),
         ],
@@ -491,6 +498,169 @@ class _BreakdownView extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _AccountRow extends ConsumerStatefulWidget {
+  const _AccountRow({
+    required this.roomId,
+    required this.transactionId,
+    required this.fallbackAccountId,
+  });
+  final String roomId;
+  final String transactionId;
+  final String? fallbackAccountId;
+
+  @override
+  ConsumerState<_AccountRow> createState() => _AccountRowState();
+}
+
+class _AccountRowState extends ConsumerState<_AccountRow> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    final fresh = ref.watch(roomTransactionProvider(
+        RoomTxKey(roomId: widget.roomId, txId: widget.transactionId)));
+    final accId = fresh.maybeWhen(
+      data: (row) => (row?['account_id'] as String?) ?? widget.fallbackAccountId,
+      orElse: () => widget.fallbackAccountId,
+    );
+    final accounts = ref.watch(accountsProvider).value ?? const <Account>[];
+    Account? acc;
+    for (final a in accounts) {
+      if (a.id == accId) {
+        acc = a;
+        break;
+      }
+    }
+    final label = acc?.name ?? (accId == null ? 'Choose account' : 'Unknown');
+
+    return InkWell(
+      onTap: _busy ? null : () => _change(accId),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: LoitSpacing.s3),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 110,
+              child: Text('Account',
+                  style: LoitTypography.bodyM
+                      .copyWith(color: c.contentSecondary)),
+            ),
+            Expanded(
+              child: _busy
+                  ? const _AccountShimmer()
+                  : Text(label,
+                      style: LoitTypography.bodyM.copyWith(
+                        color: c.contentPrimary,
+                        fontWeight: FontWeight.w500,
+                      )),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: c.contentTertiary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _change(String? currentId) async {
+    final picked = await pickLoitAccount(context, selectedId: currentId);
+    if (picked == null || picked == currentId) return;
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(transactionsProvider.notifier)
+          .updateTransaction(widget.transactionId, {'account_id': picked});
+      ref.invalidate(roomTransactionProvider(
+          RoomTxKey(roomId: widget.roomId, txId: widget.transactionId)));
+      ref.invalidate(roomFeedProvider(widget.roomId));
+      ref.invalidate(accountsProvider);
+      // Wait one microtask so the watched provider re-emits before we drop
+      // the busy flag — avoids a flash of the stale name between shimmer
+      // and the refreshed value.
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Update failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+}
+
+class _AccountShimmer extends StatefulWidget {
+  const _AccountShimmer();
+
+  @override
+  State<_AccountShimmer> createState() => _AccountShimmerState();
+}
+
+class _AccountShimmerState extends State<_AccountShimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    return SizedBox(
+      height: 16,
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (_, __) {
+          final t = _ctrl.value;
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Stack(
+              children: [
+                Container(
+                  width: 120,
+                  height: 16,
+                  color: c.muted.withValues(alpha: 0.6),
+                ),
+                Positioned(
+                  left: -60 + 180 * t,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 60,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          Colors.transparent,
+                          c.surface.withValues(alpha: 0.55),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

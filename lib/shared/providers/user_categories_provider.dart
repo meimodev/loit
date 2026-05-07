@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -230,6 +232,53 @@ class UserCategoriesNotifier extends AsyncNotifier<List<UserCategory>> {
 
 final userCategoriesProvider = AsyncNotifierProvider<UserCategoriesNotifier,
     List<UserCategory>>(UserCategoriesNotifier.new);
+
+/// Pending category deletes (id set). UI filters these out so the row
+/// disappears immediately on swipe; a timer commits the Supabase delete
+/// after the snackbar window unless the user undoes.
+class PendingCategoryDeletes extends Notifier<Set<String>> {
+  final Map<String, Timer> _timers = {};
+
+  @override
+  Set<String> build() {
+    ref.onDispose(() {
+      for (final t in _timers.values) {
+        t.cancel();
+      }
+      _timers.clear();
+    });
+    return const {};
+  }
+
+  void schedule({
+    required String categoryId,
+    Duration delay = const Duration(seconds: 5),
+  }) {
+    _timers[categoryId]?.cancel();
+    state = {...state, categoryId};
+    _timers[categoryId] = Timer(delay, () async {
+      _timers.remove(categoryId);
+      if (!state.contains(categoryId)) return;
+      try {
+        await ref.read(userCategoriesProvider.notifier).delete(categoryId);
+      } finally {
+        state = {...state}..remove(categoryId);
+      }
+    });
+  }
+
+  void undo(String categoryId) {
+    _timers[categoryId]?.cancel();
+    _timers.remove(categoryId);
+    if (!state.contains(categoryId)) return;
+    state = {...state}..remove(categoryId);
+  }
+}
+
+final pendingCategoryDeletesProvider =
+    NotifierProvider<PendingCategoryDeletes, Set<String>>(
+  PendingCategoryDeletes.new,
+);
 
 /// Personal-only expense categories (used by personal flows).
 final expenseCategoriesProvider = Provider<List<UserCategory>>((ref) {

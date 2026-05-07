@@ -19,6 +19,7 @@ class Txn {
   final bool isManualFallback;
   final DateTime createdAt;
   final String? roomId;
+  final String? roomName;
   final String type; // 'expense' | 'income' | 'transfer'
   final String? accountId;
   final String? toAccountId;
@@ -36,6 +37,7 @@ class Txn {
     required this.isManualFallback,
     required this.createdAt,
     this.roomId,
+    this.roomName,
     this.type = 'expense',
     this.accountId,
     this.toAccountId,
@@ -66,6 +68,9 @@ class Txn {
         (r['created_at'] as String?) ?? DateTime.now().toUtc().toIso8601String(),
       ),
       roomId: r['room_id'] as String?,
+      roomName: (r['rooms'] is Map<String, dynamic>)
+          ? (r['rooms'] as Map<String, dynamic>)['name'] as String?
+          : null,
       type: type,
       accountId: r['account_id'] as String?,
       toAccountId: r['to_account_id'] as String?,
@@ -89,7 +94,7 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
     if (user == null) return const [];
     final rows = await Supabase.instance.client
         .from('transactions')
-        .select()
+        .select('*, rooms(id, name)')
         .eq('user_id', user.id)
         .order('created_at', ascending: false)
         .limit(200);
@@ -147,7 +152,7 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
       final inserted = await Supabase.instance.client
           .from('transactions')
           .insert(payload)
-          .select()
+          .select('*, rooms(id, name)')
           .single();
       // Replace the optimistic head with the canonical row.
       final current = state.value ?? const [];

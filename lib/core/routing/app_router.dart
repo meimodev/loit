@@ -291,6 +291,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/rooms/:roomId/reports',
+        builder: (_, state) => ReportsScreen(
+          roomId: state.pathParameters['roomId']!,
+        ),
+      ),
+      GoRoute(
         path: '/rooms/:roomId/budgets/new',
         builder: (_, state) {
           final extra = state.extra as Map<String, dynamic>?;

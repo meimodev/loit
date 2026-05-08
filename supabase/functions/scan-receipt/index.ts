@@ -60,14 +60,39 @@ function buildPrompt(categories?: Category[]): string {
 
   return `You are a financial document parser. Analyze the image and return ONLY valid JSON — no explanation, no markdown.
 
-Classify the document as EXPENSE (merchant receipt, invoice, bank transfer-out) or INCOME (payslip, bank transfer-in, refund slip, deposit confirmation).
+STEP 1 — Validity check.
+Set "is_transaction" = true only if the image clearly shows ONE of:
+- merchant receipt
+- invoice / bill
+- bank transfer-out confirmation (debit slip)
+- payslip / salary slip
+- bank transfer-in confirmation (credit slip)
+- refund slip / credit memo
+- deposit confirmation
+- ATM withdrawal slip
+- e-wallet / payment-app transaction confirmation
+- any other document recording a single concrete monetary transaction with an amount
+
+Set "is_transaction" = false for: random photos, screenshots of unrelated content, ID cards, menus without prices billed, marketing flyers, blank pages, blurred/illegible images, or documents that are NOT a transaction record (e.g. account statements summarising many transactions, price tags, business cards).
+
+Also classify "transaction_kind" with one of:
+"merchant_receipt" | "invoice" | "bank_transfer_out" | "bank_transfer_in" | "payslip" | "refund_slip" | "deposit_confirmation" | "atm_withdrawal" | "ewallet_transaction" | "other"
+Use "other" when is_transaction is true but none of the named kinds fit. Use null when is_transaction is false.
+
+If is_transaction is false, return ONLY:
+{ "is_transaction": false, "transaction_kind": null, "reason": "short human-readable reason" }
+
+STEP 2 — When is_transaction is true, also classify type:
+EXPENSE (merchant receipt, invoice, bank transfer-out, ATM withdrawal) or INCOME (payslip, bank transfer-in, refund slip, deposit confirmation).
 
 Available categories — choose the single best match:
 EXPENSE: ${expenseList}
 INCOME:  ${incomeList}
 
-Return this exact shape:
+Return this exact shape (when is_transaction is true):
 {
+  "is_transaction": true,
+  "transaction_kind": "merchant_receipt|invoice|bank_transfer_out|bank_transfer_in|payslip|refund_slip|deposit_confirmation|atm_withdrawal|ewallet_transaction|other",
   "type": "expense|income",
   "merchant": "string or null",
   "currency": "ISO 4217 code or null",
@@ -236,6 +261,19 @@ serve(async (req) => {
 
     try {
       const parsed = JSON.parse(stripped);
+      // Image isn't a transaction document — surface as 422 with marker so the
+      // client can show a dedicated error instead of opening a manual form.
+      if (parsed && parsed.is_transaction === false) {
+        return jsonResponse(
+          {
+            not_a_transaction: true,
+            transaction_kind: parsed.transaction_kind ?? null,
+            reason:
+              typeof parsed.reason === "string" ? parsed.reason : null,
+          },
+          422,
+        );
+      }
       // Ensure total is always a positive number when items are present.
       if (
         !(parsed.total > 0) &&

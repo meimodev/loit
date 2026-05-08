@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../shared/providers/room_providers.dart';
+import '../../shared/providers/selected_month_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
@@ -13,13 +15,21 @@ import '../../shared/widgets/loit_chip.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import '../../shared/widgets/loit_input.dart';
+import '../../shared/widgets/loit_room_origin_badge.dart';
 import '../../shared/widgets/loit_tx_row.dart';
+import '../rooms/room_colors.dart';
 
 /// In-memory recents. Persists across navigation within session.
 final List<String> _recentSearches = <String>[];
 
+enum _TypeFilter { income, expense }
+
+enum _DateFilter { week, month, year }
+
+enum _SourceFilter { rooms, personal }
+
 /// Active search state for transactions. Top input + recent searches +
-/// live results filtered by merchant/notes/category.
+/// live results filtered by merchant/notes/category/room.
 class TransactionSearchScreen extends ConsumerStatefulWidget {
   const TransactionSearchScreen({super.key});
 
@@ -32,6 +42,12 @@ class _TransactionSearchScreenState
     extends ConsumerState<TransactionSearchScreen> {
   final _ctrl = TextEditingController();
   String _query = '';
+
+  _TypeFilter? _type;
+  _DateFilter? _date;
+  _SourceFilter? _source;
+
+  bool get _anyFilter => _type != null || _date != null || _source != null;
 
   @override
   void dispose() {
@@ -49,10 +65,53 @@ class _TransactionSearchScreenState
     });
   }
 
+  bool _matchesDate(DateTime created) {
+    if (_date == null) return true;
+    final now = DateTime.now();
+    final d = created.toLocal();
+    switch (_date!) {
+      case _DateFilter.week:
+        final today = DateTime(now.year, now.month, now.day);
+        final weekStart = today.subtract(Duration(days: now.weekday - 1));
+        return !d.isBefore(weekStart);
+      case _DateFilter.month:
+        return d.year == now.year && d.month == now.month;
+      case _DateFilter.year:
+        return d.year == now.year;
+    }
+  }
+
+  bool _matchesType(Txn t) {
+    if (_type == null) return true;
+    switch (_type!) {
+      case _TypeFilter.income:
+        return t.isIncome;
+      case _TypeFilter.expense:
+        return !t.isIncome && !t.isTransfer;
+    }
+  }
+
+  bool _matchesSource(Txn t) {
+    if (_source == null) return true;
+    switch (_source!) {
+      case _SourceFilter.rooms:
+        return t.roomId != null;
+      case _SourceFilter.personal:
+        return t.roomId == null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
     final txns = ref.watch(transactionsProvider);
+    final roomTxns = ref.watch(myRoomsTransactionsProvider);
+    final myRooms = ref.watch(myRoomsProvider).value ?? const [];
+    final roomNameById = <String, String>{
+      for (final r in myRooms)
+        if (r['id'] is String && r['name'] is String)
+          r['id'] as String: r['name'] as String,
+    };
     final recents = _recentSearches;
 
     return Scaffold(
@@ -88,115 +147,349 @@ class _TransactionSearchScreenState
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (items) {
-          if (_query.trim().isEmpty) {
-            return ListView(
-              children: [
-                if (recents.isNotEmpty) ...[
-                  const LoitGroupLabel(label: 'Recent'),
-                  for (final r in recents)
-                    ListTile(
-                      leading: Icon(Icons.history,
-                          color: c.contentTertiary, size: 20),
-                      title: Text(r,
-                          style: LoitTypography.bodyL
-                              .copyWith(color: c.contentPrimary)),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.close, size: 18),
-                        onPressed: () {
-                          setState(() => _recentSearches.remove(r));
-                        },
-                      ),
-                      onTap: () {
-                        _ctrl.text = r;
-                        setState(() => _query = r);
-                      },
-                    ),
-                ] else
-                  const Padding(
-                    padding: EdgeInsets.only(top: 80),
-                    child: LoitEmptyState(
-                      icon: Icons.search_rounded,
-                      title: 'Search your transactions',
-                      body: 'Type a category or note.',
-                    ),
-                  ),
-                const SizedBox(height: LoitSpacing.s4),
-                const LoitGroupLabel(label: 'Filters'),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    LoitSpacing.s5,
-                    LoitSpacing.s3,
-                    LoitSpacing.s5,
-                    LoitSpacing.s5,
-                  ),
-                  child: Wrap(
-                    spacing: LoitSpacing.s3,
-                    runSpacing: LoitSpacing.s3,
-                    children: [
-                      for (final s in const [
-                        'AI parsed',
-                        'This week',
-                        'Manual',
-                        'Has receipt',
-                      ])
-                        LoitChip(
-                          label: s,
-                          variant: LoitChipVariant.outline,
-                          onTap: () {
-                            _ctrl.text = s;
-                            setState(() => _query = s);
-                          },
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            );
+          // Merge personal + every-room txns, dedupe by id.
+          final merged = <Txn>[...items];
+          final seenIds = <String>{
+            for (final t in items)
+              if (t.id != null) t.id!,
+          };
+          for (final t in roomTxns.value ?? const <Txn>[]) {
+            if (t.id != null && !seenIds.add(t.id!)) continue;
+            merged.add(t);
           }
+          merged.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+          final filtered = merged
+              .where((t) =>
+                  _matchesType(t) &&
+                  _matchesSource(t) &&
+                  _matchesDate(t.createdAt))
+              .toList();
 
           final q = _query.toLowerCase();
-          String labelFor(String? key) => ref.read(categoryLabelProvider(
-              CategoryLabelKey(key: key)));
-          final results = items.where((t) {
-            final label = labelFor(t.category).toLowerCase();
-            return (t.notes ?? '').toLowerCase().contains(q) ||
-                (t.category ?? '').toLowerCase().contains(q) ||
-                label.contains(q);
-          }).toList();
+          String labelFor(String? key) =>
+              ref.read(categoryLabelProvider(CategoryLabelKey(key: key)));
 
-          if (results.isEmpty) {
-            return Padding(
-              padding: const EdgeInsets.only(top: 80),
-              child: LoitEmptyState(
-                icon: Icons.search_off_rounded,
-                title: 'No matches',
-                body: 'Nothing matched "$_query".',
+          final results = q.isEmpty
+              ? filtered
+              : filtered.where((t) {
+                  final label = labelFor(t.category).toLowerCase();
+                  final roomName = (t.roomName ??
+                          (t.roomId != null
+                              ? roomNameById[t.roomId!]
+                              : null) ??
+                          '')
+                      .toLowerCase();
+                  return (t.notes ?? '').toLowerCase().contains(q) ||
+                      (t.category ?? '').toLowerCase().contains(q) ||
+                      label.contains(q) ||
+                      roomName.contains(q);
+                }).toList();
+
+          final showRecents = q.isEmpty && !_anyFilter;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _FiltersBar(
+                type: _type,
+                date: _date,
+                source: _source,
+                onTypeChanged: (v) => setState(() => _type = v),
+                onDateChanged: (v) => setState(() => _date = v),
+                onSourceChanged: (v) => setState(() => _source = v),
               ),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: results.length,
-            itemBuilder: (_, i) {
-              final t = results[i];
-              final label = labelFor(t.category);
-              final dateStr =
-                  DateFormat.MMMd().add_jm().format(t.createdAt.toLocal());
-              return LoitTxRow(
-                title: t.notes ?? '',
-                categoryKey: t.category,
-                subtitle: '$label · $dateStr',
-                amount: formatMoney(t.amount, t.currency),
-                showDivider: i != results.length - 1,
-                onTap: () {
-                  _commit(_query);
-                  if (t.id != null) context.push('/transactions/${t.id}');
-                },
-              );
-            },
+              Divider(height: 1, color: c.borderDefault),
+              Expanded(
+                child: showRecents
+                    ? _RecentsView(
+                        recents: recents,
+                        onTap: (r) {
+                          _ctrl.text = r;
+                          setState(() => _query = r);
+                        },
+                        onRemove: (r) =>
+                            setState(() => _recentSearches.remove(r)),
+                      )
+                    : results.isEmpty
+                        ? _CenteredEmpty(
+                            child: LoitEmptyState(
+                              icon: Icons.search_off_rounded,
+                              title: 'No matches',
+                              body: q.isEmpty
+                                  ? 'No transactions match the filters.'
+                                  : 'Nothing matched "$_query".',
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: results.length,
+                            itemBuilder: (_, i) {
+                              final t = results[i];
+                              final label = labelFor(t.category);
+                              final dateStr = DateFormat.MMMd()
+                                  .add_jm()
+                                  .format(t.createdAt.toLocal());
+                              final isRoomTx = t.roomId != null;
+                              final roomAccent = isRoomTx
+                                  ? RoomColors.forId(t.roomId!)
+                                  : null;
+                              final roomBadge = isRoomTx
+                                  ? LoitRoomOriginBadge(
+                                      accent: roomAccent!,
+                                      name: t.roomName ??
+                                          roomNameById[t.roomId!] ??
+                                          'Room',
+                                    )
+                                  : null;
+                              return LoitTxRow(
+                                title: t.notes ?? '',
+                                categoryKey: t.category,
+                                subtitle: '$label · $dateStr',
+                                amount: formatMoney(t.amount, t.currency),
+                                isIncome: t.isIncome,
+                                isTransfer: t.isTransfer,
+                                showDivider: i != results.length - 1,
+                                roomBadge: roomBadge,
+                                accentStripeColor: roomAccent,
+                                onTap: () {
+                                  _commit(_query);
+                                  if (isRoomTx) {
+                                    final highlight = t.id != null
+                                        ? '?highlight=${t.id}'
+                                        : '';
+                                    context
+                                        .go('/rooms/${t.roomId}$highlight');
+                                  } else if (t.id != null) {
+                                    // Snap feed to txn's month so highlight
+                                    // row renders, then navigate with
+                                    // highlight query so transactions screen
+                                    // scrolls + flashes.
+                                    ref
+                                        .read(selectedMonthProvider.notifier)
+                                        .setMonth(t.createdAt.toLocal());
+                                    context.go(
+                                        '/transactions?highlight=${t.id}');
+                                  }
+                                },
+                              );
+                            },
+                          ),
+              ),
+            ],
           );
         },
       ),
+    );
+  }
+}
+
+/// Three grouped filter rows (Type / Date / Source). Single-select per group;
+/// tapping the active chip clears it back to "all".
+class _FiltersBar extends StatelessWidget {
+  const _FiltersBar({
+    required this.type,
+    required this.date,
+    required this.source,
+    required this.onTypeChanged,
+    required this.onDateChanged,
+    required this.onSourceChanged,
+  });
+
+  final _TypeFilter? type;
+  final _DateFilter? date;
+  final _SourceFilter? source;
+  final ValueChanged<_TypeFilter?> onTypeChanged;
+  final ValueChanged<_DateFilter?> onDateChanged;
+  final ValueChanged<_SourceFilter?> onSourceChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: LoitSpacing.s3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _ChipGroup(
+            label: 'Type',
+            chips: [
+              _ChipSpec(
+                label: 'Income',
+                leading: Icons.arrow_downward_rounded,
+                selected: type == _TypeFilter.income,
+                onTap: () => onTypeChanged(
+                    type == _TypeFilter.income ? null : _TypeFilter.income),
+              ),
+              _ChipSpec(
+                label: 'Expense',
+                leading: Icons.arrow_upward_rounded,
+                selected: type == _TypeFilter.expense,
+                onTap: () => onTypeChanged(
+                    type == _TypeFilter.expense ? null : _TypeFilter.expense),
+              ),
+            ],
+          ),
+          _ChipGroup(
+            label: 'Date',
+            chips: [
+              _ChipSpec(
+                label: 'This week',
+                selected: date == _DateFilter.week,
+                onTap: () => onDateChanged(
+                    date == _DateFilter.week ? null : _DateFilter.week),
+              ),
+              _ChipSpec(
+                label: 'This month',
+                selected: date == _DateFilter.month,
+                onTap: () => onDateChanged(
+                    date == _DateFilter.month ? null : _DateFilter.month),
+              ),
+              _ChipSpec(
+                label: 'This year',
+                selected: date == _DateFilter.year,
+                onTap: () => onDateChanged(
+                    date == _DateFilter.year ? null : _DateFilter.year),
+              ),
+            ],
+          ),
+          _ChipGroup(
+            label: 'Source',
+            chips: [
+              _ChipSpec(
+                label: 'Personal',
+                leading: Icons.person_outline_rounded,
+                selected: source == _SourceFilter.personal,
+                onTap: () => onSourceChanged(source == _SourceFilter.personal
+                    ? null
+                    : _SourceFilter.personal),
+              ),
+              _ChipSpec(
+                label: 'Rooms',
+                leading: Icons.groups_outlined,
+                selected: source == _SourceFilter.rooms,
+                onTap: () => onSourceChanged(source == _SourceFilter.rooms
+                    ? null
+                    : _SourceFilter.rooms),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChipSpec {
+  const _ChipSpec({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.leading,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final IconData? leading;
+}
+
+class _ChipGroup extends StatelessWidget {
+  const _ChipGroup({required this.label, required this.chips});
+  final String label;
+  final List<_ChipSpec> chips;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LoitGroupLabel(label: label),
+        SizedBox(
+          height: 40,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: LoitSpacing.s5,
+              vertical: 4,
+            ),
+            itemCount: chips.length,
+            separatorBuilder: (_, __) =>
+                const SizedBox(width: LoitSpacing.s3),
+            itemBuilder: (_, i) {
+              final s = chips[i];
+              return LoitChip(
+                label: s.label,
+                leading: s.leading,
+                selected: s.selected,
+                variant: s.selected
+                    ? LoitChipVariant.selected
+                    : LoitChipVariant.outline,
+                onTap: s.onTap,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Centers an empty state inside its parent regardless of viewport size,
+/// while still allowing scroll if content exceeds available height.
+class _CenteredEmpty extends StatelessWidget {
+  const _CenteredEmpty({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(child: child),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentsView extends StatelessWidget {
+  const _RecentsView({
+    required this.recents,
+    required this.onTap,
+    required this.onRemove,
+  });
+  final List<String> recents;
+  final ValueChanged<String> onTap;
+  final ValueChanged<String> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    if (recents.isEmpty) {
+      return const _CenteredEmpty(
+        child: LoitEmptyState(
+          icon: Icons.search_rounded,
+          title: 'Search your transactions',
+          body: 'Type a category, note, or pick a filter above.',
+        ),
+      );
+    }
+    return ListView(
+      children: [
+        const LoitGroupLabel(label: 'Recent'),
+        for (final r in recents)
+          ListTile(
+            leading:
+                Icon(Icons.history, color: c.contentTertiary, size: 20),
+            title: Text(r,
+                style: LoitTypography.bodyL
+                    .copyWith(color: c.contentPrimary)),
+            trailing: IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: () => onRemove(r),
+            ),
+            onTap: () => onTap(r),
+          ),
+      ],
     );
   }
 }

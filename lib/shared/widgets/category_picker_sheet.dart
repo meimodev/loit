@@ -75,34 +75,24 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
 
     final activeRoomCats = <UserCategory>[];
     final personalCats = <UserCategory>[];
-    final otherRoomCats = <Map<String, dynamic>>[];
-    final otherRoomBuckets = <String, List<UserCategory>>{};
 
+    final inRoomContext = widget.activeRoomId != null;
     for (final cat in all) {
       if (!_matches(cat)) continue;
-      if (cat.isPersonal) {
-        personalCats.add(cat);
-      } else if (cat.roomId == widget.activeRoomId &&
-          widget.activeRoomId != null) {
-        activeRoomCats.add(cat);
+      if (inRoomContext) {
+        // Room-scoped txn: only this room's categories are eligible.
+        if (cat.roomId == widget.activeRoomId) {
+          activeRoomCats.add(cat);
+        }
       } else {
-        final id = cat.roomId ?? '';
-        otherRoomBuckets.putIfAbsent(id, () => []).add(cat);
+        // Personal-scoped txn: only personal categories are eligible.
+        if (cat.isPersonal) {
+          personalCats.add(cat);
+        }
       }
     }
-    otherRoomBuckets.forEach((id, list) {
-      otherRoomCats.add({
-        'roomId': id,
-        'roomName': list.first.roomName ?? 'Room',
-        'cats': list,
-      });
-    });
-    otherRoomCats.sort((a, b) =>
-        (a['roomName'] as String).compareTo(b['roomName'] as String));
 
-    final empty = activeRoomCats.isEmpty &&
-        personalCats.isEmpty &&
-        otherRoomCats.isEmpty;
+    final empty = activeRoomCats.isEmpty && personalCats.isEmpty;
 
     return LoitSheet(
       title: widget.isIncome ? 'Income category' : 'Category',
@@ -155,12 +145,6 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
             if (personalCats.isNotEmpty) ...[
               _sectionHeader(c, 'Personal'),
               for (final cat in personalCats) _row(cat, c),
-              const SizedBox(height: LoitSpacing.s2),
-            ],
-            for (final group in otherRoomCats) ...[
-              _sectionHeader(c, group['roomName'] as String),
-              for (final cat in group['cats'] as List<UserCategory>)
-                _row(cat, c),
               const SizedBox(height: LoitSpacing.s2),
             ],
           ],

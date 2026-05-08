@@ -14,24 +14,50 @@ import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_app_bar_month.dart';
 import '../../shared/widgets/loit_group_label.dart';
+import '../../shared/widgets/loit_mini_line_chart.dart';
 import '../../shared/widgets/loit_stat_triple.dart';
 
 /// LOIT Reports — G · Reports & Insights.
+///
+/// When [roomId] is provided, scopes the report to transactions made inside
+/// that room (any member, subject to RLS). Otherwise shows the user's global
+/// transactions.
 class ReportsScreen extends ConsumerStatefulWidget {
-  const ReportsScreen({super.key});
+  const ReportsScreen({super.key, this.roomId});
+
+  final String? roomId;
 
   @override
   ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsScreenState extends ConsumerState<ReportsScreen> {
+class _ReportsScreenState extends ConsumerState<ReportsScreen>
+    with SingleTickerProviderStateMixin {
+  static const _tabLabels = [
+    'Overview',
+    'Categories',
+    'Trend',
+    'Insights',
+    'Income',
+  ];
+
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
-  int _tab = 0; // 0 Overview · 1 Categories · 2 Trend · 3 Insights · 4 Income
+  late final TabController _tabController =
+      TabController(length: _tabLabels.length, vsync: this);
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    final txns = ref.watch(transactionsProvider).value ?? const [];
+    final roomId = widget.roomId;
+    final txns = roomId != null
+        ? (ref.watch(roomTransactionsProvider(roomId)).value ?? const [])
+        : (ref.watch(transactionsProvider).value ?? const []);
     final profile = ref.watch(userProfileProvider).value;
     final home = profile?.homeCurrency ?? 'IDR';
     String fmt(double v) => formatMoney(v, home);
@@ -56,72 +82,86 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       backgroundColor: c.canvas,
       appBar: LoitAppBarMonth(
         label: DateFormat.yMMM().format(_month),
+        leading: Navigator.of(context).canPop()
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, size: 22),
+                onPressed: () => context.pop(),
+                color: c.contentSecondary,
+              )
+            : null,
         onPrev: () => setState(
             () => _month = DateTime(_month.year, _month.month - 1)),
         onNext: () => setState(
             () => _month = DateTime(_month.year, _month.month + 1)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.ios_share, size: 20),
-            tooltip: 'Export',
-            onPressed: () => context.push('/reports/export'),
-          ),
+          if (roomId == null)
+            IconButton(
+              icon: const Icon(Icons.ios_share, size: 20),
+              tooltip: 'Export',
+              onPressed: () => context.push('/reports/export'),
+            ),
         ],
       ),
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: _ReportTabs(
-              active: _tab,
-              onTap: (i) => setState(() => _tab = i),
+      body: Column(
+        children: [
+          LoitStatTriple(
+            stats: [
+              LoitStat(label: 'Income', amount: fmt(income), color: c.info),
+              LoitStat(
+                  label: 'Expenses', amount: fmt(expenses), color: c.danger),
+              LoitStat(
+                label: 'Net',
+                amount: fmt(net),
+                color: net >= 0 ? c.success : c.danger,
+              ),
+            ],
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: c.canvas,
+              border: Border(bottom: BorderSide(color: c.borderSubtle)),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: false,
+              labelColor: c.brand,
+              unselectedLabelColor: c.contentSecondary,
+              indicatorColor: c.brand,
+              indicatorWeight: 2.5,
+              indicatorSize: TabBarIndicatorSize.tab,
+              labelPadding: EdgeInsets.zero,
+              labelStyle:
+                  LoitTypography.bodyS.copyWith(fontWeight: FontWeight.w700),
+              unselectedLabelStyle:
+                  LoitTypography.bodyS.copyWith(fontWeight: FontWeight.w600),
+              tabs: [for (final l in _tabLabels) Tab(text: l)],
             ),
           ),
-          SliverToBoxAdapter(
-            child: LoitStatTriple(
-              stats: [
-                LoitStat(
-                    label: 'Income',
-                    amount: fmt(income),
-                    color: c.info),
-                LoitStat(
-                    label: 'Expenses',
-                    amount: fmt(expenses),
-                    color: c.danger),
-                LoitStat(
-                  label: 'Net',
-                  amount: fmt(net),
-                  color: net >= 0 ? c.success : c.danger,
-                ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _tabScroll(_overviewSlivers(monthTxns, fmt)),
+                _tabScroll(_categoriesSlivers(monthTxns, fmt)),
+                _tabScroll(_trendSlivers(txns, fmt)),
+                _tabScroll(_insightsSlivers(monthTxns, fmt)),
+                _tabScroll(_incomeSlivers(monthTxns, fmt)),
               ],
             ),
           ),
-          ..._tabSlivers(context, txns, monthTxns, fmt, home),
-          const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
       ),
     );
   }
 
-  List<Widget> _tabSlivers(
-    BuildContext context,
-    List<Txn> allTxns,
-    List<Txn> monthTxns,
-    String Function(double) fmt,
-    String home,
-  ) {
-    switch (_tab) {
-      case 1:
-        return _categoriesSlivers(monthTxns, fmt);
-      case 2:
-        return _trendSlivers(allTxns, fmt);
-      case 3:
-        return _insightsSlivers(monthTxns, fmt);
-      case 4:
-        return _incomeSlivers(monthTxns, fmt);
-      case 0:
-      default:
-        return _overviewSlivers(monthTxns, fmt);
-    }
+  Widget _tabScroll(List<Widget> slivers) {
+    return CustomScrollView(
+      key: PageStorageKey(slivers.hashCode),
+      slivers: [
+        ...slivers,
+        const SliverToBoxAdapter(child: SizedBox(height: 80)),
+      ],
+    );
   }
 
   List<Widget> _incomeSlivers(List<Txn> monthTxns, String Function(double) fmt) {
@@ -195,7 +235,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 ],
               ),
               const SizedBox(height: LoitSpacing.s3),
-              SizedBox(height: 90, child: _MiniLineChart(values: byDay)),
+              LoitMiniLineChart(
+                values: byDay,
+                formatValue: (v) => fmt(v),
+              ),
             ],
           ),
         ),
@@ -512,74 +555,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
 }
 
-class _ReportTabs extends StatelessWidget {
-  const _ReportTabs({required this.active, required this.onTap});
-  final int active;
-  final ValueChanged<int> onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.loitColors;
-    const labels = ['Overview', 'Categories', 'Trend', 'Insights', 'Income'];
-    return Container(
-      color: c.canvas,
-      padding: const EdgeInsets.fromLTRB(
-        LoitSpacing.s5,
-        LoitSpacing.s1,
-        LoitSpacing.s5,
-        LoitSpacing.s2,
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            for (var i = 0; i < labels.length; i++) ...[
-              _Pill(
-                  label: labels[i],
-                  active: i == active,
-                  onTap: () => onTap(i)),
-              if (i < labels.length - 1) const SizedBox(width: LoitSpacing.s2),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill(
-      {required this.label, required this.active, required this.onTap});
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.loitColors;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: LoitSpacing.s3, vertical: LoitSpacing.s2),
-        decoration: BoxDecoration(
-          color: active ? c.brand : c.surface,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: active ? c.brand : c.borderSubtle),
-        ),
-        child: Text(
-          label,
-          style: LoitTypography.bodyS.copyWith(
-            color: active ? Colors.white : c.contentSecondary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _MetricCell extends StatelessWidget {
   const _MetricCell(
       {required this.label, required this.value, required this.align});
@@ -604,49 +579,6 @@ class _MetricCell extends StatelessWidget {
             style: LoitTypography.titleM.copyWith(
                 color: c.contentPrimary, fontWeight: FontWeight.w600)),
       ],
-    );
-  }
-}
-
-class _MiniLineChart extends StatelessWidget {
-  const _MiniLineChart({required this.values});
-  final List<double> values;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.loitColors;
-    if (values.isEmpty || values.every((v) => v == 0)) {
-      return Center(
-        child: Text('No spend yet',
-            style: LoitTypography.bodyS.copyWith(color: c.contentTertiary)),
-      );
-    }
-    final spots = <FlSpot>[];
-    for (var i = 0; i < values.length; i++) {
-      spots.add(FlSpot(i.toDouble(), values[i]));
-    }
-    final maxY = values.fold<double>(0, (s, v) => v > s ? v : s) * 1.15 + 1;
-    return LineChart(
-      LineChartData(
-        minY: 0,
-        maxY: maxY,
-        titlesData: const FlTitlesData(show: false),
-        borderData: FlBorderData(show: false),
-        gridData: const FlGridData(show: false),
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            color: c.brand,
-            barWidth: 2,
-            dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(
-              show: true,
-              color: c.brand.withValues(alpha: 0.15),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -801,11 +733,6 @@ class _InsightCard extends StatelessWidget {
                           Text(body,
                               style: LoitTypography.bodyS
                                   .copyWith(color: c.contentSecondary)),
-                          const SizedBox(height: 8),
-                          Text('See details →',
-                              style: LoitTypography.bodyS.copyWith(
-                                  color: c.brand,
-                                  fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),

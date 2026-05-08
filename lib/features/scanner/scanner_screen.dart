@@ -1,9 +1,11 @@
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/config/pricing_constants.dart';
@@ -23,6 +25,7 @@ import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/services_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
+import '../../shared/utils/invite_token.dart';
 import '../../shared/widgets/loit_banner.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_sheet.dart';
@@ -67,6 +70,18 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   /// room after the scan completes (rooms vary, can't pre-select reliably).
   bool _useRoom = false;
 
+  // QR detection state. ML Kit scanner runs on the camera image stream in
+  // parallel with the shutter capture path. Only LOIT room-invite QR codes
+  // surface UI; everything else is silently ignored.
+  late final BarcodeScanner _barcodeScanner =
+      BarcodeScanner(formats: [BarcodeFormat.qrCode]);
+  bool _qrStreamRunning = false;
+  bool _capturing = false;
+  bool _joinSheetOpen = false;
+  String? _lastSeenInviteToken;
+  DateTime _lastSeenInviteAt = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastBarcodeProcessAt = DateTime.fromMillisecondsSinceEpoch(0);
+
   @override
   void initState() {
     super.initState();
@@ -85,8 +100,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         (c) => c.lensDirection == CameraLensDirection.back,
         orElse: () => cameras.first,
       );
+      // NV21 on Android lets ML Kit consume image-stream frames directly.
+      // takePicture() still returns JPEG regardless of this flag.
       final ctrl = CameraController(back, ResolutionPreset.high,
-          enableAudio: false, imageFormatGroup: ImageFormatGroup.jpeg);
+          enableAudio: false,
+          imageFormatGroup: Platform.isAndroid
+              ? ImageFormatGroup.nv21
+              : ImageFormatGroup.bgra8888);
       await ctrl.initialize();
       if (!mounted) {
         await ctrl.dispose();
@@ -97,18 +117,160 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         _camReady = true;
       });
       Log.i(_tag, 'Camera ready: ${back.name}');
+      await _startQrStream();
     } catch (e, st) {
       Log.e(_tag, 'Camera init failed', error: e, stack: st);
     }
   }
 
+  Future<void> _startQrStream() async {
+    if (_qrStreamRunning || _camCtrl == null) return;
+    try {
+      await _camCtrl!.startImageStream(_onCameraImage);
+      _qrStreamRunning = true;
+      Log.d(_tag, 'QR image stream started');
+    } catch (e) {
+      Log.w(_tag, 'startImageStream failed', error: e);
+    }
+  }
+
+  Future<void> _stopQrStream() async {
+    if (!_qrStreamRunning || _camCtrl == null) return;
+    try {
+      await _camCtrl!.stopImageStream();
+    } catch (_) {}
+    _qrStreamRunning = false;
+  }
+
+  /// ML Kit frame callback. Throttled to ~3 fps. Only LOIT invite QR codes
+  /// trigger UI; non-invite payloads are dropped.
+  Future<void> _onCameraImage(CameraImage image) async {
+    if (!mounted || _capturing || _joinSheetOpen) return;
+    final now = DateTime.now();
+    if (now.difference(_lastBarcodeProcessAt).inMilliseconds < 300) return;
+    _lastBarcodeProcessAt = now;
+
+    final input = _toInputImage(image);
+    if (input == null) return;
+    try {
+      final barcodes = await _barcodeScanner.processImage(input);
+      for (final b in barcodes) {
+        final raw = b.rawValue;
+        if (raw == null || raw.isEmpty) continue;
+        if (!isLoitInviteUrl(raw)) continue;
+        final token = extractInviteToken(raw);
+        if (token == null || token.isEmpty) continue;
+        // Debounce same payload after dismissal so a held-up QR doesn't
+        // re-prompt on every frame.
+        if (token == _lastSeenInviteToken &&
+            now.difference(_lastSeenInviteAt).inSeconds < 5) {
+          continue;
+        }
+        _lastSeenInviteToken = token;
+        _lastSeenInviteAt = now;
+        if (!mounted) return;
+        _joinSheetOpen = true;
+        await _stopQrStream();
+        await _showJoinSheet(token);
+        _joinSheetOpen = false;
+        if (mounted && _phase == _ScanPhase.capture) {
+          await _startQrStream();
+        }
+        return;
+      }
+    } catch (e) {
+      // Frame conversion or ML Kit error — drop and continue.
+    }
+  }
+
+  InputImage? _toInputImage(CameraImage image) {
+    if (_camCtrl == null) return null;
+    final WriteBuffer buf = WriteBuffer();
+    for (final plane in image.planes) {
+      buf.putUint8List(plane.bytes);
+    }
+    final bytes = buf.done().buffer.asUint8List();
+    final size = Size(image.width.toDouble(), image.height.toDouble());
+    final sensor = _camCtrl!.description.sensorOrientation;
+    final rotation = InputImageRotationValue.fromRawValue(sensor) ??
+        InputImageRotation.rotation90deg;
+    final format = InputImageFormatValue.fromRawValue(image.format.raw) ??
+        (Platform.isAndroid
+            ? InputImageFormat.nv21
+            : InputImageFormat.bgra8888);
+    return InputImage.fromBytes(
+      bytes: bytes,
+      metadata: InputImageMetadata(
+        size: size,
+        rotation: rotation,
+        format: format,
+        bytesPerRow: image.planes.first.bytesPerRow,
+      ),
+    );
+  }
+
+  Future<void> _showJoinSheet(String token) async {
+    await showLoitSheet<void>(
+      context,
+      builder: (sheetCtx) => _InviteJoinSheet(
+        token: token,
+        onJoin: () => _acceptInvite(sheetCtx, token),
+        onCancel: () => Navigator.of(sheetCtx).pop(),
+      ),
+    );
+  }
+
+  Future<void> _acceptInvite(BuildContext sheetCtx, String token) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    final sheetNav = Navigator.of(sheetCtx);
+    try {
+      final roomId =
+          await ref.read(roomServiceProvider).acceptInvite(token);
+      Analytics.roomJoined();
+      InteractionLog.success(
+        action: 'room_joined',
+        screen: 'scanner_qr',
+        message: '$roomId',
+      );
+      ref.invalidate(myRoomsProvider);
+      ref.invalidate(pendingInvitesProvider);
+      ref.invalidate(userCategoriesProvider);
+      if (roomId != null) ref.invalidate(roomDetailProvider(roomId));
+      if (!mounted) return;
+      if (sheetNav.canPop()) sheetNav.pop();
+      if (roomId != null) {
+        router.pushReplacement('/rooms/$roomId');
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Invite is invalid or expired')),
+        );
+      }
+    } catch (e) {
+      InteractionLog.error(
+        action: 'room_join',
+        screen: 'scanner_qr',
+        message: '$e',
+      );
+      if (!mounted) return;
+      if (sheetNav.canPop()) sheetNav.pop();
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not join room: $e')),
+      );
+    }
+  }
+
   @override
   void dispose() {
+    _stopQrStream();
+    _barcodeScanner.close();
     _camCtrl?.dispose();
     super.dispose();
   }
 
   Future<void> _captureFromCamera() async {
+    _capturing = true;
+    await _stopQrStream();
     if (_camReady && _camCtrl != null) {
       try {
         Log.d(_tag, 'Taking picture via CameraController');
@@ -117,6 +279,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         return;
       } catch (e) {
         Log.w(_tag, 'CameraController capture failed, falling back to picker', error: e);
+      } finally {
+        _capturing = false;
       }
     }
     Log.d(_tag, 'Using image_picker fallback for camera capture');
@@ -147,14 +311,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     final compressed = await scanner.compressToFile(file);
     Log.d(_tag, 'Compressed to ${compressed.path}');
     final userCats = ref.read(userCategoriesProvider).value ?? [];
-    // Scope categories to the active context: when scanning from a room,
-    // include personal + that room's categories so the AI can match
-    // room-specific labels. Otherwise send personal-only — other rooms'
-    // categories are noise and may collide on `key`.
+    // Scope categories strictly to the active context: room scan → only that
+    // room's categories; personal scan → personal only. Cross-context cats
+    // are noise and would let the AI pick a label the txn can't actually use.
     final scopedCats = widget.roomId != null
-        ? userCats
-            .where((c) => c.isPersonal || c.roomId == widget.roomId)
-            .toList()
+        ? userCats.where((c) => c.roomId == widget.roomId).toList()
         : userCats.where((c) => c.isPersonal).toList();
     final catList = scopedCats
         .map((c) => {'key': c.key, 'name': c.name, 'kind': c.kind})
@@ -245,6 +406,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         await Analytics.scanFailed('server_error');
         setState(() {
           _errorKind = 'server';
+          _phase = _ScanPhase.error;
+        });
+        break;
+      case ScanErrorType.notATransaction:
+        Log.w(_tag, 'Not a transaction: ${result.notATransactionReason}');
+        await Analytics.scanFailed('not_a_transaction');
+        setState(() {
+          _errorKind = 'not_transaction';
           _phase = _ScanPhase.error;
         });
         break;
@@ -506,15 +675,22 @@ class _CaptureView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final isLandscape = size.width > size.height;
+    final isBigScreen = size.shortestSide >= 600;
+    // On phone portrait, fill the screen (cover) — natural fullscreen camera
+    // UX. On landscape or tablet/large screens, letterbox so the preview
+    // keeps its native aspect ratio with black bars on the sides.
+    final previewFit =
+        (isLandscape || isBigScreen) ? BoxFit.contain : BoxFit.cover;
     return Scaffold(
       backgroundColor: const Color(0xFF0A0C0B),
       body: Stack(
         children: [
-          // Camera preview background — cover fill, no stretch
           if (cameraController != null)
             SizedBox.expand(
               child: FittedBox(
-                fit: BoxFit.cover,
+                fit: previewFit,
                 child: SizedBox(
                   width: cameraController!.value.previewSize!.height,
                   height: cameraController!.value.previewSize!.width,
@@ -1044,10 +1220,27 @@ class _ErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.loitColors;
     final isOffline = kind == 'connection';
-    final title = isOffline ? "You're offline" : 'Scan service unavailable';
-    final body = isOffline
-        ? "We couldn't reach the scan service. Check connection and retry."
-        : 'Scan service temporarily unavailable. Try again in a moment.';
+    final isNotTransaction = kind == 'not_transaction';
+    final String title;
+    final String body;
+    final LoitBannerKind bannerKind;
+    if (isNotTransaction) {
+      title = "That doesn't look like a transaction";
+      body =
+          "We couldn't find a receipt, invoice, transfer slip, payslip, or "
+          "similar transaction record in this image. Try a clearer photo of "
+          "the document.";
+      bannerKind = LoitBannerKind.warning;
+    } else if (isOffline) {
+      title = "You're offline";
+      body =
+          "We couldn't reach the scan service. Check connection and retry.";
+      bannerKind = LoitBannerKind.warning;
+    } else {
+      title = 'Scan service unavailable';
+      body = 'Scan service temporarily unavailable. Try again in a moment.';
+      bannerKind = LoitBannerKind.error;
+    }
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(title: const Text('Scan receipt')),
@@ -1057,15 +1250,17 @@ class _ErrorView extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             LoitBanner(
-              kind: isOffline ? LoitBannerKind.warning : LoitBannerKind.error,
+              kind: bannerKind,
               title: title,
               body: body,
             ),
             const SizedBox(height: LoitSpacing.s5),
+            // Retrying the same image won't help when it isn't a transaction
+            // doc — only offer "Take another photo" which returns to capture.
             LoitButton.primary(
-              label: 'Retry',
-              icon: Icons.refresh,
-              onPressed: onRetry,
+              label: isNotTransaction ? 'Take another photo' : 'Retry',
+              icon: isNotTransaction ? Icons.camera_alt : Icons.refresh,
+              onPressed: isNotTransaction ? onCancel : onRetry,
               fullWidth: true,
             ),
             const SizedBox(height: LoitSpacing.s2),
@@ -1133,6 +1328,67 @@ class _QuotaExceededSheet extends ConsumerWidget {
             fullWidth: true,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _InviteJoinSheet extends StatefulWidget {
+  const _InviteJoinSheet({
+    required this.token,
+    required this.onJoin,
+    required this.onCancel,
+  });
+
+  final String token;
+  final Future<void> Function() onJoin;
+  final VoidCallback onCancel;
+
+  @override
+  State<_InviteJoinSheet> createState() => _InviteJoinSheetState();
+}
+
+class _InviteJoinSheetState extends State<_InviteJoinSheet> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    return LoitSheet(
+      title: 'Join room?',
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(LoitSpacing.s4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'A LOIT room invite QR was detected. Join the room?',
+                style: LoitTypography.bodyM.copyWith(color: c.contentSecondary),
+              ),
+              const SizedBox(height: LoitSpacing.s4),
+              LoitButton.primary(
+                label: _busy ? 'Joining…' : 'Join room',
+                fullWidth: true,
+                onPressed: _busy
+                    ? null
+                    : () async {
+                        setState(() => _busy = true);
+                        await widget.onJoin();
+                        if (mounted) setState(() => _busy = false);
+                      },
+              ),
+              const SizedBox(height: LoitSpacing.s2),
+              LoitButton.tertiary(
+                label: 'Cancel',
+                fullWidth: true,
+                onPressed: _busy ? null : widget.onCancel,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

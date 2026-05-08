@@ -116,6 +116,8 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                   onArchive: () => _confirmArchive(context),
                   onLeave: () => _confirmLeave(context),
                   onMembers: () => _showMembers(context, members),
+                  onReports: () =>
+                      context.push('/rooms/${widget.roomId}/reports'),
                 ),
                 _TabStrip(
                   active: _tab,
@@ -376,6 +378,7 @@ class _Header extends StatelessWidget {
     required this.onArchive,
     required this.onLeave,
     required this.onMembers,
+    required this.onReports,
   });
   final String name;
   final Color accent;
@@ -386,6 +389,7 @@ class _Header extends StatelessWidget {
   final VoidCallback onArchive;
   final VoidCallback onLeave;
   final VoidCallback onMembers;
+  final VoidCallback onReports;
 
   @override
   Widget build(BuildContext context) {
@@ -438,6 +442,11 @@ class _Header extends StatelessWidget {
                             color: c.contentSecondary, letterSpacing: 0.4)),
                   ),
                 ),
+              IconButton(
+                icon: const Icon(Icons.bar_chart, size: 20),
+                tooltip: 'Reports',
+                onPressed: onReports,
+              ),
               if (!isArchived)
                 IconButton(
                     icon: const Icon(Icons.person_add_alt, size: 20),

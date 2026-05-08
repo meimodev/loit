@@ -78,6 +78,28 @@ final roomBudgetProvider =
       .getRoomBudget(roomId: key.roomId, budgetId: key.budgetId);
 });
 
+// Transactions across every room the current user is a member of. RLS limits
+// visibility to rooms the user belongs to. Used by the global search screen
+// so other members' room transactions also show up alongside personal rows.
+final myRoomsTransactionsProvider =
+    FutureProvider<List<Txn>>((ref) async {
+  final rooms = await ref.watch(myRoomsProvider.future);
+  final roomIds = <String>[
+    for (final r in rooms)
+      if (r['id'] is String) r['id'] as String,
+  ];
+  if (roomIds.isEmpty) return const [];
+  final rows = await Supabase.instance.client
+      .from('transactions')
+      .select('*, rooms(id, name)')
+      .inFilter('room_id', roomIds)
+      .order('created_at', ascending: false)
+      .limit(500);
+  return (rows as List)
+      .map((r) => Txn.fromRow(r as Map<String, dynamic>))
+      .toList();
+});
+
 // Pending invites for current user
 final pendingInvitesProvider =
     FutureProvider<List<Map<String, dynamic>>>((ref) async {

@@ -214,3 +214,20 @@ final transactionsProvider =
     AsyncNotifierProvider<TransactionsNotifier, List<Txn>>(
       TransactionsNotifier.new,
     );
+
+/// All transactions made inside a given room (any member). RLS limits
+/// visibility to room members. Used by the per-room Reports screen.
+final roomTransactionsProvider =
+    FutureProvider.family<List<Txn>, String>((ref, roomId) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return const [];
+  final rows = await Supabase.instance.client
+      .from('transactions')
+      .select('*, rooms(id, name)')
+      .eq('room_id', roomId)
+      .order('created_at', ascending: false)
+      .limit(1000);
+  return (rows as List)
+      .map((r) => Txn.fromRow(r as Map<String, dynamic>))
+      .toList();
+});

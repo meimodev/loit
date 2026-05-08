@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_elevation.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
@@ -16,6 +17,7 @@ import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/budget_alert_banner.dart';
 import '../../shared/widgets/loit_budget_row.dart';
 import '../../shared/widgets/loit_group_label.dart';
+import '../../shared/widgets/loit_mini_line_chart.dart';
 import '../../shared/widgets/loit_stat_triple.dart';
 import '../../shared/widgets/receipt_expiry_banner.dart';
 
@@ -84,8 +86,22 @@ class DashboardScreen extends ConsumerWidget {
           data: (items) {
             final summary = _MonthSummary.fromTxns(items, month);
             final currency = profile?.homeCurrency ?? 'IDR';
+            final byDay = _spendByDay(items, month);
+            final activeDays = byDay.where((v) => v > 0).length;
+            final avgDay = activeDays == 0
+                ? 0.0
+                : byDay.reduce((a, b) => a + b) / activeDays;
             return CustomScrollView(
               slivers: [
+                SliverToBoxAdapter(
+                  child: _ReportsPreviewCard(
+                    byDay: byDay,
+                    avgDay: avgDay,
+                    mtdSpend: summary.expenses,
+                    currency: currency,
+                    onTap: () => context.push('/reports'),
+                  ),
+                ),
                 // Net worth strip
                 SliverToBoxAdapter(
                   child: LoitStatTriple(
@@ -232,6 +248,180 @@ class DashboardScreen extends ConsumerWidget {
       return profile.email[0].toUpperCase();
     }
     return '?';
+  }
+}
+
+List<double> _spendByDay(List<Txn> txns, DateTime month) {
+  final days = DateTime(month.year, month.month + 1, 0).day;
+  final out = List<double>.filled(days, 0);
+  final monthStart = DateTime(month.year, month.month, 1);
+  final monthEnd = DateTime(month.year, month.month + 1, 1);
+  for (final t in txns) {
+    if (t.isTransfer || t.isIncome) continue;
+    if (t.createdAt.isBefore(monthStart)) continue;
+    if (!t.createdAt.isBefore(monthEnd)) continue;
+    final v = (t.amountHome ?? t.amount).abs();
+    final d = t.createdAt.day;
+    if (d >= 1 && d <= days) out[d - 1] += v;
+  }
+  return out;
+}
+
+class _ReportsPreviewCard extends StatelessWidget {
+  const _ReportsPreviewCard({
+    required this.byDay,
+    required this.avgDay,
+    required this.mtdSpend,
+    required this.currency,
+    required this.onTap,
+  });
+
+  final List<double> byDay;
+  final double avgDay;
+  final double mtdSpend;
+  final String currency;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        LoitSpacing.s4,
+        LoitSpacing.s5,
+        LoitSpacing.s4,
+        LoitSpacing.s4,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: LoitRadius.brM,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: LoitRadius.brM,
+          child: Container(
+            padding: const EdgeInsets.all(LoitSpacing.s5),
+            decoration: BoxDecoration(
+              color: c.surface,
+              borderRadius: LoitRadius.brM,
+              border: Border.all(
+                color: c.brand.withValues(alpha: 0.4),
+                width: 1.2,
+              ),
+              boxShadow: LoitElevation.e2,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      'INSIGHTS',
+                      style: LoitTypography.labelS.copyWith(
+                        color: c.contentSecondary,
+                        letterSpacing: 0.4,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: LoitSpacing.s4,
+                        vertical: LoitSpacing.s2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: LoitPalette.teal800,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        'See report →',
+                        style: LoitTypography.labelS.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.4,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: LoitSpacing.s3),
+                Text(
+                  'Spending this month',
+                  style: LoitTypography.titleM.copyWith(
+                    color: c.contentPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: LoitSpacing.s4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _PreviewMetric(
+                      label: 'AVG/DAY',
+                      value: formatMoney(avgDay, currency),
+                      align: TextAlign.left,
+                    ),
+                    _PreviewMetric(
+                      label: 'MTD',
+                      value: formatMoney(mtdSpend, currency),
+                      align: TextAlign.right,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: LoitSpacing.s4),
+                LoitMiniLineChart(
+                  values: byDay,
+                  height: 80,
+                  formatValue: (v) => formatMoney(v, currency),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PreviewMetric extends StatelessWidget {
+  const _PreviewMetric({
+    required this.label,
+    required this.value,
+    required this.align,
+  });
+  final String label;
+  final String value;
+  final TextAlign align;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    final cross = align == TextAlign.right
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
+    return Column(
+      crossAxisAlignment: cross,
+      children: [
+        Text(
+          label,
+          style: LoitTypography.labelS.copyWith(
+            color: c.contentSecondary,
+            letterSpacing: 0.4,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: LoitTypography.bodyM.copyWith(
+            color: c.contentPrimary,
+            fontWeight: FontWeight.w600,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    );
   }
 }
 

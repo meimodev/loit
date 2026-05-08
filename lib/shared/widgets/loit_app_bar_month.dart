@@ -13,12 +13,14 @@ class LoitAppBarMonth extends StatelessWidget implements PreferredSizeWidget {
     this.onPrev,
     this.onNext,
     this.actions = const [],
+    this.leading,
   });
 
   final String label;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
   final List<Widget> actions;
+  final Widget? leading;
 
   @override
   Size get preferredSize => const Size.fromHeight(56);
@@ -37,6 +39,7 @@ class LoitAppBarMonth extends StatelessWidget implements PreferredSizeWidget {
       ),
       child: Row(
         children: [
+          if (leading != null) leading!,
           IconButton(
             icon: const Icon(Icons.chevron_left, size: 22),
             onPressed: onPrev,

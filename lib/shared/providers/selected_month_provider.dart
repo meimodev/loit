@@ -10,6 +10,8 @@ class SelectedMonthNotifier extends Notifier<DateTime> {
   void prev() => state = DateTime(state.year, state.month - 1, 1);
   void next() => state = DateTime(state.year, state.month + 1, 1);
 
+  void setMonth(DateTime d) => state = DateTime(d.year, d.month, 1);
+
   void reset() {
     final now = DateTime.now();
     state = DateTime(now.year, now.month, 1);

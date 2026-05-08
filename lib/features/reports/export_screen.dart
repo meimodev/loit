@@ -59,7 +59,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       appBar: AppBar(
         title: const Text('Export'),
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
       ),

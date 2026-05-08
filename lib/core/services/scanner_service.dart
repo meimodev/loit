@@ -14,6 +14,7 @@ enum ScanErrorType {
   quotaExceeded, // 402 — show upgrade/top-up prompt
   connectionError, // No internet / timeout — show retry button; do NOT open manual entry
   serverError, // 5xx — show retry button; do NOT open manual entry
+  notATransaction, // 422 + not_a_transaction flag — image isn't a transaction doc
 }
 
 class ScanResult {
@@ -21,12 +22,14 @@ class ScanResult {
   final Map<String, dynamic>? parsedData;
   final Map<String, dynamic>? partialFields;
   final ScanErrorType? errorType;
+  final String? notATransactionReason;
 
   const ScanResult._({
     required this.success,
     this.parsedData,
     this.partialFields,
     this.errorType,
+    this.notATransactionReason,
   });
 
   factory ScanResult.success(Map<String, dynamic> data) =>
@@ -50,6 +53,12 @@ class ScanResult {
 
   factory ScanResult.serverError() =>
       const ScanResult._(success: false, errorType: ScanErrorType.serverError);
+
+  factory ScanResult.notATransaction({String? reason}) => ScanResult._(
+    success: false,
+    errorType: ScanErrorType.notATransaction,
+    notATransactionReason: reason,
+  );
 }
 
 class ScannerService {
@@ -137,6 +146,11 @@ class ScannerService {
 
         case 422:
           final body = jsonDecode(response.body) as Map<String, dynamic>;
+          if (body['not_a_transaction'] == true) {
+            final reason = body['reason'] as String?;
+            Log.w(_tag, 'Not a transaction: $reason');
+            return ScanResult.notATransaction(reason: reason);
+          }
           final partial =
               (body['partial_fields'] as Map<String, dynamic>?) ?? {};
           Log.w(_tag, 'AI parse failure, partial fields: $partial');

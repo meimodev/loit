@@ -20,6 +20,7 @@ import '../../shared/widgets/loit_month_app_bar.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 import '../../shared/widgets/loit_fab_stack.dart';
 import '../../shared/widgets/loit_group_label.dart';
+import '../../shared/widgets/loit_room_origin_badge.dart';
 import '../../shared/widgets/loit_sheet.dart';
 import '../../shared/widgets/loit_stat_triple.dart';
 import '../../shared/widgets/loit_tx_row.dart';
@@ -277,7 +278,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                           ? RoomColors.forId(t.roomId!)
                           : null;
                       final roomBadge = isRoomTx
-                          ? _RoomOriginBadge(
+                          ? LoitRoomOriginBadge(
                               accent: roomAccent!,
                               name: t.roomName ??
                                   roomNameById[t.roomId!] ??
@@ -622,51 +623,6 @@ class _SyncBadge extends StatelessWidget {
     return Tooltip(
       message: 'Not synced',
       child: Icon(Icons.cloud_off_rounded, size: 16, color: c.warning),
-    );
-  }
-}
-
-/// Compact pill rendered below the transaction subtitle to surface the
-/// originating room. Tinted by the room's accent so the row reads as
-/// "inherited from room" at a glance.
-class _RoomOriginBadge extends StatelessWidget {
-  const _RoomOriginBadge({required this.accent, required this.name});
-
-  final Color accent;
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: accent.withValues(alpha: 0.32)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 6),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 180),
-            child: Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: LoitTypography.labelS.copyWith(
-                color: accent,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

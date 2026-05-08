@@ -10,6 +10,7 @@ import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/user_categories_provider.dart';
+import '../../shared/utils/invite_token.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_input.dart';
 
@@ -31,26 +32,8 @@ class _RoomJoinScreenState extends ConsumerState<RoomJoinScreen> {
     super.dispose();
   }
 
-  String? _extractToken(String raw) {
-    final s = raw.trim();
-    if (s.isEmpty) return null;
-    // Accept full URL or bare token
-    final uri = Uri.tryParse(s);
-    if (uri != null && uri.pathSegments.length >= 2) {
-      final i = uri.pathSegments.indexOf('invite');
-      if (i >= 0 && i + 1 < uri.pathSegments.length) {
-        return uri.pathSegments[i + 1];
-      }
-      final r = uri.pathSegments.indexOf('r');
-      if (r >= 0 && r + 1 < uri.pathSegments.length) {
-        return uri.pathSegments[r + 1];
-      }
-    }
-    return s;
-  }
-
   Future<void> _join() async {
-    final token = _extractToken(_ctrl.text);
+    final token = extractInviteToken(_ctrl.text);
     if (token == null) {
       setState(() => _error = 'Paste an invite link or token');
       return;

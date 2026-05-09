@@ -376,5 +376,491 @@ class AppLocalizationsEn extends AppLocalizations {
       'Show the offline banner for testing';
 
   @override
+  String get dashboardInsights => 'INSIGHTS';
+
+  @override
+  String get dashboardSeeReport => 'See report →';
+
+  @override
+  String get dashboardSpendingThisMonth => 'Spending this month';
+
+  @override
+  String get dashboardAvgPerDay => 'AVG/DAY';
+
+  @override
+  String get dashboardMtd => 'MTD';
+
+  @override
+  String get dashboardSeePastReports => 'See past reports';
+
+  @override
+  String get dashboardIncome => 'Income';
+
+  @override
+  String get dashboardExpense => 'Expense';
+
+  @override
+  String get dashboardSeeAllCategories => 'See all categories';
+
+  @override
+  String get dashboardAddBudget => 'Add budget';
+
+  @override
+  String dashboardBudgetsOver(int count, int day, int total) {
+    return '$count budgets over. Day $day of $total.';
+  }
+
+  @override
+  String get dashboardAssets => 'Assets';
+
+  @override
+  String get dashboardLiabilities => 'Liabilities';
+
+  @override
+  String get dashboardNetWorth => 'Net worth';
+
+  @override
+  String get dashboardAccounts => 'Accounts';
+
+  @override
+  String get dashboardBudgets => 'Budgets';
+
+  @override
+  String get dashboardCategories => 'Categories';
+
+  @override
+  String get dashboardQuickStats => 'Quick stats';
+
+  @override
+  String dashboardOnTrack(int onTrack, int total) {
+    return '$onTrack of $total on track';
+  }
+
+  @override
+  String get dashboardOverBudget => 'Over budget';
+
+  @override
+  String get dashboardSpentMtd => 'Spent MTD';
+
+  @override
+  String get dashboardTransactions => 'Transactions';
+
+  @override
+  String get dashboardAddFirstAccount =>
+      'Add your first account to start tracking balances.';
+
+  @override
+  String get dashboardAddAccount => 'Add account';
+
+  @override
+  String dashboardOfPattern(String spent, String limit) {
+    return '$spent of $limit';
+  }
+
+  @override
+  String get txFormNewTransaction => 'New transaction';
+
+  @override
+  String get txFormEditTransaction => 'Edit transaction';
+
+  @override
+  String get txFormManualEntry => 'Manual entry';
+
+  @override
+  String get txFormConfirm => 'Confirm';
+
+  @override
+  String get txFormCouldntRead => 'Couldn\'t read this receipt';
+
+  @override
+  String get txFormPreFilled =>
+      'Fields below were pre-filled with what we recovered.';
+
+  @override
+  String get txFormAiParsed => 'AI parsed this receipt';
+
+  @override
+  String get txFormPleaseReview => 'Please review before saving.';
+
+  @override
+  String get txFormItemBreakdown => 'Looks like an item breakdown';
+
+  @override
+  String get txFormSwitchToItemsMsg =>
+      'Switch to Items mode for a structured list.';
+
+  @override
+  String get txFormAmount => 'Amount';
+
+  @override
+  String get txFormCurrency => 'Currency';
+
+  @override
+  String get txFormFromAccount => 'From account';
+
+  @override
+  String get txFormAccount => 'Account';
+
+  @override
+  String get txFormToAccount => 'To account';
+
+  @override
+  String get txFormIncomeCategory => 'Income category';
+
+  @override
+  String get txFormExpenseCategory => 'Expense category';
+
+  @override
+  String get txFormDate => 'Date';
+
+  @override
+  String get txFormTime => 'Time';
+
+  @override
+  String get txFormNotes => 'Notes';
+
+  @override
+  String get txFormMerchant => 'Merchant';
+
+  @override
+  String get txFormOptional => 'Optional';
+
+  @override
+  String get txFormStoreOrPayer => 'Store or payer';
+
+  @override
+  String get txFormItemName => 'Item name';
+
+  @override
+  String get txFormQty => 'Qty';
+
+  @override
+  String get txFormUnitPrice => 'Unit price';
+
+  @override
+  String get txFormTotal => 'Total';
+
+  @override
+  String get txFormSelectAccount => 'Select account';
+
+  @override
+  String get txFormSelectDestination => 'Select destination';
+
+  @override
+  String get txFormTabText => 'Text';
+
+  @override
+  String get txFormTabItems => 'Items';
+
+  @override
+  String get txFormAddItem => 'Add item';
+
+  @override
+  String get txFormSwitchToItemsBtn => 'Switch to Items';
+
+  @override
+  String get txFormDismiss => 'Dismiss';
+
+  @override
+  String get txFormSave => 'Save';
+
+  @override
+  String get txFormExpense => 'Expense';
+
+  @override
+  String get txFormIncome => 'Income';
+
+  @override
+  String get txFormTransfer => 'Transfer';
+
+  @override
+  String get txFormRemove => 'Remove';
+
+  @override
+  String get txFormValidAmount => 'Enter a valid amount';
+
+  @override
+  String get txFormSelectAnAccount => 'Select an account';
+
+  @override
+  String get txFormSelectDestAccount => 'Select a destination account';
+
+  @override
+  String txFormSaveFailed(String error) {
+    return 'Save failed: $error';
+  }
+
+  @override
+  String get txFormExistingNotes =>
+      'Existing notes not recognized — start a fresh breakdown.';
+
+  @override
+  String get txFormAddAccountFirst =>
+      'Add an account first before saving a transaction.';
+
+  @override
+  String txFormOneFxApprox(String currency, String amount, String home) {
+    return '1 $currency ≈ $amount $home';
+  }
+
+  @override
+  String get txDetailTitle => 'Transaction';
+
+  @override
+  String get txDetailEdit => 'Edit';
+
+  @override
+  String get txDetailNotSynced => 'Not synced';
+
+  @override
+  String get txDetailNotSyncedBody =>
+      'This transaction hasn\'t synced yet. Edit to save it.';
+
+  @override
+  String get txDetailDetails => 'Details';
+
+  @override
+  String get txDetailNotes => 'Notes';
+
+  @override
+  String get txDetailReceipt => 'Receipt';
+
+  @override
+  String get txDetailDate => 'Date';
+
+  @override
+  String get txDetailType => 'Type';
+
+  @override
+  String get txDetailAccount => 'Account';
+
+  @override
+  String get txDetailToAccount => 'To account';
+
+  @override
+  String get txDetailCategory => 'Category';
+
+  @override
+  String get txDetailCurrency => 'Currency';
+
+  @override
+  String get txDetailFxRate => 'FX rate';
+
+  @override
+  String get txDetailHomeAmount => 'Home amount';
+
+  @override
+  String get txDetailSource => 'Source';
+
+  @override
+  String get txDetailAiScanned => 'AI scanned';
+
+  @override
+  String get txDetailManualFallback => 'Manual fallback';
+
+  @override
+  String get txDetailTotal => 'Total';
+
+  @override
+  String get txDetailFallbackTransfer => 'Transfer';
+
+  @override
+  String get txDetailDeleteTransaction => 'Delete transaction';
+
+  @override
+  String get txDetailDeleteTitle => 'Delete transaction?';
+
+  @override
+  String get txDetailDeleteBody => 'This cannot be undone.';
+
+  @override
+  String get txDetailCancel => 'Cancel';
+
+  @override
+  String get txDetailDelete => 'Delete';
+
+  @override
+  String get txDetailNotFound => 'Not found';
+
+  @override
+  String get txListSearch => 'Search';
+
+  @override
+  String get txListNewTransaction => 'New transaction';
+
+  @override
+  String get txListFilterSource => 'Filter source';
+
+  @override
+  String get txListNotSynced => 'Not synced';
+
+  @override
+  String get txListIncome => 'Income';
+
+  @override
+  String get txListExpenses => 'Expenses';
+
+  @override
+  String get txListTotal => 'Total';
+
+  @override
+  String get txListNoMatches => 'No transactions match this filter';
+
+  @override
+  String get txListNoTransactions => 'No transactions yet';
+
+  @override
+  String get txListEmptySwitchAll =>
+      'Try switching to All to see every transaction this month.';
+
+  @override
+  String get txListEmptyAddTransaction =>
+      'Add a transaction or scan a receipt to get started.';
+
+  @override
+  String get txListEmptyScanReceipt => 'Scan receipt';
+
+  @override
+  String get txListShowAll => 'Show all';
+
+  @override
+  String txListCategoriesTrending(int count) {
+    return '$count categories trending high';
+  }
+
+  @override
+  String get txListTapBudget => 'Tap a budget to drill down.';
+
+  @override
+  String get txListViewBudgets => 'View budgets';
+
+  @override
+  String get txListToday => 'Today';
+
+  @override
+  String get txListYesterday => 'Yesterday';
+
+  @override
+  String txListRoomDeleteSnackbar(String roomName) {
+    return 'This transaction belongs to \"$roomName\". Delete it from the room.';
+  }
+
+  @override
+  String get txListOpenRoom => 'Open room';
+
+  @override
+  String get txListDeleted => 'Transaction deleted';
+
+  @override
+  String get txListUndo => 'Undo';
+
+  @override
+  String txListDeleteFailed(String error) {
+    return 'Delete failed: $error';
+  }
+
+  @override
+  String txListUndoFailed(String error) {
+    return 'Undo failed: $error';
+  }
+
+  @override
+  String get txListDelete => 'Delete';
+
+  @override
+  String get txListFilterTransactions => 'Filter transactions';
+
+  @override
+  String get txListAll => 'All';
+
+  @override
+  String get txListPersonal => 'Personal';
+
+  @override
+  String get txListRooms => 'Rooms';
+
+  @override
+  String txListFooter(int filtered, int total) {
+    return '$filtered of $total total';
+  }
+
+  @override
+  String get txListRoom => 'Room';
+
+  @override
+  String get txSearchPlaceholder => 'Search notes, category…';
+
+  @override
+  String get txSearchType => 'Type';
+
+  @override
+  String get txSearchDate => 'Date';
+
+  @override
+  String get txSearchSource => 'Source';
+
+  @override
+  String get txSearchIncome => 'Income';
+
+  @override
+  String get txSearchExpense => 'Expense';
+
+  @override
+  String get txSearchThisWeek => 'This week';
+
+  @override
+  String get txSearchThisMonth => 'This month';
+
+  @override
+  String get txSearchThisYear => 'This year';
+
+  @override
+  String get txSearchCustom => 'Custom';
+
+  @override
+  String get txSearchPersonal => 'Personal';
+
+  @override
+  String get txSearchRooms => 'Rooms';
+
+  @override
+  String get txSearchNoMatches => 'No matches';
+
+  @override
+  String get txSearchNoMatchesBody => 'No transactions match the filters.';
+
+  @override
+  String txSearchNoMatchesQuery(String query) {
+    return 'Nothing matched \"$query\".';
+  }
+
+  @override
+  String get txSearchEmptyTitle => 'Search your transactions';
+
+  @override
+  String get txSearchEmptyBody =>
+      'Type a category, note, or pick a filter above.';
+
+  @override
+  String get txSearchRecent => 'Recent';
+
+  @override
+  String get txSearchRoom => 'Room';
+
+  @override
+  String get quickAddTitle => 'Add expense';
+
+  @override
+  String get quickAddAmount => 'AMOUNT';
+
+  @override
+  String get quickAddContinue => 'Continue';
+
+  @override
+  String quickAddRegionSuffix(Object currency) {
+    return '$currency · ID';
+  }
+
+  @override
   String get tierActive => 'ACTIVE';
 }

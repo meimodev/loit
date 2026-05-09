@@ -8,6 +8,7 @@ import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/budgets_provider.dart';
@@ -81,6 +82,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final totalLiabilities = ref.watch(totalLiabilitiesProvider);
     final netWorth = ref.watch(netWorthProvider);
     final c = context.loitColors;
+    final l = context.l10n;
     final now = DateTime.now();
     final isCurrentMonth = now.year == month.year && now.month == month.month;
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
@@ -166,17 +168,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   LoitStatTriple(
                     stats: [
                       LoitStat(
-                        label: 'Assets',
+                        label: l.dashboardAssets,
                         amount: _fmt(totalAssets, currency),
                         color: c.success,
                       ),
                       LoitStat(
-                        label: 'Liabilities',
+                        label: l.dashboardLiabilities,
                         amount: _fmt(totalLiabilities, currency),
                         color: c.danger,
                       ),
                       LoitStat(
-                        label: 'Net worth',
+                        label: l.dashboardNetWorth,
                         amount: _fmt(netWorth, currency),
                         color: netWorth >= 0 ? c.success : c.danger,
                       ),
@@ -192,7 +194,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     ),
                   )
                 else ...[
-                  fadeUpSliver(2, const LoitGroupLabel(label: 'Accounts')),
+                  fadeUpSliver(2, LoitGroupLabel(label: l.dashboardAccounts)),
                   fadeUpSliver(
                     3,
                     Container(
@@ -223,12 +225,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   fadeUpSliver(
                     4,
                     _DenseAlertPill(
-                      message:
-                          '$overBudgetCount budgets over. Day $dayOfMonth of $daysInMonth.',
+                      message: l.dashboardBudgetsOver(
+                          overBudgetCount, dayOfMonth, daysInMonth),
                       onTap: () => context.push('/budgets'),
                     ),
                   ),
-                  fadeUpSliver(4, const LoitGroupLabel(label: 'Quick stats')),
+                  fadeUpSliver(4, LoitGroupLabel(label: l.dashboardQuickStats)),
                   fadeUpSliver(
                     5,
                     Container(
@@ -236,23 +238,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       child: Column(
                         children: [
                           _QuickStatRow(
-                            label: 'Budgets',
-                            value:
-                                '$onTrackCount of ${budgetStatuses.length} on track',
+                            label: l.dashboardBudgets,
+                            value: l.dashboardOnTrack(
+                                onTrackCount, budgetStatuses.length),
                             valueColor: c.success,
                           ),
                           _QuickStatRow(
-                            label: 'Over budget',
+                            label: l.dashboardOverBudget,
                             value: '$overBudgetCount',
                             valueColor: c.danger,
                           ),
                           _QuickStatRow(
-                            label: 'Spent MTD',
+                            label: l.dashboardSpentMtd,
                             value: _fmt(summary.expenses, currency),
                             valueColor: c.contentPrimary,
                           ),
                           _QuickStatRow(
-                            label: 'Transactions',
+                            label: l.dashboardTransactions,
                             value: '${items.length}',
                             valueColor: c.info,
                             showDivider: false,
@@ -264,7 +266,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 ] else ...[
                   fadeUpSliver(4, const BudgetAlertBanner()),
                   fadeUpSliver(4, const ReceiptExpiryBanner()),
-                  fadeUpSliver(4, const LoitGroupLabel(label: 'Budgets')),
+                  fadeUpSliver(4, LoitGroupLabel(label: l.dashboardBudgets)),
                   fadeUpSliver(
                     5,
                     Container(
@@ -286,7 +288,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   ),
                   fadeUpSliver(
                     5,
-                    const LoitGroupLabel(label: 'Categories'),
+                    LoitGroupLabel(label: l.dashboardCategories),
                   ),
                   fadeUpSliver(
                     5,
@@ -377,6 +379,7 @@ class _ReportsPreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         LoitSpacing.s4,
@@ -409,7 +412,7 @@ class _ReportsPreviewCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
-                      'INSIGHTS',
+                      l.dashboardInsights,
                       style: LoitTypography.labelS.copyWith(
                         color: c.contentSecondary,
                         letterSpacing: 0.4,
@@ -426,7 +429,7 @@ class _ReportsPreviewCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        'See report →',
+                        l.dashboardSeeReport,
                         style: LoitTypography.labelS.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
@@ -439,7 +442,7 @@ class _ReportsPreviewCard extends StatelessWidget {
                 ),
                 const SizedBox(height: LoitSpacing.s3),
                 Text(
-                  'Spending this month',
+                  l.dashboardSpendingThisMonth,
                   style: LoitTypography.titleM.copyWith(
                     color: c.contentPrimary,
                     fontWeight: FontWeight.w600,
@@ -451,12 +454,12 @@ class _ReportsPreviewCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _PreviewMetric(
-                      label: 'AVG/DAY',
+                      label: l.dashboardAvgPerDay,
                       value: formatMoney(avgDay, currency),
                       align: TextAlign.left,
                     ),
                     _PreviewMetric(
-                      label: 'MTD',
+                      label: l.dashboardMtd,
                       value: formatMoney(mtdSpend, currency),
                       align: TextAlign.right,
                     ),
@@ -484,6 +487,7 @@ class _PastReportsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         LoitSpacing.s4,
@@ -513,7 +517,7 @@ class _PastReportsCard extends StatelessWidget {
                 const SizedBox(width: LoitSpacing.s3),
                 Expanded(
                   child: Text(
-                    'See past reports',
+                    l.dashboardSeePastReports,
                     style: LoitTypography.bodyM.copyWith(
                       color: c.brand,
                       fontWeight: FontWeight.w500,
@@ -578,7 +582,8 @@ class _CategoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    final kindLabel = category.isIncome ? 'Income' : 'Expense';
+    final l = context.l10n;
+    final kindLabel = category.isIncome ? l.dashboardIncome : l.dashboardExpense;
     return Material(
       color: c.surface,
       child: InkWell(
@@ -639,6 +644,7 @@ class _SeeAllCategoriesRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -652,7 +658,7 @@ class _SeeAllCategoriesRow extends StatelessWidget {
             const SizedBox(width: LoitSpacing.s3),
             Expanded(
               child: Text(
-                'See all categories',
+                l.dashboardSeeAllCategories,
                 style: LoitTypography.bodyM.copyWith(color: c.brand),
               ),
             ),
@@ -671,6 +677,7 @@ List<Widget> _topBudgetRows({
   required List<BudgetStatus> statuses,
   required String currency,
 }) {
+  final l = context.l10n;
   final sorted = [...statuses]..sort((a, b) => b.ratio.compareTo(a.ratio));
   final picked = sorted.take(3).toList();
   return [
@@ -680,8 +687,9 @@ List<Widget> _topBudgetRows({
             CategoryLabelKey(key: picked[i].budget.category))),
         categoryKey: picked[i].budget.category,
         percent: (picked[i].ratio * 100).round(),
-        subtitle:
-            '${formatMoney(picked[i].spent, currency)} of ${formatMoney(picked[i].budget.monthlyLimit, currency)}',
+        subtitle: l.dashboardOfPattern(
+            formatMoney(picked[i].spent, currency),
+            formatMoney(picked[i].budget.monthlyLimit, currency)),
         showDivider: true,
         onTap: () =>
             GoRouter.of(context).push('/budgets/${picked[i].budget.id}'),
@@ -696,6 +704,7 @@ class _AddBudgetRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -708,7 +717,7 @@ class _AddBudgetRow extends StatelessWidget {
             Icon(Icons.add, size: 18, color: c.brand),
             const SizedBox(width: LoitSpacing.s3),
             Text(
-              'Add budget',
+              l.dashboardAddBudget,
               style: LoitTypography.bodyM.copyWith(color: c.brand),
             ),
           ],
@@ -838,6 +847,7 @@ class _AddFirstAccountBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -860,7 +870,7 @@ class _AddFirstAccountBanner extends StatelessWidget {
             const SizedBox(width: LoitSpacing.s3),
             Expanded(
               child: Text(
-                'Add your first account to start tracking balances.',
+                l.dashboardAddFirstAccount,
                 style:
                     LoitTypography.bodyS.copyWith(color: c.contentSecondary),
               ),
@@ -907,6 +917,7 @@ class _AccountRow extends StatelessWidget {
         : null;
 
     if (isAdd) {
+      final l = context.l10n;
       return InkWell(
         onTap: onTap,
         child: Container(
@@ -920,7 +931,7 @@ class _AccountRow extends StatelessWidget {
               Icon(Icons.add, size: 18, color: c.brand),
               const SizedBox(width: LoitSpacing.s3),
               Text(
-                'Add account',
+                l.dashboardAddAccount,
                 style: LoitTypography.bodyM.copyWith(color: c.brand),
               ),
             ],

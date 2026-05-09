@@ -16,6 +16,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/room_providers.dart';
@@ -298,9 +299,8 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       } else {
         if (_notes.text.trim().isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Existing notes not recognized — start a fresh breakdown.'),
+            SnackBar(
+              content: Text(context.l10n.txFormExistingNotes),
             ),
           );
         }
@@ -330,8 +330,8 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
         children: [
           LoitInput(
             controller: _merchant,
-            label: 'Merchant',
-            placeholder: 'Store or payer',
+            label: context.l10n.txFormMerchant,
+            placeholder: context.l10n.txFormStoreOrPayer,
             size: LoitInputSize.s,
           ),
           const SizedBox(height: LoitSpacing.s3),
@@ -341,7 +341,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
           ],
           OutlinedButton.icon(
             icon: const Icon(Icons.add, size: 16),
-            label: const Text('Add item'),
+            label: Text(context.l10n.txFormAddItem),
             onPressed: () {
               setState(() {
                 _addRow(_ItemRowControllers());
@@ -375,13 +375,13 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
               Expanded(
                 child: LoitInput(
                   controller: r.nameC,
-                  placeholder: 'Item name',
+                  placeholder: context.l10n.txFormItemName,
                   size: LoitInputSize.s,
                 ),
               ),
               IconButton(
                 visualDensity: VisualDensity.compact,
-                tooltip: 'Remove',
+                tooltip: context.l10n.txFormRemove,
                 icon: Icon(Icons.delete_outline,
                     size: 18, color: c.contentTertiary),
                 onPressed: () {
@@ -400,7 +400,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
               Expanded(
                 child: LoitInput(
                   controller: r.qtyC,
-                  placeholder: 'Qty',
+                  placeholder: context.l10n.txFormQty,
                   size: LoitInputSize.s,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
@@ -422,7 +422,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
               Expanded(
                 child: LoitInput(
                   controller: r.unitC,
-                  placeholder: 'Unit price',
+                  placeholder: context.l10n.txFormUnitPrice,
                   size: LoitInputSize.s,
                   leading: priceLeading(),
                   keyboardType:
@@ -437,7 +437,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
               Expanded(
                 child: LoitInput(
                   controller: r.totalC,
-                  placeholder: 'Total',
+                  placeholder: context.l10n.txFormTotal,
                   size: LoitInputSize.s,
                   leading: priceLeading(),
                   keyboardType:
@@ -547,20 +547,21 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
   }
 
   bool _validate() {
+    final l = context.l10n;
     final amt = parseAmountInput(_amount.text);
-    String? amtErr = (amt == null || amt <= 0) ? 'Enter a valid amount' : null;
+    String? amtErr = (amt == null || amt <= 0) ? l.txFormValidAmount : null;
     setState(() {
       _amountError = amtErr;
     });
     if (_accountId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select an account')),
+        SnackBar(content: Text(l.txFormSelectAnAccount)),
       );
       return false;
     }
     if (_type == 'transfer' && _toAccountId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select a destination account')),
+        SnackBar(content: Text(l.txFormSelectDestAccount)),
       );
       return false;
     }
@@ -751,7 +752,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+        ).showSnackBar(SnackBar(content: Text(context.l10n.txFormSaveFailed(e.toString()))));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -849,6 +850,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final profile = ref.watch(userProfileProvider).value;
     final home = profile?.homeCurrency ?? 'IDR';
     final catLabel = ref.watch(categoryLabelProvider(
@@ -886,10 +888,10 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       appBar: AppBar(
         title: Text(
           _editId != null
-              ? 'Edit transaction'
+              ? l.txFormEditTransaction
               : _isManualFallback
-                  ? 'Manual entry'
-                  : (_aiParsed ? 'Confirm' : 'New transaction'),
+                  ? l.txFormManualEntry
+                  : (_aiParsed ? l.txFormConfirm : l.txFormNewTransaction),
         ),
       ),
       body: Form(
@@ -902,8 +904,8 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                 padding: const EdgeInsets.only(bottom: LoitSpacing.s4),
                 child: LoitBanner(
                   kind: LoitBannerKind.warning,
-                  title: "Couldn't read this receipt",
-                  body: 'Fields below were pre-filled with what we recovered.',
+                  title: l.txFormCouldntRead,
+                  body: l.txFormPreFilled,
                 ),
               ),
             if (_aiParsed)
@@ -911,8 +913,8 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                 padding: const EdgeInsets.only(bottom: LoitSpacing.s4),
                 child: LoitBanner(
                   kind: LoitBannerKind.info,
-                  title: 'AI parsed this receipt',
-                  body: 'Please review before saving.',
+                  title: l.txFormAiParsed,
+                  body: l.txFormPleaseReview,
                 ),
               ),
             _TypeSegmented(type: _type, onChanged: _setType),
@@ -924,7 +926,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                   flex: 2,
                   child: LoitInput(
                     controller: _amount,
-                    label: 'Amount',
+                    label: l.txFormAmount,
                     placeholder: '0',
                     leading: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -950,7 +952,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                 const SizedBox(width: LoitSpacing.s4),
                 Expanded(
                   child: _picker(
-                    label: 'Currency',
+                    label: l.txFormCurrency,
                     valueWidget: Text(_currency,
                         style: LoitTypography.bodyL
                             .copyWith(color: c.contentPrimary)),
@@ -967,7 +969,8 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
               Padding(
                 padding: const EdgeInsets.only(top: LoitSpacing.s3),
                 child: Text(
-                  '1 $_currency ≈ ${_homeRate(home)!.toStringAsFixed(4)} $home',
+                  l.txFormOneFxApprox(
+                      _currency, _homeRate(home)!.toStringAsFixed(4), home),
                   style: LoitTypography.bodyS.copyWith(color: c.contentTertiary),
                 ),
               ),
@@ -987,7 +990,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                       const SizedBox(width: LoitSpacing.s3),
                       Expanded(
                         child: Text(
-                          'Add an account first before saving a transaction.',
+                          l.txFormAddAccountFirst,
                           style: LoitTypography.bodyS.copyWith(color: c.danger),
                         ),
                       ),
@@ -996,9 +999,9 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                 ),
               ),
             _picker(
-              label: _type == 'transfer' ? 'From account' : 'Account',
+              label: _type == 'transfer' ? l.txFormFromAccount : l.txFormAccount,
               valueWidget: Text(
-                accountName ?? 'Select account',
+                accountName ?? l.txFormSelectAccount,
                 style: LoitTypography.bodyL.copyWith(
                   color: accountName != null ? c.contentPrimary : c.contentTertiary,
                 ),
@@ -1008,9 +1011,9 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
             if (_type == 'transfer') ...[
               const SizedBox(height: LoitSpacing.s4),
               _picker(
-                label: 'To account',
+                label: l.txFormToAccount,
                 valueWidget: Text(
-                  toAccountName ?? 'Select destination',
+                  toAccountName ?? l.txFormSelectDestination,
                   style: LoitTypography.bodyL.copyWith(
                     color: toAccountName != null ? c.contentPrimary : c.contentTertiary,
                   ),
@@ -1021,7 +1024,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
             if (_type != 'transfer') ...[
               const SizedBox(height: LoitSpacing.s4),
               _picker(
-                label: _type == 'income' ? 'Income category' : 'Expense category',
+                label: _type == 'income' ? l.txFormIncomeCategory : l.txFormExpenseCategory,
                 valueWidget: Row(
                   children: [
                     LoitCategoryAvatar(categoryKey: _category, size: 28),
@@ -1040,7 +1043,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
               children: [
                 Expanded(
                   child: _picker(
-                    label: 'Date',
+                    label: l.txFormDate,
                     valueWidget: Text(
                       DateFormat.yMMMd().format(_date),
                       style: LoitTypography.bodyL
@@ -1052,7 +1055,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                 const SizedBox(width: LoitSpacing.s4),
                 Expanded(
                   child: _picker(
-                    label: 'Time',
+                    label: l.txFormTime,
                     valueWidget: Text(
                       DateFormat.Hm().format(_date),
                       style: LoitTypography.bodyL
@@ -1064,7 +1067,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
               ],
             ),
             const SizedBox(height: LoitSpacing.s4),
-            Text('Notes',
+            Text(l.txFormNotes,
                 style: LoitTypography.bodyM.copyWith(
                   color: c.contentPrimary,
                   fontWeight: FontWeight.w600,
@@ -1072,22 +1075,22 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
             const SizedBox(height: 6),
             TabBar(
               controller: _notesTabController,
-              tabs: const [Tab(text: 'Text'), Tab(text: 'Items')],
+              tabs: [Tab(text: l.txFormTabText), Tab(text: l.txFormTabItems)],
             ),
             const SizedBox(height: LoitSpacing.s3),
             if (_notesMode == _NotesMode.text) ...[
               LoitInput(
                 controller: _notes,
-                placeholder: 'Optional',
+                placeholder: l.txFormOptional,
                 maxLines: 5,
               ),
               if (!_breakdownHintDismissed && looksLikeBreakdown(_notes.text)) ...[
                 const SizedBox(height: LoitSpacing.s3),
                 LoitBanner(
                   kind: LoitBannerKind.info,
-                  title: 'Looks like an item breakdown',
-                  body: 'Switch to Items mode for a structured list.',
-                  actionLabel: 'Switch to Items',
+                  title: l.txFormItemBreakdown,
+                  body: l.txFormSwitchToItemsMsg,
+                  actionLabel: l.txFormSwitchToItemsBtn,
                   onAction: () => _setNotesMode(_NotesMode.items),
                 ),
                 Align(
@@ -1095,7 +1098,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                   child: TextButton(
                     onPressed: () =>
                         setState(() => _breakdownHintDismissed = true),
-                    child: const Text('Dismiss'),
+                    child: Text(l.txFormDismiss),
                   ),
                 ),
               ],
@@ -1114,7 +1117,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save'),
+                  : Text(l.txFormSave),
             ),
           ],
         ),
@@ -1170,10 +1173,11 @@ class _TypeSegmented extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    const options = [
-      ('expense', 'Expense'),
-      ('income', 'Income'),
-      ('transfer', 'Transfer'),
+    final l = context.l10n;
+    final options = [
+      ('expense', l.txFormExpense),
+      ('income', l.txFormIncome),
+      ('transfer', l.txFormTransfer),
     ];
     return Row(
       children: [

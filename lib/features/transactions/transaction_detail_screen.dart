@@ -8,6 +8,8 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/preferences_provider.dart';
@@ -29,6 +31,7 @@ class TransactionDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     final txns = ref.watch(transactionsProvider);
     final accounts = ref.watch(accountsProvider).value ?? const [];
     final accountMap = {for (final a in accounts) a.id: a};
@@ -37,10 +40,10 @@ class TransactionDetailScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Transaction'),
+        title: Text(l.txDetailTitle),
         actions: [
           IconButton(
-            tooltip: 'Edit',
+            tooltip: l.txDetailEdit,
             icon: const Icon(Icons.edit_outlined),
             onPressed: () {
               final Txn? t;
@@ -88,7 +91,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                   ),
                 );
                 if (t.id == null) {
-                  return const Center(child: Text('Not found'));
+                  return Center(child: Text(l.txDetailNotFound));
                 }
                 return _buildDetail(context, ref, t, accountMap);
               },
@@ -104,6 +107,7 @@ class TransactionDetailScreen extends ConsumerWidget {
     bool isUnsynced = false,
   }) {
     final c = context.loitColors;
+    final l = context.l10n;
     final catStyle = ref.watch(categoryStyleProvider(t.category));
     final catLabel = ref.watch(categoryLabelProvider(
         CategoryLabelKey(key: t.category)));
@@ -123,45 +127,45 @@ class TransactionDetailScreen extends ConsumerWidget {
       ),
       children: [
         if (isUnsynced) ...[
-          const LoitBanner(
+          LoitBanner(
             kind: LoitBannerKind.warning,
-            title: 'Not synced',
-            body: 'This transaction hasn\'t synced yet. Edit to save it.',
+            title: l.txDetailNotSynced,
+            body: l.txDetailNotSyncedBody,
           ),
           const SizedBox(height: LoitSpacing.s4),
         ],
         _heroCard(context, t, catStyle, catLabel, homeCurrency),
         const SizedBox(height: LoitSpacing.s5),
-        const LoitGroupLabel(label: 'Details'),
-        _row(context, 'Date',
+        LoitGroupLabel(label: l.txDetailDetails),
+        _row(context, l.txDetailDate,
             DateFormat.yMMMMEEEEd().add_jm().format(t.createdAt.toLocal())),
-        _row(context, 'Type', _typeName(t.type)),
+        _row(context, l.txDetailType, _typeName(l, t.type)),
         if (fromAccount != null)
-          _row(context, 'Account', fromAccount.name),
+          _row(context, l.txDetailAccount, fromAccount.name),
         if (toAccount != null)
-          _row(context, 'To account', toAccount.name),
+          _row(context, l.txDetailToAccount, toAccount.name),
         if (!t.isTransfer)
-          _row(context, 'Category', catLabel),
-        _row(context, 'Currency', t.currency),
+          _row(context, l.txDetailCategory, catLabel),
+        _row(context, l.txDetailCurrency, t.currency),
         if (t.currency != homeCurrency && t.fxSnapshot.containsKey(homeCurrency))
           _row(
             context,
-            'FX rate',
+            l.txDetailFxRate,
             t.fxSnapshot[homeCurrency]!.toStringAsFixed(4),
           ),
         if (t.currency != homeCurrency && t.fxSnapshot.containsKey(homeCurrency))
           _row(
             context,
-            'Home amount',
+            l.txDetailHomeAmount,
             formatMoney(t.amountIn(homeCurrency), homeCurrency),
           ),
         if (t.aiParsed)
-          _row(context, 'Source', 'AI scanned'),
+          _row(context, l.txDetailSource, l.txDetailAiScanned),
         if (t.isManualFallback)
-          _row(context, 'Source', 'Manual fallback'),
+          _row(context, l.txDetailSource, l.txDetailManualFallback),
         if (t.notes != null && t.notes!.isNotEmpty) ...[
           const SizedBox(height: LoitSpacing.s4),
-          const LoitGroupLabel(label: 'Notes'),
+          LoitGroupLabel(label: l.txDetailNotes),
           Builder(builder: (_) {
             final parsed = parseBreakdown(t.notes);
             if (parsed == null) {
@@ -182,7 +186,7 @@ class TransactionDetailScreen extends ConsumerWidget {
         ],
         if (t.receiptUrl != null) ...[
           const SizedBox(height: LoitSpacing.s4),
-          const LoitGroupLabel(label: 'Receipt'),
+          LoitGroupLabel(label: l.txDetailReceipt),
           ClipRRect(
             borderRadius: LoitRadius.brM,
             child: LoitReceiptImage(path: t.receiptUrl!),
@@ -197,21 +201,21 @@ class TransactionDetailScreen extends ConsumerWidget {
               minimumSize: const Size.fromHeight(48),
             ),
             icon: const Icon(Icons.delete_outline),
-            label: const Text('Delete transaction'),
+            label: Text(l.txDetailDeleteTransaction),
             onPressed: () async {
               final ok = await showDialog<bool>(
                 context: context,
                 builder: (_) => AlertDialog(
-                  title: const Text('Delete transaction?'),
-                  content: const Text('This cannot be undone.'),
+                  title: Text(l.txDetailDeleteTitle),
+                  content: Text(l.txDetailDeleteBody),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
+                      child: Text(l.txDetailCancel),
                     ),
                     FilledButton(
                       onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Delete'),
+                      child: Text(l.txDetailDelete),
                     ),
                   ],
                 ),
@@ -229,20 +233,21 @@ class TransactionDetailScreen extends ConsumerWidget {
     );
   }
 
-  String _typeName(String type) {
+  String _typeName(AppLocalizations l, String type) {
     switch (type) {
       case 'income':
-        return 'Income';
+        return l.txFormIncome;
       case 'transfer':
-        return 'Transfer';
+        return l.txDetailFallbackTransfer;
       default:
-        return 'Expense';
+        return l.txFormExpense;
     }
   }
 
   Widget _heroCard(BuildContext context, Txn t, LoitCategoryStyle catStyle,
       String catLabel, String homeCurrency) {
     final c = context.loitColors;
+    final l = context.l10n;
     return Container(
       padding: const EdgeInsets.all(LoitSpacing.s5),
       decoration: BoxDecoration(
@@ -275,7 +280,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                   children: [
                     Builder(builder: (_) {
                       final t0 = breakdownTitle(t.notes);
-                      final fallback = t.isTransfer ? 'Transfer' : 'Transaction';
+                      final fallback = t.isTransfer ? l.txDetailFallbackTransfer : l.txDetailTitle;
                       return Text(
                           t0.isEmpty ? fallback : t0,
                           style: LoitTypography.titleM
@@ -283,7 +288,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                     }),
                     const SizedBox(height: 2),
                     Text(
-                      t.isTransfer ? 'Transfer' : catLabel,
+                      t.isTransfer ? l.txDetailFallbackTransfer : catLabel,
                       style: LoitTypography.bodyS
                           .copyWith(color: c.contentSecondary),
                     ),
@@ -363,6 +368,7 @@ class _BreakdownView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     return Container(
       padding: const EdgeInsets.all(LoitSpacing.s4),
       decoration: BoxDecoration(
@@ -414,7 +420,7 @@ class _BreakdownView extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text('Total',
+                    child: Text(l.txDetailTotal,
                         style: LoitTypography.bodyM.copyWith(
                           color: c.contentPrimary,
                           fontWeight: FontWeight.w600,
@@ -434,4 +440,3 @@ class _BreakdownView extends StatelessWidget {
     );
   }
 }
-

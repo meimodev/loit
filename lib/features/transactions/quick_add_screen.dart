@@ -7,6 +7,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/widgets/loit_button.dart';
 
@@ -67,6 +68,7 @@ class _QuickAddScreenState extends ConsumerState<QuickAddScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final profile = ref.watch(userProfileProvider).value;
     final currency = profile?.homeCurrency ?? 'IDR';
     final symbol = currency == 'IDR' ? 'Rp' : currency;
@@ -75,7 +77,7 @@ class _QuickAddScreenState extends ConsumerState<QuickAddScreen> {
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Add expense'),
+        title: Text(l.quickAddTitle),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
@@ -86,7 +88,7 @@ class _QuickAddScreenState extends ConsumerState<QuickAddScreen> {
           children: [
             const SizedBox(height: LoitSpacing.s5),
             Text(
-              'AMOUNT',
+              l.quickAddAmount,
               style: LoitTypography.labelS.copyWith(
                 color: c.contentSecondary,
                 fontWeight: FontWeight.w600,
@@ -127,7 +129,7 @@ class _QuickAddScreenState extends ConsumerState<QuickAddScreen> {
                 borderRadius: LoitRadius.brFull,
               ),
               child: Text(
-                '$currency · ID',
+                l.quickAddRegionSuffix(currency),
                 style: LoitTypography.labelS.copyWith(
                   color: c.contentSecondary,
                   fontWeight: FontWeight.w600,
@@ -145,7 +147,7 @@ class _QuickAddScreenState extends ConsumerState<QuickAddScreen> {
                 LoitSpacing.s4,
               ),
               child: LoitButton.primary(
-                label: 'Continue',
+                label: l.quickAddContinue,
                 size: LoitButtonSize.l,
                 onPressed: hasValue ? _continue : null,
                 fullWidth: true,

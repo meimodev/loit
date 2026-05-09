@@ -150,5 +150,235 @@
   "debugSimulateOffline": "Simulasikan offline",
   "debugSimulateOfflineHelper": "Tampilkan spanduk offline untuk pengujian",
 
+  "dashboardInsights": "WAWASAN",
+  "dashboardSeeReport": "Lihat laporan →",
+  "dashboardSpendingThisMonth": "Pengeluaran bulan ini",
+  "dashboardAvgPerDay": "RATA/HARI",
+  "dashboardMtd": "MTD",
+  "dashboardSeePastReports": "Lihat laporan sebelumnya",
+  "dashboardIncome": "Pemasukan",
+  "dashboardExpense": "Pengeluaran",
+  "dashboardSeeAllCategories": "Lihat semua kategori",
+  "dashboardAddBudget": "Tambah anggaran",
+  "dashboardBudgetsOver": "{count} anggaran melebihi. Hari ke-{day} dari {total}.",
+  "@dashboardBudgetsOver": {
+    "description": "Dense alert showing over-budget count and current day of month",
+    "placeholders": {
+      "count": {"type": "int"},
+      "day": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "dashboardAssets": "Aset",
+  "dashboardLiabilities": "Liabilitas",
+  "dashboardNetWorth": "Kekayaan bersih",
+  "dashboardAccounts": "Akun",
+  "dashboardBudgets": "Anggaran",
+  "dashboardCategories": "Kategori",
+  "dashboardQuickStats": "Statistik cepat",
+  "dashboardOnTrack": "{onTrack} dari {total} sesuai jalur",
+  "@dashboardOnTrack": {
+    "description": "Number of budgets on track, e.g. '3 of 5 on track'",
+    "placeholders": {
+      "onTrack": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "dashboardOverBudget": "Melebihi anggaran",
+  "dashboardSpentMtd": "Dibelanjakan MTD",
+  "dashboardTransactions": "Transaksi",
+  "dashboardAddFirstAccount": "Tambahkan akun pertama Anda untuk mulai melacak saldo.",
+  "dashboardAddAccount": "Tambah akun",
+  "dashboardOfPattern": "{spent} dari {limit}",
+  "@dashboardOfPattern": {
+    "description": "Budget spending summary, e.g. 'Rp500,000 of Rp1,000,000'",
+    "placeholders": {
+      "spent": {"type": "String"},
+      "limit": {"type": "String"}
+    }
+  },
+
+  "txFormNewTransaction": "Transaksi baru",
+  "txFormEditTransaction": "Edit transaksi",
+  "txFormManualEntry": "Entri manual",
+  "txFormConfirm": "Konfirmasi",
+  "txFormCouldntRead": "Tidak dapat membaca struk ini",
+  "txFormPreFilled": "Kolom di bawah telah diisi dengan data yang dapat dipulihkan.",
+  "txFormAiParsed": "AI membaca struk ini",
+  "txFormPleaseReview": "Silakan periksa sebelum menyimpan.",
+  "txFormItemBreakdown": "Tampaknya rincian item",
+  "txFormSwitchToItemsMsg": "Beralih ke mode Item untuk daftar terstruktur.",
+  "txFormAmount": "Jumlah",
+  "txFormCurrency": "Mata uang",
+  "txFormFromAccount": "Dari akun",
+  "txFormAccount": "Akun",
+  "txFormToAccount": "Ke akun",
+  "txFormIncomeCategory": "Kategori pemasukan",
+  "txFormExpenseCategory": "Kategori pengeluaran",
+  "txFormDate": "Tanggal",
+  "txFormTime": "Waktu",
+  "txFormNotes": "Catatan",
+  "txFormMerchant": "Toko",
+  "txFormOptional": "Opsional",
+  "txFormStoreOrPayer": "Toko atau pembayar",
+  "txFormItemName": "Nama item",
+  "txFormQty": "Jml",
+  "txFormUnitPrice": "Harga satuan",
+  "txFormTotal": "Total",
+  "txFormSelectAccount": "Pilih akun",
+  "txFormSelectDestination": "Pilih tujuan",
+  "txFormTabText": "Teks",
+  "txFormTabItems": "Item",
+  "txFormAddItem": "Tambah item",
+  "txFormSwitchToItemsBtn": "Beralih ke Item",
+  "txFormDismiss": "Tutup",
+  "txFormSave": "Simpan",
+  "txFormExpense": "Pengeluaran",
+  "txFormIncome": "Pemasukan",
+  "txFormTransfer": "Transfer",
+  "txFormRemove": "Hapus",
+  "txFormValidAmount": "Masukkan jumlah yang valid",
+  "txFormSelectAnAccount": "Pilih akun",
+  "txFormSelectDestAccount": "Pilih akun tujuan",
+  "txFormSaveFailed": "Gagal menyimpan: {error}",
+  "@txFormSaveFailed": {
+    "description": "Error when transaction save fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "txFormExistingNotes": "Catatan yang ada tidak dikenali — mulai rincian baru.",
+  "txFormAddAccountFirst": "Tambahkan akun terlebih dahulu sebelum menyimpan transaksi.",
+  "txFormOneFxApprox": "1 {currency} ≈ {amount} {home}",
+  "@txFormOneFxApprox": {
+    "description": "FX rate display, e.g. '1 IDR ≈ 0.000067 USD'",
+    "placeholders": {
+      "currency": {"type": "String"},
+      "amount": {"type": "String"},
+      "home": {"type": "String"}
+    }
+  },
+
+  "txDetailTitle": "Transaksi",
+  "txDetailEdit": "Edit",
+  "txDetailNotSynced": "Belum disinkronkan",
+  "txDetailNotSyncedBody": "Transaksi ini belum disinkronkan. Edit untuk menyimpan.",
+  "txDetailDetails": "Detail",
+  "txDetailNotes": "Catatan",
+  "txDetailReceipt": "Struk",
+  "txDetailDate": "Tanggal",
+  "txDetailType": "Tipe",
+  "txDetailAccount": "Akun",
+  "txDetailToAccount": "Ke akun",
+  "txDetailCategory": "Kategori",
+  "txDetailCurrency": "Mata uang",
+  "txDetailFxRate": "Kurs FX",
+  "txDetailHomeAmount": "Jumlah utama",
+  "txDetailSource": "Sumber",
+  "txDetailAiScanned": "Dipindai AI",
+  "txDetailManualFallback": "Manual",
+  "txDetailTotal": "Total",
+  "txDetailFallbackTransfer": "Transfer",
+  "txDetailDeleteTransaction": "Hapus transaksi",
+  "txDetailDeleteTitle": "Hapus transaksi?",
+  "txDetailDeleteBody": "Ini tidak dapat dibatalkan.",
+  "txDetailCancel": "Batal",
+  "txDetailDelete": "Hapus",
+  "txDetailNotFound": "Tidak ditemukan",
+
+  "txListSearch": "Cari",
+  "txListNewTransaction": "Transaksi baru",
+  "txListFilterSource": "Filter sumber",
+  "txListNotSynced": "Belum disinkronkan",
+  "txListIncome": "Pemasukan",
+  "txListExpenses": "Pengeluaran",
+  "txListTotal": "Total",
+  "txListNoMatches": "Tidak ada transaksi yang cocok dengan filter ini",
+  "txListNoTransactions": "Belum ada transaksi",
+  "txListEmptySwitchAll": "Coba alihkan ke Semua untuk melihat semua transaksi bulan ini.",
+  "txListEmptyAddTransaction": "Tambahkan transaksi atau pindai struk untuk memulai.",
+  "txListEmptyScanReceipt": "Pindai struk",
+  "txListShowAll": "Tampilkan semua",
+  "txListCategoriesTrending": "{count} kategori meningkat",
+  "@txListCategoriesTrending": {
+    "description": "Budget alert banner, e.g. '3 categories trending high'",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "txListTapBudget": "Ketuk anggaran untuk melihat detail.",
+  "txListViewBudgets": "Lihat anggaran",
+  "txListToday": "Hari ini",
+  "txListYesterday": "Kemarin",
+  "txListRoomDeleteSnackbar": "Transaksi ini milik \"{roomName}\". Hapus dari ruangan.",
+  "@txListRoomDeleteSnackbar": {
+    "description": "Warning when trying to delete a room transaction outside the room",
+    "placeholders": {
+      "roomName": {"type": "String"}
+    }
+  },
+  "txListOpenRoom": "Buka ruangan",
+  "txListDeleted": "Transaksi dihapus",
+  "txListUndo": "Batalkan",
+  "txListDeleteFailed": "Gagal menghapus: {error}",
+  "@txListDeleteFailed": {
+    "description": "Error when transaction delete fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "txListUndoFailed": "Gagal membatalkan: {error}",
+  "@txListUndoFailed": {
+    "description": "Error when transaction undo fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "txListDelete": "Hapus",
+  "txListFilterTransactions": "Filter transaksi",
+  "txListAll": "Semua",
+  "txListPersonal": "Pribadi",
+  "txListRooms": "Ruangan",
+  "txListFooter": "{filtered} dari {total} total",
+  "@txListFooter": {
+    "description": "Footer showing filtered vs total count",
+    "placeholders": {
+      "filtered": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "txListRoom": "Ruangan",
+
+  "txSearchPlaceholder": "Cari catatan, kategori…",
+  "txSearchType": "Tipe",
+  "txSearchDate": "Tanggal",
+  "txSearchSource": "Sumber",
+  "txSearchIncome": "Pemasukan",
+  "txSearchExpense": "Pengeluaran",
+  "txSearchThisWeek": "Minggu ini",
+  "txSearchThisMonth": "Bulan ini",
+  "txSearchThisYear": "Tahun ini",
+  "txSearchCustom": "Kustom",
+  "txSearchPersonal": "Pribadi",
+  "txSearchRooms": "Ruangan",
+  "txSearchNoMatches": "Tidak cocok",
+  "txSearchNoMatchesBody": "Tidak ada transaksi yang cocok dengan filter.",
+  "txSearchNoMatchesQuery": "Tidak ada yang cocok dengan \"{query}\".",
+  "@txSearchNoMatchesQuery": {
+    "description": "Empty search result with query term",
+    "placeholders": {
+      "query": {"type": "String"}
+    }
+  },
+  "txSearchEmptyTitle": "Cari transaksi Anda",
+  "txSearchEmptyBody": "Ketik kategori, catatan, atau pilih filter di atas.",
+  "txSearchRecent": "Terbaru",
+  "txSearchRoom": "Ruangan",
+
+  "quickAddTitle": "Tambah pengeluaran",
+  "quickAddAmount": "JUMLAH",
+  "quickAddContinue": "Lanjutkan",
+  "quickAddRegionSuffix": "{currency} · ID",
+
   "tierActive": "AKTIF"
 }

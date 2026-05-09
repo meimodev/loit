@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/selected_month_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
@@ -19,7 +20,6 @@ import '../../shared/widgets/loit_room_origin_badge.dart';
 import '../../shared/widgets/loit_tx_row.dart';
 import '../rooms/room_colors.dart';
 
-/// In-memory recents. Persists across navigation within session.
 final List<String> _recentSearches = <String>[];
 
 enum _TypeFilter { income, expense }
@@ -28,8 +28,6 @@ enum _DateFilter { week, month, year, custom }
 
 enum _SourceFilter { rooms, personal }
 
-/// Active search state for transactions. Top input + recent searches +
-/// live results filtered by merchant/notes/category/room.
 class TransactionSearchScreen extends ConsumerStatefulWidget {
   const TransactionSearchScreen({super.key});
 
@@ -124,6 +122,7 @@ class _TransactionSearchScreenState
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final txns = ref.watch(transactionsProvider);
     final roomTxns = ref.watch(myRoomsTransactionsProvider);
     final myRooms = ref.watch(myRoomsProvider).value ?? const [];
@@ -146,7 +145,7 @@ class _TransactionSearchScreenState
           padding: const EdgeInsets.only(right: LoitSpacing.s4),
           child: LoitInput(
             controller: _ctrl,
-            placeholder: 'Search notes, category…',
+            placeholder: l.txSearchPlaceholder,
             leading: const Icon(Icons.search),
             trailing: _query.isEmpty
                 ? null
@@ -167,7 +166,6 @@ class _TransactionSearchScreenState
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (items) {
-          // Merge personal + every-room txns, dedupe by id.
           final merged = <Txn>[...items];
           final seenIds = <String>{
             for (final t in items)
@@ -240,10 +238,10 @@ class _TransactionSearchScreenState
                         ? _CenteredEmpty(
                             child: LoitEmptyState(
                               icon: Icons.search_off_rounded,
-                              title: 'No matches',
+                              title: l.txSearchNoMatches,
                               body: q.isEmpty
-                                  ? 'No transactions match the filters.'
-                                  : 'Nothing matched "$_query".',
+                                  ? l.txSearchNoMatchesBody
+                                  : l.txSearchNoMatchesQuery(_query),
                             ),
                           )
                         : ListView.builder(
@@ -263,7 +261,7 @@ class _TransactionSearchScreenState
                                       accent: roomAccent!,
                                       name: t.roomName ??
                                           roomNameById[t.roomId!] ??
-                                          'Room',
+                                          l.txSearchRoom,
                                     )
                                   : null;
                               return LoitTxRow(
@@ -278,9 +276,6 @@ class _TransactionSearchScreenState
                                 accentStripeColor: roomAccent,
                                 onTap: () {
                                   _commit(_query);
-                                  // Snap selected month to the txn so the
-                                  // destination screen's monthly feed renders
-                                  // the row, enabling scroll-to + flash.
                                   ref
                                       .read(selectedMonthProvider.notifier)
                                       .setMonth(t.createdAt.toLocal());
@@ -288,9 +283,6 @@ class _TransactionSearchScreenState
                                     final highlight = t.id != null
                                         ? '?highlight=${t.id}'
                                         : '';
-                                    // /rooms/:id sits in the Rooms shell
-                                    // branch, so `go` activates the Rooms
-                                    // bottom-nav tab.
                                     context
                                         .go('/rooms/${t.roomId}$highlight');
                                   } else if (t.id != null) {
@@ -310,8 +302,6 @@ class _TransactionSearchScreenState
   }
 }
 
-/// Three grouped filter rows (Type / Date / Source). Single-select per group;
-/// tapping the active chip clears it back to "all".
 class _FiltersBar extends StatelessWidget {
   const _FiltersBar({
     required this.type,
@@ -335,23 +325,24 @@ class _FiltersBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Padding(
       padding: const EdgeInsets.only(bottom: LoitSpacing.s3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _ChipGroup(
-            label: 'Type',
+            label: l.txSearchType,
             chips: [
               _ChipSpec(
-                label: 'Income',
+                label: l.txSearchIncome,
                 leading: Icons.arrow_downward_rounded,
                 selected: type == _TypeFilter.income,
                 onTap: () => onTypeChanged(
                     type == _TypeFilter.income ? null : _TypeFilter.income),
               ),
               _ChipSpec(
-                label: 'Expense',
+                label: l.txSearchExpense,
                 leading: Icons.arrow_upward_rounded,
                 selected: type == _TypeFilter.expense,
                 onTap: () => onTypeChanged(
@@ -360,22 +351,22 @@ class _FiltersBar extends StatelessWidget {
             ],
           ),
           _ChipGroup(
-            label: 'Date',
+            label: l.txSearchDate,
             chips: [
               _ChipSpec(
-                label: 'This week',
+                label: l.txSearchThisWeek,
                 selected: date == _DateFilter.week,
                 onTap: () => onDateChanged(
                     date == _DateFilter.week ? null : _DateFilter.week),
               ),
               _ChipSpec(
-                label: 'This month',
+                label: l.txSearchThisMonth,
                 selected: date == _DateFilter.month,
                 onTap: () => onDateChanged(
                     date == _DateFilter.month ? null : _DateFilter.month),
               ),
               _ChipSpec(
-                label: 'This year',
+                label: l.txSearchThisYear,
                 selected: date == _DateFilter.year,
                 onTap: () => onDateChanged(
                     date == _DateFilter.year ? null : _DateFilter.year),
@@ -383,7 +374,7 @@ class _FiltersBar extends StatelessWidget {
               _ChipSpec(
                 label: (date == _DateFilter.custom && customDate != null)
                     ? DateFormat.yMMMd().format(customDate!)
-                    : 'Custom',
+                    : l.txSearchCustom,
                 leading: Icons.event_outlined,
                 selected: date == _DateFilter.custom,
                 onTap: () {
@@ -397,10 +388,10 @@ class _FiltersBar extends StatelessWidget {
             ],
           ),
           _ChipGroup(
-            label: 'Source',
+            label: l.txSearchSource,
             chips: [
               _ChipSpec(
-                label: 'Personal',
+                label: l.txSearchPersonal,
                 leading: Icons.person_outline_rounded,
                 selected: source == _SourceFilter.personal,
                 onTap: () => onSourceChanged(source == _SourceFilter.personal
@@ -408,7 +399,7 @@ class _FiltersBar extends StatelessWidget {
                     : _SourceFilter.personal),
               ),
               _ChipSpec(
-                label: 'Rooms',
+                label: l.txSearchRooms,
                 leading: Icons.groups_outlined,
                 selected: source == _SourceFilter.rooms,
                 onTap: () => onSourceChanged(source == _SourceFilter.rooms
@@ -477,8 +468,6 @@ class _ChipGroup extends StatelessWidget {
   }
 }
 
-/// Centers an empty state inside its parent regardless of viewport size,
-/// while still allowing scroll if content exceeds available height.
 class _CenteredEmpty extends StatelessWidget {
   const _CenteredEmpty({required this.child});
   final Widget child;
@@ -509,18 +498,19 @@ class _RecentsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     if (recents.isEmpty) {
-      return const _CenteredEmpty(
+      return _CenteredEmpty(
         child: LoitEmptyState(
           icon: Icons.search_rounded,
-          title: 'Search your transactions',
-          body: 'Type a category, note, or pick a filter above.',
+          title: l.txSearchEmptyTitle,
+          body: l.txSearchEmptyBody,
         ),
       );
     }
     return ListView(
       children: [
-        const LoitGroupLabel(label: 'Recent'),
+        LoitGroupLabel(label: l.txSearchRecent),
         for (final r in recents)
           ListTile(
             leading:

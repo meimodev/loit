@@ -8,6 +8,8 @@ import 'package:intl/intl.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/room_providers.dart';
@@ -27,11 +29,8 @@ import '../../shared/widgets/loit_tx_row.dart';
 import '../rooms/room_colors.dart';
 import 'notes_breakdown.dart';
 
-/// Source filter applied to the transactions feed.
 enum _SourceFilter { all, personal, rooms }
 
-/// LOIT Transactions feed. Owns monthly summary (Income / Expenses / Total),
-/// filter chips, grouped-by-day rows, search, and add/scan FABs.
 class TransactionsScreen extends ConsumerStatefulWidget {
   const TransactionsScreen({super.key, this.highlightTxId});
   final String? highlightTxId;
@@ -41,7 +40,6 @@ class TransactionsScreen extends ConsumerStatefulWidget {
 }
 
 class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
-  // Source filter (all / personal-only / rooms-only)
   _SourceFilter _sourceFilter = _SourceFilter.all;
 
   String? _pendingScrollTxId;
@@ -73,19 +71,19 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 
   void _showRoomDeleteRedirect(Txn t) {
+    final l = context.l10n;
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
-    final roomName = t.roomName ?? 'the room';
+    final roomName = t.roomName ?? l.txListRoom;
     final roomId = t.roomId;
     messenger.showSnackBar(
       SnackBar(
         duration: const Duration(seconds: 5),
-        content: Text(
-            'This transaction belongs to "$roomName". Delete it from the room.'),
+        content: Text(l.txListRoomDeleteSnackbar(roomName)),
         action: roomId == null
             ? null
             : SnackBarAction(
-                label: 'Open room',
+                label: l.txListOpenRoom,
                 onPressed: () =>
                     context.go('/rooms/$roomId?highlight=${t.id}'),
               ),
@@ -96,16 +94,13 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final txns = ref.watch(transactionsProvider);
     final profile = ref.watch(userProfileProvider).value;
     final currency = profile?.homeCurrency ?? 'IDR';
     final month = ref.watch(selectedMonthProvider);
-    // Use full accountsProvider (includes archived) so archived-account transactions
-    // still display their account label.
     final allAccounts = ref.watch(accountsProvider).value ?? const [];
     final accountMap = {for (final a in allAccounts) a.id: a};
-    // Fallback room-name lookup when the transactions join did not embed
-    // the related room (e.g. RLS edge cases or stale optimistic rows).
     final myRooms = ref.watch(myRoomsProvider).value ?? const [];
     final roomNameById = <String, String>{
       for (final r in myRooms)
@@ -120,7 +115,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           _buildFilterAction(context),
           IconButton(
             icon: const Icon(Icons.search, size: 20),
-            tooltip: 'Search',
+            tooltip: l.txListSearch,
             onPressed: () => context.push('/transactions/search'),
           ),
         ],
@@ -148,8 +143,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               }
             }).toList();
 
-            // Monthly summary respects the active source filter so totals
-            // reconcile with the rows visible below.
             var incomeSum = 0.0, expenseSum = 0.0;
             for (final t in filtered) {
               if (t.isTransfer) continue;
@@ -164,17 +157,17 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             final summaryTriple = LoitStatTriple(
               stats: [
                 LoitStat(
-                  label: 'Income',
+                  label: l.txListIncome,
                   amount: _fmt(incomeSum, currency),
                   color: c.info,
                 ),
                 LoitStat(
-                  label: 'Expenses',
+                  label: l.txListExpenses,
                   amount: _fmt(expenseSum, currency),
                   color: c.danger,
                 ),
                 LoitStat(
-                  label: 'Total',
+                  label: l.txListTotal,
                   amount: _fmt(netTotal, currency),
                   color: netTotal >= 0 ? c.info : c.danger,
                 ),
@@ -190,18 +183,18 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   LoitEmptyState(
                     icon: Icons.receipt_long_outlined,
                     title: isFiltered
-                        ? 'No transactions match this filter'
-                        : 'No transactions yet',
+                        ? l.txListNoMatches
+                        : l.txListNoTransactions,
                     body: isFiltered
-                        ? 'Try switching to All to see every transaction this month.'
-                        : 'Add a transaction or scan a receipt to get started.',
+                        ? l.txListEmptySwitchAll
+                        : l.txListEmptyAddTransaction,
                     primaryCta:
-                        isFiltered ? 'Show all' : 'New transaction',
+                        isFiltered ? l.txListShowAll : l.txListNewTransaction,
                     onPrimaryCta: isFiltered
                         ? () => setState(
                             () => _sourceFilter = _SourceFilter.all)
                         : () => context.push('/transactions/new'),
-                    secondaryCta: isFiltered ? null : 'Scan receipt',
+                    secondaryCta: isFiltered ? null : l.txListEmptyScanReceipt,
                     onSecondaryCta:
                         isFiltered ? null : () => context.push('/scan'),
                   ),
@@ -227,10 +220,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       ),
                       child: LoitBanner(
                         kind: LoitBannerKind.warning,
-                        title:
-                            '${_overBudgetCount(filtered)} categories trending high',
-                        body: 'Tap a budget to drill down.',
-                        actionLabel: 'View budgets',
+                        title: l.txListCategoriesTrending(
+                            _overBudgetCount(filtered)),
+                        body: l.txListTapBudget,
+                        actionLabel: l.txListViewBudgets,
                         onAction: () => context.push('/budgets'),
                       ),
                     ),
@@ -238,7 +231,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 for (final entry in sortedDays) ...[
                   SliverToBoxAdapter(
                     child: LoitGroupLabel(
-                      label: _dayLabel(entry.key),
+                      label: _dayLabel(l, entry.key),
                       trailing: _dayTotalsTrailing(
                         context,
                         _dayTotals(entry.value, currency),
@@ -260,7 +253,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                           t.isTransfer && fromName != null && toName != null
                           ? '$fromName → $toName'
                           : fromName;
-                      // Trailing badge keeps only the sync indicator.
                       final Widget? badgeChild = t.id == null
                           ? const _SyncBadge(key: ValueKey('sync'))
                           : null;
@@ -282,7 +274,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                               accent: roomAccent!,
                               name: t.roomName ??
                                   roomNameById[t.roomId!] ??
-                                  'Room',
+                                  l.txListRoom,
                             )
                           : null;
                       final row = LoitTxRow(
@@ -328,17 +320,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                               child: row,
                             )
                           : row;
-                      // Swipe-to-delete only when the row has been synced
-                      // (has id). Unsynced rows can't be deleted server-side
-                      // yet.
                       if (t.id == null) return rowOrFlash;
-                      // Room-inherited rows are owned by the originating room;
-                      // delete must happen there, not from the personal list.
                       if (t.roomId != null) {
                         return Dismissible(
                           key: ValueKey('tx-${t.id}'),
                           direction: DismissDirection.endToStart,
-                          background: _swipeDeleteBackground(c),
+                          background: _swipeDeleteBackground(c, l),
                           confirmDismiss: (_) async {
                             _showRoomDeleteRedirect(t);
                             return false;
@@ -349,7 +336,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       return Dismissible(
                         key: ValueKey('tx-${t.id}'),
                         direction: DismissDirection.endToStart,
-                        background: _swipeDeleteBackground(c),
+                        background: _swipeDeleteBackground(c, l),
                         onDismissed: (_) => _deleteWithUndo(t),
                         child: rowOrFlash,
                       );
@@ -360,7 +347,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(LoitSpacing.s5),
                     child: Text(
-                      '${filtered.length} of ${items.length} total · ${_fmt(_sum(filtered, currency), currency)}',
+                      '${l.txListFooter(filtered.length, items.length)} · ${_fmt(_sum(filtered, currency), currency)}',
                       style: LoitTypography.bodyS.copyWith(
                         color: c.contentTertiary,
                       ),
@@ -376,29 +363,30 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       ),
       floatingActionButton: LoitFabStack(
         onPrimary: () => context.push('/transactions/new'),
-        primaryTooltip: 'New transaction',
+        primaryTooltip: l.txListNewTransaction,
         primaryIcon: Icons.add,
       ),
     );
   }
 
-  Widget _swipeDeleteBackground(LoitColors c) {
+  Widget _swipeDeleteBackground(LoitColors c, AppLocalizations l) {
     return Container(
       color: c.danger,
       alignment: Alignment.centerRight,
       padding: const EdgeInsets.symmetric(horizontal: LoitSpacing.s5),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.delete_outline, color: Colors.white),
-          SizedBox(width: LoitSpacing.s2),
-          Text('Delete', style: TextStyle(color: Colors.white)),
+          const Icon(Icons.delete_outline, color: Colors.white),
+          const SizedBox(width: LoitSpacing.s2),
+          Text(l.txListDelete, style: const TextStyle(color: Colors.white)),
         ],
       ),
     );
   }
 
   Future<void> _deleteWithUndo(Txn t) async {
+    final l = context.l10n;
     final id = t.id;
     if (id == null) return;
     final notifier = ref.read(transactionsProvider.notifier);
@@ -407,7 +395,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+            .showSnackBar(SnackBar(content: Text(l.txListDeleteFailed(e.toString()))));
       }
       return;
     }
@@ -417,10 +405,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     late ScaffoldFeatureController<SnackBar, SnackBarClosedReason> ctrl;
     ctrl = messenger.showSnackBar(
       SnackBar(
-        content: const Text('Transaction deleted'),
+        content: Text(l.txListDeleted),
         duration: const Duration(seconds: 3),
         action: SnackBarAction(
-          label: 'Undo',
+          label: l.txListUndo,
           onPressed: () async {
             ctrl.close();
             final payload = <String, dynamic>{
@@ -442,7 +430,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             } catch (e) {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Undo failed: $e')),
+                  SnackBar(content: Text(l.txListUndoFailed(e.toString()))),
                 );
               }
             }
@@ -450,9 +438,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         ),
       ),
     );
-    // Backstop timer: Flutter disables SnackBar auto-dismiss when accessible
-    // navigation (e.g. TalkBack) is on. Force-close after the same duration
-    // so the toast never lingers.
     Timer(const Duration(seconds: 3), () {
       try {
         ctrl.close();
@@ -470,17 +455,17 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     return map;
   }
 
-  int _overBudgetCount(List<Txn> _) => 0; // wired later via budgets_provider
+  int _overBudgetCount(List<Txn> _) => 0;
 
   double _sum(List<Txn> items, String home) =>
       items.fold(0.0, (s, t) => s + t.amountIn(home));
 
-  String _dayLabel(DateTime d) {
+  String _dayLabel(AppLocalizations l, DateTime d) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
-    if (d == today) return 'Today';
-    if (d == yesterday) return 'Yesterday';
+    if (d == today) return l.txListToday;
+    if (d == yesterday) return l.txListYesterday;
     return DateFormat.MMMEd().format(d);
   }
 
@@ -509,6 +494,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
   Widget _buildFilterAction(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final isActive = _sourceFilter != _SourceFilter.all;
     return Stack(
       clipBehavior: Clip.none,
@@ -519,7 +505,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             size: 20,
             color: isActive ? c.accent : null,
           ),
-          tooltip: 'Filter source',
+          tooltip: l.txListFilterSource,
           onPressed: _openFilterSheet,
         ),
         if (isActive)
@@ -543,29 +529,30 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 
   Future<void> _openFilterSheet() async {
+    final l = context.l10n;
     final picked = await showLoitSheet<_SourceFilter>(
       context,
       builder: (sheetCtx) => LoitSheet(
-        title: 'Filter transactions',
+        title: l.txListFilterTransactions,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             _filterTile(
               sheetCtx,
               icon: Icons.all_inclusive,
-              label: 'All',
+              label: l.txListAll,
               value: _SourceFilter.all,
             ),
             _filterTile(
               sheetCtx,
               icon: Icons.person_outline,
-              label: 'Personal',
+              label: l.txListPersonal,
               value: _SourceFilter.personal,
             ),
             _filterTile(
               sheetCtx,
               icon: Icons.groups_outlined,
-              label: 'Rooms',
+              label: l.txListRooms,
               value: _SourceFilter.rooms,
             ),
           ],
@@ -623,14 +610,14 @@ class _SyncBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     return Tooltip(
-      message: 'Not synced',
+      message: l.txListNotSynced,
       child: Icon(Icons.cloud_off_rounded, size: 16, color: c.warning),
     );
   }
 }
 
-/// Plays a one-shot two-pulse flash overlay over its child once on mount.
 class _TxFlashWrapper extends StatefulWidget {
   const _TxFlashWrapper({super.key, required this.child, required this.tint});
   final Widget child;

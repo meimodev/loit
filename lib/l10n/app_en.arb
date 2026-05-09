@@ -150,5 +150,235 @@
   "debugSimulateOffline": "Simulate offline",
   "debugSimulateOfflineHelper": "Show the offline banner for testing",
 
+  "dashboardInsights": "INSIGHTS",
+  "dashboardSeeReport": "See report →",
+  "dashboardSpendingThisMonth": "Spending this month",
+  "dashboardAvgPerDay": "AVG/DAY",
+  "dashboardMtd": "MTD",
+  "dashboardSeePastReports": "See past reports",
+  "dashboardIncome": "Income",
+  "dashboardExpense": "Expense",
+  "dashboardSeeAllCategories": "See all categories",
+  "dashboardAddBudget": "Add budget",
+  "dashboardBudgetsOver": "{count} budgets over. Day {day} of {total}.",
+  "@dashboardBudgetsOver": {
+    "description": "Dense alert showing over-budget count and current day of month",
+    "placeholders": {
+      "count": {"type": "int"},
+      "day": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "dashboardAssets": "Assets",
+  "dashboardLiabilities": "Liabilities",
+  "dashboardNetWorth": "Net worth",
+  "dashboardAccounts": "Accounts",
+  "dashboardBudgets": "Budgets",
+  "dashboardCategories": "Categories",
+  "dashboardQuickStats": "Quick stats",
+  "dashboardOnTrack": "{onTrack} of {total} on track",
+  "@dashboardOnTrack": {
+    "description": "Number of budgets on track, e.g. '3 of 5 on track'",
+    "placeholders": {
+      "onTrack": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "dashboardOverBudget": "Over budget",
+  "dashboardSpentMtd": "Spent MTD",
+  "dashboardTransactions": "Transactions",
+  "dashboardAddFirstAccount": "Add your first account to start tracking balances.",
+  "dashboardAddAccount": "Add account",
+  "dashboardOfPattern": "{spent} of {limit}",
+  "@dashboardOfPattern": {
+    "description": "Budget spending summary, e.g. 'Rp500,000 of Rp1,000,000'",
+    "placeholders": {
+      "spent": {"type": "String"},
+      "limit": {"type": "String"}
+    }
+  },
+
+  "txFormNewTransaction": "New transaction",
+  "txFormEditTransaction": "Edit transaction",
+  "txFormManualEntry": "Manual entry",
+  "txFormConfirm": "Confirm",
+  "txFormCouldntRead": "Couldn't read this receipt",
+  "txFormPreFilled": "Fields below were pre-filled with what we recovered.",
+  "txFormAiParsed": "AI parsed this receipt",
+  "txFormPleaseReview": "Please review before saving.",
+  "txFormItemBreakdown": "Looks like an item breakdown",
+  "txFormSwitchToItemsMsg": "Switch to Items mode for a structured list.",
+  "txFormAmount": "Amount",
+  "txFormCurrency": "Currency",
+  "txFormFromAccount": "From account",
+  "txFormAccount": "Account",
+  "txFormToAccount": "To account",
+  "txFormIncomeCategory": "Income category",
+  "txFormExpenseCategory": "Expense category",
+  "txFormDate": "Date",
+  "txFormTime": "Time",
+  "txFormNotes": "Notes",
+  "txFormMerchant": "Merchant",
+  "txFormOptional": "Optional",
+  "txFormStoreOrPayer": "Store or payer",
+  "txFormItemName": "Item name",
+  "txFormQty": "Qty",
+  "txFormUnitPrice": "Unit price",
+  "txFormTotal": "Total",
+  "txFormSelectAccount": "Select account",
+  "txFormSelectDestination": "Select destination",
+  "txFormTabText": "Text",
+  "txFormTabItems": "Items",
+  "txFormAddItem": "Add item",
+  "txFormSwitchToItemsBtn": "Switch to Items",
+  "txFormDismiss": "Dismiss",
+  "txFormSave": "Save",
+  "txFormExpense": "Expense",
+  "txFormIncome": "Income",
+  "txFormTransfer": "Transfer",
+  "txFormRemove": "Remove",
+  "txFormValidAmount": "Enter a valid amount",
+  "txFormSelectAnAccount": "Select an account",
+  "txFormSelectDestAccount": "Select a destination account",
+  "txFormSaveFailed": "Save failed: {error}",
+  "@txFormSaveFailed": {
+    "description": "Error when transaction save fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "txFormExistingNotes": "Existing notes not recognized — start a fresh breakdown.",
+  "txFormAddAccountFirst": "Add an account first before saving a transaction.",
+  "txFormOneFxApprox": "1 {currency} ≈ {amount} {home}",
+  "@txFormOneFxApprox": {
+    "description": "FX rate display, e.g. '1 IDR ≈ 0.000067 USD'",
+    "placeholders": {
+      "currency": {"type": "String"},
+      "amount": {"type": "String"},
+      "home": {"type": "String"}
+    }
+  },
+
+  "txDetailTitle": "Transaction",
+  "txDetailEdit": "Edit",
+  "txDetailNotSynced": "Not synced",
+  "txDetailNotSyncedBody": "This transaction hasn't synced yet. Edit to save it.",
+  "txDetailDetails": "Details",
+  "txDetailNotes": "Notes",
+  "txDetailReceipt": "Receipt",
+  "txDetailDate": "Date",
+  "txDetailType": "Type",
+  "txDetailAccount": "Account",
+  "txDetailToAccount": "To account",
+  "txDetailCategory": "Category",
+  "txDetailCurrency": "Currency",
+  "txDetailFxRate": "FX rate",
+  "txDetailHomeAmount": "Home amount",
+  "txDetailSource": "Source",
+  "txDetailAiScanned": "AI scanned",
+  "txDetailManualFallback": "Manual fallback",
+  "txDetailTotal": "Total",
+  "txDetailFallbackTransfer": "Transfer",
+  "txDetailDeleteTransaction": "Delete transaction",
+  "txDetailDeleteTitle": "Delete transaction?",
+  "txDetailDeleteBody": "This cannot be undone.",
+  "txDetailCancel": "Cancel",
+  "txDetailDelete": "Delete",
+  "txDetailNotFound": "Not found",
+
+  "txListSearch": "Search",
+  "txListNewTransaction": "New transaction",
+  "txListFilterSource": "Filter source",
+  "txListNotSynced": "Not synced",
+  "txListIncome": "Income",
+  "txListExpenses": "Expenses",
+  "txListTotal": "Total",
+  "txListNoMatches": "No transactions match this filter",
+  "txListNoTransactions": "No transactions yet",
+  "txListEmptySwitchAll": "Try switching to All to see every transaction this month.",
+  "txListEmptyAddTransaction": "Add a transaction or scan a receipt to get started.",
+  "txListEmptyScanReceipt": "Scan receipt",
+  "txListShowAll": "Show all",
+  "txListCategoriesTrending": "{count} categories trending high",
+  "@txListCategoriesTrending": {
+    "description": "Budget alert banner, e.g. '3 categories trending high'",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "txListTapBudget": "Tap a budget to drill down.",
+  "txListViewBudgets": "View budgets",
+  "txListToday": "Today",
+  "txListYesterday": "Yesterday",
+  "txListRoomDeleteSnackbar": "This transaction belongs to \"{roomName}\". Delete it from the room.",
+  "@txListRoomDeleteSnackbar": {
+    "description": "Warning when trying to delete a room transaction outside the room",
+    "placeholders": {
+      "roomName": {"type": "String"}
+    }
+  },
+  "txListOpenRoom": "Open room",
+  "txListDeleted": "Transaction deleted",
+  "txListUndo": "Undo",
+  "txListDeleteFailed": "Delete failed: {error}",
+  "@txListDeleteFailed": {
+    "description": "Error when transaction delete fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "txListUndoFailed": "Undo failed: {error}",
+  "@txListUndoFailed": {
+    "description": "Error when transaction undo fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "txListDelete": "Delete",
+  "txListFilterTransactions": "Filter transactions",
+  "txListAll": "All",
+  "txListPersonal": "Personal",
+  "txListRooms": "Rooms",
+  "txListFooter": "{filtered} of {total} total",
+  "@txListFooter": {
+    "description": "Footer showing filtered vs total count",
+    "placeholders": {
+      "filtered": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "txListRoom": "Room",
+
+  "txSearchPlaceholder": "Search notes, category…",
+  "txSearchType": "Type",
+  "txSearchDate": "Date",
+  "txSearchSource": "Source",
+  "txSearchIncome": "Income",
+  "txSearchExpense": "Expense",
+  "txSearchThisWeek": "This week",
+  "txSearchThisMonth": "This month",
+  "txSearchThisYear": "This year",
+  "txSearchCustom": "Custom",
+  "txSearchPersonal": "Personal",
+  "txSearchRooms": "Rooms",
+  "txSearchNoMatches": "No matches",
+  "txSearchNoMatchesBody": "No transactions match the filters.",
+  "txSearchNoMatchesQuery": "Nothing matched \"{query}\".",
+  "@txSearchNoMatchesQuery": {
+    "description": "Empty search result with query term",
+    "placeholders": {
+      "query": {"type": "String"}
+    }
+  },
+  "txSearchEmptyTitle": "Search your transactions",
+  "txSearchEmptyBody": "Type a category, note, or pick a filter above.",
+  "txSearchRecent": "Recent",
+  "txSearchRoom": "Room",
+
+  "quickAddTitle": "Add expense",
+  "quickAddAmount": "AMOUNT",
+  "quickAddContinue": "Continue",
+  "quickAddRegionSuffix": "{currency} · ID",
+
   "tierActive": "ACTIVE"
 }

@@ -17,6 +17,7 @@ import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/utils/amount_input.dart';
+import '../../shared/utils/locale_date_format.dart';
 import '../../shared/widgets/loit_receipt_image.dart';
 import '../../l10n/l10n_x.dart';
 
@@ -117,7 +118,7 @@ class _ReceiptsScreenState extends ConsumerState<ReceiptsScreen> {
       });
       await Share.shareXFiles(
         [XFile(file.path, mimeType: 'image/jpeg')],
-        subject: 'Receipt ${DateFormat.yMMMd().format(item.createdAt.toLocal())}',
+        subject: context.l10n.receiptsShareSubject(yMMMd(context).format(item.createdAt.toLocal())),
       );
     } catch (e, st) {
       Log.e(_tag, 'download failed', error: e, stack: st);
@@ -245,7 +246,7 @@ class _ReceiptCard extends StatelessWidget {
     final c = context.loitColors;
     final l = context.l10n;
     final status = _statusOf(item.expiresAt);
-    final dateLabel = DateFormat.yMMMd().format(item.createdAt.toLocal());
+    final dateLabel = yMMMd(context).format(item.createdAt.toLocal());
     final title = (item.notes != null && item.notes!.trim().isNotEmpty)
         ? item.notes!.trim()
         : (item.category ?? l.receiptsFallback);

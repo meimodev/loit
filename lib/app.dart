@@ -213,6 +213,11 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
           Log.w('App', 'hide_amounts local sync failed', error: e);
         },
       );
+      notifier.syncLanguageFromDb(profile.language).catchError(
+        (Object e, StackTrace st) {
+          Log.w('App', 'language local sync failed', error: e);
+        },
+      );
     });
 
     // Deep link → navigate to joined room

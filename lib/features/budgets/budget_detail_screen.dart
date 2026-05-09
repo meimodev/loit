@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
@@ -14,6 +13,7 @@ import '../../shared/providers/home_currency_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/utils/amount_input.dart';
+import '../../shared/utils/locale_date_format.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import '../../shared/widgets/loit_tx_row.dart';
 
@@ -61,7 +61,7 @@ class BudgetDetailScreen extends ConsumerWidget {
         .toList()
       ..sort((a, c) => c.createdAt.compareTo(a.createdAt));
     final top5 = contributing.take(5).toList();
-    final df = DateFormat.MMMd();
+    final df = MMMd(context);
 
     return Scaffold(
       backgroundColor: c.canvas,
@@ -179,7 +179,7 @@ class BudgetDetailScreen extends ConsumerWidget {
                       child: Text(
                         l.budgetDetailRolloverScheduled(
                             fmt(overAmt),
-                            DateFormat.yMMMd()
+                            yMMMd(context)
                                 .format(b.rolloverCycleStart!)),
                         style: LoitTypography.bodyS.copyWith(
                             color: c.contentPrimary, height: 1.4),

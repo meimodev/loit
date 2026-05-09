@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_motion.dart';
@@ -19,6 +18,7 @@ import '../../shared/providers/selected_month_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
+import '../../shared/utils/locale_date_format.dart';
 import '../../shared/widgets/loit_banner.dart';
 import '../../shared/widgets/loit_month_app_bar.dart';
 import '../../shared/widgets/loit_empty_state.dart';
@@ -554,11 +554,11 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
     final yesterday = today.subtract(const Duration(days: 1));
     if (d == today) return l.txListToday;
     if (d == yesterday) return l.txListYesterday;
-    return DateFormat.MMMEd().format(d);
+    return MMMEd(context).format(d);
   }
 
   String _txSubtitle(Txn t) {
-    final time = DateFormat.jm().format(t.createdAt.toLocal());
+    final time = jm(context).format(t.createdAt.toLocal());
     final label = ref.read(categoryLabelProvider(
         CategoryLabelKey(key: t.category)));
     return '$label · $time';

@@ -857,5 +857,33 @@
   "systemUpdateBody": "Silakan perbarui LOIT ke versi terbaru untuk melanjutkan.",
   "systemUpdateAction": "Perbarui",
 
+  "roomArchiveTitle": "Arsipkan ruangan?",
+  "roomArchiveConfirm": "Arsipkan",
+  "roomArchiveRoom": "Arsipkan ruangan",
+  "roomNewBudget": "Anggaran baru",
+  "roomNewCategory": "Kategori baru",
+  "roomDeleteCategory": "Dihapus \"{name}\"",
+  "@roomDeleteCategory": {
+    "description": "Snackbar confirming category deletion",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "roomDeletedLabel": "Dihapus \"{label}\"",
+  "@roomDeletedLabel": {
+    "description": "Snackbar confirming label/txn deletion",
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "roomTxNotFound": "Transaksi tidak ada di umpan terbaru",
+  "roomUpdateFailed": "Gagal memperbarui: {error}",
+  "@roomUpdateFailed": {
+    "description": "Error when room operation fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+
   "tierActive": "AKTIF"
 }

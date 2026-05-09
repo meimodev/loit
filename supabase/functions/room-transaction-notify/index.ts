@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.46.1';
 import { JWT } from 'npm:google-auth-library@9.15.1';
+import { resolveLocale, t, type Locale } from '../_shared/i18n.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -76,11 +77,19 @@ async function sendMessage(
   deviceToken: string,
   body: NotifyBody,
   hideAmount: boolean,
+  locale: Locale,
 ): Promise<void> {
-  const endpoint = `https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`;
   const amountStr = hideAmount
     ? MASKED_AMOUNT
     : `${isIncomePayload(body) ? '+' : ''}${formatAmount(body.amount)}`;
+  const title = body.title ??
+    (isIncomePayload(body)
+      ? t(locale, 'incomeRecorded')
+      : t(locale, 'newExpense'));
+  const pushBody = t(locale, 'roomTransaction', {
+    amount: amountStr,
+    currency: body.currency,
+  });
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
@@ -91,9 +100,8 @@ async function sendMessage(
       message: {
         token: deviceToken,
         notification: {
-          title: body.title ??
-            (isIncomePayload(body) ? 'Income recorded' : 'New expense'),
-          body: `${amountStr} ${body.currency}`,
+          title,
+          body: pushBody,
         },
         data: {
           room_id: body.room_id,
@@ -214,7 +222,10 @@ serve(async (req) => {
     // Insert in-app notification rows (one per recipient).
     const isIncome = isIncomePayload(body);
     const notifTitle = body.title ?? (isIncome ? 'Income recorded' : 'New expense');
-    const notifBody = `${isIncome ? '+' : ''}${formatAmount(body.amount)} ${body.currency}`;
+    const notifBody = t('en', 'roomTransaction', {
+      amount: `${isIncome ? '+' : ''}${formatAmount(body.amount)}`,
+      currency: body.currency,
+    });
     const notifRows = userIds.map((uid) => ({
       user_id: uid,
       kind: 'room_activity',
@@ -257,7 +268,7 @@ serve(async (req) => {
 
     const { data: privacyRows, error: privacyError } = await supabase
       .from('users')
-      .select('id, hide_amounts')
+      .select('id, hide_amounts, language')
       .in('id', userIds);
 
     if (privacyError) {
@@ -266,6 +277,9 @@ serve(async (req) => {
 
     const hideMap = new Map<string, boolean>(
       (privacyRows ?? []).map((r) => [r.id as string, !!r.hide_amounts]),
+    );
+    const langMap = new Map<string, string>(
+      (privacyRows ?? []).map((r) => [r.id as string, (r.language as string) ?? 'en']),
     );
 
     const accessToken = await getAccessToken();
@@ -277,6 +291,7 @@ serve(async (req) => {
           row.token as string,
           body,
           hideMap.get(row.user_id as string) ?? false,
+          resolveLocale(langMap.get(row.user_id as string)),
         ),
       ),
     );

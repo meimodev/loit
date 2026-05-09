@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../shared/utils/locale_date_format.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/loit_categories.dart';
@@ -186,7 +187,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
         const SizedBox(height: LoitSpacing.s4),
         LoitGroupLabel(label: l.txDetailDetails),
         _row(context, l.txDetailDate,
-            DateFormat.yMMMMEEEEd().add_jm().format(created)),
+            yMMMMEEEEd(context).add_jm().format(created)),
         _row(context, l.txDetailType, _typeName(l, type)),
         if (!isTransfer)
           _row(context, l.txDetailCategory, catLabel),
@@ -597,7 +598,7 @@ class _AccountRowState extends ConsumerState<_AccountRow> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Update failed: $e')));
+            .showSnackBar(SnackBar(content: Text(context.l10n.roomUpdateFailed(e.toString()))));
       }
     } finally {
       if (mounted) setState(() => _busy = false);

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import '../../shared/utils/locale_date_format.dart';
 
 import '../../core/services/analytics_service.dart';
 import '../../core/theme/loit_colors.dart';
@@ -95,7 +95,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           _LineRow(
             label: l10n.exportScreenDateRange,
             value:
-                '${DateFormat.yMMMd().format(_range.start)} — ${DateFormat.yMMMd().format(_range.end)}',
+                '${yMMMd(context).format(_range.start)} — ${yMMMd(context).format(_range.end)}',
             onTap: _pickRange,
           ),
           LoitGroupLabel(label: l10n.exportScreenFormat),

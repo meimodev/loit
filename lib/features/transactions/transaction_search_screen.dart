@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import '../../shared/utils/locale_date_format.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_spacing.dart';
@@ -249,7 +249,7 @@ class _TransactionSearchScreenState
                             itemBuilder: (_, i) {
                               final t = results[i];
                               final label = labelFor(t.category);
-                              final dateStr = DateFormat.MMMd()
+                              final dateStr = MMMd(context)
                                   .add_jm()
                                   .format(t.createdAt.toLocal());
                               final isRoomTx = t.roomId != null;
@@ -373,7 +373,7 @@ class _FiltersBar extends StatelessWidget {
               ),
               _ChipSpec(
                 label: (date == _DateFilter.custom && customDate != null)
-                    ? DateFormat.yMMMd().format(customDate!)
+                    ? yMMMd(context).format(customDate!)
                     : l.txSearchCustom,
                 leading: Icons.event_outlined,
                 selected: date == _DateFilter.custom,

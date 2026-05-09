@@ -1779,5 +1779,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get systemUpdateAction => 'Update';
 
   @override
+  String get roomArchiveTitle => 'Archive room?';
+
+  @override
+  String get roomArchiveConfirm => 'Archive';
+
+  @override
+  String get roomArchiveRoom => 'Archive room';
+
+  @override
+  String get roomNewBudget => 'New budget';
+
+  @override
+  String get roomNewCategory => 'New category';
+
+  @override
+  String roomDeleteCategory(String name) {
+    return 'Deleted \"$name\"';
+  }
+
+  @override
+  String roomDeletedLabel(String label) {
+    return 'Deleted \"$label\"';
+  }
+
+  @override
+  String get roomTxNotFound => 'Transaction not in recent feed';
+
+  @override
+  String roomUpdateFailed(String error) {
+    return 'Update failed: $error';
+  }
+
+  @override
   String get tierActive => 'ACTIVE';
 }

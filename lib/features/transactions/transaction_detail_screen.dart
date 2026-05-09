@@ -15,6 +15,7 @@ import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/preferences_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
+import '../../shared/utils/locale_date_format.dart';
 import '../../shared/widgets/loit_amount_text.dart';
 import '../../shared/widgets/loit_banner.dart';
 import '../../shared/widgets/loit_category_avatar.dart';
@@ -138,7 +139,7 @@ class TransactionDetailScreen extends ConsumerWidget {
         const SizedBox(height: LoitSpacing.s5),
         LoitGroupLabel(label: l.txDetailDetails),
         _row(context, l.txDetailDate,
-            DateFormat.yMMMMEEEEd().add_jm().format(t.createdAt.toLocal())),
+            yMMMMEEEEd(context).add_jm().format(t.createdAt.toLocal())),
         _row(context, l.txDetailType, _typeName(l, t.type)),
         if (fromAccount != null)
           _row(context, l.txDetailAccount, fromAccount.name),

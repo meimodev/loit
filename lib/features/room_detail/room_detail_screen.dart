@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import '../../shared/utils/locale_date_format.dart';
 
 import '../../core/services/room_service.dart';
 import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
@@ -18,6 +19,7 @@ import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/selected_month_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
+import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 import '../rooms/room_colors.dart';
 
@@ -66,8 +68,8 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Transaction not in recent feed'),
+          SnackBar(
+            content: Text(context.l10n.roomTxNotFound),
           ),
         );
       }
@@ -152,54 +154,105 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                       ref.invalidate(roomBudgetsProvider(widget.roomId));
                       ref.invalidate(userCategoriesProvider);
                     },
-                    child: _tabBody(
-                      feedAsync: feedAsync,
-                      budgetsAsync: budgetsAsync,
-                      members: members,
-                      currentUserId: user?.id,
-                      isCreator: isCreator,
-                      accent: accent,
-                      fmt: fmt,
-                      currency: currency,
-                      isArchived: isArchived,
+                    child: AnimatedSwitcher(
+                      duration: LoitMotion.base,
+                      switchInCurve: LoitMotion.easeOutQuart,
+                      switchOutCurve: LoitMotion.easeOutQuart,
+                      transitionBuilder: (child, anim) {
+                        final slide = Tween<Offset>(
+                          begin: const Offset(0.04, 0),
+                          end: Offset.zero,
+                        ).animate(anim);
+                        return FadeTransition(
+                          opacity: anim,
+                          child: SlideTransition(
+                            position: slide,
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: KeyedSubtree(
+                        key: ValueKey('room-tab-$_tab'),
+                        child: _tabBody(
+                          feedAsync: feedAsync,
+                          budgetsAsync: budgetsAsync,
+                          members: members,
+                          currentUserId: user?.id,
+                          isCreator: isCreator,
+                          accent: accent,
+                          fmt: fmt,
+                          currency: currency,
+                          isArchived: isArchived,
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          floatingActionButton: isArchived
-              ? null
-              : _tab == 0
-                  ? FloatingActionButton(
-                      backgroundColor: accent,
-                      foregroundColor: Colors.white,
-                      onPressed: () => _addExpense(room),
-                      child: const Icon(Icons.add),
-                    )
-                  : _tab == 1
-                      ? FloatingActionButton(
-                          backgroundColor: accent,
-                          foregroundColor: Colors.white,
-                          onPressed: () => context.push(
-                            '/rooms/${widget.roomId}/budgets/new',
-                            extra: <String, dynamic>{'currency': currency},
-                          ),
-                          child: const Icon(Icons.add),
-                        )
-                      : _tab == 2 && isCreator
-                          ? FloatingActionButton(
-                              backgroundColor: accent,
-                              foregroundColor: Colors.white,
-                              onPressed: () => context.push(
-                                  '/rooms/${widget.roomId}/categories/new'),
-                              child: const Icon(Icons.add),
-                            )
-                          : null,
+          floatingActionButton: AnimatedSwitcher(
+            duration: LoitMotion.short,
+            switchInCurve: LoitMotion.easeOutQuart,
+            switchOutCurve: LoitMotion.easeOutQuart,
+            transitionBuilder: (child, anim) => ScaleTransition(
+              scale: anim,
+              child: FadeTransition(opacity: anim, child: child),
+            ),
+            child: _buildFab(
+              accent: accent,
+              isArchived: isArchived,
+              isCreator: isCreator,
+              currency: currency,
+              room: room,
+            ),
+          ),
         ),
         );
       },
     );
+  }
+
+  Widget? _buildFab({
+    required Color accent,
+    required bool isArchived,
+    required bool isCreator,
+    required String currency,
+    required Map<String, dynamic> room,
+  }) {
+    if (isArchived) return null;
+    if (_tab == 0) {
+      return FloatingActionButton(
+        key: const ValueKey('fab-feed'),
+        backgroundColor: accent,
+        foregroundColor: Colors.white,
+        onPressed: () => _addExpense(room),
+        child: const Icon(Icons.add),
+      );
+    }
+    if (_tab == 1) {
+      return FloatingActionButton(
+        key: const ValueKey('fab-budgets'),
+        backgroundColor: accent,
+        foregroundColor: Colors.white,
+        onPressed: () => context.push(
+          '/rooms/${widget.roomId}/budgets/new',
+          extra: <String, dynamic>{'currency': currency},
+        ),
+        child: const Icon(Icons.add),
+      );
+    }
+    if (_tab == 2 && isCreator) {
+      return FloatingActionButton(
+        key: const ValueKey('fab-categories'),
+        backgroundColor: accent,
+        foregroundColor: Colors.white,
+        onPressed: () =>
+            context.push('/rooms/${widget.roomId}/categories/new'),
+        child: const Icon(Icons.add),
+      );
+    }
+    return null;
   }
 
   Widget _tabBody({
@@ -259,7 +312,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Archive room?'),
+        title: Text(l.roomArchiveTitle),
         content: const Text(
             'Members will retain read-only access. This cannot be undone.'),
         actions: [
@@ -268,7 +321,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
               child: Text(l.txDetailCancel)),
           FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Archive')),
+               child: Text(l.roomArchiveConfirm)),
         ],
       ),
     );
@@ -331,14 +384,10 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
+                            const LoitPulseDot(
                                 color: Color(0xFF22C55E),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
+                                size: 8,
+                                maxRing: 14),
                             const SizedBox(width: 6),
                             Text('$onlineCount online',
                                 style: TextStyle(
@@ -355,17 +404,13 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                     subtitle: onlineIds.contains(m['user_id'] as String?)
                         ? Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: const BoxDecoration(
+                            children: const [
+                              LoitPulseDot(
                                   color: Color(0xFF22C55E),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              const Text('Online',
+                                  size: 6,
+                                  maxRing: 12),
+                              SizedBox(width: 6),
+                              Text('Online',
                                   style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600)),
@@ -497,8 +542,8 @@ class _Header extends StatelessWidget {
                       value: 'members',
                       child: Text('${l.roomDetailMembers} (${members.length})')),
                   if (isCreator && !isArchived)
-                    const PopupMenuItem(
-                        value: 'archive', child: Text('Archive room')),
+                    PopupMenuItem(
+                        value: 'archive', child: Text(l.roomArchiveRoom)),
                   if (!isCreator)
                     PopupMenuItem(
                         value: 'leave', child: Text(l.roomDetailLeave)),
@@ -539,15 +584,10 @@ class _Header extends StatelessWidget {
                               alignment: PlaceholderAlignment.middle,
                               child: Padding(
                                 padding: EdgeInsets.only(right: 4),
-                                child: SizedBox(
-                                  width: 8,
-                                  height: 8,
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      color: Color(0xFF22C55E),
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
+                                child: LoitPulseDot(
+                                  color: Color(0xFF22C55E),
+                                  size: 8,
+                                  maxRing: 14,
                                 ),
                               ),
                             ),
@@ -587,7 +627,14 @@ class _AvatarStack extends StatelessWidget {
           for (var i = 0; i < shown.length; i++)
             Positioned(
               left: i * 18.0,
-              child: _MemberAvatar(member: shown[i], size: 28),
+              child: LoitFadeSlideIn(
+                key: ValueKey(
+                    'avatar-${shown[i]['user_id'] ?? shown[i]['id'] ?? i}'),
+                delay: LoitMotion.staggerStep * i,
+                offset: 6,
+                duration: LoitMotion.emphasized,
+                child: _MemberAvatar(member: shown[i], size: 28),
+              ),
             ),
         ],
       ),
@@ -641,15 +688,18 @@ class _MemberAvatar extends ConsumerWidget {
           ),
           if (isOnline)
             Positioned(
-              right: -1,
-              bottom: -1,
+              right: -3,
+              bottom: -3,
               child: Container(
-                width: dotSize,
-                height: dotSize,
+                padding: const EdgeInsets.all(1.5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF22C55E),
+                  color: c.surface,
                   shape: BoxShape.circle,
-                  border: Border.all(color: c.surface, width: 2),
+                ),
+                child: LoitPulseDot(
+                  color: const Color(0xFF22C55E),
+                  size: dotSize - 3,
+                  maxRing: dotSize + 4,
                 ),
               ),
             ),
@@ -677,33 +727,64 @@ class _TabStrip extends StatelessWidget {
         color: c.muted,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(
-        children: [
-          for (var i = 0; i < labels.length; i++)
-            Expanded(
-              child: GestureDetector(
-                onTap: () => onTap(i),
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  height: 32,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: i == active ? c.surface : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    labels[i],
-                    style: LoitTypography.bodyS.copyWith(
-                      color: i == active
-                          ? c.contentPrimary
-                          : c.contentSecondary,
-                      fontWeight: FontWeight.w600,
+      child: LayoutBuilder(
+        builder: (ctx, constraints) {
+          final segW = constraints.maxWidth / labels.length;
+          return SizedBox(
+            height: 32,
+            child: Stack(
+              children: [
+                AnimatedPositioned(
+                  duration: LoitMotion.base,
+                  curve: LoitMotion.easeOutQuint,
+                  left: segW * active,
+                  top: 0,
+                  bottom: 0,
+                  width: segW,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: c.surface,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
+                Row(
+                  children: [
+                    for (var i = 0; i < labels.length; i++)
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => onTap(i),
+                          behavior: HitTestBehavior.opaque,
+                          child: Container(
+                            height: 32,
+                            alignment: Alignment.center,
+                            child: AnimatedDefaultTextStyle(
+                              duration: LoitMotion.short,
+                              curve: LoitMotion.easeOutQuart,
+                              style: LoitTypography.bodyS.copyWith(
+                                color: i == active
+                                    ? c.contentPrimary
+                                    : c.contentSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              child: Text(labels[i]),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
             ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -802,7 +883,7 @@ class _FeedTab extends ConsumerWidget {
             ],
           );
         }
-        final grouped = _groupByDay(txns);
+        final grouped = _groupByDay(txns, context);
         return ListView(
           padding: const EdgeInsets.fromLTRB(
               LoitSpacing.s4, 0, LoitSpacing.s4, 100),
@@ -838,7 +919,7 @@ class _FeedTab extends ConsumerWidget {
   }
 
   Map<String, List<Map<String, dynamic>>> _groupByDay(
-      List<Map<String, dynamic>> txns) {
+      List<Map<String, dynamic>> txns, BuildContext context) {
     final out = <String, List<Map<String, dynamic>>>{};
     final now = DateTime.now();
     for (final t in txns) {
@@ -855,7 +936,7 @@ class _FeedTab extends ConsumerWidget {
         } else if (diff == 1) {
           key = 'Yesterday';
         } else {
-          key = DateFormat.MMMd().format(dt);
+          key = MMMd(context).format(dt);
         }
       }
       out.putIfAbsent(key, () => []).add(t);
@@ -890,7 +971,7 @@ class _MonthBar extends ConsumerWidget {
           Expanded(
             child: Center(
               child: Text(
-                DateFormat.yMMM().format(month),
+                yMMM(context).format(month),
                 style: LoitTypography.bodyM.copyWith(
                   color: c.contentPrimary,
                   fontWeight: FontWeight.w600,
@@ -961,12 +1042,15 @@ class _TotalSpentCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _SummaryStat(
-                  label: 'EXPENSES',
-                  value: fmt(total),
-                  icon: Icons.trending_down,
-                  tint: expenseColor,
-                  count: expensesCount,
+                child: LoitAnimatedCount(
+                  value: total,
+                  builder: (_, v) => _SummaryStat(
+                    label: 'EXPENSES',
+                    value: fmt(v),
+                    icon: Icons.trending_down,
+                    tint: expenseColor,
+                    count: expensesCount,
+                  ),
                 ),
               ),
               Container(
@@ -976,12 +1060,15 @@ class _TotalSpentCard extends StatelessWidget {
                 color: c.borderSubtle,
               ),
               Expanded(
-                child: _SummaryStat(
-                  label: 'INCOME',
-                  value: fmt(income),
-                  icon: Icons.trending_up,
-                  tint: incomeColor,
-                  count: incomeCount,
+                child: LoitAnimatedCount(
+                  value: income,
+                  builder: (_, v) => _SummaryStat(
+                    label: 'INCOME',
+                    value: fmt(v),
+                    icon: Icons.trending_up,
+                    tint: incomeColor,
+                    count: incomeCount,
+                  ),
                 ),
               ),
             ],
@@ -1221,7 +1308,7 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
     final createdRaw = tx['created_at'] as String?;
     final created =
         createdRaw != null ? DateTime.tryParse(createdRaw)?.toLocal() : null;
-    final timeText = created != null ? DateFormat.jm().format(created) : null;
+    final timeText = created != null ? jm(context).format(created) : null;
 
     final txId = tx['id'] as String?;
 
@@ -1399,7 +1486,7 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
     messenger.showSnackBar(
       SnackBar(
         duration: window,
-        content: Text('Deleted "$label"'),
+        content: Text(context.l10n.roomDeletedLabel(label)),
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () =>
@@ -1498,6 +1585,7 @@ class _BudgetTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     final spendAsync = ref.watch(roomBudgetSpendConvertedProvider(roomId));
     final spendData = spendAsync.value;
     final spendMap = spendData?.spend ?? const <String, double>{};
@@ -1524,7 +1612,7 @@ class _BudgetTab extends ConsumerWidget {
                       extra: <String, dynamic>{'currency': currency},
                     ),
                     icon: const Icon(Icons.add),
-                    label: const Text('New budget'),
+                    label: Text(l.roomNewBudget),
                   ),
                 ),
               ],
@@ -1652,15 +1740,10 @@ class _BudgetTab extends ConsumerWidget {
                           ],
                         ),
                         const SizedBox(height: LoitSpacing.s2),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(999),
-                          child: LinearProgressIndicator(
-                            value: ratio,
-                            minHeight: 6,
-                            backgroundColor: c.borderSubtle,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(progressColor),
-                          ),
+                        LoitAnimatedProgress(
+                          value: ratio,
+                          color: progressColor,
+                          background: c.borderSubtle,
                         ),
                         const SizedBox(height: 6),
                         Row(
@@ -1718,6 +1801,7 @@ class _CategoriesTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     final asyncCats = ref.watch(userCategoriesProvider);
     final pending = ref.watch(pendingCategoryDeletesProvider);
     final canManage = isCreator && !isArchived;
@@ -1750,7 +1834,7 @@ class _CategoriesTab extends ConsumerWidget {
                     onPressed: () =>
                         context.push('/rooms/$roomId/categories/new'),
                     icon: const Icon(Icons.add),
-                    label: const Text('New category'),
+                    label: Text(l.roomNewCategory),
                   ),
                 ),
               ],
@@ -1899,7 +1983,7 @@ class _CategoryGroup extends ConsumerWidget {
     final controller = messenger.showSnackBar(
       SnackBar(
         duration: window,
-        content: Text('Deleted "${cat.name}"'),
+        content: Text(context.l10n.roomDeleteCategory(cat.name)),
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () => ref

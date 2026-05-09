@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import '../../shared/utils/locale_date_format.dart';
 
 import '../../core/services/analytics_service.dart';
 import '../../core/services/interaction_log_service.dart';
 import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
@@ -13,6 +14,7 @@ import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/presence_provider.dart';
 import '../../shared/providers/room_providers.dart';
+import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 import '../paywall/feature_gate.dart';
 import '../paywall/paywall_screen.dart';
@@ -57,12 +59,19 @@ class RoomsScreen extends ConsumerWidget {
                 roomCount: rooms.value?.length ?? 0,
               ),
             ),
-            invites.maybeWhen(
-              data: (list) => list.isEmpty
-                  ? const SliverToBoxAdapter(child: SizedBox.shrink())
-                  : SliverToBoxAdapter(child: _InvitesBanner(invites: list)),
-              orElse: () =>
-                  const SliverToBoxAdapter(child: SizedBox.shrink()),
+            SliverToBoxAdapter(
+              child: invites.maybeWhen(
+                data: (list) => LoitAnimatedReveal(
+                  visible: list.isNotEmpty,
+                  child: list.isEmpty
+                      ? const SizedBox.shrink()
+                      : LoitFadeSlideIn(
+                          key: ValueKey('invites-${list.length}'),
+                          child: _InvitesBanner(invites: list),
+                        ),
+                ),
+                orElse: () => const SizedBox.shrink(),
+              ),
             ),
             rooms.when(
               skipLoadingOnReload: true,
@@ -92,11 +101,18 @@ class RoomsScreen extends ConsumerWidget {
                           LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, 96),
                       sliver: SliverList.builder(
                         itemCount: list.length,
-                        itemBuilder: (_, i) => Padding(
-                          padding:
-                              const EdgeInsets.only(bottom: LoitSpacing.s2),
-                          child: _RoomTile(room: list[i]),
-                        ),
+                        itemBuilder: (_, i) {
+                          final id = list[i]['id'] as String? ?? 'idx-$i';
+                          return Padding(
+                            padding:
+                                const EdgeInsets.only(bottom: LoitSpacing.s2),
+                            child: LoitFadeSlideIn(
+                              key: ValueKey('room-$id'),
+                              delay: LoitMotion.staggerStep * i,
+                              child: _RoomTile(room: list[i]),
+                            ),
+                          );
+                        },
                       ),
                     ),
             ),
@@ -180,15 +196,20 @@ class _RoomTile extends ConsumerWidget {
                 ),
                 if (onlineMemberIds.isNotEmpty && !isArchived)
                   Positioned(
-                    right: -2,
-                    bottom: -2,
+                    right: -4,
+                    bottom: -4,
                     child: Container(
-                      width: 14,
-                      height: 14,
+                      width: 18,
+                      height: 18,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF22C55E),
+                        color: c.surface,
                         shape: BoxShape.circle,
-                        border: Border.all(color: c.surface, width: 2),
+                      ),
+                      alignment: Alignment.center,
+                      child: const LoitPulseDot(
+                        color: Color(0xFF22C55E),
+                        size: 10,
+                        maxRing: 16,
                       ),
                     ),
                   ),
@@ -261,7 +282,7 @@ class _RoomTile extends ConsumerWidget {
                         _MetaItem(
                           icon: Icons.event_outlined,
                           text:
-                              'Created ${DateFormat.yMMMd().format(createdAt)}',
+                              'Created ${yMMMd(context).format(createdAt)}',
                         ),
                     ],
                   ),
@@ -344,15 +365,11 @@ class _MembershipCard extends ConsumerWidget {
           ),
           if (!unlimited) ...[
             const SizedBox(height: LoitSpacing.s2),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 6,
-                backgroundColor: c.muted,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                    atLimit ? c.warning : tierColor),
-              ),
+            LoitAnimatedProgress(
+              value: progress,
+              color: atLimit ? c.warning : tierColor,
+              background: c.muted,
+              borderRadius: const BorderRadius.all(Radius.circular(4)),
             ),
           ],
           if (atLimit) ...[
@@ -426,14 +443,7 @@ class _OnlineMeta extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: const BoxDecoration(
-            color: Color(0xFF22C55E),
-            shape: BoxShape.circle,
-          ),
-        ),
+        const LoitPulseDot(color: Color(0xFF22C55E), size: 8, maxRing: 14),
         const SizedBox(width: 4),
         Text(text,
             style: LoitTypography.bodyS.copyWith(

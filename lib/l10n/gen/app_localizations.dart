@@ -3341,6 +3341,60 @@ abstract class AppLocalizations {
   /// **'Update'**
   String get systemUpdateAction;
 
+  /// No description provided for @roomArchiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive room?'**
+  String get roomArchiveTitle;
+
+  /// No description provided for @roomArchiveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive'**
+  String get roomArchiveConfirm;
+
+  /// No description provided for @roomArchiveRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive room'**
+  String get roomArchiveRoom;
+
+  /// No description provided for @roomNewBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'New budget'**
+  String get roomNewBudget;
+
+  /// No description provided for @roomNewCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'New category'**
+  String get roomNewCategory;
+
+  /// Snackbar confirming category deletion
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted \"{name}\"'**
+  String roomDeleteCategory(String name);
+
+  /// Snackbar confirming label/txn deletion
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted \"{label}\"'**
+  String roomDeletedLabel(String label);
+
+  /// No description provided for @roomTxNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction not in recent feed'**
+  String get roomTxNotFound;
+
+  /// Error when room operation fails
+  ///
+  /// In en, this message translates to:
+  /// **'Update failed: {error}'**
+  String roomUpdateFailed(String error);
+
   /// No description provided for @tierActive.
   ///
   /// In en, this message translates to:

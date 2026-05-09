@@ -144,6 +144,17 @@ class PreferencesNotifier extends AsyncNotifier<AppPreferences> {
     await _sp.setString(_Keys.language, v);
     final cur = state.value ?? const AppPreferences();
     await _update(cur.copyWith(language: v));
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      try {
+        await Supabase.instance.client
+            .from('users')
+            .update({'language': v})
+            .eq('id', user.id);
+      } catch (e) {
+        Log.w('Preferences', 'language DB write failed', error: e);
+      }
+    }
   }
 
   Future<void> setRegion(String v) async {
@@ -187,6 +198,14 @@ class PreferencesNotifier extends AsyncNotifier<AppPreferences> {
     if (cur.hideAmounts == dbValue) return;
     await _sp.setBool(_Keys.hideAmounts, dbValue);
     await _update(cur.copyWith(hideAmounts: dbValue));
+  }
+
+  /// Mirror DB-canonical `users.language` into local SharedPreferences cache.
+  Future<void> syncLanguageFromDb(String dbValue) async {
+    final cur = state.value ?? const AppPreferences();
+    if (cur.language == dbValue) return;
+    await _sp.setString(_Keys.language, dbValue);
+    await _update(cur.copyWith(language: dbValue));
   }
 
   Future<void> setBool(String key, bool value) async {

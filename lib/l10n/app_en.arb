@@ -863,5 +863,33 @@
   "systemUpdateBody": "Please update LOIT to the latest version to continue.",
   "systemUpdateAction": "Update",
 
+  "roomArchiveTitle": "Archive room?",
+  "roomArchiveConfirm": "Archive",
+  "roomArchiveRoom": "Archive room",
+  "roomNewBudget": "New budget",
+  "roomNewCategory": "New category",
+  "roomDeleteCategory": "Deleted \"{name}\"",
+  "@roomDeleteCategory": {
+    "description": "Snackbar confirming category deletion",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "roomDeletedLabel": "Deleted \"{label}\"",
+  "@roomDeletedLabel": {
+    "description": "Snackbar confirming label/txn deletion",
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "roomTxNotFound": "Transaction not in recent feed",
+  "roomUpdateFailed": "Update failed: {error}",
+  "@roomUpdateFailed": {
+    "description": "Error when room operation fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+
   "tierActive": "ACTIVE"
 }

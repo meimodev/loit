@@ -1,10 +1,16 @@
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
-/// id_ID-style formatter: `.` as thousand separator, `,` as decimal.
-/// Auto-inserts thousand separators while typing.
+/// Auto-inserts thousand separators while typing. Locale-aware via
+/// [localeTag] (defaults to system locale).
 class ThousandsInputFormatter extends TextInputFormatter {
-  static final NumberFormat _intFmt = NumberFormat('#,##0', 'id_ID');
+  ThousandsInputFormatter({this.localeTag});
+
+  final String? localeTag;
+
+  NumberFormat get _intFmt => localeTag != null
+      ? NumberFormat('#,##0', localeTag)
+      : NumberFormat('#,##0');
 
   @override
   TextEditingValue formatEditUpdate(
@@ -61,21 +67,29 @@ double? parseAmountInput(String s) {
 /// IDR uses 0 (whole rupiah); other currencies use 2.
 int currencyDecimals(String? code) => code == 'IDR' ? 0 : 2;
 
-/// Format a numeric value into the input text (id_ID thousand sep, no symbol).
-String formatAmountInput(double v) {
+/// Format a numeric value into input text (locale-aware thousand sep, no symbol).
+String formatAmountInput(double v, {String? localeTag}) {
+  final l = localeTag;
   if (v == v.truncateToDouble()) {
-    return NumberFormat('#,##0', 'id_ID').format(v);
+    return l != null
+        ? NumberFormat('#,##0', l).format(v)
+        : NumberFormat('#,##0').format(v);
   }
-  return NumberFormat('#,##0.##', 'id_ID').format(v);
+  return l != null
+      ? NumberFormat('#,##0.##', l).format(v)
+      : NumberFormat('#,##0.##').format(v);
 }
 
 /// Locale-aware money formatter shared across the app. IDR gets 0 decimals,
 /// everything else 2. Pass [showSign] to render +/- prefix.
-String formatMoney(double amount, String currency, {bool showSign = false}) {
-  final fmt = NumberFormat.simpleCurrency(
-    name: currency,
-    decimalDigits: currencyDecimals(currency),
-  );
+/// Provide [localeTag] (e.g. 'en_US' or 'id_ID') for explicit locale control.
+String formatMoney(double amount, String currency,
+    {bool showSign = false, String? localeTag}) {
+  final fmt = localeTag != null
+      ? NumberFormat.simpleCurrency(
+          name: currency, decimalDigits: currencyDecimals(currency), locale: localeTag)
+      : NumberFormat.simpleCurrency(
+          name: currency, decimalDigits: currencyDecimals(currency));
   final formatted = fmt.format(amount.abs());
   if (!showSign) return formatted;
   return amount < 0 ? '-$formatted' : '+$formatted';

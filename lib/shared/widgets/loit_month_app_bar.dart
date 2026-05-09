@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import '../utils/locale_date_format.dart';
 
 import '../providers/selected_month_provider.dart';
 import 'loit_app_bar_month.dart';
@@ -22,7 +22,7 @@ class LoitMonthAppBar extends ConsumerWidget implements PreferredSizeWidget {
     final month = ref.watch(selectedMonthProvider);
     final notifier = ref.read(selectedMonthProvider.notifier);
     return LoitAppBarMonth(
-      label: DateFormat.yMMM().format(month),
+      label: yMMM(context).format(month),
       onPrev: notifier.prev,
       onNext: notifier.next,
       actions: actions,

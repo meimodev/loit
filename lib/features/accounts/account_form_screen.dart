@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/services/currency_service.dart';
 import '../../core/theme/loit_colors.dart';
@@ -15,6 +14,7 @@ import '../../shared/providers/services_providers.dart';
 import '../../shared/providers/supported_currencies_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/utils/amount_input.dart';
+import '../../shared/utils/locale_date_format.dart';
 import '../../shared/widgets/currency_picker_sheet.dart';
 import '../../shared/widgets/loit_input.dart';
 import '../../shared/widgets/loit_tx_row.dart';
@@ -521,7 +521,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
     final accountLabel = t.isTransfer && fromName != null && toName != null
         ? '$fromName → $toName'
         : fromName;
-    final time = DateFormat.jm().format(t.createdAt.toLocal());
+    final time = jm(context).format(t.createdAt.toLocal());
     final cat = (t.category ?? 'other');
     final acc = widget.account!.currency;
     final accAmount = t.currency != acc ? _convertTo(t, acc, usdRates) : null;

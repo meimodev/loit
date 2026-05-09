@@ -8,6 +8,9 @@
 .build/
 .buildlog/
 .history
+
+# Generated l10n files (regen via `flutter pub get`)
+lib/l10n/gen/
 .svn/
 .swiftpm/
 migrate_working_dir/

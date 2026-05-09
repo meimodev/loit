@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/services/analytics_service.dart';
 import '../../core/services/currency_service.dart';
@@ -29,6 +28,7 @@ import '../../shared/widgets/loit_banner.dart';
 import '../../shared/widgets/loit_category_avatar.dart';
 import '../../shared/widgets/loit_input.dart';
 import '../../shared/utils/amount_input.dart';
+import '../../shared/utils/locale_date_format.dart';
 import '../../shared/widgets/stale_rate_banner.dart';
 import '../paywall/feature_gate.dart';
 import 'notes_breakdown.dart';
@@ -1045,7 +1045,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                   child: _picker(
                     label: l.txFormDate,
                     valueWidget: Text(
-                      DateFormat.yMMMd().format(_date),
+                      yMMMd(context).format(_date),
                       style: LoitTypography.bodyL
                           .copyWith(color: c.contentPrimary),
                     ),
@@ -1057,7 +1057,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                   child: _picker(
                     label: l.txFormTime,
                     valueWidget: Text(
-                      DateFormat.Hm().format(_date),
+                      Hm(context).format(_date),
                       style: LoitTypography.bodyL
                           .copyWith(color: c.contentPrimary),
                     ),

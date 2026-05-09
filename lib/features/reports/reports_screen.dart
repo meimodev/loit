@@ -2,7 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import '../../shared/utils/locale_date_format.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
@@ -80,7 +80,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: LoitAppBarMonth(
-        label: DateFormat.yMMM().format(_month),
+        label: yMMM(context).format(_month),
         leading: Navigator.of(context).canPop()
             ? IconButton(
                 icon: const Icon(Icons.arrow_back, size: 22),
@@ -309,6 +309,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
   List<Widget> _trendSlivers(List<Txn> allTxns, String Function(double) fmt, String home) {
     final c = context.loitColors;
+    final mmm = MMM(context);
     final now = DateTime.now();
     final months = List.generate(
         6, (i) => DateTime(now.year, now.month - (5 - i), 1));
@@ -357,7 +358,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
-                            DateFormat.MMM().format(months[i]),
+                            mmm.format(months[i]),
                             style: LoitTypography.bodyS
                                 .copyWith(color: c.contentTertiary),
                           ),
@@ -404,7 +405,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
               children: [
                 Expanded(
                   child: Text(
-                    DateFormat.yMMMM().format(months[i]),
+                    yMMMM(context).format(months[i]),
                     style: LoitTypography.bodyM
                         .copyWith(color: c.contentPrimary),
                   ),

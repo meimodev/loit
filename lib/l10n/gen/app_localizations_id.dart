@@ -1788,5 +1788,38 @@ class AppLocalizationsId extends AppLocalizations {
   String get systemUpdateAction => 'Perbarui';
 
   @override
+  String get roomArchiveTitle => 'Arsipkan ruangan?';
+
+  @override
+  String get roomArchiveConfirm => 'Arsipkan';
+
+  @override
+  String get roomArchiveRoom => 'Arsipkan ruangan';
+
+  @override
+  String get roomNewBudget => 'Anggaran baru';
+
+  @override
+  String get roomNewCategory => 'Kategori baru';
+
+  @override
+  String roomDeleteCategory(String name) {
+    return 'Dihapus \"$name\"';
+  }
+
+  @override
+  String roomDeletedLabel(String label) {
+    return 'Dihapus \"$label\"';
+  }
+
+  @override
+  String get roomTxNotFound => 'Transaksi tidak ada di umpan terbaru';
+
+  @override
+  String roomUpdateFailed(String error) {
+    return 'Gagal memperbarui: $error';
+  }
+
+  @override
   String get tierActive => 'AKTIF';
 }

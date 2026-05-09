@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
@@ -18,8 +19,6 @@ import '../../shared/widgets/loit_group_label.dart';
 import '../../shared/widgets/loit_stat_triple.dart';
 import '../paywall/paywall_screen.dart';
 
-/// LOIT Budgets list — F · 01.
-/// AppBarMonth + period tabs + StatTriple + grouped category rows.
 class BudgetsScreen extends ConsumerStatefulWidget {
   const BudgetsScreen({super.key});
 
@@ -29,11 +28,12 @@ class BudgetsScreen extends ConsumerStatefulWidget {
 
 class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
-  int _periodTab = 0; // 0 Monthly · 1 Weekly · 2 Custom
+  int _periodTab = 0;
 
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final budgets = ref.watch(budgetsProvider);
     final statuses = ref.watch(budgetStatusesProvider);
     final profile = ref.watch(userProfileProvider).value;
@@ -72,12 +72,12 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add, size: 20),
-            tooltip: 'New budget',
+            tooltip: l.budgetsScreenNewBudget,
             onPressed: () => _addBudget(),
           ),
           IconButton(
             icon: const Icon(Icons.tune, size: 20),
-            tooltip: 'Filter',
+            tooltip: l.budgetsScreenFilter,
             onPressed: () {},
           ),
         ],
@@ -98,17 +98,17 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                 child: LoitStatTriple(
                   stats: [
                     LoitStat(
-                      label: 'Limit',
+                      label: l.budgetsScreenLimit,
                       amount: fmt(totalLimit),
                       color: c.info,
                     ),
                     LoitStat(
-                      label: 'Spent',
+                      label: l.budgetsScreenSpent,
                       amount: fmt(totalSpent),
                       color: c.danger,
                     ),
                     LoitStat(
-                      label: 'Left',
+                      label: l.budgetsScreenLeft,
                       amount: fmt(left),
                       color: c.brand,
                     ),
@@ -121,10 +121,9 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                   child: Center(
                     child: LoitEmptyState(
                       icon: Icons.savings_outlined,
-                      title: 'No budgets yet',
-                      body:
-                          'Set a monthly limit per category to track spend at a glance.',
-                      primaryCta: 'New budget',
+                      title: l.budgetsScreenNoBudgets,
+                      body: l.budgetsScreenEmptyBody,
+                      primaryCta: l.budgetsScreenNewBudget,
                       onPrimaryCta: _addBudget,
                     ),
                   ),
@@ -132,7 +131,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
               else ...[
                 SliverToBoxAdapter(
                   child: LoitGroupLabel(
-                    label: 'Categories',
+                    label: l.budgetsScreenCategories,
                     trailing: Text(
                       paceLabel,
                       style: LoitTypography.bodyS.copyWith(
@@ -149,8 +148,9 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                     final pct = (s.ratio * 100).round();
                     final overAmt = s.spent - s.budget.monthlyLimit;
                     final subtitleParts = [
-                      '${fmt(s.spent)} of ${fmt(s.budget.monthlyLimit)}',
-                      if (s.isOver) '${fmt(overAmt)} over',
+                      l.dashboardOfPattern(
+                          fmt(s.spent), fmt(s.budget.monthlyLimit)),
+                      if (s.isOver) l.budgetDetailOverBudget(pct, fmt(overAmt)),
                     ];
                     return LoitBudgetRow(
                       label: ref.watch(categoryLabelProvider(
@@ -171,7 +171,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
       ),
       floatingActionButton: LoitFabStack(
         primaryIcon: Icons.add,
-        primaryTooltip: 'New budget',
+        primaryTooltip: l.budgetsScreenNewBudget,
         onPrimary: _addBudget,
       ),
     );
@@ -194,13 +194,16 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
     required int daysInMonth,
     required int overCount,
   }) {
-    if (limit <= 0) return 'No limits set';
+    final l = context.l10n;
+    if (limit <= 0) return l.budgetsScreenNoLimits;
     if (overCount > 0) {
-      return 'Day $dayOfMonth · $daysInMonth — $overCount over';
+      return l.budgetsScreenDayOver(dayOfMonth, daysInMonth, overCount);
     }
     final expected = limit * (dayOfMonth / daysInMonth);
     final onPace = spent <= expected;
-    return 'Day $dayOfMonth · $daysInMonth — ${onPace ? 'on pace' : 'over pace'}';
+    return onPace
+        ? l.budgetsScreenOnPace(dayOfMonth, daysInMonth)
+        : l.budgetsScreenOverPace(dayOfMonth, daysInMonth);
   }
 }
 
@@ -213,7 +216,8 @@ class _PeriodTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    const labels = ['Monthly', 'Weekly', 'Custom'];
+    final l = context.l10n;
+    final labels = [l.budgetsScreenMonthly, l.budgetsScreenWeekly, l.budgetsScreenCustom];
     return Container(
       color: c.canvas,
       padding: const EdgeInsets.fromLTRB(

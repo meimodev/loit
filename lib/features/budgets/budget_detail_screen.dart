@@ -7,6 +7,8 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/home_currency_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
@@ -20,17 +22,18 @@ class BudgetDetailScreen extends ConsumerWidget {
 
   final String budgetId;
 
-  String _dayLabel(Budget b) {
+  String _dayLabel(AppLocalizations l, Budget b) {
     final now = DateTime.now();
     final start = b.windowStart(now);
     final dayInCycle =
         now.difference(DateTime(start.year, start.month, start.day)).inDays + 1;
-    return 'Day $dayInCycle / ${b.cycleDays(now)}';
+    return l.budgetDetailDayInCycle(dayInCycle, b.cycleDays(now));
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     final statuses = ref.watch(budgetStatusesProvider);
     final status = statuses.where((s) => s.budget.id == budgetId).firstOrNull;
     final txs = ref.watch(transactionsProvider).value ?? const [];
@@ -38,7 +41,7 @@ class BudgetDetailScreen extends ConsumerWidget {
     if (status == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: const Center(child: Text('Budget not found')),
+        body: Center(child: Text(l.budgetDetailNotFound)),
       );
     }
     final b = status.budget;
@@ -140,14 +143,14 @@ class BudgetDetailScreen extends ConsumerWidget {
                   children: [
                     Text(
                       over
-                          ? '$pct% — ${fmt(overAmt)} over'
-                          : '$pct% used',
+                          ? l.budgetDetailOverBudget(pct, fmt(overAmt))
+                          : l.budgetDetailUsed(pct),
                       style: LoitTypography.bodyS.copyWith(
                         color: over ? c.danger : c.contentSecondary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Text(_dayLabel(b),
+                    Text(_dayLabel(l, b),
                         style: LoitTypography.bodyS
                             .copyWith(color: c.contentSecondary)),
                   ],
@@ -174,7 +177,10 @@ class BudgetDetailScreen extends ConsumerWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Rollover scheduled — ${fmt(overAmt)} will reduce the limit on ${DateFormat.yMMMd().format(b.rolloverCycleStart!)}.',
+                        l.budgetDetailRolloverScheduled(
+                            fmt(overAmt),
+                            DateFormat.yMMMd()
+                                .format(b.rolloverCycleStart!)),
                         style: LoitTypography.bodyS.copyWith(
                             color: c.contentPrimary, height: 1.4),
                       ),
@@ -183,7 +189,7 @@ class BudgetDetailScreen extends ConsumerWidget {
                 ),
               ),
             ),
-          if (top5.isNotEmpty) const LoitGroupLabel(label: 'CONTRIBUTING · TOP 5'),
+          if (top5.isNotEmpty) LoitGroupLabel(label: l.budgetDetailContributingTop5),
           ...top5.map((t) => LoitTxRow(
                 title: t.notes ?? '',
                 categoryKey: t.category,
@@ -206,19 +212,19 @@ class BudgetDetailScreen extends ConsumerWidget {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: const Text('Delete budget?'),
+                    title: Text(l.budgetDetailDeleteTitle),
                     content: Text(
-                      'This permanently deletes the $catLabel budget. Transactions are kept. This cannot be undone.',
+                      l.budgetDetailDeleteBody(catLabel),
                     ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Cancel'),
+                        child: Text(l.budgetDetailCancel),
                       ),
                       TextButton(
                         style: TextButton.styleFrom(foregroundColor: c.danger),
                         onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('Delete'),
+                        child: Text(l.budgetDetailDelete),
                       ),
                     ],
                   ),
@@ -232,11 +238,13 @@ class BudgetDetailScreen extends ConsumerWidget {
                 } catch (e) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Delete failed: $e')),
+                    SnackBar(
+                        content: Text(
+                            l.budgetDetailDeleteFailed(e.toString()))),
                   );
                 }
               },
-              child: const Text('Delete budget'),
+              child: Text(l.budgetDetailDeleteBudget),
             ),
           ),
           const SizedBox(height: LoitSpacing.s10),
@@ -258,7 +266,7 @@ class BudgetDetailScreen extends ConsumerWidget {
                   child: OutlinedButton(
                     onPressed: () =>
                         context.push('/budgets/${b.id}/edit', extra: b),
-                    child: const Text('Edit limit'),
+                    child: Text(l.budgetDetailEditLimit),
                   ),
                 ),
               ),
@@ -281,18 +289,20 @@ class BudgetDetailScreen extends ConsumerWidget {
                           if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(
-                                  '${fmt(overAmt)} carried into next cycle'),
+                              content: Text(l.budgetDetailRollOverSuccess(
+                                  fmt(overAmt))),
                             ),
                           );
                         } catch (e) {
                           if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Roll over failed: $e')),
+                            SnackBar(
+                                content: Text(l.budgetDetailRollOverFailed(
+                                    e.toString()))),
                           );
                         }
                       },
-                      child: const Text('Roll over'),
+                      child: Text(l.budgetDetailRollOver),
                     ),
                   ),
                 ),

@@ -6,6 +6,8 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
@@ -18,6 +20,7 @@ class AccountsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     final accountsAsync = ref.watch(accountsProvider);
     final balances = ref.watch(accountBalancesProvider);
     final profile = ref.watch(userProfileProvider).value;
@@ -26,7 +29,7 @@ class AccountsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Accounts'),
+        title: Text(l.accountsScreenTitle),
         backgroundColor: c.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -47,7 +50,7 @@ class AccountsScreen extends ConsumerWidget {
           return ListView(
             children: [
               if (assets.isNotEmpty) ...[
-                const LoitGroupLabel(label: 'Assets'),
+                LoitGroupLabel(label: l.accountsScreenAssets),
                 Container(
                   color: c.surface,
                   child: Column(
@@ -68,24 +71,22 @@ class AccountsScreen extends ConsumerWidget {
                             return await showDialog<bool>(
                                   context: context,
                                   builder: (_) => AlertDialog(
-                                    title: const Text('Delete account?'),
+                                    title: Text(l.accountFormDeleteTitle),
                                     content: Text(
-                                      affected == 0
-                                          ? 'This permanently deletes "${account.name}". This cannot be undone.'
-                                          : 'This permanently deletes "${account.name}" and $affected transaction${affected == 1 ? '' : 's'} that reference it. This cannot be undone.',
+                                      _deleteBody(l, account.name, affected),
                                     ),
                                     actions: [
                                       TextButton(
                                         onPressed: () =>
                                             Navigator.pop(context, false),
-                                        child: const Text('Cancel'),
+                                        child: Text(l.accountFormCancel),
                                       ),
                                       FilledButton(
                                         style: FilledButton.styleFrom(
                                             backgroundColor: c.danger),
                                         onPressed: () =>
                                             Navigator.pop(context, true),
-                                        child: const Text('Delete'),
+                                        child: Text(l.accountFormDelete),
                                       ),
                                     ],
                                   ),
@@ -120,7 +121,7 @@ class AccountsScreen extends ConsumerWidget {
                 ),
               ],
               if (liabilities.isNotEmpty) ...[
-                const LoitGroupLabel(label: 'Liabilities'),
+                LoitGroupLabel(label: l.accountsScreenLiabilities),
                 Container(
                   color: c.surface,
                   child: Column(
@@ -141,24 +142,22 @@ class AccountsScreen extends ConsumerWidget {
                             return await showDialog<bool>(
                                   context: context,
                                   builder: (_) => AlertDialog(
-                                    title: const Text('Delete account?'),
+                                    title: Text(l.accountFormDeleteTitle),
                                     content: Text(
-                                      affected == 0
-                                          ? 'This permanently deletes "${account.name}". This cannot be undone.'
-                                          : 'This permanently deletes "${account.name}" and $affected transaction${affected == 1 ? '' : 's'} that reference it. This cannot be undone.',
+                                      _deleteBody(l, account.name, affected),
                                     ),
                                     actions: [
                                       TextButton(
                                         onPressed: () =>
                                             Navigator.pop(context, false),
-                                        child: const Text('Cancel'),
+                                        child: Text(l.accountFormCancel),
                                       ),
                                       FilledButton(
                                         style: FilledButton.styleFrom(
                                             backgroundColor: c.danger),
                                         onPressed: () =>
                                             Navigator.pop(context, true),
-                                        child: const Text('Delete'),
+                                        child: Text(l.accountFormDelete),
                                       ),
                                     ],
                                   ),
@@ -200,9 +199,17 @@ class AccountsScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/accounts/new'),
         icon: const Icon(Icons.add),
-        label: const Text('Add account'),
+        label: Text(l.accountsScreenAddAccount),
       ),
     );
+  }
+
+  String _deleteBody(AppLocalizations l, String name, int affected) {
+    if (affected == 0) {
+      return l.accountFormDeleteBody(name);
+    }
+    return l.accountFormDeleteBodyWithTxns(name, affected,
+        affected == 1 ? '' : 's');
   }
 }
 
@@ -224,6 +231,7 @@ class _AccountRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final isAsset = account.kind == AccountKind.asset;
     final iconColor = isAsset ? c.info : c.danger;
 
@@ -265,7 +273,9 @@ class _AccountRow extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    isAsset ? 'Asset · ${account.currency}' : 'Liability · ${account.currency}',
+                    isAsset
+                        ? l.accountsScreenAssetType(account.currency)
+                        : l.accountsScreenLiabilityType(account.currency),
                     style: LoitTypography.bodyS.copyWith(
                       color: c.contentTertiary,
                     ),
@@ -276,7 +286,6 @@ class _AccountRow extends StatelessWidget {
             Text(
               formatMoney(balance, currency),
               style: LoitTypography.amountDefault.copyWith(
-                // Assets: red when overdrawn. Liabilities: red when owed (> 0).
                 color: isAsset
                     ? (balance >= 0 ? c.contentPrimary : c.danger)
                     : (balance > 0 ? c.danger : c.success),
@@ -311,6 +320,7 @@ class _EmptyAccountsState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(LoitSpacing.s6),
@@ -321,12 +331,12 @@ class _EmptyAccountsState extends StatelessWidget {
                 size: 48, color: c.brand),
             const SizedBox(height: LoitSpacing.s4),
             Text(
-              'No accounts yet',
+              l.accountsScreenNoAccounts,
               style: LoitTypography.titleM.copyWith(color: c.contentPrimary),
             ),
             const SizedBox(height: LoitSpacing.s2),
             Text(
-              'Add your cash, bank accounts, and cards to track balances.',
+              l.accountsScreenEmptyBody,
               textAlign: TextAlign.center,
               style: LoitTypography.bodyM.copyWith(color: c.contentSecondary),
             ),

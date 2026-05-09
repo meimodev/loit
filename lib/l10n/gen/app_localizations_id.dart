@@ -462,6 +462,54 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get category_dining => 'Makanan';
+
+  @override
+  String get category_groceries => 'Belanja';
+
+  @override
+  String get category_transport => 'Transportasi';
+
+  @override
+  String get category_shopping => 'Belanja';
+
+  @override
+  String get category_entertainment => 'Hiburan';
+
+  @override
+  String get category_utilities => 'Utilitas';
+
+  @override
+  String get category_health => 'Kesehatan';
+
+  @override
+  String get category_travel => 'Perjalanan';
+
+  @override
+  String get category_other => 'Lainnya';
+
+  @override
+  String get category_income_salary => 'Gaji';
+
+  @override
+  String get category_income_bonus => 'Bonus';
+
+  @override
+  String get category_income_freelance => 'Freelance';
+
+  @override
+  String get category_income_investment => 'Investasi';
+
+  @override
+  String get category_income_gift => 'Hadiah';
+
+  @override
+  String get category_income_refund => 'Pengembalian';
+
+  @override
+  String get category_income_other => 'Pemasukan lain';
+
+  @override
   String get txFormNewTransaction => 'Transaksi baru';
 
   @override
@@ -866,6 +914,386 @@ class AppLocalizationsId extends AppLocalizations {
   String quickAddRegionSuffix(Object currency) {
     return '$currency · ID';
   }
+
+  @override
+  String get budgetFormNewBudget => 'Anggaran baru';
+
+  @override
+  String get budgetFormEditBudget => 'Edit anggaran';
+
+  @override
+  String get budgetFormLimit => 'BATAS';
+
+  @override
+  String get budgetFormSetup => 'PENGATURAN';
+
+  @override
+  String get budgetFormCategory => 'Kategori';
+
+  @override
+  String get budgetFormPeriod => 'Periode';
+
+  @override
+  String get budgetFormResetsOn => 'Diatur ulang pada';
+
+  @override
+  String get budgetFormAlerts => 'PERINGATAN';
+
+  @override
+  String get budgetFormAt70 => 'Pada 70%';
+
+  @override
+  String get budgetFormAt100 => 'Pada 100%';
+
+  @override
+  String get budgetFormDailyOverBudget => 'Harian melebihi';
+
+  @override
+  String get budgetFormPersonalOnlyInfo =>
+      'Ini hanya terlihat di Pribadi. Anggaran ruangan diatur di masing-masing ruangan.';
+
+  @override
+  String get budgetFormCreateBudget => 'Buat anggaran';
+
+  @override
+  String get budgetFormSaveChanges => 'Simpan perubahan';
+
+  @override
+  String get budgetFormInvalidAmount => 'Masukkan jumlah lebih dari 0';
+
+  @override
+  String get budgetFormMonday => 'Senin';
+
+  @override
+  String get budgetFormTuesday => 'Selasa';
+
+  @override
+  String get budgetFormWednesday => 'Rabu';
+
+  @override
+  String get budgetFormThursday => 'Kamis';
+
+  @override
+  String get budgetFormFriday => 'Jumat';
+
+  @override
+  String get budgetFormSaturday => 'Sabtu';
+
+  @override
+  String get budgetFormSunday => 'Minggu';
+
+  @override
+  String get budgetFormJanuary => 'Januari';
+
+  @override
+  String get budgetFormFebruary => 'Februari';
+
+  @override
+  String get budgetFormMarch => 'Maret';
+
+  @override
+  String get budgetFormApril => 'April';
+
+  @override
+  String get budgetFormMay => 'Mei';
+
+  @override
+  String get budgetFormJune => 'Juni';
+
+  @override
+  String get budgetFormJuly => 'Juli';
+
+  @override
+  String get budgetFormAugust => 'Agustus';
+
+  @override
+  String get budgetFormSeptember => 'September';
+
+  @override
+  String get budgetFormOctober => 'Oktober';
+
+  @override
+  String get budgetFormNovember => 'November';
+
+  @override
+  String get budgetFormDecember => 'Desember';
+
+  @override
+  String get budgetFormLastDay => 'Hari terakhir';
+
+  @override
+  String budgetFormDay(int d) {
+    return 'Hari ke-$d';
+  }
+
+  @override
+  String budgetForm1Month(String month) {
+    return '1 $month';
+  }
+
+  @override
+  String get budgetFormEvery => 'Setiap';
+
+  @override
+  String budgetFormEveryNDays(int n) {
+    return 'Setiap $n hari';
+  }
+
+  @override
+  String get budgetDetailNotFound => 'Anggaran tidak ditemukan';
+
+  @override
+  String budgetDetailDayInCycle(int day, int total) {
+    return 'Hari ke-$day / $total';
+  }
+
+  @override
+  String budgetDetailOverBudget(int pct, String overAmt) {
+    return '$pct% — $overAmt melebihi';
+  }
+
+  @override
+  String budgetDetailUsed(int pct) {
+    return '$pct% digunakan';
+  }
+
+  @override
+  String budgetDetailRolloverScheduled(String overAmt, String date) {
+    return 'Rollover dijadwalkan — $overAmt akan mengurangi batas pada $date.';
+  }
+
+  @override
+  String get budgetDetailContributingTop5 => 'KONTRIBUSI · 5 TERATAS';
+
+  @override
+  String get budgetDetailDeleteBudget => 'Hapus anggaran';
+
+  @override
+  String get budgetDetailDeleteTitle => 'Hapus anggaran?';
+
+  @override
+  String budgetDetailDeleteBody(String category) {
+    return 'Ini menghapus permanen anggaran $category. Transaksi tetap ada. Ini tidak dapat dibatalkan.';
+  }
+
+  @override
+  String get budgetDetailCancel => 'Batal';
+
+  @override
+  String get budgetDetailDelete => 'Hapus';
+
+  @override
+  String budgetDetailDeleteFailed(String error) {
+    return 'Gagal menghapus: $error';
+  }
+
+  @override
+  String get budgetDetailEditLimit => 'Edit batas';
+
+  @override
+  String get budgetDetailRollOver => 'Roll over';
+
+  @override
+  String budgetDetailRollOverSuccess(String overAmt) {
+    return '$overAmt dibawa ke siklus berikutnya';
+  }
+
+  @override
+  String budgetDetailRollOverFailed(String error) {
+    return 'Gagal roll over: $error';
+  }
+
+  @override
+  String get budgetsScreenNewBudget => 'Anggaran baru';
+
+  @override
+  String get budgetsScreenFilter => 'Filter';
+
+  @override
+  String get budgetsScreenLimit => 'Batas';
+
+  @override
+  String get budgetsScreenSpent => 'Dibelanjakan';
+
+  @override
+  String get budgetsScreenLeft => 'Tersisa';
+
+  @override
+  String get budgetsScreenNoBudgets => 'Belum ada anggaran';
+
+  @override
+  String get budgetsScreenEmptyBody =>
+      'Tetapkan batas bulanan per kategori untuk melacak pengeluaran sekilas.';
+
+  @override
+  String get budgetsScreenCategories => 'Kategori';
+
+  @override
+  String get budgetsScreenNoLimits => 'Belum ada batas';
+
+  @override
+  String budgetsScreenDayOver(int day, int days, int overCount) {
+    return 'Hari ke-$day · $days — $overCount melebihi';
+  }
+
+  @override
+  String budgetsScreenOnPace(int day, int days) {
+    return 'Hari ke-$day · $days — sesuai';
+  }
+
+  @override
+  String budgetsScreenOverPace(int day, int days) {
+    return 'Hari ke-$day · $days — melebihi laju';
+  }
+
+  @override
+  String get budgetsScreenMonthly => 'Bulanan';
+
+  @override
+  String get budgetsScreenWeekly => 'Mingguan';
+
+  @override
+  String get budgetsScreenCustom => 'Kustom';
+
+  @override
+  String get accountsScreenTitle => 'Akun';
+
+  @override
+  String get accountsScreenAssets => 'Aset';
+
+  @override
+  String get accountsScreenLiabilities => 'Liabilitas';
+
+  @override
+  String get accountsScreenAddAccount => 'Tambah akun';
+
+  @override
+  String get accountsScreenNoAccounts => 'Belum ada akun';
+
+  @override
+  String get accountsScreenEmptyBody =>
+      'Tambahkan uang tunai, rekening bank, dan kartu untuk melacak saldo.';
+
+  @override
+  String accountsScreenAssetType(String currency) {
+    return 'Aset · $currency';
+  }
+
+  @override
+  String accountsScreenLiabilityType(String currency) {
+    return 'Liabilitas · $currency';
+  }
+
+  @override
+  String get accountFormNewAccount => 'Akun baru';
+
+  @override
+  String get accountFormEditAccount => 'Edit akun';
+
+  @override
+  String get accountFormName => 'Nama';
+
+  @override
+  String get accountFormNamePlaceholder => 'mis. BCA Tabungan';
+
+  @override
+  String get accountFormType => 'Tipe';
+
+  @override
+  String get accountFormAsset => 'Aset';
+
+  @override
+  String get accountFormLiability => 'Liabilitas';
+
+  @override
+  String get accountFormCurrency => 'Mata uang';
+
+  @override
+  String get accountFormCurrentBalance => 'Saldo saat ini';
+
+  @override
+  String get accountFormOpeningBalance => 'Saldo awal';
+
+  @override
+  String get accountFormSaveChanges => 'Simpan perubahan';
+
+  @override
+  String get accountFormCreateAccount => 'Buat akun';
+
+  @override
+  String get accountFormNameRequired => 'Nama diperlukan';
+
+  @override
+  String get accountFormNameAlreadyUsed => 'Nama sudah digunakan';
+
+  @override
+  String accountFormSaveFailed(String error) {
+    return 'Gagal menyimpan: $error';
+  }
+
+  @override
+  String get accountFormBalanceAdjustment => 'Penyesuaian saldo';
+
+  @override
+  String get accountFormAddAdjustmentTitle => 'Tambah transaksi penyesuaian?';
+
+  @override
+  String accountFormAddAdjustmentBody(
+    String current,
+    String target,
+    String txLabel,
+    String delta,
+  ) {
+    return 'Saldo akan berubah dari $current menjadi $target.\n\nTransaksi $txLabel sebesar $delta (kategori \"Penyesuaian\") akan ditambahkan untuk mencatat perubahan.';
+  }
+
+  @override
+  String get accountFormAddAdjustment => 'Tambah penyesuaian';
+
+  @override
+  String get accountFormCancel => 'Batal';
+
+  @override
+  String get accountFormArchive => 'Arsipkan';
+
+  @override
+  String get accountFormDelete => 'Hapus';
+
+  @override
+  String get accountFormArchiveTitle => 'Arsipkan akun?';
+
+  @override
+  String get accountFormArchiveBody =>
+      'Akun akan disembunyikan tetapi data tetap disimpan.';
+
+  @override
+  String get accountFormDeleteTitle => 'Hapus akun?';
+
+  @override
+  String accountFormDeleteBody(String name) {
+    return 'Ini menghapus permanen \"$name\". Ini tidak dapat dibatalkan.';
+  }
+
+  @override
+  String accountFormDeleteBodyWithTxns(
+    String name,
+    int affected,
+    String plural,
+  ) {
+    return 'Ini menghapus permanen \"$name\" dan $affected transaksi yang merujuknya. Ini tidak dapat dibatalkan.';
+  }
+
+  @override
+  String accountFormDeleteFailed(String error) {
+    return 'Gagal menghapus: $error';
+  }
+
+  @override
+  String get accountFormLiabilityInfo =>
+      'Untuk pinjaman, buat Transfer dari akun liabilitas ini ke akun aset.';
+
+  @override
+  String get accountFormRecentTransactions => 'Transaksi terbaru';
 
   @override
   String get tierActive => 'AKTIF';

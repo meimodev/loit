@@ -944,6 +944,102 @@ abstract class AppLocalizations {
   /// **'{spent} of {limit}'**
   String dashboardOfPattern(String spent, String limit);
 
+  /// No description provided for @category_dining.
+  ///
+  /// In en, this message translates to:
+  /// **'Dining'**
+  String get category_dining;
+
+  /// No description provided for @category_groceries.
+  ///
+  /// In en, this message translates to:
+  /// **'Groceries'**
+  String get category_groceries;
+
+  /// No description provided for @category_transport.
+  ///
+  /// In en, this message translates to:
+  /// **'Transport'**
+  String get category_transport;
+
+  /// No description provided for @category_shopping.
+  ///
+  /// In en, this message translates to:
+  /// **'Shopping'**
+  String get category_shopping;
+
+  /// No description provided for @category_entertainment.
+  ///
+  /// In en, this message translates to:
+  /// **'Entertainment'**
+  String get category_entertainment;
+
+  /// No description provided for @category_utilities.
+  ///
+  /// In en, this message translates to:
+  /// **'Utilities'**
+  String get category_utilities;
+
+  /// No description provided for @category_health.
+  ///
+  /// In en, this message translates to:
+  /// **'Health'**
+  String get category_health;
+
+  /// No description provided for @category_travel.
+  ///
+  /// In en, this message translates to:
+  /// **'Travel'**
+  String get category_travel;
+
+  /// No description provided for @category_other.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get category_other;
+
+  /// No description provided for @category_income_salary.
+  ///
+  /// In en, this message translates to:
+  /// **'Salary'**
+  String get category_income_salary;
+
+  /// No description provided for @category_income_bonus.
+  ///
+  /// In en, this message translates to:
+  /// **'Bonus'**
+  String get category_income_bonus;
+
+  /// No description provided for @category_income_freelance.
+  ///
+  /// In en, this message translates to:
+  /// **'Freelance'**
+  String get category_income_freelance;
+
+  /// No description provided for @category_income_investment.
+  ///
+  /// In en, this message translates to:
+  /// **'Investment'**
+  String get category_income_investment;
+
+  /// No description provided for @category_income_gift.
+  ///
+  /// In en, this message translates to:
+  /// **'Gift'**
+  String get category_income_gift;
+
+  /// No description provided for @category_income_refund.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund'**
+  String get category_income_refund;
+
+  /// No description provided for @category_income_other.
+  ///
+  /// In en, this message translates to:
+  /// **'Other income'**
+  String get category_income_other;
+
   /// No description provided for @txFormNewTransaction.
   ///
   /// In en, this message translates to:
@@ -1699,6 +1795,663 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{currency} · ID'**
   String quickAddRegionSuffix(Object currency);
+
+  /// No description provided for @budgetFormNewBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'New budget'**
+  String get budgetFormNewBudget;
+
+  /// No description provided for @budgetFormEditBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit budget'**
+  String get budgetFormEditBudget;
+
+  /// No description provided for @budgetFormLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'LIMIT'**
+  String get budgetFormLimit;
+
+  /// No description provided for @budgetFormSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'SETUP'**
+  String get budgetFormSetup;
+
+  /// No description provided for @budgetFormCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get budgetFormCategory;
+
+  /// No description provided for @budgetFormPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Period'**
+  String get budgetFormPeriod;
+
+  /// No description provided for @budgetFormResetsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Resets on'**
+  String get budgetFormResetsOn;
+
+  /// No description provided for @budgetFormAlerts.
+  ///
+  /// In en, this message translates to:
+  /// **'ALERTS'**
+  String get budgetFormAlerts;
+
+  /// No description provided for @budgetFormAt70.
+  ///
+  /// In en, this message translates to:
+  /// **'At 70%'**
+  String get budgetFormAt70;
+
+  /// No description provided for @budgetFormAt100.
+  ///
+  /// In en, this message translates to:
+  /// **'At 100%'**
+  String get budgetFormAt100;
+
+  /// No description provided for @budgetFormDailyOverBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily over budget'**
+  String get budgetFormDailyOverBudget;
+
+  /// No description provided for @budgetFormPersonalOnlyInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ll see this in Personal only. Room budgets are set in each room.'**
+  String get budgetFormPersonalOnlyInfo;
+
+  /// No description provided for @budgetFormCreateBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'Create budget'**
+  String get budgetFormCreateBudget;
+
+  /// No description provided for @budgetFormSaveChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Save changes'**
+  String get budgetFormSaveChanges;
+
+  /// No description provided for @budgetFormInvalidAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter an amount greater than 0'**
+  String get budgetFormInvalidAmount;
+
+  /// No description provided for @budgetFormMonday.
+  ///
+  /// In en, this message translates to:
+  /// **'Monday'**
+  String get budgetFormMonday;
+
+  /// No description provided for @budgetFormTuesday.
+  ///
+  /// In en, this message translates to:
+  /// **'Tuesday'**
+  String get budgetFormTuesday;
+
+  /// No description provided for @budgetFormWednesday.
+  ///
+  /// In en, this message translates to:
+  /// **'Wednesday'**
+  String get budgetFormWednesday;
+
+  /// No description provided for @budgetFormThursday.
+  ///
+  /// In en, this message translates to:
+  /// **'Thursday'**
+  String get budgetFormThursday;
+
+  /// No description provided for @budgetFormFriday.
+  ///
+  /// In en, this message translates to:
+  /// **'Friday'**
+  String get budgetFormFriday;
+
+  /// No description provided for @budgetFormSaturday.
+  ///
+  /// In en, this message translates to:
+  /// **'Saturday'**
+  String get budgetFormSaturday;
+
+  /// No description provided for @budgetFormSunday.
+  ///
+  /// In en, this message translates to:
+  /// **'Sunday'**
+  String get budgetFormSunday;
+
+  /// No description provided for @budgetFormJanuary.
+  ///
+  /// In en, this message translates to:
+  /// **'January'**
+  String get budgetFormJanuary;
+
+  /// No description provided for @budgetFormFebruary.
+  ///
+  /// In en, this message translates to:
+  /// **'February'**
+  String get budgetFormFebruary;
+
+  /// No description provided for @budgetFormMarch.
+  ///
+  /// In en, this message translates to:
+  /// **'March'**
+  String get budgetFormMarch;
+
+  /// No description provided for @budgetFormApril.
+  ///
+  /// In en, this message translates to:
+  /// **'April'**
+  String get budgetFormApril;
+
+  /// No description provided for @budgetFormMay.
+  ///
+  /// In en, this message translates to:
+  /// **'May'**
+  String get budgetFormMay;
+
+  /// No description provided for @budgetFormJune.
+  ///
+  /// In en, this message translates to:
+  /// **'June'**
+  String get budgetFormJune;
+
+  /// No description provided for @budgetFormJuly.
+  ///
+  /// In en, this message translates to:
+  /// **'July'**
+  String get budgetFormJuly;
+
+  /// No description provided for @budgetFormAugust.
+  ///
+  /// In en, this message translates to:
+  /// **'August'**
+  String get budgetFormAugust;
+
+  /// No description provided for @budgetFormSeptember.
+  ///
+  /// In en, this message translates to:
+  /// **'September'**
+  String get budgetFormSeptember;
+
+  /// No description provided for @budgetFormOctober.
+  ///
+  /// In en, this message translates to:
+  /// **'October'**
+  String get budgetFormOctober;
+
+  /// No description provided for @budgetFormNovember.
+  ///
+  /// In en, this message translates to:
+  /// **'November'**
+  String get budgetFormNovember;
+
+  /// No description provided for @budgetFormDecember.
+  ///
+  /// In en, this message translates to:
+  /// **'December'**
+  String get budgetFormDecember;
+
+  /// No description provided for @budgetFormLastDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Last day'**
+  String get budgetFormLastDay;
+
+  /// Day of month label, e.g. 'Day 15'
+  ///
+  /// In en, this message translates to:
+  /// **'Day {d}'**
+  String budgetFormDay(int d);
+
+  /// Yearly reset label, e.g. '1 January'
+  ///
+  /// In en, this message translates to:
+  /// **'1 {month}'**
+  String budgetForm1Month(String month);
+
+  /// No description provided for @budgetFormEvery.
+  ///
+  /// In en, this message translates to:
+  /// **'Every'**
+  String get budgetFormEvery;
+
+  /// Custom reset interval, e.g. 'Every 7 days'
+  ///
+  /// In en, this message translates to:
+  /// **'Every {n} days'**
+  String budgetFormEveryNDays(int n);
+
+  /// No description provided for @budgetDetailNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Budget not found'**
+  String get budgetDetailNotFound;
+
+  /// Day-in-cycle progress, e.g. 'Day 5 / 30'
+  ///
+  /// In en, this message translates to:
+  /// **'Day {day} / {total}'**
+  String budgetDetailDayInCycle(int day, int total);
+
+  /// Over-budget status, e.g. '120% — Rp50,000 over'
+  ///
+  /// In en, this message translates to:
+  /// **'{pct}% — {overAmt} over'**
+  String budgetDetailOverBudget(int pct, String overAmt);
+
+  /// On-budget status, e.g. '65% used'
+  ///
+  /// In en, this message translates to:
+  /// **'{pct}% used'**
+  String budgetDetailUsed(int pct);
+
+  /// Rollover info banner, e.g. 'Rollover scheduled — Rp50,000 will reduce the limit on May 1, 2026.'
+  ///
+  /// In en, this message translates to:
+  /// **'Rollover scheduled — {overAmt} will reduce the limit on {date}.'**
+  String budgetDetailRolloverScheduled(String overAmt, String date);
+
+  /// No description provided for @budgetDetailContributingTop5.
+  ///
+  /// In en, this message translates to:
+  /// **'CONTRIBUTING · TOP 5'**
+  String get budgetDetailContributingTop5;
+
+  /// No description provided for @budgetDetailDeleteBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete budget'**
+  String get budgetDetailDeleteBudget;
+
+  /// No description provided for @budgetDetailDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete budget?'**
+  String get budgetDetailDeleteTitle;
+
+  /// Delete budget confirmation dialog body
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently deletes the {category} budget. Transactions are kept. This cannot be undone.'**
+  String budgetDetailDeleteBody(String category);
+
+  /// No description provided for @budgetDetailCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get budgetDetailCancel;
+
+  /// No description provided for @budgetDetailDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get budgetDetailDelete;
+
+  /// Error when budget delete fails
+  ///
+  /// In en, this message translates to:
+  /// **'Delete failed: {error}'**
+  String budgetDetailDeleteFailed(String error);
+
+  /// No description provided for @budgetDetailEditLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit limit'**
+  String get budgetDetailEditLimit;
+
+  /// No description provided for @budgetDetailRollOver.
+  ///
+  /// In en, this message translates to:
+  /// **'Roll over'**
+  String get budgetDetailRollOver;
+
+  /// Success message after rolling over excess
+  ///
+  /// In en, this message translates to:
+  /// **'{overAmt} carried into next cycle'**
+  String budgetDetailRollOverSuccess(String overAmt);
+
+  /// Error when budget rollover fails
+  ///
+  /// In en, this message translates to:
+  /// **'Roll over failed: {error}'**
+  String budgetDetailRollOverFailed(String error);
+
+  /// No description provided for @budgetsScreenNewBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'New budget'**
+  String get budgetsScreenNewBudget;
+
+  /// No description provided for @budgetsScreenFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter'**
+  String get budgetsScreenFilter;
+
+  /// No description provided for @budgetsScreenLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Limit'**
+  String get budgetsScreenLimit;
+
+  /// No description provided for @budgetsScreenSpent.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent'**
+  String get budgetsScreenSpent;
+
+  /// No description provided for @budgetsScreenLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Left'**
+  String get budgetsScreenLeft;
+
+  /// No description provided for @budgetsScreenNoBudgets.
+  ///
+  /// In en, this message translates to:
+  /// **'No budgets yet'**
+  String get budgetsScreenNoBudgets;
+
+  /// No description provided for @budgetsScreenEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a monthly limit per category to track spend at a glance.'**
+  String get budgetsScreenEmptyBody;
+
+  /// No description provided for @budgetsScreenCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get budgetsScreenCategories;
+
+  /// No description provided for @budgetsScreenNoLimits.
+  ///
+  /// In en, this message translates to:
+  /// **'No limits set'**
+  String get budgetsScreenNoLimits;
+
+  /// Pace label showing over-budget count
+  ///
+  /// In en, this message translates to:
+  /// **'Day {day} · {days} — {overCount} over'**
+  String budgetsScreenDayOver(int day, int days, int overCount);
+
+  /// Pace label when on track
+  ///
+  /// In en, this message translates to:
+  /// **'Day {day} · {days} — on pace'**
+  String budgetsScreenOnPace(int day, int days);
+
+  /// Pace label when spending too fast
+  ///
+  /// In en, this message translates to:
+  /// **'Day {day} · {days} — over pace'**
+  String budgetsScreenOverPace(int day, int days);
+
+  /// No description provided for @budgetsScreenMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly'**
+  String get budgetsScreenMonthly;
+
+  /// No description provided for @budgetsScreenWeekly.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly'**
+  String get budgetsScreenWeekly;
+
+  /// No description provided for @budgetsScreenCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get budgetsScreenCustom;
+
+  /// No description provided for @accountsScreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts'**
+  String get accountsScreenTitle;
+
+  /// No description provided for @accountsScreenAssets.
+  ///
+  /// In en, this message translates to:
+  /// **'Assets'**
+  String get accountsScreenAssets;
+
+  /// No description provided for @accountsScreenLiabilities.
+  ///
+  /// In en, this message translates to:
+  /// **'Liabilities'**
+  String get accountsScreenLiabilities;
+
+  /// No description provided for @accountsScreenAddAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Add account'**
+  String get accountsScreenAddAccount;
+
+  /// No description provided for @accountsScreenNoAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'No accounts yet'**
+  String get accountsScreenNoAccounts;
+
+  /// No description provided for @accountsScreenEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your cash, bank accounts, and cards to track balances.'**
+  String get accountsScreenEmptyBody;
+
+  /// Account row subtitle, e.g. 'Asset · IDR'
+  ///
+  /// In en, this message translates to:
+  /// **'Asset · {currency}'**
+  String accountsScreenAssetType(String currency);
+
+  /// Account row subtitle, e.g. 'Liability · IDR'
+  ///
+  /// In en, this message translates to:
+  /// **'Liability · {currency}'**
+  String accountsScreenLiabilityType(String currency);
+
+  /// No description provided for @accountFormNewAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'New account'**
+  String get accountFormNewAccount;
+
+  /// No description provided for @accountFormEditAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit account'**
+  String get accountFormEditAccount;
+
+  /// No description provided for @accountFormName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get accountFormName;
+
+  /// No description provided for @accountFormNamePlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. BCA Savings'**
+  String get accountFormNamePlaceholder;
+
+  /// No description provided for @accountFormType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get accountFormType;
+
+  /// No description provided for @accountFormAsset.
+  ///
+  /// In en, this message translates to:
+  /// **'Asset'**
+  String get accountFormAsset;
+
+  /// No description provided for @accountFormLiability.
+  ///
+  /// In en, this message translates to:
+  /// **'Liability'**
+  String get accountFormLiability;
+
+  /// No description provided for @accountFormCurrency.
+  ///
+  /// In en, this message translates to:
+  /// **'Currency'**
+  String get accountFormCurrency;
+
+  /// No description provided for @accountFormCurrentBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Current balance'**
+  String get accountFormCurrentBalance;
+
+  /// No description provided for @accountFormOpeningBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening balance'**
+  String get accountFormOpeningBalance;
+
+  /// No description provided for @accountFormSaveChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Save changes'**
+  String get accountFormSaveChanges;
+
+  /// No description provided for @accountFormCreateAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Create account'**
+  String get accountFormCreateAccount;
+
+  /// No description provided for @accountFormNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Name required'**
+  String get accountFormNameRequired;
+
+  /// No description provided for @accountFormNameAlreadyUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Name already used'**
+  String get accountFormNameAlreadyUsed;
+
+  /// Error when account save fails
+  ///
+  /// In en, this message translates to:
+  /// **'Save failed: {error}'**
+  String accountFormSaveFailed(String error);
+
+  /// No description provided for @accountFormBalanceAdjustment.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance adjustment'**
+  String get accountFormBalanceAdjustment;
+
+  /// No description provided for @accountFormAddAdjustmentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add adjustment transaction?'**
+  String get accountFormAddAdjustmentTitle;
+
+  /// Adjustment confirmation dialog body
+  ///
+  /// In en, this message translates to:
+  /// **'Balance will change from {current} to {target}.\n\nA {txLabel} transaction of {delta} (category \"Adjustment\") will be added to record the change.'**
+  String accountFormAddAdjustmentBody(
+    String current,
+    String target,
+    String txLabel,
+    String delta,
+  );
+
+  /// No description provided for @accountFormAddAdjustment.
+  ///
+  /// In en, this message translates to:
+  /// **'Add adjustment'**
+  String get accountFormAddAdjustment;
+
+  /// No description provided for @accountFormCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get accountFormCancel;
+
+  /// No description provided for @accountFormArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive'**
+  String get accountFormArchive;
+
+  /// No description provided for @accountFormDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get accountFormDelete;
+
+  /// No description provided for @accountFormArchiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive account?'**
+  String get accountFormArchiveTitle;
+
+  /// No description provided for @accountFormArchiveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The account will be hidden but data is kept.'**
+  String get accountFormArchiveBody;
+
+  /// No description provided for @accountFormDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account?'**
+  String get accountFormDeleteTitle;
+
+  /// Delete account confirmation (0 transactions)
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently deletes \"{name}\". This cannot be undone.'**
+  String accountFormDeleteBody(String name);
+
+  /// Delete account confirmation (with transactions affected)
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently deletes \"{name}\" and {affected} transaction{plural} that reference it. This cannot be undone.'**
+  String accountFormDeleteBodyWithTxns(
+    String name,
+    int affected,
+    String plural,
+  );
+
+  /// Error when account delete fails
+  ///
+  /// In en, this message translates to:
+  /// **'Delete failed: {error}'**
+  String accountFormDeleteFailed(String error);
+
+  /// No description provided for @accountFormLiabilityInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'For loans, create a Transfer from this liability account to an asset account.'**
+  String get accountFormLiabilityInfo;
+
+  /// No description provided for @accountFormRecentTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent transactions'**
+  String get accountFormRecentTransactions;
 
   /// No description provided for @tierActive.
   ///

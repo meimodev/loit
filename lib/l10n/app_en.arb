@@ -198,6 +198,23 @@
     }
   },
 
+  "category_dining": "Dining",
+  "category_groceries": "Groceries",
+  "category_transport": "Transport",
+  "category_shopping": "Shopping",
+  "category_entertainment": "Entertainment",
+  "category_utilities": "Utilities",
+  "category_health": "Health",
+  "category_travel": "Travel",
+  "category_other": "Other",
+  "category_income_salary": "Salary",
+  "category_income_bonus": "Bonus",
+  "category_income_freelance": "Freelance",
+  "category_income_investment": "Investment",
+  "category_income_gift": "Gift",
+  "category_income_refund": "Refund",
+  "category_income_other": "Other income",
+
   "txFormNewTransaction": "New transaction",
   "txFormEditTransaction": "Edit transaction",
   "txFormManualEntry": "Manual entry",
@@ -379,6 +396,257 @@
   "quickAddAmount": "AMOUNT",
   "quickAddContinue": "Continue",
   "quickAddRegionSuffix": "{currency} · ID",
+
+  "budgetFormNewBudget": "New budget",
+  "budgetFormEditBudget": "Edit budget",
+  "budgetFormLimit": "LIMIT",
+  "budgetFormSetup": "SETUP",
+  "budgetFormCategory": "Category",
+  "budgetFormPeriod": "Period",
+  "budgetFormResetsOn": "Resets on",
+  "budgetFormAlerts": "ALERTS",
+  "budgetFormAt70": "At 70%",
+  "budgetFormAt100": "At 100%",
+  "budgetFormDailyOverBudget": "Daily over budget",
+  "budgetFormPersonalOnlyInfo": "You'll see this in Personal only. Room budgets are set in each room.",
+  "budgetFormCreateBudget": "Create budget",
+  "budgetFormSaveChanges": "Save changes",
+  "budgetFormInvalidAmount": "Please enter an amount greater than 0",
+  "budgetFormMonday": "Monday",
+  "budgetFormTuesday": "Tuesday",
+  "budgetFormWednesday": "Wednesday",
+  "budgetFormThursday": "Thursday",
+  "budgetFormFriday": "Friday",
+  "budgetFormSaturday": "Saturday",
+  "budgetFormSunday": "Sunday",
+  "budgetFormJanuary": "January",
+  "budgetFormFebruary": "February",
+  "budgetFormMarch": "March",
+  "budgetFormApril": "April",
+  "budgetFormMay": "May",
+  "budgetFormJune": "June",
+  "budgetFormJuly": "July",
+  "budgetFormAugust": "August",
+  "budgetFormSeptember": "September",
+  "budgetFormOctober": "October",
+  "budgetFormNovember": "November",
+  "budgetFormDecember": "December",
+  "budgetFormLastDay": "Last day",
+  "budgetFormDay": "Day {d}",
+  "@budgetFormDay": {
+    "description": "Day of month label, e.g. 'Day 15'",
+    "placeholders": {
+      "d": {"type": "int"}
+    }
+  },
+  "budgetForm1Month": "1 {month}",
+  "@budgetForm1Month": {
+    "description": "Yearly reset label, e.g. '1 January'",
+    "placeholders": {
+      "month": {"type": "String"}
+    }
+  },
+  "budgetFormEvery": "Every",
+  "budgetFormEveryNDays": "Every {n} days",
+  "@budgetFormEveryNDays": {
+    "description": "Custom reset interval, e.g. 'Every 7 days'",
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
+
+  "budgetDetailNotFound": "Budget not found",
+  "budgetDetailDayInCycle": "Day {day} / {total}",
+  "@budgetDetailDayInCycle": {
+    "description": "Day-in-cycle progress, e.g. 'Day 5 / 30'",
+    "placeholders": {
+      "day": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "budgetDetailOverBudget": "{pct}% — {overAmt} over",
+  "@budgetDetailOverBudget": {
+    "description": "Over-budget status, e.g. '120% — Rp50,000 over'",
+    "placeholders": {
+      "pct": {"type": "int"},
+      "overAmt": {"type": "String"}
+    }
+  },
+  "budgetDetailUsed": "{pct}% used",
+  "@budgetDetailUsed": {
+    "description": "On-budget status, e.g. '65% used'",
+    "placeholders": {
+      "pct": {"type": "int"}
+    }
+  },
+  "budgetDetailRolloverScheduled": "Rollover scheduled — {overAmt} will reduce the limit on {date}.",
+  "@budgetDetailRolloverScheduled": {
+    "description": "Rollover info banner, e.g. 'Rollover scheduled — Rp50,000 will reduce the limit on May 1, 2026.'",
+    "placeholders": {
+      "overAmt": {"type": "String"},
+      "date": {"type": "String"}
+    }
+  },
+  "budgetDetailContributingTop5": "CONTRIBUTING · TOP 5",
+  "budgetDetailDeleteBudget": "Delete budget",
+  "budgetDetailDeleteTitle": "Delete budget?",
+  "budgetDetailDeleteBody": "This permanently deletes the {category} budget. Transactions are kept. This cannot be undone.",
+  "@budgetDetailDeleteBody": {
+    "description": "Delete budget confirmation dialog body",
+    "placeholders": {
+      "category": {"type": "String"}
+    }
+  },
+  "budgetDetailCancel": "Cancel",
+  "budgetDetailDelete": "Delete",
+  "budgetDetailDeleteFailed": "Delete failed: {error}",
+  "@budgetDetailDeleteFailed": {
+    "description": "Error when budget delete fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "budgetDetailEditLimit": "Edit limit",
+  "budgetDetailRollOver": "Roll over",
+  "budgetDetailRollOverSuccess": "{overAmt} carried into next cycle",
+  "@budgetDetailRollOverSuccess": {
+    "description": "Success message after rolling over excess",
+    "placeholders": {
+      "overAmt": {"type": "String"}
+    }
+  },
+  "budgetDetailRollOverFailed": "Roll over failed: {error}",
+  "@budgetDetailRollOverFailed": {
+    "description": "Error when budget rollover fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+
+  "budgetsScreenNewBudget": "New budget",
+  "budgetsScreenFilter": "Filter",
+  "budgetsScreenLimit": "Limit",
+  "budgetsScreenSpent": "Spent",
+  "budgetsScreenLeft": "Left",
+  "budgetsScreenNoBudgets": "No budgets yet",
+  "budgetsScreenEmptyBody": "Set a monthly limit per category to track spend at a glance.",
+  "budgetsScreenCategories": "Categories",
+  "budgetsScreenNoLimits": "No limits set",
+  "budgetsScreenDayOver": "Day {day} · {days} — {overCount} over",
+  "@budgetsScreenDayOver": {
+    "description": "Pace label showing over-budget count",
+    "placeholders": {
+      "day": {"type": "int"},
+      "days": {"type": "int"},
+      "overCount": {"type": "int"}
+    }
+  },
+  "budgetsScreenOnPace": "Day {day} · {days} — on pace",
+  "@budgetsScreenOnPace": {
+    "description": "Pace label when on track",
+    "placeholders": {
+      "day": {"type": "int"},
+      "days": {"type": "int"}
+    }
+  },
+  "budgetsScreenOverPace": "Day {day} · {days} — over pace",
+  "@budgetsScreenOverPace": {
+    "description": "Pace label when spending too fast",
+    "placeholders": {
+      "day": {"type": "int"},
+      "days": {"type": "int"}
+    }
+  },
+  "budgetsScreenMonthly": "Monthly",
+  "budgetsScreenWeekly": "Weekly",
+  "budgetsScreenCustom": "Custom",
+
+  "accountsScreenTitle": "Accounts",
+  "accountsScreenAssets": "Assets",
+  "accountsScreenLiabilities": "Liabilities",
+  "accountsScreenAddAccount": "Add account",
+  "accountsScreenNoAccounts": "No accounts yet",
+  "accountsScreenEmptyBody": "Add your cash, bank accounts, and cards to track balances.",
+  "accountsScreenAssetType": "Asset · {currency}",
+  "@accountsScreenAssetType": {
+    "description": "Account row subtitle, e.g. 'Asset · IDR'",
+    "placeholders": {
+      "currency": {"type": "String"}
+    }
+  },
+  "accountsScreenLiabilityType": "Liability · {currency}",
+  "@accountsScreenLiabilityType": {
+    "description": "Account row subtitle, e.g. 'Liability · IDR'",
+    "placeholders": {
+      "currency": {"type": "String"}
+    }
+  },
+
+  "accountFormNewAccount": "New account",
+  "accountFormEditAccount": "Edit account",
+  "accountFormName": "Name",
+  "accountFormNamePlaceholder": "e.g. BCA Savings",
+  "accountFormType": "Type",
+  "accountFormAsset": "Asset",
+  "accountFormLiability": "Liability",
+  "accountFormCurrency": "Currency",
+  "accountFormCurrentBalance": "Current balance",
+  "accountFormOpeningBalance": "Opening balance",
+  "accountFormSaveChanges": "Save changes",
+  "accountFormCreateAccount": "Create account",
+  "accountFormNameRequired": "Name required",
+  "accountFormNameAlreadyUsed": "Name already used",
+  "accountFormSaveFailed": "Save failed: {error}",
+  "@accountFormSaveFailed": {
+    "description": "Error when account save fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "accountFormBalanceAdjustment": "Balance adjustment",
+  "accountFormAddAdjustmentTitle": "Add adjustment transaction?",
+  "accountFormAddAdjustmentBody": "Balance will change from {current} to {target}.\n\nA {txLabel} transaction of {delta} (category \"Adjustment\") will be added to record the change.",
+  "@accountFormAddAdjustmentBody": {
+    "description": "Adjustment confirmation dialog body",
+    "placeholders": {
+      "current": {"type": "String"},
+      "target": {"type": "String"},
+      "txLabel": {"type": "String"},
+      "delta": {"type": "String"}
+    }
+  },
+  "accountFormAddAdjustment": "Add adjustment",
+  "accountFormCancel": "Cancel",
+  "accountFormArchive": "Archive",
+  "accountFormDelete": "Delete",
+  "accountFormArchiveTitle": "Archive account?",
+  "accountFormArchiveBody": "The account will be hidden but data is kept.",
+  "accountFormDeleteTitle": "Delete account?",
+  "accountFormDeleteBody": "This permanently deletes \"{name}\". This cannot be undone.",
+  "@accountFormDeleteBody": {
+    "description": "Delete account confirmation (0 transactions)",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "accountFormDeleteBodyWithTxns": "This permanently deletes \"{name}\" and {affected} transaction{plural} that reference it. This cannot be undone.",
+  "@accountFormDeleteBodyWithTxns": {
+    "description": "Delete account confirmation (with transactions affected)",
+    "placeholders": {
+      "name": {"type": "String"},
+      "affected": {"type": "int"},
+      "plural": {"type": "String", "example": "s"}
+    }
+  },
+  "accountFormDeleteFailed": "Delete failed: {error}",
+  "@accountFormDeleteFailed": {
+    "description": "Error when account delete fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "accountFormLiabilityInfo": "For loans, create a Transfer from this liability account to an asset account.",
+  "accountFormRecentTransactions": "Recent transactions",
 
   "tierActive": "ACTIVE"
 }

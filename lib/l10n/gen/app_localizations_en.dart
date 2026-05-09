@@ -458,6 +458,54 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get category_dining => 'Dining';
+
+  @override
+  String get category_groceries => 'Groceries';
+
+  @override
+  String get category_transport => 'Transport';
+
+  @override
+  String get category_shopping => 'Shopping';
+
+  @override
+  String get category_entertainment => 'Entertainment';
+
+  @override
+  String get category_utilities => 'Utilities';
+
+  @override
+  String get category_health => 'Health';
+
+  @override
+  String get category_travel => 'Travel';
+
+  @override
+  String get category_other => 'Other';
+
+  @override
+  String get category_income_salary => 'Salary';
+
+  @override
+  String get category_income_bonus => 'Bonus';
+
+  @override
+  String get category_income_freelance => 'Freelance';
+
+  @override
+  String get category_income_investment => 'Investment';
+
+  @override
+  String get category_income_gift => 'Gift';
+
+  @override
+  String get category_income_refund => 'Refund';
+
+  @override
+  String get category_income_other => 'Other income';
+
+  @override
   String get txFormNewTransaction => 'New transaction';
 
   @override
@@ -860,6 +908,386 @@ class AppLocalizationsEn extends AppLocalizations {
   String quickAddRegionSuffix(Object currency) {
     return '$currency · ID';
   }
+
+  @override
+  String get budgetFormNewBudget => 'New budget';
+
+  @override
+  String get budgetFormEditBudget => 'Edit budget';
+
+  @override
+  String get budgetFormLimit => 'LIMIT';
+
+  @override
+  String get budgetFormSetup => 'SETUP';
+
+  @override
+  String get budgetFormCategory => 'Category';
+
+  @override
+  String get budgetFormPeriod => 'Period';
+
+  @override
+  String get budgetFormResetsOn => 'Resets on';
+
+  @override
+  String get budgetFormAlerts => 'ALERTS';
+
+  @override
+  String get budgetFormAt70 => 'At 70%';
+
+  @override
+  String get budgetFormAt100 => 'At 100%';
+
+  @override
+  String get budgetFormDailyOverBudget => 'Daily over budget';
+
+  @override
+  String get budgetFormPersonalOnlyInfo =>
+      'You\'ll see this in Personal only. Room budgets are set in each room.';
+
+  @override
+  String get budgetFormCreateBudget => 'Create budget';
+
+  @override
+  String get budgetFormSaveChanges => 'Save changes';
+
+  @override
+  String get budgetFormInvalidAmount => 'Please enter an amount greater than 0';
+
+  @override
+  String get budgetFormMonday => 'Monday';
+
+  @override
+  String get budgetFormTuesday => 'Tuesday';
+
+  @override
+  String get budgetFormWednesday => 'Wednesday';
+
+  @override
+  String get budgetFormThursday => 'Thursday';
+
+  @override
+  String get budgetFormFriday => 'Friday';
+
+  @override
+  String get budgetFormSaturday => 'Saturday';
+
+  @override
+  String get budgetFormSunday => 'Sunday';
+
+  @override
+  String get budgetFormJanuary => 'January';
+
+  @override
+  String get budgetFormFebruary => 'February';
+
+  @override
+  String get budgetFormMarch => 'March';
+
+  @override
+  String get budgetFormApril => 'April';
+
+  @override
+  String get budgetFormMay => 'May';
+
+  @override
+  String get budgetFormJune => 'June';
+
+  @override
+  String get budgetFormJuly => 'July';
+
+  @override
+  String get budgetFormAugust => 'August';
+
+  @override
+  String get budgetFormSeptember => 'September';
+
+  @override
+  String get budgetFormOctober => 'October';
+
+  @override
+  String get budgetFormNovember => 'November';
+
+  @override
+  String get budgetFormDecember => 'December';
+
+  @override
+  String get budgetFormLastDay => 'Last day';
+
+  @override
+  String budgetFormDay(int d) {
+    return 'Day $d';
+  }
+
+  @override
+  String budgetForm1Month(String month) {
+    return '1 $month';
+  }
+
+  @override
+  String get budgetFormEvery => 'Every';
+
+  @override
+  String budgetFormEveryNDays(int n) {
+    return 'Every $n days';
+  }
+
+  @override
+  String get budgetDetailNotFound => 'Budget not found';
+
+  @override
+  String budgetDetailDayInCycle(int day, int total) {
+    return 'Day $day / $total';
+  }
+
+  @override
+  String budgetDetailOverBudget(int pct, String overAmt) {
+    return '$pct% — $overAmt over';
+  }
+
+  @override
+  String budgetDetailUsed(int pct) {
+    return '$pct% used';
+  }
+
+  @override
+  String budgetDetailRolloverScheduled(String overAmt, String date) {
+    return 'Rollover scheduled — $overAmt will reduce the limit on $date.';
+  }
+
+  @override
+  String get budgetDetailContributingTop5 => 'CONTRIBUTING · TOP 5';
+
+  @override
+  String get budgetDetailDeleteBudget => 'Delete budget';
+
+  @override
+  String get budgetDetailDeleteTitle => 'Delete budget?';
+
+  @override
+  String budgetDetailDeleteBody(String category) {
+    return 'This permanently deletes the $category budget. Transactions are kept. This cannot be undone.';
+  }
+
+  @override
+  String get budgetDetailCancel => 'Cancel';
+
+  @override
+  String get budgetDetailDelete => 'Delete';
+
+  @override
+  String budgetDetailDeleteFailed(String error) {
+    return 'Delete failed: $error';
+  }
+
+  @override
+  String get budgetDetailEditLimit => 'Edit limit';
+
+  @override
+  String get budgetDetailRollOver => 'Roll over';
+
+  @override
+  String budgetDetailRollOverSuccess(String overAmt) {
+    return '$overAmt carried into next cycle';
+  }
+
+  @override
+  String budgetDetailRollOverFailed(String error) {
+    return 'Roll over failed: $error';
+  }
+
+  @override
+  String get budgetsScreenNewBudget => 'New budget';
+
+  @override
+  String get budgetsScreenFilter => 'Filter';
+
+  @override
+  String get budgetsScreenLimit => 'Limit';
+
+  @override
+  String get budgetsScreenSpent => 'Spent';
+
+  @override
+  String get budgetsScreenLeft => 'Left';
+
+  @override
+  String get budgetsScreenNoBudgets => 'No budgets yet';
+
+  @override
+  String get budgetsScreenEmptyBody =>
+      'Set a monthly limit per category to track spend at a glance.';
+
+  @override
+  String get budgetsScreenCategories => 'Categories';
+
+  @override
+  String get budgetsScreenNoLimits => 'No limits set';
+
+  @override
+  String budgetsScreenDayOver(int day, int days, int overCount) {
+    return 'Day $day · $days — $overCount over';
+  }
+
+  @override
+  String budgetsScreenOnPace(int day, int days) {
+    return 'Day $day · $days — on pace';
+  }
+
+  @override
+  String budgetsScreenOverPace(int day, int days) {
+    return 'Day $day · $days — over pace';
+  }
+
+  @override
+  String get budgetsScreenMonthly => 'Monthly';
+
+  @override
+  String get budgetsScreenWeekly => 'Weekly';
+
+  @override
+  String get budgetsScreenCustom => 'Custom';
+
+  @override
+  String get accountsScreenTitle => 'Accounts';
+
+  @override
+  String get accountsScreenAssets => 'Assets';
+
+  @override
+  String get accountsScreenLiabilities => 'Liabilities';
+
+  @override
+  String get accountsScreenAddAccount => 'Add account';
+
+  @override
+  String get accountsScreenNoAccounts => 'No accounts yet';
+
+  @override
+  String get accountsScreenEmptyBody =>
+      'Add your cash, bank accounts, and cards to track balances.';
+
+  @override
+  String accountsScreenAssetType(String currency) {
+    return 'Asset · $currency';
+  }
+
+  @override
+  String accountsScreenLiabilityType(String currency) {
+    return 'Liability · $currency';
+  }
+
+  @override
+  String get accountFormNewAccount => 'New account';
+
+  @override
+  String get accountFormEditAccount => 'Edit account';
+
+  @override
+  String get accountFormName => 'Name';
+
+  @override
+  String get accountFormNamePlaceholder => 'e.g. BCA Savings';
+
+  @override
+  String get accountFormType => 'Type';
+
+  @override
+  String get accountFormAsset => 'Asset';
+
+  @override
+  String get accountFormLiability => 'Liability';
+
+  @override
+  String get accountFormCurrency => 'Currency';
+
+  @override
+  String get accountFormCurrentBalance => 'Current balance';
+
+  @override
+  String get accountFormOpeningBalance => 'Opening balance';
+
+  @override
+  String get accountFormSaveChanges => 'Save changes';
+
+  @override
+  String get accountFormCreateAccount => 'Create account';
+
+  @override
+  String get accountFormNameRequired => 'Name required';
+
+  @override
+  String get accountFormNameAlreadyUsed => 'Name already used';
+
+  @override
+  String accountFormSaveFailed(String error) {
+    return 'Save failed: $error';
+  }
+
+  @override
+  String get accountFormBalanceAdjustment => 'Balance adjustment';
+
+  @override
+  String get accountFormAddAdjustmentTitle => 'Add adjustment transaction?';
+
+  @override
+  String accountFormAddAdjustmentBody(
+    String current,
+    String target,
+    String txLabel,
+    String delta,
+  ) {
+    return 'Balance will change from $current to $target.\n\nA $txLabel transaction of $delta (category \"Adjustment\") will be added to record the change.';
+  }
+
+  @override
+  String get accountFormAddAdjustment => 'Add adjustment';
+
+  @override
+  String get accountFormCancel => 'Cancel';
+
+  @override
+  String get accountFormArchive => 'Archive';
+
+  @override
+  String get accountFormDelete => 'Delete';
+
+  @override
+  String get accountFormArchiveTitle => 'Archive account?';
+
+  @override
+  String get accountFormArchiveBody =>
+      'The account will be hidden but data is kept.';
+
+  @override
+  String get accountFormDeleteTitle => 'Delete account?';
+
+  @override
+  String accountFormDeleteBody(String name) {
+    return 'This permanently deletes \"$name\". This cannot be undone.';
+  }
+
+  @override
+  String accountFormDeleteBodyWithTxns(
+    String name,
+    int affected,
+    String plural,
+  ) {
+    return 'This permanently deletes \"$name\" and $affected transaction$plural that reference it. This cannot be undone.';
+  }
+
+  @override
+  String accountFormDeleteFailed(String error) {
+    return 'Delete failed: $error';
+  }
+
+  @override
+  String get accountFormLiabilityInfo =>
+      'For loans, create a Transfer from this liability account to an asset account.';
+
+  @override
+  String get accountFormRecentTransactions => 'Recent transactions';
 
   @override
   String get tierActive => 'ACTIVE';

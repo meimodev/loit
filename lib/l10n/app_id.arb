@@ -198,6 +198,23 @@
     }
   },
 
+  "category_dining": "Makanan",
+  "category_groceries": "Belanja",
+  "category_transport": "Transportasi",
+  "category_shopping": "Belanja",
+  "category_entertainment": "Hiburan",
+  "category_utilities": "Utilitas",
+  "category_health": "Kesehatan",
+  "category_travel": "Perjalanan",
+  "category_other": "Lainnya",
+  "category_income_salary": "Gaji",
+  "category_income_bonus": "Bonus",
+  "category_income_freelance": "Freelance",
+  "category_income_investment": "Investasi",
+  "category_income_gift": "Hadiah",
+  "category_income_refund": "Pengembalian",
+  "category_income_other": "Pemasukan lain",
+
   "txFormNewTransaction": "Transaksi baru",
   "txFormEditTransaction": "Edit transaksi",
   "txFormManualEntry": "Entri manual",
@@ -379,6 +396,257 @@
   "quickAddAmount": "JUMLAH",
   "quickAddContinue": "Lanjutkan",
   "quickAddRegionSuffix": "{currency} · ID",
+
+  "budgetFormNewBudget": "Anggaran baru",
+  "budgetFormEditBudget": "Edit anggaran",
+  "budgetFormLimit": "BATAS",
+  "budgetFormSetup": "PENGATURAN",
+  "budgetFormCategory": "Kategori",
+  "budgetFormPeriod": "Periode",
+  "budgetFormResetsOn": "Diatur ulang pada",
+  "budgetFormAlerts": "PERINGATAN",
+  "budgetFormAt70": "Pada 70%",
+  "budgetFormAt100": "Pada 100%",
+  "budgetFormDailyOverBudget": "Harian melebihi",
+  "budgetFormPersonalOnlyInfo": "Ini hanya terlihat di Pribadi. Anggaran ruangan diatur di masing-masing ruangan.",
+  "budgetFormCreateBudget": "Buat anggaran",
+  "budgetFormSaveChanges": "Simpan perubahan",
+  "budgetFormInvalidAmount": "Masukkan jumlah lebih dari 0",
+  "budgetFormMonday": "Senin",
+  "budgetFormTuesday": "Selasa",
+  "budgetFormWednesday": "Rabu",
+  "budgetFormThursday": "Kamis",
+  "budgetFormFriday": "Jumat",
+  "budgetFormSaturday": "Sabtu",
+  "budgetFormSunday": "Minggu",
+  "budgetFormJanuary": "Januari",
+  "budgetFormFebruary": "Februari",
+  "budgetFormMarch": "Maret",
+  "budgetFormApril": "April",
+  "budgetFormMay": "Mei",
+  "budgetFormJune": "Juni",
+  "budgetFormJuly": "Juli",
+  "budgetFormAugust": "Agustus",
+  "budgetFormSeptember": "September",
+  "budgetFormOctober": "Oktober",
+  "budgetFormNovember": "November",
+  "budgetFormDecember": "Desember",
+  "budgetFormLastDay": "Hari terakhir",
+  "budgetFormDay": "Hari ke-{d}",
+  "@budgetFormDay": {
+    "description": "Day of month label, e.g. 'Day 15'",
+    "placeholders": {
+      "d": {"type": "int"}
+    }
+  },
+  "budgetForm1Month": "1 {month}",
+  "@budgetForm1Month": {
+    "description": "Yearly reset label, e.g. '1 January'",
+    "placeholders": {
+      "month": {"type": "String"}
+    }
+  },
+  "budgetFormEvery": "Setiap",
+  "budgetFormEveryNDays": "Setiap {n} hari",
+  "@budgetFormEveryNDays": {
+    "description": "Custom reset interval, e.g. 'Every 7 days'",
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
+
+  "budgetDetailNotFound": "Anggaran tidak ditemukan",
+  "budgetDetailDayInCycle": "Hari ke-{day} / {total}",
+  "@budgetDetailDayInCycle": {
+    "description": "Day-in-cycle progress, e.g. 'Day 5 / 30'",
+    "placeholders": {
+      "day": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "budgetDetailOverBudget": "{pct}% — {overAmt} melebihi",
+  "@budgetDetailOverBudget": {
+    "description": "Over-budget status, e.g. '120% — Rp50,000 over'",
+    "placeholders": {
+      "pct": {"type": "int"},
+      "overAmt": {"type": "String"}
+    }
+  },
+  "budgetDetailUsed": "{pct}% digunakan",
+  "@budgetDetailUsed": {
+    "description": "On-budget status, e.g. '65% used'",
+    "placeholders": {
+      "pct": {"type": "int"}
+    }
+  },
+  "budgetDetailRolloverScheduled": "Rollover dijadwalkan — {overAmt} akan mengurangi batas pada {date}.",
+  "@budgetDetailRolloverScheduled": {
+    "description": "Rollover info banner, e.g. 'Rollover scheduled — Rp50,000 will reduce the limit on May 1, 2026.'",
+    "placeholders": {
+      "overAmt": {"type": "String"},
+      "date": {"type": "String"}
+    }
+  },
+  "budgetDetailContributingTop5": "KONTRIBUSI · 5 TERATAS",
+  "budgetDetailDeleteBudget": "Hapus anggaran",
+  "budgetDetailDeleteTitle": "Hapus anggaran?",
+  "budgetDetailDeleteBody": "Ini menghapus permanen anggaran {category}. Transaksi tetap ada. Ini tidak dapat dibatalkan.",
+  "@budgetDetailDeleteBody": {
+    "description": "Delete budget confirmation dialog body",
+    "placeholders": {
+      "category": {"type": "String"}
+    }
+  },
+  "budgetDetailCancel": "Batal",
+  "budgetDetailDelete": "Hapus",
+  "budgetDetailDeleteFailed": "Gagal menghapus: {error}",
+  "@budgetDetailDeleteFailed": {
+    "description": "Error when budget delete fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "budgetDetailEditLimit": "Edit batas",
+  "budgetDetailRollOver": "Roll over",
+  "budgetDetailRollOverSuccess": "{overAmt} dibawa ke siklus berikutnya",
+  "@budgetDetailRollOverSuccess": {
+    "description": "Success message after rolling over excess",
+    "placeholders": {
+      "overAmt": {"type": "String"}
+    }
+  },
+  "budgetDetailRollOverFailed": "Gagal roll over: {error}",
+  "@budgetDetailRollOverFailed": {
+    "description": "Error when budget rollover fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+
+  "budgetsScreenNewBudget": "Anggaran baru",
+  "budgetsScreenFilter": "Filter",
+  "budgetsScreenLimit": "Batas",
+  "budgetsScreenSpent": "Dibelanjakan",
+  "budgetsScreenLeft": "Tersisa",
+  "budgetsScreenNoBudgets": "Belum ada anggaran",
+  "budgetsScreenEmptyBody": "Tetapkan batas bulanan per kategori untuk melacak pengeluaran sekilas.",
+  "budgetsScreenCategories": "Kategori",
+  "budgetsScreenNoLimits": "Belum ada batas",
+  "budgetsScreenDayOver": "Hari ke-{day} · {days} — {overCount} melebihi",
+  "@budgetsScreenDayOver": {
+    "description": "Pace label showing over-budget count",
+    "placeholders": {
+      "day": {"type": "int"},
+      "days": {"type": "int"},
+      "overCount": {"type": "int"}
+    }
+  },
+  "budgetsScreenOnPace": "Hari ke-{day} · {days} — sesuai",
+  "@budgetsScreenOnPace": {
+    "description": "Pace label when on track",
+    "placeholders": {
+      "day": {"type": "int"},
+      "days": {"type": "int"}
+    }
+  },
+  "budgetsScreenOverPace": "Hari ke-{day} · {days} — melebihi laju",
+  "@budgetsScreenOverPace": {
+    "description": "Pace label when spending too fast",
+    "placeholders": {
+      "day": {"type": "int"},
+      "days": {"type": "int"}
+    }
+  },
+  "budgetsScreenMonthly": "Bulanan",
+  "budgetsScreenWeekly": "Mingguan",
+  "budgetsScreenCustom": "Kustom",
+
+  "accountsScreenTitle": "Akun",
+  "accountsScreenAssets": "Aset",
+  "accountsScreenLiabilities": "Liabilitas",
+  "accountsScreenAddAccount": "Tambah akun",
+  "accountsScreenNoAccounts": "Belum ada akun",
+  "accountsScreenEmptyBody": "Tambahkan uang tunai, rekening bank, dan kartu untuk melacak saldo.",
+  "accountsScreenAssetType": "Aset · {currency}",
+  "@accountsScreenAssetType": {
+    "description": "Account row subtitle, e.g. 'Asset · IDR'",
+    "placeholders": {
+      "currency": {"type": "String"}
+    }
+  },
+  "accountsScreenLiabilityType": "Liabilitas · {currency}",
+  "@accountsScreenLiabilityType": {
+    "description": "Account row subtitle, e.g. 'Liability · IDR'",
+    "placeholders": {
+      "currency": {"type": "String"}
+    }
+  },
+
+  "accountFormNewAccount": "Akun baru",
+  "accountFormEditAccount": "Edit akun",
+  "accountFormName": "Nama",
+  "accountFormNamePlaceholder": "mis. BCA Tabungan",
+  "accountFormType": "Tipe",
+  "accountFormAsset": "Aset",
+  "accountFormLiability": "Liabilitas",
+  "accountFormCurrency": "Mata uang",
+  "accountFormCurrentBalance": "Saldo saat ini",
+  "accountFormOpeningBalance": "Saldo awal",
+  "accountFormSaveChanges": "Simpan perubahan",
+  "accountFormCreateAccount": "Buat akun",
+  "accountFormNameRequired": "Nama diperlukan",
+  "accountFormNameAlreadyUsed": "Nama sudah digunakan",
+  "accountFormSaveFailed": "Gagal menyimpan: {error}",
+  "@accountFormSaveFailed": {
+    "description": "Error when account save fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "accountFormBalanceAdjustment": "Penyesuaian saldo",
+  "accountFormAddAdjustmentTitle": "Tambah transaksi penyesuaian?",
+  "accountFormAddAdjustmentBody": "Saldo akan berubah dari {current} menjadi {target}.\n\nTransaksi {txLabel} sebesar {delta} (kategori \"Penyesuaian\") akan ditambahkan untuk mencatat perubahan.",
+  "@accountFormAddAdjustmentBody": {
+    "description": "Adjustment confirmation dialog body",
+    "placeholders": {
+      "current": {"type": "String"},
+      "target": {"type": "String"},
+      "txLabel": {"type": "String"},
+      "delta": {"type": "String"}
+    }
+  },
+  "accountFormAddAdjustment": "Tambah penyesuaian",
+  "accountFormCancel": "Batal",
+  "accountFormArchive": "Arsipkan",
+  "accountFormDelete": "Hapus",
+  "accountFormArchiveTitle": "Arsipkan akun?",
+  "accountFormArchiveBody": "Akun akan disembunyikan tetapi data tetap disimpan.",
+  "accountFormDeleteTitle": "Hapus akun?",
+  "accountFormDeleteBody": "Ini menghapus permanen \"{name}\". Ini tidak dapat dibatalkan.",
+  "@accountFormDeleteBody": {
+    "description": "Delete account confirmation (0 transactions)",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "accountFormDeleteBodyWithTxns": "Ini menghapus permanen \"{name}\" dan {affected} transaksi yang merujuknya. Ini tidak dapat dibatalkan.",
+  "@accountFormDeleteBodyWithTxns": {
+    "description": "Delete account confirmation (with transactions affected)",
+    "placeholders": {
+      "name": {"type": "String"},
+      "affected": {"type": "int"},
+      "plural": {"type": "String", "example": "s"}
+    }
+  },
+  "accountFormDeleteFailed": "Gagal menghapus: {error}",
+  "@accountFormDeleteFailed": {
+    "description": "Error when account delete fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "accountFormLiabilityInfo": "Untuk pinjaman, buat Transfer dari akun liabilitas ini ke akun aset.",
+  "accountFormRecentTransactions": "Transaksi terbaru",
 
   "tierActive": "AKTIF"
 }

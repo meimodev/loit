@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/loit_categories.dart';
+import '../../core/config/categories.dart';
 import 'auth_providers.dart';
+import 'preferences_provider.dart';
 
 enum CategorySource { personal, room }
 
@@ -350,13 +352,38 @@ class CategoryLabelKey {
 
 final categoryLabelProvider =
     Provider.family<String, CategoryLabelKey>((ref, k) {
-  if (k.key == null) return LoitCategories.defaultOther.label;
+  if (k.key == null) return _localizeDefault(ref, 'other');
   final cats = ref.watch(userCategoriesProvider).value ?? const <UserCategory>[];
   final cat = cats.where((c) => c.key == k.key).firstOrNull;
   if (cat == null) {
-    return ref
-        .watch(categoryStyleProvider(k.key))
-        .label;
+    return _localizeDefault(ref, k.key!);
   }
   return cat.displayLabel(activeRoomId: k.activeRoomId);
 });
+
+String _localizeDefault(Ref ref, String key) {
+  final locale = ref.watch(localePrefProvider);
+  if (locale?.languageCode == 'id' && CategoryDefaults.isDefault(key)) {
+    return _idLabels[key] ?? key;
+  }
+  return ref.watch(categoryStyleProvider(key)).label;
+}
+
+const _idLabels = <String, String>{
+  'dining': 'Makanan',
+  'groceries': 'Belanja',
+  'transport': 'Transportasi',
+  'shopping': 'Belanja',
+  'entertainment': 'Hiburan',
+  'utilities': 'Utilitas',
+  'health': 'Kesehatan',
+  'travel': 'Perjalanan',
+  'other': 'Lainnya',
+  'income_salary': 'Gaji',
+  'income_bonus': 'Bonus',
+  'income_freelance': 'Freelance',
+  'income_investment': 'Investasi',
+  'income_gift': 'Hadiah',
+  'income_refund': 'Pengembalian',
+  'income_other': 'Pemasukan lain',
+};

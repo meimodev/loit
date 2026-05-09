@@ -4,14 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/config/categories.dart';
+import '../../core/services/currency_service.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/accounts_provider.dart';
+import '../../shared/providers/services_providers.dart';
+import '../../shared/providers/supported_currencies_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/utils/amount_input.dart';
+import '../../shared/widgets/currency_picker_sheet.dart';
 import '../../shared/widgets/loit_input.dart';
 import '../../shared/widgets/loit_tx_row.dart';
 import '../transactions/notes_breakdown.dart';
@@ -93,7 +96,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
       // running ledger stays consistent. Liability balance is read-only in
       // the form, and kind switches fall back to the legacy direct write.
       if (_kind == AccountKind.asset && kindUnchanged) {
-        final balances = ref.read(accountBalancesProvider);
+        final balances = ref.read(accountNativeBalancesProvider);
         final currentBalance = balances[old.id] ?? old.initialBalance;
         final delta = raw - currentBalance;
         if (delta.abs() > 0.005) {
@@ -112,11 +115,19 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
             'currency': _currency,
           });
           final signedAmount = delta; // >0 income, <0 expense
+          final svc = ref.read(currencyServiceProvider);
+          final rates = await svc.loadUsdBaseRates();
+          final supported = ref.read(supportedCurrenciesProvider).value;
+          final codes = supported?.codes ?? rates.keys.toList(growable: false);
+          final fxSnapshot = CurrencyService.buildSnapshot(
+            from: _currency,
+            rates: rates,
+            supported: codes,
+          );
           await ref.read(transactionsProvider.notifier).addTransaction({
             'amount': signedAmount,
             'currency': _currency,
-            'amount_home_currency': signedAmount,
-            'fx_rate': 1.0,
+            'fx_snapshot': fxSnapshot,
             'type': delta > 0 ? 'income' : 'expense',
             'account_id': old.id,
             'category': 'adjustment',
@@ -255,25 +266,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
   }
 
   Future<void> _pickCurrency() async {
-    final picked = await showModalBottomSheet<String>(
-      context: context,
-      builder: (_) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            for (final c in kCommonCurrencies)
-              ListTile(
-                title: Text(c),
-                trailing: c == _currency
-                    ? Icon(Icons.check_rounded,
-                        color: context.loitColors.brand)
-                    : null,
-                onTap: () => Navigator.pop(context, c),
-              ),
-          ],
-        ),
-      ),
-    );
+    final picked = await pickCurrency(context, selected: _currency);
     if (picked != null && picked != _currency) {
       setState(() => _currency = picked);
     }
@@ -284,7 +277,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
     final c = context.loitColors;
     final isEdit = widget.account != null;
     if (isEdit) {
-      final balances = ref.watch(accountBalancesProvider);
+      final balances = ref.watch(accountNativeBalancesProvider);
       final balance = balances[widget.account!.id] ?? 0;
       // Liability balance is read-only — always reflect computed value.
       // Asset balance seeds once with computed value; further updates pause
@@ -376,6 +369,16 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
             label: isEdit ? 'Current balance' : 'Opening balance',
             enabled: _kind != AccountKind.liability,
             placeholder: '0',
+            leading: Padding(
+              padding: const EdgeInsets.only(right: LoitSpacing.s2),
+              child: Text(
+                _currency,
+                style: LoitTypography.bodyM.copyWith(
+                  color: c.contentSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
@@ -449,6 +452,8 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
 
     if (top10.isEmpty) return const SizedBox.shrink();
 
+    final usdRates = ref.watch(usdBaseRatesProvider).value;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -462,13 +467,37 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
         ),
         const SizedBox(height: LoitSpacing.s3),
         for (int i = 0; i < top10.length; i++) ...[
-          _txRow(top10[i], accountMap, i != top10.length - 1),
+          _txRow(top10[i], accountMap, usdRates, i != top10.length - 1),
         ],
       ],
     );
   }
 
-  Widget _txRow(Txn t, Map<String, Account> accountMap, bool showDivider) {
+  double? _convertTo(Txn t, String target, Map<String, double>? usdRates) {
+    if (t.currency == target) return t.amount;
+    final snap = t.fxSnapshot[target];
+    if (snap != null) return t.amount * snap;
+    if (usdRates != null) {
+      try {
+        final r = CurrencyService.convert(
+          from: t.currency,
+          to: target,
+          rates: usdRates,
+        );
+        return t.amount * r;
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  Widget _txRow(
+    Txn t,
+    Map<String, Account> accountMap,
+    Map<String, double>? usdRates,
+    bool showDivider,
+  ) {
     final fromName = t.accountId != null ? accountMap[t.accountId]?.name : null;
     final toName = t.toAccountId != null ? accountMap[t.toAccountId]?.name : null;
     final accountLabel = t.isTransfer && fromName != null && toName != null
@@ -476,10 +505,16 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
         : fromName;
     final time = DateFormat.jm().format(t.createdAt.toLocal());
     final cat = (t.category ?? 'other');
+    final acc = widget.account!.currency;
+    final accAmount = t.currency != acc ? _convertTo(t, acc, usdRates) : null;
+    final subAmount = accAmount != null
+        ? '≈ ${formatMoney(accAmount, acc)}'
+        : null;
 
     return LoitTxRow(
       title: breakdownTitle(t.notes),
       amount: formatMoney(t.amount, t.currency),
+      subAmount: subAmount,
       categoryKey: t.isTransfer ? null : t.category,
       subtitle: '${_capitalize(cat)} · $time',
       isIncome: t.isIncome,

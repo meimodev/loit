@@ -6,12 +6,16 @@ import 'auth_providers.dart';
 import 'services_providers.dart';
 
 /// Transaction row shape used by UI. Kept as a typed view over Map.
+///
+/// `fxSnapshot` is a frozen map of rates from this txn's `currency` to every
+/// supported currency, computed at create time. Display logic uses [amountIn]
+/// to convert without hitting the network — even when the user changes home
+/// currency or an account's currency.
 class Txn {
   final String? id;
   final double amount;
   final String currency;
-  final double? amountHome;
-  final double? fxRate;
+  final Map<String, double> fxSnapshot;
   final String? category;
   final String? notes;
   final String? receiptUrl;
@@ -28,8 +32,7 @@ class Txn {
     required this.id,
     required this.amount,
     required this.currency,
-    required this.amountHome,
-    required this.fxRate,
+    required this.fxSnapshot,
     required this.category,
     required this.notes,
     required this.receiptUrl,
@@ -45,7 +48,6 @@ class Txn {
 
   factory Txn.fromRow(Map<String, dynamic> r) {
     final rawType = r['type'] as String?;
-    // Backward-compatible: derive type from amount sign when column absent.
     final String type;
     if (rawType != null && (rawType == 'income' || rawType == 'expense' || rawType == 'transfer')) {
       type = rawType;
@@ -53,12 +55,19 @@ class Txn {
       final amt = ((r['amount'] as num?) ?? 0).toDouble();
       type = amt < 0 ? 'expense' : 'income';
     }
+    final rawSnapshot = r['fx_snapshot'];
+    final snapshot = <String, double>{};
+    if (rawSnapshot is Map) {
+      for (final entry in rawSnapshot.entries) {
+        final v = entry.value;
+        if (v is num) snapshot[entry.key as String] = v.toDouble();
+      }
+    }
     return Txn(
       id: r['id'] as String?,
       amount: ((r['amount'] as num?) ?? 0).toDouble(),
       currency: (r['currency'] as String?) ?? 'IDR',
-      amountHome: (r['amount_home_currency'] as num?)?.toDouble(),
-      fxRate: (r['fx_rate'] as num?)?.toDouble(),
+      fxSnapshot: snapshot,
       category: r['category'] as String?,
       notes: r['notes'] as String?,
       receiptUrl: r['receipt_url'] as String?,
@@ -78,13 +87,20 @@ class Txn {
   }
 
   bool get isTransfer => type == 'transfer';
-
-  /// Income transactions: type == 'income' (or legacy negative amount).
   bool get isIncome => type == 'income';
-
-  /// Absolute amount for display.
   double get absAmount => amount.abs();
-  double get absAmountHome => (amountHome ?? amount).abs();
+
+  /// Signed amount converted to [target] currency via the frozen snapshot.
+  /// Falls back to raw [amount] if the target is missing from the snapshot
+  /// (legacy rows; should not happen for txns created post-migration).
+  double amountIn(String target) {
+    if (target == currency) return amount;
+    final rate = fxSnapshot[target];
+    if (rate == null) return amount;
+    return amount * rate;
+  }
+
+  double absAmountIn(String target) => amountIn(target).abs();
 }
 
 class TransactionsNotifier extends AsyncNotifier<List<Txn>> {

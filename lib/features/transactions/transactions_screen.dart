@@ -153,7 +153,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             var incomeSum = 0.0, expenseSum = 0.0;
             for (final t in filtered) {
               if (t.isTransfer) continue;
-              final v = (t.amountHome ?? t.amount).abs();
+              final v = t.absAmountIn(currency);
               if (t.isIncome) {
                 incomeSum += v;
               } else {
@@ -241,7 +241,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       label: _dayLabel(entry.key),
                       trailing: _dayTotalsTrailing(
                         context,
-                        _dayTotals(entry.value),
+                        _dayTotals(entry.value, currency),
                         currency,
                       ),
                     ),
@@ -291,8 +291,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         subtitle: _txSubtitle(t),
                         amount: _fmt(t.amount, t.currency),
                         subAmount: (t.currency != currency &&
-                                t.amountHome != null)
-                            ? '≈ ${_fmt(t.amountHome!.abs(), currency)}'
+                                t.fxSnapshot.containsKey(currency))
+                            ? '≈ ${_fmt(t.absAmountIn(currency), currency)}'
                             : null,
                         isIncome: t.isIncome,
                         isTransfer: t.isTransfer,
@@ -360,7 +360,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(LoitSpacing.s5),
                     child: Text(
-                      '${filtered.length} of ${items.length} total · ${_fmt(_sum(filtered), currency)}',
+                      '${filtered.length} of ${items.length} total · ${_fmt(_sum(filtered, currency), currency)}',
                       style: LoitTypography.bodyS.copyWith(
                         color: c.contentTertiary,
                       ),
@@ -426,8 +426,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             final payload = <String, dynamic>{
               'amount': t.amount,
               'currency': t.currency,
-              if (t.amountHome != null) 'amount_home_currency': t.amountHome,
-              if (t.fxRate != null) 'fx_rate': t.fxRate,
+              'fx_snapshot': t.fxSnapshot,
               'type': t.type,
               if (t.accountId != null) 'account_id': t.accountId,
               if (t.toAccountId != null) 'to_account_id': t.toAccountId,
@@ -473,8 +472,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
   int _overBudgetCount(List<Txn> _) => 0; // wired later via budgets_provider
 
-  double _sum(List<Txn> items) =>
-      items.fold(0.0, (s, t) => s + (t.amountHome ?? t.amount));
+  double _sum(List<Txn> items, String home) =>
+      items.fold(0.0, (s, t) => s + t.amountIn(home));
 
   String _dayLabel(DateTime d) {
     final now = DateTime.now();
@@ -494,11 +493,11 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
   String _fmt(double v, String currency) => formatMoney(v, currency);
 
-  ({double income, double expense}) _dayTotals(List<Txn> items) {
+  ({double income, double expense}) _dayTotals(List<Txn> items, String home) {
     var income = 0.0, expense = 0.0;
     for (final t in items) {
       if (t.isTransfer) continue;
-      final v = (t.amountHome ?? t.amount).abs();
+      final v = t.absAmountIn(home);
       if (t.isIncome) {
         income += v;
       } else {

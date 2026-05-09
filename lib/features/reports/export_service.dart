@@ -137,12 +137,14 @@ Future<void> _writeCsvIsolate(
         t.currency,
         currencySymbol(t.currency),
         formatMoney(t.amount, t.currency),
-        t.amountHome ?? '',
-        scope.homeCurrency,
-        t.amountHome != null
-            ? formatMoney(t.amountHome!, scope.homeCurrency)
+        t.fxSnapshot.containsKey(scope.homeCurrency)
+            ? t.amountIn(scope.homeCurrency)
             : '',
-        t.fxRate ?? '',
+        scope.homeCurrency,
+        t.fxSnapshot.containsKey(scope.homeCurrency)
+            ? formatMoney(t.amountIn(scope.homeCurrency), scope.homeCurrency)
+            : '',
+        t.fxSnapshot[scope.homeCurrency] ?? '',
         t.roomName ?? '',
         t.notes ?? '',
         t.receiptUrl ?? '',
@@ -253,7 +255,7 @@ class ExportService {
 
     double income = 0, expenses = 0, transfers = 0;
     for (final t in transactions) {
-      final v = t.absAmountHome;
+      final v = t.absAmountIn(scope.homeCurrency);
       if (t.isTransfer) {
         transfers += v;
       } else if (t.isIncome) {
@@ -269,7 +271,7 @@ class ExportService {
     for (final t in transactions) {
       if (t.isTransfer || t.isIncome) continue;
       final k = t.category ?? 'other';
-      categoryTotals[k] = (categoryTotals[k] ?? 0) + t.absAmountHome;
+      categoryTotals[k] = (categoryTotals[k] ?? 0) + t.absAmountIn(scope.homeCurrency);
       categoryCounts[k] = (categoryCounts[k] ?? 0) + 1;
     }
     final catEntries = categoryTotals.entries.toList()
@@ -534,7 +536,7 @@ class ExportService {
                   _humanizeCategory(t.category ?? '-'),
                   t.roomName ?? (scope.isRoom ? '-' : 'Personal'),
                   _signedAmount(t),
-                  t.amountHome != null
+                  t.fxSnapshot.containsKey(scope.homeCurrency)
                       ? _signedHome(t, scope.homeCurrency)
                       : '-',
                 ],
@@ -726,7 +728,7 @@ class ExportService {
   }
 
   static String _signedHome(Txn t, String home) {
-    final body = formatMoney((t.amountHome ?? t.amount).abs(), home);
+    final body = formatMoney(t.absAmountIn(home), home);
     if (t.isIncome) return '+$body';
     if (t.isTransfer) return body;
     return '-$body';

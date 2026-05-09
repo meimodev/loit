@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../core/config/categories.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/preferences_provider.dart';
+import '../../shared/providers/transactions_provider.dart';
+import '../../shared/widgets/currency_picker_sheet.dart';
 import '_widgets.dart';
 
 const _kLanguageCodes = {'English (US)': 'en', 'Bahasa Indonesia': 'id'};
@@ -127,11 +129,10 @@ class PreferencesScreen extends ConsumerWidget {
 
   Future<void> _pickCurrency(
       BuildContext context, WidgetRef ref, String current) async {
-    final v = await _pickValue(
-      context: context,
+    final v = await pickCurrency(
+      context,
+      selected: current,
       title: 'Home currency',
-      options: kCommonCurrencies,
-      current: current,
     );
     if (v == null || v == current) return;
     final user = Supabase.instance.client.auth.currentUser;
@@ -141,6 +142,10 @@ class PreferencesScreen extends ConsumerWidget {
         .update({'home_currency': v}).eq('id', user.id);
     await ref.read(preferencesProvider.notifier).setCurrency(v);
     ref.invalidate(userProfileProvider);
+    // Snapshots already cover all currencies — invalidating display providers
+    // is enough; no FX network calls fire.
+    ref.invalidate(transactionsProvider);
+    ref.invalidate(accountsProvider);
   }
 
   Future<void> _pick({

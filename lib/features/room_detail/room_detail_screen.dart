@@ -755,7 +755,7 @@ class _FeedTab extends ConsumerWidget {
               (amt > 0 ? 'income' : 'expense');
           if (type == 'transfer') continue;
           final txCur = (t['currency'] as String?) ?? (fxRates?.baseCurrency ?? 'IDR');
-          final converted = fxRates?.convert(amt.abs(), txCur) ?? amt.abs();
+          final converted = fxRates?.convert(amt.abs(), txCur, t['fx_snapshot']) ?? amt.abs();
           if (type == 'income') {
             incomeTotal += converted;
             incomeCount++;

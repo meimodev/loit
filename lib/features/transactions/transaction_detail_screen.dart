@@ -78,8 +78,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                     id: null,
                     amount: 0,
                     currency: 'IDR',
-                    amountHome: null,
-                    fxRate: null,
+                    fxSnapshot: const {},
                     category: null,
                     notes: null,
                     receiptUrl: null,
@@ -144,13 +143,17 @@ class TransactionDetailScreen extends ConsumerWidget {
         if (!t.isTransfer)
           _row(context, 'Category', catLabel),
         _row(context, 'Currency', t.currency),
-        if (t.fxRate != null)
-          _row(context, 'FX rate', t.fxRate!.toStringAsFixed(4)),
-        if (t.amountHome != null && t.amountHome != t.amount)
+        if (t.currency != homeCurrency && t.fxSnapshot.containsKey(homeCurrency))
+          _row(
+            context,
+            'FX rate',
+            t.fxSnapshot[homeCurrency]!.toStringAsFixed(4),
+          ),
+        if (t.currency != homeCurrency && t.fxSnapshot.containsKey(homeCurrency))
           _row(
             context,
             'Home amount',
-            formatMoney(t.amountHome!, homeCurrency),
+            formatMoney(t.amountIn(homeCurrency), homeCurrency),
           ),
         if (t.aiParsed)
           _row(context, 'Source', 'AI scanned'),
@@ -294,12 +297,14 @@ class TransactionDetailScreen extends ConsumerWidget {
             amount: t.isTransfer ? t.absAmount : t.amount,
             currency: t.currency,
             variant: LoitAmountVariant.hero,
-            convertedAmount: (!t.isTransfer && t.amountHome != null &&
-                    t.currency != homeCurrency)
-                ? t.amountHome
+            convertedAmount: (!t.isTransfer &&
+                    t.currency != homeCurrency &&
+                    t.fxSnapshot.containsKey(homeCurrency))
+                ? t.amountIn(homeCurrency)
                 : null,
-            convertedCurrency: (!t.isTransfer && t.amountHome != null &&
-                    t.currency != homeCurrency)
+            convertedCurrency: (!t.isTransfer &&
+                    t.currency != homeCurrency &&
+                    t.fxSnapshot.containsKey(homeCurrency))
                 ? homeCurrency
                 : null,
           ),

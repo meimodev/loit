@@ -15,8 +15,3 @@ class CategoryDefaults {
 
   static List<String> get allKeys => [...expenseKeys, ...incomeKeys];
 }
-
-/// Common currencies surfaced in pickers (Free tier: 10 currencies).
-const kCommonCurrencies = [
-  'IDR', 'USD', 'EUR', 'GBP', 'JPY', 'SGD', 'MYR', 'AUD', 'CNY', 'THB',
-];

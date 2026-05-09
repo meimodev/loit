@@ -9,6 +9,7 @@ import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/budgets_provider.dart';
+import '../../shared/providers/home_currency_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/category_picker_sheet.dart';
@@ -67,9 +68,11 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
     setState(() => _busy = true);
     try {
       Log.i('BudgetForm', 'Upserting budget: $_category = $amt');
+      final String budgetCurrency = ref.read(homeCurrencyProvider);
       await ref.read(budgetsProvider.notifier).upsert(
             category: _category,
             monthlyLimit: amt,
+            currency: budgetCurrency,
             period: _period,
             resetDay: _period == BudgetPeriod.custom ? 1 : _resetDay,
             customDays: _period == BudgetPeriod.custom ? _customDays : null,
@@ -93,6 +96,25 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
     final style = ref.watch(categoryStyleProvider(_category));
     final catLabel = ref
         .watch(categoryLabelProvider(CategoryLabelKey(key: _category)));
+    final homeCurrency = ref.watch(homeCurrencyProvider);
+    final symbol = currencySymbol(homeCurrency);
+    final isEdit = widget.budget != null;
+    final existingBudgets = ref.watch(budgetsProvider).value ?? const [];
+    final usedCategories = <String>{
+      for (final b in existingBudgets)
+        if (b.id != widget.budget?.id) b.category,
+    };
+    if (!isEdit && usedCategories.contains(_category)) {
+      final personalCats = ref.watch(expenseCategoriesProvider);
+      final next = personalCats
+          .map((c) => c.key)
+          .firstWhere((k) => !usedCategories.contains(k), orElse: () => '');
+      if (next.isNotEmpty && next != _category) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _category = next);
+        });
+      }
+    }
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
@@ -140,7 +162,7 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
                             border: InputBorder.none,
                             hintText: '0',
                             hintStyle: TextStyle(color: c.contentTertiary),
-                            prefixText: 'Rp ',
+                            prefixText: '$symbol ',
                             prefixStyle: LoitTypography.titleL
                                 .copyWith(color: c.contentSecondary),
                           ),
@@ -164,11 +186,19 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
                     ),
                     child: Icon(style.icon, color: style.tint, size: 16),
                   ),
-                  onTap: () async {
-                    final picked = await pickLoitCategory(context,
-                        selectedKey: _category);
-                    if (picked != null) setState(() => _category = picked);
-                  },
+                  showChevron: !isEdit,
+                  onTap: isEdit
+                      ? null
+                      : () async {
+                          final picked = await pickLoitCategory(
+                            context,
+                            selectedKey: _category,
+                            excludeKeys: usedCategories,
+                          );
+                          if (picked != null) {
+                            setState(() => _category = picked);
+                          }
+                        },
                 ),
                 _row(
                   context,
@@ -402,7 +432,8 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
       {required String label,
       required String value,
       Widget? leading,
-      VoidCallback? onTap}) {
+      VoidCallback? onTap,
+      bool showChevron = true}) {
     final c = context.loitColors;
     return InkWell(
       onTap: onTap,
@@ -423,8 +454,10 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
             Text(value,
                 style: LoitTypography.bodyL.copyWith(
                     color: c.contentSecondary, fontWeight: FontWeight.w500)),
-            const SizedBox(width: 6),
-            Icon(Icons.chevron_right, size: 18, color: c.contentTertiary),
+            if (showChevron) ...[
+              const SizedBox(width: 6),
+              Icon(Icons.chevron_right, size: 18, color: c.contentTertiary),
+            ],
           ],
         ),
       ),

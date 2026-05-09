@@ -68,13 +68,19 @@ async function getAuthenticatedUserId(req: Request): Promise<string | null> {
   return user?.id ?? null;
 }
 
+const MASKED_AMOUNT = '••••';
+
 async function sendMessage(
   accessToken: string,
   pushTokenId: string,
   deviceToken: string,
   body: NotifyBody,
+  hideAmount: boolean,
 ): Promise<void> {
   const endpoint = `https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`;
+  const amountStr = hideAmount
+    ? MASKED_AMOUNT
+    : `${isIncomePayload(body) ? '+' : ''}${formatAmount(body.amount)}`;
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
@@ -87,12 +93,12 @@ async function sendMessage(
         notification: {
           title: body.title ??
             (isIncomePayload(body) ? 'Income recorded' : 'New expense'),
-          body: `${isIncomePayload(body) ? '+' : ''}${formatAmount(body.amount)} ${body.currency}`,
+          body: `${amountStr} ${body.currency}`,
         },
         data: {
           room_id: body.room_id,
           actor_id: body.actor_id,
-          amount: String(body.amount),
+          amount: hideAmount ? MASKED_AMOUNT : String(body.amount),
           currency: body.currency,
           tx_type: isIncomePayload(body) ? 'income' : 'expense',
           type: 'room_transaction',
@@ -232,7 +238,7 @@ serve(async (req) => {
 
     const { data: tokens, error: tokensError } = await supabase
       .from('push_tokens')
-      .select('id, token')
+      .select('id, token, user_id')
       .in('user_id', userIds);
 
     if (tokensError) {
@@ -249,10 +255,29 @@ serve(async (req) => {
       });
     }
 
+    const { data: privacyRows, error: privacyError } = await supabase
+      .from('users')
+      .select('id, hide_amounts')
+      .in('id', userIds);
+
+    if (privacyError) {
+      throw privacyError;
+    }
+
+    const hideMap = new Map<string, boolean>(
+      (privacyRows ?? []).map((r) => [r.id as string, !!r.hide_amounts]),
+    );
+
     const accessToken = await getAccessToken();
     const results = await Promise.allSettled(
       tokens.map((row) =>
-        sendMessage(accessToken, row.id as string, row.token as string, body),
+        sendMessage(
+          accessToken,
+          row.id as string,
+          row.token as string,
+          body,
+          hideMap.get(row.user_id as string) ?? false,
+        ),
       ),
     );
 

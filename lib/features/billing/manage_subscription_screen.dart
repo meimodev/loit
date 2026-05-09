@@ -135,10 +135,6 @@ class _ManageSubscriptionScreenState
             ),
           SettingsGroup(label: 'Billing', children: [
             SettingsRow(
-              label: 'Purchase history',
-              onTap: () => context.push('/billing'),
-            ),
-            SettingsRow(
               label: 'Restore purchases',
               onTap: _busy ? null : _restore,
             ),

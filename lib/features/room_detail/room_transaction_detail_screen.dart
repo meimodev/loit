@@ -134,9 +134,12 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
         CategoryLabelKey(key: category, activeRoomId: roomId)));
     final notes = t['notes'] as String?;
     final currency = t['currency'] as String? ?? 'IDR';
-    final fxRate = (t['fx_rate'] as num?)?.toDouble();
-    final amountHome = (t['amount_home_currency'] as num?)?.toDouble() ??
-        (t['amount_home'] as num?)?.toDouble();
+    final fxSnapshot = t['fx_snapshot'];
+    double? snapshotRate(String target) {
+      if (fxSnapshot is! Map) return null;
+      final v = fxSnapshot[target];
+      return v is num ? v.toDouble() : null;
+    }
     final receiptUrl = t['receipt_url'] as String?;
     final aiParsed = t['ai_parsed'] == true;
     final isManualFallback = t['is_manual_fallback'] == true;
@@ -183,13 +186,14 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
         if (!isTransfer)
           _row(context, 'Category', catLabel),
         _row(context, 'Currency', currency),
-        if (fxRate != null)
-          _row(context, 'FX rate', fxRate.toStringAsFixed(4)),
-        if (amountHome != null && amountHome != amount)
+        if (currency != homeCurrency && snapshotRate(homeCurrency) != null)
+          _row(context, 'FX rate',
+              snapshotRate(homeCurrency)!.toStringAsFixed(4)),
+        if (currency != homeCurrency && snapshotRate(homeCurrency) != null)
           _row(
             context,
             'Home amount',
-            formatMoney(amountHome, homeCurrency),
+            formatMoney(amount * snapshotRate(homeCurrency)!, homeCurrency),
           ),
         _row(
           context,

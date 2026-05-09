@@ -3,34 +3,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../core/config/categories.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../core/services/analytics_service.dart';
 import '../../core/services/push_service.dart';
+import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/preferences_provider.dart';
+import '../../shared/providers/transactions_provider.dart';
+import '../../shared/widgets/currency_picker_sheet.dart';
 import '../../shared/widgets/connectivity_banner.dart';
 import '../../shared/widgets/loit_button.dart';
 import '_widgets.dart';
 
 const _kLanguageCodes = {'English (US)': 'en', 'Bahasa Indonesia': 'id'};
-const _kRegionCodes = {
-  'Indonesia': 'ID',
-  'Singapore': 'SG',
-  'Malaysia': 'MY',
-  'Other': 'XX',
-};
 
 String _languageLabel(String code) => _kLanguageCodes.entries
     .firstWhere((e) => e.value == code,
         orElse: () => _kLanguageCodes.entries.first)
-    .key;
-
-String _regionLabel(String code) => _kRegionCodes.entries
-    .firstWhere((e) => e.value == code,
-        orElse: () => _kRegionCodes.entries.first)
     .key;
 
 String _themeLabel(ThemeMode m) => switch (m) {
@@ -132,22 +123,9 @@ class SettingsScreen extends ConsumerWidget {
             ),
             SettingsRow(
               label: 'Currency',
-              value:
-                  '${profile?.homeCurrency ?? 'IDR'} · ${_symbol(profile?.homeCurrency ?? 'IDR')}',
+              value: profile?.homeCurrency ?? 'IDR',
               onTap: () => _pickCurrency(
                   context, ref, profile?.homeCurrency ?? 'IDR'),
-            ),
-            SettingsRow(
-              label: 'Region',
-              value: _regionLabel(prefs.region),
-              onTap: () => _pick(
-                context: context,
-                title: 'Region',
-                options: _kRegionCodes.keys.toList(),
-                current: _regionLabel(prefs.region),
-                onChosen: (v) =>
-                    prefsNotifier.setRegion(_kRegionCodes[v] ?? 'ID'),
-              ),
             ),
             SettingsRow(
               label: 'Theme',
@@ -196,8 +174,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => context.push('/billing/manage'),
             ),
             SettingsRow(
-              label: 'Billing & receipts',
-              onTap: () => context.push('/billing'),
+              label: 'Receipts',
+              onTap: () => context.push('/receipts'),
             ),
           ]),
 
@@ -261,25 +239,6 @@ class SettingsScreen extends ConsumerWidget {
     return src.isEmpty ? '?' : src[0].toUpperCase();
   }
 
-  static String _symbol(String code) {
-    switch (code) {
-      case 'IDR':
-        return 'Rp';
-      case 'USD':
-        return '\$';
-      case 'EUR':
-        return '€';
-      case 'JPY':
-        return '¥';
-      case 'SGD':
-        return 'S\$';
-      case 'MYR':
-        return 'RM';
-      default:
-        return code;
-    }
-  }
-
   Future<void> _pick({
     required BuildContext context,
     required String title,
@@ -294,11 +253,10 @@ class SettingsScreen extends ConsumerWidget {
 
   Future<void> _pickCurrency(
       BuildContext context, WidgetRef ref, String current) async {
-    final v = await _pickValue(
-      context: context,
+    final v = await pickCurrency(
+      context,
+      selected: current,
       title: 'Home currency',
-      options: kCommonCurrencies,
-      current: current,
     );
     if (v == null || v == current) return;
     final user = Supabase.instance.client.auth.currentUser;
@@ -308,6 +266,8 @@ class SettingsScreen extends ConsumerWidget {
         .update({'home_currency': v}).eq('id', user.id);
     await ref.read(preferencesProvider.notifier).setCurrency(v);
     ref.invalidate(userProfileProvider);
+    ref.invalidate(transactionsProvider);
+    ref.invalidate(accountsProvider);
   }
 
   Future<String?> _pickValue({

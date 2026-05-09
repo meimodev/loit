@@ -5,14 +5,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/auth/otp_screen.dart';
 import '../../features/auth/permissions_screen.dart';
-import '../../features/auth/region_screen.dart';
 import '../../features/auth/sign_in_screen.dart';
 import '../../features/auth/splash_screen.dart';
 import '../../features/auth/welcome_screen.dart';
 import '../../features/accounts/account_form_screen.dart';
 import '../../features/accounts/accounts_screen.dart';
-import '../../features/billing/billing_history_screen.dart';
 import '../../features/billing/manage_subscription_screen.dart';
+import '../../features/receipts/receipts_screen.dart';
 import '../../features/paywall/pro_success_screen.dart';
 import '../../features/budgets/budget_detail_screen.dart';
 import '../../features/budgets/budget_form_screen.dart';
@@ -74,7 +73,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         '/welcome',
         '/sign-in',
         '/otp',
-        '/region',
         '/permissions',
         '/update-required',
       };
@@ -94,7 +92,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           path: '/otp',
           builder: (_, state) =>
               OtpScreen(email: (state.extra as String?) ?? '')),
-      GoRoute(path: '/region', builder: (_, __) => const RegionScreen()),
       GoRoute(
           path: '/permissions',
           builder: (_, __) => const PermissionsScreen()),
@@ -330,8 +327,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: '/billing',
-        builder: (_, __) => const BillingHistoryScreen(),
+        path: '/receipts',
+        builder: (_, __) => const ReceiptsScreen(),
       ),
       GoRoute(
         path: '/paywall',

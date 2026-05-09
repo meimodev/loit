@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/config/pricing_constants.dart';
 import '../../core/services/analytics_service.dart';
 import '../../core/services/currency_service.dart';
+import '../../shared/providers/supported_currencies_provider.dart';
 import '../../core/services/dummy_payment_service.dart';
 import '../../core/services/interaction_log_service.dart';
 import '../../core/services/log_service.dart';
@@ -443,22 +444,27 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       final home = profile?.homeCurrency ?? 'IDR';
       final currency = (data['currency'] as String?) ?? home;
 
-      // FX rate (best-effort; default 1.0 if lookup fails).
-      var rate = 1.0;
-      var fxStale = false;
-      if (currency != home && profile != null) {
-        try {
-          final fx = await ref.read(currencyServiceProvider).getRate(
-                from: currency,
-                to: home,
-                tier: UserTier.fromString(profile.tier),
-              );
-          rate = fx.rate;
-          fxStale = fx.isStale;
-        } catch (_) {}
+      // FX snapshot — covers all supported currencies. If rates unavailable,
+      // bail to manual review rather than silently saving with bad data.
+      final svc = ref.read(currencyServiceProvider);
+      Map<String, double> rates;
+      try {
+        rates = await svc.loadUsdBaseRates();
+      } catch (_) {
+        return false;
       }
-      // Stale FX is a confidence signal — let user review instead of silent save.
-      if (fxStale) return false;
+      final supported = ref.read(supportedCurrenciesProvider).value;
+      final codes = supported?.codes ?? rates.keys.toList(growable: false);
+      Map<String, double> fxSnapshot;
+      try {
+        fxSnapshot = CurrencyService.buildSnapshot(
+          from: currency,
+          rates: rates,
+          supported: codes,
+        );
+      } catch (_) {
+        return false;
+      }
 
       // Date/time = phone clock at save time (AI no longer extracts date/time).
       final date = DateTime.now();
@@ -471,8 +477,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       final payload = <String, dynamic>{
         'amount': amount,
         'currency': currency,
-        'amount_home_currency': amount * rate,
-        'fx_rate': rate,
+        'fx_snapshot': fxSnapshot,
         'type': type,
         'account_id': accountId,
         'category': category,

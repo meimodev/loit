@@ -47,7 +47,9 @@ class BudgetDetailScreen extends ConsumerWidget {
         categoryLabelProvider(CategoryLabelKey(key: b.category)));
     final pct = (status.ratio * 100).round();
     final over = status.isOver;
-    final overAmt = (status.spent - b.monthlyLimit).clamp(0, double.infinity).toDouble();
+    final overAmt = (status.spent - status.effectiveLimit)
+        .clamp(0, double.infinity)
+        .toDouble();
 
     final currency = ref.watch(homeCurrencyProvider);
     String fmt(double v) => formatMoney(v, currency);
@@ -64,7 +66,6 @@ class BudgetDetailScreen extends ConsumerWidget {
         leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => context.pop()),
-        actions: [IconButton(icon: const Icon(Icons.more_vert), onPressed: () {})],
       ),
       body: ListView(
         padding: EdgeInsets.zero,
@@ -154,6 +155,34 @@ class BudgetDetailScreen extends ConsumerWidget {
               ],
             ),
           ),
+          if (b.rolloverCycleStart != null && overAmt > 0)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  LoitSpacing.s5, LoitSpacing.s4, LoitSpacing.s5, 0),
+              child: Container(
+                padding: const EdgeInsets.all(LoitSpacing.s3),
+                decoration: BoxDecoration(
+                  color: c.danger.withValues(alpha: 0.08),
+                  borderRadius: LoitRadius.brM,
+                  border: Border.all(color: c.danger.withValues(alpha: 0.24)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.history_toggle_off,
+                        size: 18, color: c.danger),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Rollover scheduled — ${fmt(overAmt)} will reduce the limit on ${DateFormat.yMMMd().format(b.rolloverCycleStart!)}.',
+                        style: LoitTypography.bodyS.copyWith(
+                            color: c.contentPrimary, height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (top5.isNotEmpty) const LoitGroupLabel(label: 'CONTRIBUTING · TOP 5'),
           ...top5.map((t) => LoitTxRow(
                 title: t.notes ?? '',
@@ -233,16 +262,41 @@ class BudgetDetailScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: FilledButton(
-                    onPressed: () {},
-                    child: const Text('Roll over'),
+              if (over && b.rolloverCycleStart == null) ...[
+                const SizedBox(width: 10),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: FilledButton(
+                      onPressed: () async {
+                        final next = b.nextWindowStart(DateTime.now());
+                        try {
+                          await ref
+                              .read(budgetsProvider.notifier)
+                              .rollOver(
+                                budgetId: b.id,
+                                overspend: overAmt,
+                                nextCycleStart: next,
+                              );
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  '${fmt(overAmt)} carried into next cycle'),
+                            ),
+                          );
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Roll over failed: $e')),
+                          );
+                        }
+                      },
+                      child: const Text('Roll over'),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

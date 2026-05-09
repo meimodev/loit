@@ -13,7 +13,6 @@ class AppPreferences {
 
   // Security
   final bool biometricLock;
-  final bool appLock;
   final bool hideAmounts;
 
   // Notifications (8 toggles on notifications screen)
@@ -31,7 +30,6 @@ class AppPreferences {
     this.region = 'ID',
     this.currency = 'IDR',
     this.biometricLock = false,
-    this.appLock = false,
     this.hideAmounts = false,
     this.notifBudgetAlerts = true,
     this.notifBudgetWeeklyDigest = false,
@@ -48,7 +46,6 @@ class AppPreferences {
     String? region,
     String? currency,
     bool? biometricLock,
-    bool? appLock,
     bool? hideAmounts,
     bool? notifBudgetAlerts,
     bool? notifBudgetWeeklyDigest,
@@ -64,7 +61,6 @@ class AppPreferences {
         region: region ?? this.region,
         currency: currency ?? this.currency,
         biometricLock: biometricLock ?? this.biometricLock,
-        appLock: appLock ?? this.appLock,
         hideAmounts: hideAmounts ?? this.hideAmounts,
         notifBudgetAlerts: notifBudgetAlerts ?? this.notifBudgetAlerts,
         notifBudgetWeeklyDigest:
@@ -83,7 +79,6 @@ class _Keys {
   static const region = 'pref.region';
   static const currency = 'pref.currency';
   static const biometricLock = 'pref.biometricLock';
-  static const appLock = 'pref.appLock';
   static const hideAmounts = 'pref.hideAmounts';
   static const notifBudgetAlerts = 'pref.notif.budgetAlerts';
   static const notifBudgetWeeklyDigest = 'pref.notif.budgetWeeklyDigest';
@@ -123,7 +118,6 @@ class PreferencesNotifier extends AsyncNotifier<AppPreferences> {
       region: _sp.getString(_Keys.region) ?? 'ID',
       currency: _sp.getString(_Keys.currency) ?? 'IDR',
       biometricLock: _sp.getBool(_Keys.biometricLock) ?? false,
-      appLock: _sp.getBool(_Keys.appLock) ?? false,
       hideAmounts: _sp.getBool(_Keys.hideAmounts) ?? false,
       notifBudgetAlerts: _sp.getBool(_Keys.notifBudgetAlerts) ?? true,
       notifBudgetWeeklyDigest:
@@ -187,12 +181,19 @@ class PreferencesNotifier extends AsyncNotifier<AppPreferences> {
     await _update(cur.copyWith(currency: dbValue));
   }
 
+  /// Mirror DB-canonical `users.hide_amounts` into local cache.
+  Future<void> syncHideAmountsFromDb(bool dbValue) async {
+    final cur = state.value ?? const AppPreferences();
+    if (cur.hideAmounts == dbValue) return;
+    await _sp.setBool(_Keys.hideAmounts, dbValue);
+    await _update(cur.copyWith(hideAmounts: dbValue));
+  }
+
   Future<void> setBool(String key, bool value) async {
     await _sp.setBool(key, value);
     final cur = state.value ?? const AppPreferences();
     final next = switch (key) {
       _Keys.biometricLock => cur.copyWith(biometricLock: value),
-      _Keys.appLock => cur.copyWith(appLock: value),
       _Keys.hideAmounts => cur.copyWith(hideAmounts: value),
       _Keys.notifBudgetAlerts => cur.copyWith(notifBudgetAlerts: value),
       _Keys.notifBudgetWeeklyDigest =>
@@ -205,6 +206,20 @@ class PreferencesNotifier extends AsyncNotifier<AppPreferences> {
       _ => cur,
     };
     await _update(next);
+
+    if (key == _Keys.hideAmounts) {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        try {
+          await Supabase.instance.client
+              .from('users')
+              .update({'hide_amounts': value})
+              .eq('id', user.id);
+        } catch (e) {
+          Log.w('Preferences', 'hide_amounts DB write failed', error: e);
+        }
+      }
+    }
   }
 }
 
@@ -224,7 +239,6 @@ final themeModePrefProvider = Provider<ThemeMode>((ref) {
 /// Pref keys exposed for convenience in widgets calling [setBool].
 class PrefKeys {
   static const biometricLock = _Keys.biometricLock;
-  static const appLock = _Keys.appLock;
   static const hideAmounts = _Keys.hideAmounts;
   static const notifBudgetAlerts = _Keys.notifBudgetAlerts;
   static const notifBudgetWeeklyDigest = _Keys.notifBudgetWeeklyDigest;

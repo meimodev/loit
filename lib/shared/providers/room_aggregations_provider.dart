@@ -1,10 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../core/services/currency_service.dart';
-import 'auth_providers.dart';
 import 'budgets_provider.dart';
-import 'services_providers.dart';
 
 /// Aggregated totals for a room, normalized into the room's `base_currency`.
 class RoomTotals {
@@ -19,24 +16,25 @@ class RoomTotals {
   final double expense;
   final String currency;
 
-  /// True when at least one underlying FX rate was served from a stale cache
-  /// (rate provider unreachable). Surface a "≈ stale" hint in the UI.
+  /// True only when a txn is missing a usable snapshot rate for the room's
+  /// base currency (legacy data). New rows always carry full snapshots.
   final bool isStale;
 
   double get net => income - expense;
 }
 
-/// Sums all room transactions converted into `rooms.base_currency`.
-///
-/// Read-time conversion: each txn keeps its original `currency`, and the
-/// rate is looked up via `currencyServiceProvider`. Avoids backfilling
-/// historical rows when a member posts in a non-room currency.
+double? _rateFromSnapshot(dynamic raw, String target) {
+  if (raw is! Map) return null;
+  final v = raw[target];
+  if (v is num) return v.toDouble();
+  return null;
+}
+
+/// Sums all room transactions converted into `rooms.base_currency` using each
+/// txn's frozen `fx_snapshot`. Pure local math — no FX network calls.
 final roomTotalsProvider =
     FutureProvider.family<RoomTotals, String>((ref, roomId) async {
   final supabase = Supabase.instance.client;
-  final fx = ref.watch(currencyServiceProvider);
-  final tierStr = ref.watch(userProfileProvider).value?.tier ?? 'free';
-  final tier = UserTier.fromString(tierStr);
 
   final room = await supabase
       .from('rooms')
@@ -47,16 +45,8 @@ final roomTotalsProvider =
 
   final rows = await supabase
       .from('transactions')
-      .select('amount, currency, type')
+      .select('amount, currency, type, fx_snapshot')
       .eq('room_id', roomId);
-
-  final pairs = <(String, String)>{};
-  for (final m in rows) {
-    final cur = (m['currency'] as String?) ?? base;
-    if (cur != base) pairs.add((cur, base));
-  }
-
-  final rates = await fx.getRates(pairs: pairs, tier: tier);
 
   var income = 0.0;
   var expense = 0.0;
@@ -71,13 +61,12 @@ final roomTotalsProvider =
     if (cur == base) {
       converted = amt;
     } else {
-      final fxRate = rates['$cur→$base'];
-      if (fxRate == null) {
+      final rate = _rateFromSnapshot(m['fx_snapshot'], base);
+      if (rate == null) {
         anyStale = true;
         continue;
       }
-      converted = amt * fxRate.rate;
-      if (fxRate.isStale) anyStale = true;
+      converted = amt * rate;
     }
     if (type == 'income') {
       income += converted;
@@ -94,25 +83,22 @@ final roomTotalsProvider =
   );
 });
 
-/// FX rates for every distinct non-base currency observed in a room's
-/// transactions, keyed by source currency code (e.g. `'USD'`). Use this
-/// when iterating txns synchronously and applying conversion in-place
-/// (e.g. live filtering with pending-delete state).
+/// Per-room conversion helper used by widgets that iterate txns synchronously
+/// (live filter views with pending-delete state).
 class RoomFxRates {
   const RoomFxRates({
     required this.baseCurrency,
-    required this.rates,
     required this.isStale,
   });
   final String baseCurrency;
-  final Map<String, double> rates;
   final bool isStale;
 
-  /// Convert [amount] from [from] into the room's base currency.
-  /// Returns null when the rate is missing — caller decides UX.
-  double? convert(double amount, String from) {
-    if (from == baseCurrency) return amount;
-    final r = rates[from];
+  /// Convert [amount] from a txn into the room's base currency using the
+  /// txn's own snapshot. Returns null when the snapshot is missing the target
+  /// (legacy row).
+  double? convert(double amount, String fromCurrency, dynamic snapshot) {
+    if (fromCurrency == baseCurrency) return amount;
+    final r = _rateFromSnapshot(snapshot, baseCurrency);
     if (r == null) return null;
     return amount * r;
   }
@@ -121,9 +107,6 @@ class RoomFxRates {
 final roomFxRatesProvider =
     FutureProvider.family<RoomFxRates, String>((ref, roomId) async {
   final supabase = Supabase.instance.client;
-  final fx = ref.watch(currencyServiceProvider);
-  final tierStr = ref.watch(userProfileProvider).value?.tier ?? 'free';
-  final tier = UserTier.fromString(tierStr);
 
   final room = await supabase
       .from('rooms')
@@ -132,48 +115,16 @@ final roomFxRatesProvider =
       .single();
   final base = (room['base_currency'] as String?) ?? 'IDR';
 
-  final rows = await supabase
-      .from('transactions')
-      .select('currency')
-      .eq('room_id', roomId);
-
-  final foreign = <String>{
-    for (final m in rows) (m['currency'] as String?) ?? base,
-  }..remove(base);
-
-  final pairs = {for (final c in foreign) (c, base)};
-  final fetched = await fx.getRates(pairs: pairs, tier: tier);
-
-  final rates = <String, double>{};
-  var anyStale = false;
-  for (final c in foreign) {
-    final f = fetched['$c→$base'];
-    if (f == null) {
-      anyStale = true;
-      continue;
-    }
-    rates[c] = f.rate;
-    if (f.isStale) anyStale = true;
-  }
-
-  return RoomFxRates(
-    baseCurrency: base,
-    rates: rates,
-    isStale: anyStale,
-  );
+  return RoomFxRates(baseCurrency: base, isStale: false);
 });
 
-/// Per-budget spend for the current month, converted into each budget's
-/// own `currency`. Replaces the raw same-currency-only roomBudgetSpendProvider
-/// for screens that need correct totals across mixed-currency members.
+/// Per-budget spend for the current period window, converted into each
+/// budget's own `currency` via per-txn `fx_snapshot`.
 ///
 /// Map key: `'$category|$budgetCurrency'` → spend in `budgetCurrency`.
 final roomBudgetSpendConvertedProvider = FutureProvider.family<
     ({Map<String, double> spend, bool isStale}), String>((ref, roomId) async {
   final supabase = Supabase.instance.client;
-  final fx = ref.watch(currencyServiceProvider);
-  final tierStr = ref.watch(userProfileProvider).value?.tier ?? 'free';
-  final tier = UserTier.fromString(tierStr);
 
   final budgets = await supabase
       .from('room_budgets')
@@ -182,7 +133,6 @@ final roomBudgetSpendConvertedProvider = FutureProvider.family<
 
   final now = DateTime.now();
   final budgetCurrencies = <String, Set<String>>{};
-  // category -> window start. (room_id, category) is unique so one window per cat.
   final windows = <String, DateTime>{};
   DateTime? earliest;
   for (final m in budgets) {
@@ -205,24 +155,10 @@ final roomBudgetSpendConvertedProvider = FutureProvider.family<
 
   final rows = await supabase
       .from('transactions')
-      .select('category, currency, amount, type, created_at')
+      .select('category, currency, amount, type, created_at, fx_snapshot')
       .eq('room_id', roomId)
       .eq('type', 'expense')
       .gte('created_at', fromIso);
-
-  final pairs = <(String, String)>{};
-  for (final m in rows) {
-    final cat = m['category'] as String?;
-    final cur = m['currency'] as String?;
-    if (cat == null || cur == null) continue;
-    final targets = budgetCurrencies[cat];
-    if (targets == null) continue;
-    for (final target in targets) {
-      if (cur != target) pairs.add((cur, target));
-    }
-  }
-
-  final rates = await fx.getRates(pairs: pairs, tier: tier);
 
   final out = <String, double>{};
   var anyStale = false;
@@ -245,13 +181,12 @@ final roomBudgetSpendConvertedProvider = FutureProvider.family<
       if (cur == target) {
         converted = amt;
       } else {
-        final fxRate = rates['$cur→$target'];
-        if (fxRate == null) {
+        final rate = _rateFromSnapshot(m['fx_snapshot'], target);
+        if (rate == null) {
           anyStale = true;
           continue;
         }
-        converted = amt * fxRate.rate;
-        if (fxRate.isStale) anyStale = true;
+        converted = amt * rate;
       }
       final key = '$cat|$target';
       out[key] = (out[key] ?? 0) + converted;
@@ -260,4 +195,3 @@ final roomBudgetSpendConvertedProvider = FutureProvider.family<
 
   return (spend: out, isStale: anyStale);
 });
-

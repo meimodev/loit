@@ -19,6 +19,7 @@ Future<String?> pickLoitCategory(
   String? selectedKey,
   bool isIncome = false,
   String? activeRoomId,
+  Set<String> excludeKeys = const {},
 }) {
   return showLoitSheet<String>(
     context,
@@ -26,6 +27,7 @@ Future<String?> pickLoitCategory(
       selectedKey: selectedKey,
       isIncome: isIncome,
       activeRoomId: activeRoomId,
+      excludeKeys: excludeKeys,
     ),
   );
 }
@@ -35,11 +37,13 @@ class _CategoryPickerSheet extends ConsumerStatefulWidget {
     this.selectedKey,
     this.isIncome = false,
     this.activeRoomId,
+    this.excludeKeys = const {},
   });
 
   final String? selectedKey;
   final bool isIncome;
   final String? activeRoomId;
+  final Set<String> excludeKeys;
 
   @override
   ConsumerState<_CategoryPickerSheet> createState() =>
@@ -79,6 +83,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
     final inRoomContext = widget.activeRoomId != null;
     for (final cat in all) {
       if (!_matches(cat)) continue;
+      if (widget.excludeKeys.contains(cat.key)) continue;
       if (inRoomContext) {
         // Room-scoped txn: only this room's categories are eligible.
         if (cat.roomId == widget.activeRoomId) {

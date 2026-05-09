@@ -14,8 +14,10 @@ import 'core/services/deep_link_service.dart';
 import 'core/services/log_service.dart';
 import 'core/services/push_service.dart';
 import 'core/services/revenuecat_payment_service.dart';
+import 'features/system/lock_screen.dart';
 import 'shared/widgets/persistent_connectivity_banner.dart';
 import 'shared/widgets/persistent_export_banner.dart';
+import 'shared/providers/app_lock_provider.dart';
 import 'shared/providers/auth_providers.dart';
 import 'shared/providers/export_task_provider.dart';
 import 'shared/providers/notifications_provider.dart';
@@ -37,6 +39,8 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
   StreamSubscription<void>? _entitlementSub;
   StreamSubscription<RemoteMessage>? _foregroundPushSub;
   RealtimeChannel? _userRowChannel;
+  DateTime? _pausedAt;
+  static const _lockBackgroundThreshold = Duration(seconds: 15);
 
   @override
   void initState() {
@@ -60,14 +64,45 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       // Cold-start case: session may already exist from cached auth before
       // authStateProvider emits its first event. Subscribe immediately if so.
       final user = Supabase.instance.client.auth.currentUser;
-      if (user != null) _subscribeUserRow(user.id);
+      if (user != null) {
+        _subscribeUserRow(user.id);
+        _maybeLockOnColdStart();
+      }
     });
+  }
+
+  Future<void> _maybeLockOnColdStart() async {
+    try {
+      final prefs = await ref.read(preferencesProvider.future);
+      if (!mounted || !prefs.biometricLock) return;
+      if (Supabase.instance.client.auth.currentUser == null) return;
+      ref.read(appLockedProvider.notifier).lock();
+    } catch (e) {
+      Log.w('App', 'cold-start lock check failed', error: e);
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed &&
-        Supabase.instance.client.auth.currentUser != null) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      _pausedAt ??= DateTime.now();
+      return;
+    }
+    if (state == AppLifecycleState.resumed) {
+      final pausedAt = _pausedAt;
+      _pausedAt = null;
+      if (Supabase.instance.client.auth.currentUser == null) return;
+
+      // Lock gate: re-prompt if backgrounded long enough.
+      final prefs = ref.read(preferencesProvider).value;
+      if (prefs?.biometricLock == true &&
+          pausedAt != null &&
+          DateTime.now().difference(pausedAt) >= _lockBackgroundThreshold) {
+        ref.read(appLockedProvider.notifier).lock();
+      }
+
       _pushService.syncCurrentToken().catchError((Object e, StackTrace st) {
         Log.e('App', 'Push token sync on resume failed', error: e, stack: st);
       });
@@ -151,6 +186,7 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
         Analytics.reset();
         _userRowChannel?.unsubscribe();
         _userRowChannel = null;
+        ref.read(appLockedProvider.notifier).unlock();
         final pay = ref.read(paymentServiceProvider);
         if (pay is RevenueCatPaymentService) {
           pay.logout().catchError((Object e, StackTrace st) {
@@ -169,6 +205,11 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       notifier.syncCurrencyFromDb(profile.homeCurrency).catchError(
         (Object e, StackTrace st) {
           Log.w('App', 'home_currency local sync failed', error: e);
+        },
+      );
+      notifier.syncHideAmountsFromDb(profile.hideAmounts).catchError(
+        (Object e, StackTrace st) {
+          Log.w('App', 'hide_amounts local sync failed', error: e);
         },
       );
     });
@@ -209,6 +250,7 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
     ref.watch(onlineUsersProvider);
 
     final router = ref.watch(appRouterProvider);
+    final locked = ref.watch(appLockedProvider);
     return MaterialApp.router(
       scaffoldMessengerKey: _scaffoldMessengerKey,
       builder: (context, child) => Stack(
@@ -216,6 +258,10 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
           child!,
           const PersistentExportBanner(),
           const PersistentConnectivityBanner(),
+          if (locked)
+            const Positioned.fill(
+              child: Material(child: LockScreen()),
+            ),
         ],
       ),
       title: 'LOIT',

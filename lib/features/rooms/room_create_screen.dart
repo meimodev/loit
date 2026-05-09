@@ -10,7 +10,9 @@ import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/room_providers.dart';
+import '../../shared/providers/supported_currencies_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
+import '../../shared/widgets/currency_picker_sheet.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_input.dart';
 import 'room_colors.dart';
@@ -115,39 +117,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
               style: LoitTypography.labelS.copyWith(
                   color: c.contentSecondary, letterSpacing: 0.5)),
           const SizedBox(height: LoitSpacing.s2),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final code in const ['IDR', 'USD', 'SGD', 'MYR', 'EUR', 'JPY'])
-                GestureDetector(
-                  onTap: () => setState(() => _currency = code),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: LoitSpacing.s3, vertical: LoitSpacing.s2),
-                    decoration: BoxDecoration(
-                      color: code == _currency
-                          ? const Color(0xFFE6F4F0)
-                          : c.surface,
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: code == _currency ? c.brand : c.borderSubtle,
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Text(
-                      code,
-                      style: LoitTypography.bodyS.copyWith(
-                        color: code == _currency
-                            ? c.brand
-                            : c.contentPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          _currencyRow(context),
           const SizedBox(height: LoitSpacing.s5),
           Container(
             padding: const EdgeInsets.all(LoitSpacing.s3),
@@ -185,6 +155,44 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
             label: 'Create room',
             onPressed: _name.text.trim().isEmpty || _busy ? null : _create,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _currencyRow(BuildContext context) {
+    final c = context.loitColors;
+    final registry = ref.watch(supportedCurrenciesProvider).value;
+    final cur = registry?.byCode[_currency];
+    final label = cur == null
+        ? _currency
+        : '${cur.code} · ${cur.symbol} · ${cur.name}';
+    return InkWell(
+      borderRadius: LoitRadius.brM,
+      onTap: () async {
+        final picked = await pickCurrency(context, selected: _currency);
+        if (picked != null) setState(() => _currency = picked);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: LoitSpacing.s4, vertical: LoitSpacing.s3),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: LoitRadius.brM,
+          border: Border.all(color: c.borderSubtle),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: LoitTypography.bodyM.copyWith(color: c.contentPrimary),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: c.contentTertiary),
+          ],
         ),
       ),
     );

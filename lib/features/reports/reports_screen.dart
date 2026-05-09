@@ -72,10 +72,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
     final income = monthTxns
         .where((t) => !t.isTransfer && t.isIncome)
-        .fold<double>(0, (s, t) => s + (t.amountHome ?? t.amount).abs());
+        .fold<double>(0, (s, t) => s + t.absAmountIn(home));
     final expenses = monthTxns
         .where((t) => !t.isTransfer && !t.isIncome)
-        .fold<double>(0, (s, t) => s + (t.amountHome ?? t.amount).abs());
+        .fold<double>(0, (s, t) => s + t.absAmountIn(home));
     final net = income - expenses;
 
     return Scaffold(
@@ -144,11 +144,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _tabScroll(_overviewSlivers(monthTxns, fmt)),
-                _tabScroll(_categoriesSlivers(monthTxns, fmt)),
-                _tabScroll(_trendSlivers(txns, fmt)),
-                _tabScroll(_insightsSlivers(monthTxns, fmt)),
-                _tabScroll(_incomeSlivers(monthTxns, fmt)),
+                _tabScroll(_overviewSlivers(monthTxns, fmt, home)),
+                _tabScroll(_categoriesSlivers(monthTxns, fmt, home)),
+                _tabScroll(_trendSlivers(txns, fmt, home)),
+                _tabScroll(_insightsSlivers(monthTxns, fmt, home)),
+                _tabScroll(_incomeSlivers(monthTxns, fmt, home)),
               ],
             ),
           ),
@@ -167,8 +167,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     );
   }
 
-  List<Widget> _incomeSlivers(List<Txn> monthTxns, String Function(double) fmt) {
-    final cats = _incomeCategoryTotals(monthTxns).entries.toList()
+  List<Widget> _incomeSlivers(List<Txn> monthTxns, String Function(double) fmt, String home) {
+    final cats = _incomeCategoryTotals(monthTxns, home).entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final total = cats.fold<double>(0, (s, e) => s + e.value);
     if (cats.isEmpty) {
@@ -192,25 +192,25 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     ];
   }
 
-  Map<String, double> _incomeCategoryTotals(List<Txn> txns) {
+  Map<String, double> _incomeCategoryTotals(List<Txn> txns, String home) {
     final out = <String, double>{};
     for (final t in txns) {
       if (t.isTransfer || !t.isIncome) continue;
-      final v = (t.amountHome ?? t.amount).abs();
+      final v = t.absAmountIn(home);
       final k = t.category ?? 'income_other';
       out[k] = (out[k] ?? 0) + v;
     }
     return out;
   }
 
-  List<Widget> _overviewSlivers(List<Txn> monthTxns, String Function(double) fmt) {
+  List<Widget> _overviewSlivers(List<Txn> monthTxns, String Function(double) fmt, String home) {
     final c = context.loitColors;
-    final byDay = _spendByDay(monthTxns, _month);
+    final byDay = _spendByDay(monthTxns, _month, home);
     final avgDay = byDay.isEmpty
         ? 0.0
         : byDay.reduce((a, b) => a + b) /
             byDay.where((v) => v > 0).length.clamp(1, byDay.length);
-    final cats = _categoryTotals(monthTxns).entries.toList()
+    final cats = _categoryTotals(monthTxns, home).entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final totalCats = cats.fold<double>(0, (s, e) => s + e.value);
 
@@ -270,8 +270,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     ];
   }
 
-  List<Widget> _categoriesSlivers(List<Txn> monthTxns, String Function(double) fmt) {
-    final cats = _categoryTotals(monthTxns).entries.toList()
+  List<Widget> _categoriesSlivers(List<Txn> monthTxns, String Function(double) fmt, String home) {
+    final cats = _categoryTotals(monthTxns, home).entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final total = cats.fold<double>(0, (s, e) => s + e.value);
     if (cats.isEmpty) {
@@ -294,7 +294,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     ];
   }
 
-  List<Widget> _trendSlivers(List<Txn> allTxns, String Function(double) fmt) {
+  List<Widget> _trendSlivers(List<Txn> allTxns, String Function(double) fmt, String home) {
     final c = context.loitColors;
     final now = DateTime.now();
     final months = List.generate(
@@ -306,7 +306,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
               !t.createdAt.isBefore(m) && t.createdAt.isBefore(next))
           .where((t) => !t.isTransfer && !t.isIncome)
           .fold<double>(
-              0, (s, t) => s + (t.amountHome ?? t.amount).abs());
+              0, (s, t) => s + t.absAmountIn(home));
     }).toList();
     final maxY =
         (totals.fold<double>(0, (s, v) => v > s ? v : s)) * 1.2 + 1;
@@ -411,9 +411,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     ];
   }
 
-  List<Widget> _insightsSlivers(List<Txn> monthTxns, String Function(double) fmt) {
+  List<Widget> _insightsSlivers(List<Txn> monthTxns, String Function(double) fmt, String home) {
     final c = context.loitColors;
-    final cats = _categoryTotals(monthTxns).entries.toList()
+    final cats = _categoryTotals(monthTxns, home).entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final cards = <_InsightCard>[];
 
@@ -440,7 +440,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         byMerchant[m] = (byMerchant[m] ?? 0) + 1;
         if (!t.isTransfer && !t.isIncome) {
           spendByMerchant[m] =
-              (spendByMerchant[m] ?? 0) + (t.amountHome ?? t.amount).abs();
+              (spendByMerchant[m] ?? 0) + t.absAmountIn(home);
         }
       }
       final repeats = byMerchant.entries.where((e) => e.value >= 3).toList()
@@ -533,23 +533,23 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         .toList();
   }
 
-  List<double> _spendByDay(List<Txn> txns, DateTime month) {
+  List<double> _spendByDay(List<Txn> txns, DateTime month, String home) {
     final days = DateTime(month.year, month.month + 1, 0).day;
     final out = List<double>.filled(days, 0);
     for (final t in txns) {
       if (t.isTransfer || t.isIncome) continue;
-      final v = (t.amountHome ?? t.amount).abs();
+      final v = t.absAmountIn(home);
       final d = t.createdAt.day;
       if (d >= 1 && d <= days) out[d - 1] += v;
     }
     return out;
   }
 
-  Map<String, double> _categoryTotals(List<Txn> txns) {
+  Map<String, double> _categoryTotals(List<Txn> txns, String home) {
     final out = <String, double>{};
     for (final t in txns) {
       if (t.isTransfer || t.isIncome) continue;
-      final v = (t.amountHome ?? t.amount).abs();
+      final v = t.absAmountIn(home);
       final k = t.category ?? 'other';
       out[k] = (out[k] ?? 0) + v;
     }

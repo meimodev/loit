@@ -62,15 +62,10 @@ class SecurityScreen extends ConsumerWidget {
             SettingsToggleRow(
               label: 'Biometric unlock',
               helper: supported
-                  ? 'Use Face / fingerprint to open LOIT'
+                  ? 'Lock LOIT with Face / fingerprint after 15s in background'
                   : 'Not available on this device',
               value: prefs.biometricLock,
               onChanged: supported ? toggleBiometric : (_) {},
-            ),
-            SettingsToggleRow(
-              label: 'Require unlock on app open',
-              value: prefs.appLock,
-              onChanged: (v) => notifier.setBool(PrefKeys.appLock, v),
             ),
           ]),
           SettingsGroup(label: 'Privacy', children: [

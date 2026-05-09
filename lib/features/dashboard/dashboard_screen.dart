@@ -17,6 +17,7 @@ import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/budget_alert_banner.dart';
 import '../../shared/widgets/loit_budget_row.dart';
+import '../../shared/widgets/loit_category_avatar.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import '../../shared/widgets/loit_mini_line_chart.dart';
 import '../../shared/widgets/loit_stat_triple.dart';
@@ -75,6 +76,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final month = ref.watch(selectedMonthProvider);
     final accounts = ref.watch(activeAccountsProvider);
     final balances = ref.watch(accountBalancesProvider);
+    final nativeBalances = ref.watch(accountNativeBalancesProvider);
     final totalAssets = ref.watch(totalAssetsProvider);
     final totalLiabilities = ref.watch(totalLiabilitiesProvider);
     final netWorth = ref.watch(netWorthProvider);
@@ -119,13 +121,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           error: (e, _) => Center(child: Text('Error: $e')),
           data: (items) {
             _maybeStartEntrance();
-            final summary = _MonthSummary.fromTxns(items, month);
             final currency = profile?.homeCurrency ?? 'IDR';
-            final byDay = _spendByDay(items, month);
+            final summary = _MonthSummary.fromTxns(items, month, currency);
+            final byDay = _spendByDay(items, month, currency);
             final activeDays = byDay.where((v) => v > 0).length;
             final avgDay = activeDays == 0
                 ? 0.0
                 : byDay.reduce((a, b) => a + b) / activeDays;
+            final monthStart = DateTime(month.year, month.month, 1);
+            final monthEnd = DateTime(month.year, month.month + 1, 1);
+            final hasMonthTxn = items.any((t) =>
+                !t.createdAt.isBefore(monthStart) &&
+                t.createdAt.isBefore(monthEnd));
             Widget fadeUpSliver(int index, Widget child) {
               return SliverToBoxAdapter(
                 child: _FadeUp(
@@ -141,13 +148,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               slivers: [
                 fadeUpSliver(
                   0,
-                  _ReportsPreviewCard(
-                    byDay: byDay,
-                    avgDay: avgDay,
-                    mtdSpend: summary.expenses,
-                    currency: currency,
-                    onTap: () => context.push('/reports'),
-                  ),
+                  hasMonthTxn
+                      ? _ReportsPreviewCard(
+                          byDay: byDay,
+                          avgDay: avgDay,
+                          mtdSpend: summary.expenses,
+                          currency: currency,
+                          onTap: () => context.push('/reports'),
+                        )
+                      : _PastReportsCard(
+                          onTap: () => context.push('/reports'),
+                        ),
                 ),
                 // Net worth strip
                 fadeUpSliver(
@@ -191,7 +202,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           for (var i = 0; i < accounts.length; i++)
                             _AccountRow(
                               account: accounts[i],
-                              balance: balances[accounts[i].id] ?? 0,
+                              balance: nativeBalances[accounts[i].id] ?? 0,
+                              homeBalance: balances[accounts[i].id] ?? 0,
                               currency: currency,
                               showDivider: true,
                               onTap: () => context.push(
@@ -274,8 +286,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   ),
                   fadeUpSliver(
                     5,
-                    _ManageCategoriesCard(
-                      onTap: () => context.push('/categories'),
+                    const LoitGroupLabel(label: 'Categories'),
+                  ),
+                  fadeUpSliver(
+                    5,
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final cats =
+                            ref.watch(userCategoriesProvider).value ??
+                                const <UserCategory>[];
+                        final personal =
+                            cats.where((c) => c.isPersonal).toList()
+                              ..sort((a, b) =>
+                                  a.sortOrder.compareTo(b.sortOrder));
+                        final picked = personal.take(3).toList();
+                        return Container(
+                          color: c.surface,
+                          child: Column(
+                            children: [
+                              for (var i = 0; i < picked.length; i++)
+                                _CategoryRow(
+                                  category: picked[i],
+                                  onTap: () => context.push(
+                                    '/categories/${picked[i].id}/edit',
+                                    extra: picked[i],
+                                  ),
+                                ),
+                              _SeeAllCategoriesRow(
+                                onTap: () => context.push('/categories'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -300,7 +343,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   }
 }
 
-List<double> _spendByDay(List<Txn> txns, DateTime month) {
+List<double> _spendByDay(List<Txn> txns, DateTime month, String home) {
   final days = DateTime(month.year, month.month + 1, 0).day;
   final out = List<double>.filled(days, 0);
   final monthStart = DateTime(month.year, month.month, 1);
@@ -309,7 +352,7 @@ List<double> _spendByDay(List<Txn> txns, DateTime month) {
     if (t.isTransfer || t.isIncome) continue;
     if (t.createdAt.isBefore(monthStart)) continue;
     if (!t.createdAt.isBefore(monthEnd)) continue;
-    final v = (t.amountHome ?? t.amount).abs();
+    final v = t.absAmountIn(home);
     final d = t.createdAt.day;
     if (d >= 1 && d <= days) out[d - 1] += v;
   }
@@ -434,6 +477,59 @@ class _ReportsPreviewCard extends StatelessWidget {
   }
 }
 
+class _PastReportsCard extends StatelessWidget {
+  const _PastReportsCard({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        LoitSpacing.s4,
+        LoitSpacing.s5,
+        LoitSpacing.s4,
+        LoitSpacing.s2,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: LoitRadius.brM,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: LoitRadius.brM,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: LoitSpacing.s4,
+              vertical: LoitSpacing.s4,
+            ),
+            decoration: BoxDecoration(
+              color: c.surface,
+              borderRadius: LoitRadius.brM,
+              border: Border.all(color: c.borderSubtle),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.insights_outlined, size: 20, color: c.brand),
+                const SizedBox(width: LoitSpacing.s3),
+                Expanded(
+                  child: Text(
+                    'See past reports',
+                    style: LoitTypography.bodyM.copyWith(
+                      color: c.brand,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Icon(Icons.chevron_right, size: 16, color: c.contentTertiary),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PreviewMetric extends StatelessWidget {
   const _PreviewMetric({
     required this.label,
@@ -474,8 +570,70 @@ class _PreviewMetric extends StatelessWidget {
   }
 }
 
-class _ManageCategoriesCard extends StatelessWidget {
-  const _ManageCategoriesCard({required this.onTap});
+class _CategoryRow extends StatelessWidget {
+  const _CategoryRow({required this.category, required this.onTap});
+  final UserCategory category;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    final kindLabel = category.isIncome ? 'Income' : 'Expense';
+    return Material(
+      color: c.surface,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: LoitSpacing.s5,
+                vertical: LoitSpacing.s4,
+              ),
+              child: Row(
+                children: [
+                  LoitCategoryAvatar(categoryKey: category.key, size: 36),
+                  const SizedBox(width: LoitSpacing.s4),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          category.name,
+                          style: LoitTypography.bodyM.copyWith(
+                            color: c.contentPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          kindLabel,
+                          style: LoitTypography.bodyS.copyWith(
+                            color: c.contentTertiary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, size: 16, color: c.contentTertiary),
+                ],
+              ),
+            ),
+            Container(
+              height: 1,
+              color: c.borderSubtle,
+              margin: const EdgeInsets.only(
+                  left: LoitSpacing.s5 + 36 + LoitSpacing.s4),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SeeAllCategoriesRow extends StatelessWidget {
+  const _SeeAllCategoriesRow({required this.onTap});
   final VoidCallback onTap;
 
   @override
@@ -483,34 +641,19 @@ class _ManageCategoriesCard extends StatelessWidget {
     final c = context.loitColors;
     return InkWell(
       onTap: onTap,
-      borderRadius: LoitRadius.brM,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(
-          LoitSpacing.s4,
-          LoitSpacing.s3,
-          LoitSpacing.s4,
-          LoitSpacing.s2,
-        ),
         padding: const EdgeInsets.symmetric(
           horizontal: LoitSpacing.s4,
-          vertical: LoitSpacing.s4,
-        ),
-        decoration: BoxDecoration(
-          color: c.surface,
-          borderRadius: LoitRadius.brM,
-          border: Border.all(color: c.borderSubtle),
+          vertical: LoitSpacing.s3,
         ),
         child: Row(
           children: [
-            Icon(Icons.category_outlined, size: 20, color: c.brand),
+            Icon(Icons.category_outlined, size: 18, color: c.brand),
             const SizedBox(width: LoitSpacing.s3),
             Expanded(
               child: Text(
-                'Manage categories',
-                style: LoitTypography.bodyM.copyWith(
-                  color: c.brand,
-                  fontWeight: FontWeight.w500,
-                ),
+                'See all categories',
+                style: LoitTypography.bodyM.copyWith(color: c.brand),
               ),
             ),
             Icon(Icons.chevron_right, size: 16, color: c.contentTertiary),
@@ -580,7 +723,7 @@ class _MonthSummary {
   final double income;
   final double expenses;
 
-  factory _MonthSummary.fromTxns(List<Txn> items, DateTime month) {
+  factory _MonthSummary.fromTxns(List<Txn> items, DateTime month, String home) {
     final monthStart = DateTime(month.year, month.month, 1);
     final monthEnd = DateTime(month.year, month.month + 1, 1);
     var income = 0.0;
@@ -589,11 +732,11 @@ class _MonthSummary {
       if (t.isTransfer) continue;
       if (t.createdAt.isBefore(monthStart)) continue;
       if (!t.createdAt.isBefore(monthEnd)) continue;
-      final v = t.amountHome ?? t.amount;
+      final v = t.absAmountIn(home);
       if (t.isIncome) {
-        income += v.abs();
+        income += v;
       } else {
-        expenses += v.abs();
+        expenses += v;
       }
     }
     return _MonthSummary(income: income, expenses: expenses);
@@ -734,6 +877,7 @@ class _AccountRow extends StatelessWidget {
   const _AccountRow({
     required this.account,
     required this.balance,
+    required this.homeBalance,
     required this.currency,
     required this.onTap,
     this.showDivider = true,
@@ -742,12 +886,14 @@ class _AccountRow extends StatelessWidget {
   const _AccountRow.add({required this.onTap})
       : account = null,
         balance = 0,
+        homeBalance = 0,
         currency = '',
         showDivider = false,
         isAdd = true;
 
   final Account? account;
   final double balance;
+  final double homeBalance;
   final String currency;
   final VoidCallback onTap;
   final bool showDivider;
@@ -787,6 +933,7 @@ class _AccountRow extends StatelessWidget {
     final isAsset = a.kind == AccountKind.asset;
     final iconColor = isAsset ? c.success : c.danger;
     final amountColor = balance < 0 ? c.danger : c.success;
+    final showHomeSub = a.currency != currency;
 
     return InkWell(
       onTap: onTap,
@@ -797,6 +944,7 @@ class _AccountRow extends StatelessWidget {
         ),
         decoration: BoxDecoration(border: divider),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Icon(
               isAsset
@@ -814,13 +962,28 @@ class _AccountRow extends StatelessWidget {
                 style: LoitTypography.bodyM.copyWith(color: c.contentPrimary),
               ),
             ),
-            Text(
-              formatMoney(balance, currency),
-              style: LoitTypography.bodyM.copyWith(
-                color: amountColor,
-                fontWeight: FontWeight.w600,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  formatMoney(balance, a.currency),
+                  style: LoitTypography.bodyM.copyWith(
+                    color: amountColor,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                if (showHomeSub) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '≈ ${formatMoney(homeBalance, currency)}',
+                    style: LoitTypography.labelS.copyWith(
+                      color: c.contentSecondary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
         ),

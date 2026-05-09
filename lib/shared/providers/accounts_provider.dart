@@ -1,8 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/services/currency_service.dart';
 import 'auth_providers.dart';
+import 'home_currency_provider.dart';
+import 'services_providers.dart';
 import 'transactions_provider.dart';
+
+/// USD-base rates from `fx_rates`, loaded lazily. Sync consumers can
+/// `.value` from `AsyncValue` and fall back to no-conversion when null.
+final usdBaseRatesProvider = FutureProvider<Map<String, double>>((ref) async {
+  return ref.watch(currencyServiceProvider).loadUsdBaseRates();
+});
 
 enum AccountKind { asset, liability }
 
@@ -189,29 +198,44 @@ final activeAccountsProvider = Provider<List<Account>>((ref) {
   return accounts.where((a) => a.archivedAt == null).toList();
 });
 
-/// Balance per account in home currency.
+/// Balance per account, expressed in the user's home currency.
 ///
-/// Liability initial balance stored negative; income adds (pay debt),
-/// expense subtracts (charge increases debt). Liability balance stays ≤ 0.
-/// Asset convention: income adds, expense subtracts.
+/// Each txn contributes via its frozen `fx_snapshot` (no live FX fetch).
+/// Per-account `initial_balance` is in the account's own currency at the time
+/// it was created; converted to home using current USD-base rates as a
+/// best-effort approximation (rates load async; before they arrive the
+/// initial balance is treated as already-in-home, matching prior behaviour).
+///
+/// Liability convention: initial stored negative, income adds (pay debt),
+/// expense subtracts. Asset convention: income adds, expense subtracts.
 final accountBalancesProvider = Provider<Map<String, double>>((ref) {
   final accounts = ref.watch(accountsProvider).value ?? const [];
   final txns = ref.watch(transactionsProvider).value ?? const [];
+  final home = ref.watch(homeCurrencyProvider);
+  final rates = ref.watch(usdBaseRatesProvider).value;
   final map = <String, double>{};
+
+  double initialInHome(Account a) {
+    if (a.currency == home) return a.initialBalance;
+    if (rates == null) return a.initialBalance;
+    try {
+      final r = CurrencyService.convert(
+        from: a.currency,
+        to: home,
+        rates: rates,
+      );
+      return a.initialBalance * r;
+    } catch (_) {
+      return a.initialBalance;
+    }
+  }
+
   for (final a in accounts) {
-    map[a.id] = a.initialBalance;
+    map[a.id] = initialInHome(a);
   }
   for (final t in txns) {
     if (t.accountId == null) continue;
-    final double v;
-    if (t.amountHome != null) {
-      v = t.amountHome!.abs();
-    } else if (t.fxRate != null) {
-      v = (t.amount * t.fxRate!).abs();
-    } else {
-      continue;
-    }
-
+    final v = t.absAmountIn(home);
     if (t.type == 'transfer') {
       map[t.accountId!] = (map[t.accountId!] ?? 0) - v;
       if (t.toAccountId != null) {
@@ -221,6 +245,42 @@ final accountBalancesProvider = Provider<Map<String, double>>((ref) {
       map[t.accountId!] = (map[t.accountId!] ?? 0) + v;
     } else {
       map[t.accountId!] = (map[t.accountId!] ?? 0) - v;
+    }
+  }
+  return map;
+});
+
+/// Balance per account, expressed in each account's OWN currency.
+///
+/// Used by the account edit form so the displayed "current balance" tracks
+/// the account's native currency regardless of the user's home currency.
+/// Each txn amount is converted via its frozen fx_snapshot to the
+/// source/destination account's currency.
+final accountNativeBalancesProvider = Provider<Map<String, double>>((ref) {
+  final accounts = ref.watch(accountsProvider).value ?? const [];
+  final txns = ref.watch(transactionsProvider).value ?? const [];
+  final byId = {for (final a in accounts) a.id: a};
+  final map = <String, double>{
+    for (final a in accounts) a.id: a.initialBalance,
+  };
+  for (final t in txns) {
+    if (t.accountId == null) continue;
+    final fromAcc = byId[t.accountId];
+    if (fromAcc == null) continue;
+    final fromV = t.absAmountIn(fromAcc.currency);
+    if (t.type == 'transfer') {
+      map[t.accountId!] = (map[t.accountId!] ?? 0) - fromV;
+      if (t.toAccountId != null) {
+        final toAcc = byId[t.toAccountId];
+        if (toAcc != null) {
+          final toV = t.absAmountIn(toAcc.currency);
+          map[t.toAccountId!] = (map[t.toAccountId!] ?? 0) + toV;
+        }
+      }
+    } else if (t.type == 'income') {
+      map[t.accountId!] = (map[t.accountId!] ?? 0) + fromV;
+    } else {
+      map[t.accountId!] = (map[t.accountId!] ?? 0) - fromV;
     }
   }
   return map;

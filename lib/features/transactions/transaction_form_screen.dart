@@ -7,9 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/config/categories.dart';
 import '../../core/services/analytics_service.dart';
 import '../../core/services/currency_service.dart';
+import '../../shared/providers/supported_currencies_provider.dart';
 import '../../core/services/interaction_log_service.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../core/theme/loit_colors.dart';
@@ -23,6 +23,7 @@ import '../../shared/providers/services_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/account_picker_sheet.dart';
 import '../../shared/widgets/category_picker_sheet.dart';
+import '../../shared/widgets/currency_picker_sheet.dart';
 import '../../shared/widgets/loit_banner.dart';
 import '../../shared/widgets/loit_category_avatar.dart';
 import '../../shared/widgets/loit_input.dart';
@@ -58,7 +59,8 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
   bool _isManualFallback = false;
   bool _aiParsed = false;
   String? _amountError;
-  FxRate? _fx;
+  Map<String, double>? _usdBaseRates;
+  bool _ratesStale = false;
   String? _roomId;
   String? _imagePath;
   DateTime _date = DateTime.now();
@@ -505,28 +507,43 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
     }
   }
 
-  Future<void> _recomputeFx() async {
-    final profile = ref.read(userProfileProvider).value;
-    if (profile == null) return;
-    final home = profile.homeCurrency;
-    if (_currency == home) {
-      setState(() => _fx = const FxRate(rate: 1.0, isStale: false));
-      return;
-    }
+  Future<void> _loadRates() async {
+    final svc = ref.read(currencyServiceProvider);
     try {
-      final fx = await ref
-          .read(currencyServiceProvider)
-          .getRate(from: _currency, to: home, tier: UserTier.fromString(profile.tier));
-      if (mounted) setState(() => _fx = fx);
+      final rates = await svc.loadUsdBaseRates();
+      if (!mounted) return;
+      setState(() {
+        _usdBaseRates = rates;
+        _ratesStale = false;
+      });
+      // Background staleness check; refresh server-side if needed and reload.
+      unawaited(svc.refreshIfStale().then((_) async {
+        if (!mounted) return;
+        try {
+          final fresh = await svc.loadUsdBaseRates();
+          if (mounted) setState(() => _usdBaseRates = fresh);
+        } catch (_) {}
+      }));
     } catch (_) {
-      if (mounted) setState(() => _fx = null);
+      if (mounted) setState(() => _ratesStale = true);
+    }
+  }
+
+  double? _homeRate(String home) {
+    final rates = _usdBaseRates;
+    if (rates == null) return null;
+    if (_currency == home) return 1.0;
+    try {
+      return CurrencyService.convert(from: _currency, to: home, rates: rates);
+    } catch (_) {
+      return null;
     }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _recomputeFx();
+    _loadRates();
   }
 
   bool _validate() {
@@ -558,7 +575,28 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       // Sign convention: income > 0, expense < 0, transfer > 0 (direction
       // captured by from/to account ids).
       final amount = _type == 'expense' ? -absAmount : absAmount;
-      final rate = _fx?.rate ?? 1.0;
+      final supported = ref.read(supportedCurrenciesProvider).value;
+      Map<String, double>? rates = _usdBaseRates;
+      if (rates == null) {
+        try {
+          rates = await ref.read(currencyServiceProvider).loadUsdBaseRates();
+        } catch (_) {
+          // Offline + no cache: snapshot with self-rate only. Display will
+          // fall back to raw amount when target currency missing.
+          rates = null;
+        }
+      }
+      final Map<String, double> fxSnapshot;
+      if (rates != null) {
+        final codes = supported?.codes ?? rates.keys.toList(growable: false);
+        fxSnapshot = CurrencyService.buildSnapshot(
+          from: _currency,
+          rates: rates,
+          supported: codes,
+        );
+      } else {
+        fxSnapshot = {_currency: 1.0};
+      }
       final String? notesPayload;
       if (_notesMode == _NotesMode.items) {
         final formatted = formatBreakdown(_collectBreakdown()).trim();
@@ -570,8 +608,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       final payload = <String, dynamic>{
         'amount': amount,
         'currency': _currency,
-        'amount_home_currency': amount * rate,
-        'fx_rate': rate,
+        'fx_snapshot': fxSnapshot,
         'type': _type,
         'account_id': _accountId,
         if (_type == 'transfer') 'to_account_id': _toAccountId,
@@ -774,27 +811,9 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
   }
 
   Future<void> _pickCurrency() async {
-    final picked = await showModalBottomSheet<String>(
-      context: context,
-      builder: (_) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            for (final c in kCommonCurrencies)
-              ListTile(
-                title: Text(c),
-                trailing: c == _currency
-                    ? Icon(Icons.check_rounded, color: context.loitColors.brand)
-                    : null,
-                onTap: () => Navigator.pop(context, c),
-              ),
-          ],
-        ),
-      ),
-    );
+    final picked = await pickCurrency(context, selected: _currency);
     if (picked != null && picked != _currency) {
       setState(() => _currency = picked);
-      _recomputeFx();
     }
   }
 
@@ -940,15 +959,15 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                 ),
               ],
             ),
-            if (_fx?.isStale == true) ...[
+            if (_ratesStale) ...[
               const SizedBox(height: LoitSpacing.s3),
               const StaleRateBanner(),
             ],
-            if (_fx != null && _currency != home)
+            if (_homeRate(home) != null && _currency != home)
               Padding(
                 padding: const EdgeInsets.only(top: LoitSpacing.s3),
                 child: Text(
-                  '1 $_currency ≈ ${_fx!.rate.toStringAsFixed(4)} $home',
+                  '1 $_currency ≈ ${_homeRate(home)!.toStringAsFixed(4)} $home',
                   style: LoitTypography.bodyS.copyWith(color: c.contentTertiary),
                 ),
               ),

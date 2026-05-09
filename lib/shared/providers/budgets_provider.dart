@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/services/log_service.dart';
 import '../widgets/connectivity_banner.dart';
 import 'auth_providers.dart';
+import 'home_currency_provider.dart';
 import 'transactions_provider.dart';
 
 enum BudgetPeriod { weekly, monthly, yearly, custom }
@@ -71,27 +72,67 @@ class Budget {
   final String id;
   final String category;
   final double monthlyLimit;
+  final String currency;
   final BudgetPeriod period;
   final int resetDay;
   final int? customDays;
+  final double rolloverAmount;
+  final DateTime? rolloverCycleStart;
 
   const Budget({
     required this.id,
     required this.category,
     required this.monthlyLimit,
+    required this.currency,
     this.period = BudgetPeriod.monthly,
     this.resetDay = 1,
     this.customDays,
+    this.rolloverAmount = 0,
+    this.rolloverCycleStart,
   });
 
   factory Budget.fromRow(Map<String, dynamic> r) => Budget(
         id: r['id'] as String,
         category: r['category'] as String,
         monthlyLimit: ((r['monthly_limit'] as num?) ?? 0).toDouble(),
+        currency: (r['currency'] as String?) ?? 'IDR',
         period: BudgetPeriodX.fromWire(r['period'] as String?),
         resetDay: ((r['reset_day'] as num?) ?? 1).toInt(),
         customDays: (r['custom_days'] as num?)?.toInt(),
+        rolloverAmount:
+            ((r['rollover_amount'] as num?) ?? 0).toDouble(),
+        rolloverCycleStart: r['rollover_cycle_start'] == null
+            ? null
+            : DateTime.parse(r['rollover_cycle_start'] as String).toLocal(),
       );
+
+  /// Effective limit for the cycle window starting at [windowStart].
+  /// Applies the one-shot rollover penalty when the stored
+  /// [rolloverCycleStart] matches the active window (compared by date).
+  double effectiveLimitFor(DateTime windowStart) {
+    final r = rolloverCycleStart;
+    if (r == null || rolloverAmount == 0) return monthlyLimit;
+    final sameDay = r.year == windowStart.year &&
+        r.month == windowStart.month &&
+        r.day == windowStart.day;
+    if (!sameDay) return monthlyLimit;
+    return (monthlyLimit - rolloverAmount).clamp(0, double.infinity).toDouble();
+  }
+
+  /// Start of the next cycle after [from].
+  DateTime nextWindowStart(DateTime from) {
+    final current = windowStart(from);
+    switch (period) {
+      case BudgetPeriod.weekly:
+        return current.add(const Duration(days: 7));
+      case BudgetPeriod.monthly:
+        return DateTime(current.year, current.month + 1, current.day);
+      case BudgetPeriod.yearly:
+        return DateTime(current.year + 1, current.month, current.day);
+      case BudgetPeriod.custom:
+        return current.add(Duration(days: customDays ?? 30));
+    }
+  }
 
   /// Start of the current cycle window for this budget, given [now].
   DateTime windowStart(DateTime now) => budgetWindowStart(
@@ -123,13 +164,21 @@ class Budget {
 class BudgetStatus {
   final Budget budget;
   final double spent;
-  double get ratio => budget.monthlyLimit <= 0 ? 0 : spent / budget.monthlyLimit;
+  final double effectiveLimit;
+  double get ratio => effectiveLimit <= 0 ? 0 : spent / effectiveLimit;
   bool get isOver => ratio >= 1.0;
   bool get isNearLimit => ratio >= 0.8 && !isOver;
-  const BudgetStatus({required this.budget, required this.spent});
+  bool get rolloverActive => effectiveLimit < budget.monthlyLimit;
+  const BudgetStatus({
+    required this.budget,
+    required this.spent,
+    required this.effectiveLimit,
+  });
 }
 
 class BudgetsNotifier extends AsyncNotifier<List<Budget>> {
+  final Set<String> _restampInflight = <String>{};
+
   @override
   Future<List<Budget>> build() async {
     final user = ref.watch(currentUserProvider);
@@ -147,6 +196,7 @@ class BudgetsNotifier extends AsyncNotifier<List<Budget>> {
   Future<void> upsert({
     required String category,
     required double monthlyLimit,
+    required String currency,
     BudgetPeriod period = BudgetPeriod.monthly,
     int resetDay = 1,
     int? customDays,
@@ -158,6 +208,7 @@ class BudgetsNotifier extends AsyncNotifier<List<Budget>> {
       'user_id': user.id,
       'category': category,
       'monthly_limit': monthlyLimit,
+      'currency': currency,
       'period': period.wire,
       'reset_day': resetDay,
       'custom_days': period == BudgetPeriod.custom ? customDays : null,
@@ -176,6 +227,52 @@ class BudgetsNotifier extends AsyncNotifier<List<Budget>> {
     ref.invalidateSelf();
   }
 
+  /// Stamp a one-shot rollover penalty equal to [overspend] on the
+  /// budget's *next* cycle window. The penalty is consumed exactly once
+  /// when that window becomes active.
+  Future<void> rollOver({
+    required String budgetId,
+    required double overspend,
+    required DateTime nextCycleStart,
+  }) async {
+    if (overspend <= 0) return;
+    if (ref.read(offlineDebugOverrideProvider) == true) {
+      ref.invalidateSelf();
+      return;
+    }
+    await Supabase.instance.client.from('budgets').update({
+      'rollover_amount': overspend,
+      'rollover_cycle_start': nextCycleStart.toUtc().toIso8601String(),
+    }).eq('id', budgetId);
+    Log.i('BudgetsNotifier',
+        'Rolled over $overspend onto cycle starting $nextCycleStart for $budgetId');
+    ref.invalidateSelf();
+  }
+
+  /// Auto-restamp the pending rollover when current-cycle overspend has
+  /// grown beyond the previously stamped amount. No-op if not stamped,
+  /// not actually larger, or a write is already in flight for this id.
+  void maybeRestampRollover({
+    required Budget budget,
+    required double currentOverspend,
+  }) {
+    if (budget.rolloverCycleStart == null) return;
+    if (currentOverspend <= budget.rolloverAmount + 0.01) return;
+    if (_restampInflight.contains(budget.id)) return;
+    _restampInflight.add(budget.id);
+    Future<void>.microtask(() async {
+      try {
+        await rollOver(
+          budgetId: budget.id,
+          overspend: currentOverspend,
+          nextCycleStart: budget.rolloverCycleStart!,
+        );
+      } finally {
+        _restampInflight.remove(budget.id);
+      }
+    });
+  }
+
   Future<void> delete(String id) async {
     if (ref.read(offlineDebugOverrideProvider) == true) {
       ref.invalidateSelf();
@@ -189,12 +286,16 @@ class BudgetsNotifier extends AsyncNotifier<List<Budget>> {
 final budgetsProvider =
     AsyncNotifierProvider<BudgetsNotifier, List<Budget>>(BudgetsNotifier.new);
 
-/// Computes spend-per-category for the current month from the transactions list.
+/// Computes spend-per-category for the current period in the user's
+/// home currency. Each contributing transaction is converted via its
+/// `fx_snapshot`. Budget limits are also stored in home currency.
 final budgetStatusesProvider = Provider<List<BudgetStatus>>((ref) {
   final budgets = ref.watch(budgetsProvider).value ?? const [];
   final txns = ref.watch(transactionsProvider).value ?? const [];
+  final home = ref.watch(homeCurrencyProvider);
   final now = DateTime.now();
-  return budgets.map((b) {
+  final notifier = ref.read(budgetsProvider.notifier);
+  final result = budgets.map((b) {
     final start = b.windowStart(now);
     final spent = txns
         .where((t) =>
@@ -202,7 +303,21 @@ final budgetStatusesProvider = Provider<List<BudgetStatus>>((ref) {
             !t.isIncome &&
             (t.category ?? '') == b.category &&
             !t.createdAt.isBefore(start))
-        .fold<double>(0, (sum, t) => sum + (t.amountHome ?? t.amount).abs());
-    return BudgetStatus(budget: b, spent: spent);
+        .fold<double>(0, (sum, t) => sum + t.absAmountIn(home));
+    return BudgetStatus(
+      budget: b,
+      spent: spent,
+      effectiveLimit: b.effectiveLimitFor(start),
+    );
   }).toList();
+  for (final s in result) {
+    final overspend = s.spent - s.budget.monthlyLimit;
+    if (overspend > 0) {
+      notifier.maybeRestampRollover(
+        budget: s.budget,
+        currentOverspend: overspend,
+      );
+    }
+  }
+  return result;
 });

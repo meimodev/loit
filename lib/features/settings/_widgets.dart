@@ -138,7 +138,8 @@ class SettingsToggleRow extends StatelessWidget {
           Switch.adaptive(
             value: value,
             onChanged: onChanged,
-            activeThumbColor: c.brand,
+            activeThumbColor: Colors.white,
+            activeTrackColor: c.brand,
           ),
         ],
       ),

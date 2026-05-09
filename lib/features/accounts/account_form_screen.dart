@@ -31,6 +31,8 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
   late String _currency;
   bool _busy = false;
   String? _nameError;
+  bool _balanceUserEdited = false;
+  bool _balanceSeeded = false;
 
   @override
   void initState() {
@@ -40,6 +42,8 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
       _nameCtrl.text = a.name;
       _kind = a.kind;
       _currency = a.currency;
+      // Seed with initial_balance as a fallback. build() will refresh this
+      // with the live computed balance once transactions are loaded.
       _balanceCtrl.text = a.initialBalance != 0
           ? formatAmountInput(a.initialBalance.abs())
           : '';
@@ -69,6 +73,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
       final notifier = ref.read(accountsProvider.notifier);
       final raw = parseAmountInput(_balanceCtrl.text) ?? 0;
       final initial = _kind == AccountKind.liability ? -raw.abs() : raw;
+
       if (widget.account == null) {
         await notifier.addAccount(
           name: _nameCtrl.text.trim(),
@@ -76,14 +81,66 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
           currency: _currency,
           initialBalance: initial,
         );
+        if (mounted) context.pop();
+        return;
+      }
+
+      final old = widget.account!;
+      final kindStr = _kind == AccountKind.asset ? 'asset' : 'liability';
+      final kindUnchanged = old.kind == _kind;
+
+      // Asset balance edits go through an Adjustment transaction so the
+      // running ledger stays consistent. Liability balance is read-only in
+      // the form, and kind switches fall back to the legacy direct write.
+      if (_kind == AccountKind.asset && kindUnchanged) {
+        final balances = ref.read(accountBalancesProvider);
+        final currentBalance = balances[old.id] ?? old.initialBalance;
+        final delta = raw - currentBalance;
+        if (delta.abs() > 0.005) {
+          final confirmed = await _confirmAdjustment(
+            current: currentBalance,
+            target: raw,
+            delta: delta,
+          );
+          if (confirmed != true) {
+            if (mounted) setState(() => _busy = false);
+            return;
+          }
+          await notifier.updateAccount(old.id, {
+            'name': _nameCtrl.text.trim(),
+            'kind': kindStr,
+            'currency': _currency,
+          });
+          final signedAmount = delta; // >0 income, <0 expense
+          await ref.read(transactionsProvider.notifier).addTransaction({
+            'amount': signedAmount,
+            'currency': _currency,
+            'amount_home_currency': signedAmount,
+            'fx_rate': 1.0,
+            'type': delta > 0 ? 'income' : 'expense',
+            'account_id': old.id,
+            'category': 'adjustment',
+            'notes': 'Balance adjustment',
+            'ai_parsed': false,
+            'is_manual_fallback': false,
+            'created_at': DateTime.now().toUtc().toIso8601String(),
+          });
+        } else {
+          await notifier.updateAccount(old.id, {
+            'name': _nameCtrl.text.trim(),
+            'kind': kindStr,
+            'currency': _currency,
+          });
+        }
       } else {
-        await notifier.updateAccount(widget.account!.id, {
+        await notifier.updateAccount(old.id, {
           'name': _nameCtrl.text.trim(),
-          'kind': _kind == AccountKind.asset ? 'asset' : 'liability',
+          'kind': kindStr,
           'currency': _currency,
           'initial_balance': initial,
         });
       }
+
       if (mounted) context.pop();
     } on AccountNameTakenException {
       if (mounted) setState(() => _nameError = 'Name already used');
@@ -95,6 +152,39 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<bool?> _confirmAdjustment({
+    required double current,
+    required double target,
+    required double delta,
+  }) {
+    final isIncome = delta > 0;
+    final txLabel = isIncome ? 'Income' : 'Expense';
+    final deltaStr = formatMoney(delta.abs(), _currency);
+    final currentStr = formatMoney(current, _currency);
+    final targetStr = formatMoney(target, _currency);
+    return showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Add adjustment transaction?'),
+        content: Text(
+          'Balance will change from $currentStr to $targetStr.\n\n'
+          'A $txLabel transaction of $deltaStr (category "Adjustment") '
+          'will be added to record the change.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Add adjustment'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _archive() async {
@@ -193,10 +283,21 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
   Widget build(BuildContext context) {
     final c = context.loitColors;
     final isEdit = widget.account != null;
-    if (isEdit && _kind == AccountKind.liability) {
+    if (isEdit) {
       final balances = ref.watch(accountBalancesProvider);
       final balance = balances[widget.account!.id] ?? 0;
-      _balanceCtrl.text = formatAmountInput(balance.abs());
+      // Liability balance is read-only — always reflect computed value.
+      // Asset balance seeds once with computed value; further updates pause
+      // the moment the user edits the field.
+      if (_kind == AccountKind.liability) {
+        _balanceCtrl.text = formatAmountInput(balance.abs());
+      } else if (!_balanceUserEdited) {
+        final next = balance != 0 ? formatAmountInput(balance.abs()) : '';
+        if (!_balanceSeeded || _balanceCtrl.text != next) {
+          _balanceCtrl.text = next;
+          _balanceSeeded = true;
+        }
+      }
     }
 
     return Scaffold(
@@ -280,6 +381,11 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
               ThousandsInputFormatter(),
             ],
+            onChanged: (_) {
+              if (!_balanceUserEdited) {
+                _balanceUserEdited = true;
+              }
+            },
           ),
           const SizedBox(height: LoitSpacing.s7),
           FilledButton(

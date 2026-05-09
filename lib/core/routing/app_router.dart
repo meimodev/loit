@@ -146,6 +146,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                               state.uri.queryParameters['tab'] ?? '') ??
                           0,
                       highlightTxId: state.uri.queryParameters['highlight'],
+                      fromTab: state.uri.queryParameters['from'],
                     ),
                   ),
                 ],

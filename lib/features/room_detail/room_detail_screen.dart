@@ -26,10 +26,12 @@ class RoomDetailScreen extends ConsumerStatefulWidget {
     required this.roomId,
     this.initialTab = 0,
     this.highlightTxId,
+    this.fromTab,
   });
   final String roomId;
   final int initialTab;
   final String? highlightTxId;
+  final String? fromTab;
 
   @override
   ConsumerState<RoomDetailScreen> createState() => _RoomDetailScreenState();
@@ -72,6 +74,16 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     });
   }
 
+  void _handleBack() {
+    if (widget.fromTab == 'transactions') {
+      context.go('/transactions');
+    } else if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/rooms');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
@@ -101,7 +113,13 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         final currency = room['base_currency'] as String? ?? 'IDR';
         String fmt(double v) => formatMoney(v, currency);
 
-        return Scaffold(
+        return PopScope(
+          canPop: widget.fromTab != 'transactions',
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            _handleBack();
+          },
+          child: Scaffold(
           backgroundColor: c.canvas,
           body: SafeArea(
             child: Column(
@@ -112,6 +130,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                   members: members,
                   isCreator: isCreator,
                   isArchived: isArchived,
+                  onBack: _handleBack,
                   onInvite: () =>
                       context.push('/rooms/${widget.roomId}/invite'),
                   onArchive: () => _confirmArchive(context),
@@ -176,6 +195,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                               child: const Icon(Icons.add),
                             )
                           : null,
+        ),
         );
       },
     );
@@ -375,6 +395,7 @@ class _Header extends StatelessWidget {
     required this.members,
     required this.isCreator,
     required this.isArchived,
+    required this.onBack,
     required this.onInvite,
     required this.onArchive,
     required this.onLeave,
@@ -386,6 +407,7 @@ class _Header extends StatelessWidget {
   final List<Map<String, dynamic>> members;
   final bool isCreator;
   final bool isArchived;
+  final VoidCallback onBack;
   final VoidCallback onInvite;
   final VoidCallback onArchive;
   final VoidCallback onLeave;
@@ -409,7 +431,7 @@ class _Header extends StatelessWidget {
             children: [
               IconButton(
                 icon: const Icon(Icons.arrow_back, size: 22),
-                onPressed: () => context.pop(),
+                onPressed: onBack,
               ),
               Container(
                 width: 8,

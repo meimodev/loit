@@ -303,10 +303,14 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         accentStripeColor: roomAccent,
                         onTap: () {
                           if (isRoomTx) {
-                            // Room-inherited txn: jump to room detail under
-                            // the Rooms tab so the bottom-nav active branch
-                            // matches the destination.
-                            context.go('/rooms/${t.roomId}');
+                            final qp = <String, String>{
+                              'from': 'transactions',
+                              if (t.id != null) 'highlight': t.id!,
+                            };
+                            final qs = qp.entries
+                                .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+                                .join('&');
+                            context.go('/rooms/${t.roomId}?$qs');
                           } else if (t.id != null) {
                             context.push('/transactions/${t.id}');
                           } else {

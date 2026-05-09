@@ -4,6 +4,7 @@ import 'package:local_auth/local_auth.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/preferences_provider.dart';
 import '_widgets.dart';
 
@@ -24,6 +25,7 @@ class SecurityScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     final prefs = ref.watch(preferencesProvider).value ?? const AppPreferences();
     final notifier = ref.read(preferencesProvider.notifier);
     final supported = ref.watch(_biometricSupportedProvider).value ?? false;
@@ -35,14 +37,14 @@ class SecurityScreen extends ConsumerWidget {
       }
       try {
         final ok = await LocalAuthentication().authenticate(
-          localizedReason: 'Enable biometric lock for LOIT',
+          localizedReason: l.securityBiometricReason,
           options: const AuthenticationOptions(stickyAuth: true),
         );
         await notifier.setBool(PrefKeys.biometricLock, ok);
       } catch (e) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Biometric setup failed: $e')),
+          SnackBar(content: Text(l.securityBiometricSetupFailed(e.toString()))),
         );
       }
     }
@@ -50,7 +52,7 @@ class SecurityScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Security'),
+        title: Text(l.securityTitle),
         backgroundColor: c.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -58,20 +60,20 @@ class SecurityScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
-          SettingsGroup(label: 'Lock', children: [
+          SettingsGroup(label: l.securityLock, children: [
             SettingsToggleRow(
-              label: 'Biometric unlock',
+              label: l.securityBiometricUnlock,
               helper: supported
-                  ? 'Lock LOIT with Face / fingerprint after 15s in background'
-                  : 'Not available on this device',
+                  ? l.securityBiometricHelper
+                  : l.securityBiometricNotAvailable,
               value: prefs.biometricLock,
               onChanged: supported ? toggleBiometric : (_) {},
             ),
           ]),
-          SettingsGroup(label: 'Privacy', children: [
+          SettingsGroup(label: l.securityPrivacy, children: [
             SettingsToggleRow(
-              label: 'Hide amounts on lock screen',
-              helper: 'Replace amounts with •••• in notifications.',
+              label: l.securityHideAmounts,
+              helper: l.securityHideAmountsHelper,
               value: prefs.hideAmounts,
               onChanged: (v) => notifier.setBool(PrefKeys.hideAmounts, v),
             ),
@@ -79,9 +81,8 @@ class SecurityScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Text(
-              'Sessions are managed by your auth provider. Sign out from Settings to revoke access on this device.',
-              style: LoitTypography.bodyS
-                  .copyWith(color: c.contentTertiary),
+              l.securitySessionFooter,
+              style: LoitTypography.bodyS.copyWith(color: c.contentTertiary),
             ),
           ),
         ],

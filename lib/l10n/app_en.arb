@@ -1,5 +1,6 @@
 {
   "@@locale": "en",
+
   "scanQuotaUnlimited": "Unlimited",
   "scanQuotaUnlimitedDescription": "Scan as many receipts as you need",
   "annualSavingsBadge": "4 months free",
@@ -16,9 +17,138 @@
   "fxRateStale": "Rates may be outdated",
   "fxConvertedFrom": "≈ {amount} {currency}",
   "@fxConvertedFrom": {
+    "description": "Converted amount display, e.g. '≈ 150,000 IDR'",
     "placeholders": {
       "amount": {"type": "String"},
       "currency": {"type": "String"}
     }
-  }
+  },
+
+  "aboutTitle": "About",
+  "aboutTagline": "Personal & shared finance, calm by design.",
+  "aboutHelp": "Help",
+  "aboutLegal": "Legal",
+  "aboutBuild": "Build",
+  "aboutHelpCenter": "Help center",
+  "aboutContactSupport": "Contact support",
+  "aboutSendFeedback": "Send feedback",
+  "aboutTermsOfService": "Terms of service",
+  "aboutPrivacyPolicy": "Privacy policy",
+  "aboutOpenSourceLicenses": "Open source licenses",
+
+  "notifTitle": "Notifications",
+  "notifBudgets": "Budgets",
+  "notifRooms": "Rooms",
+  "notifReceipts": "Receipts",
+  "notifDigestsNews": "Digests & news",
+  "notifApproachingLimit": "Approaching limit",
+  "notifApproachingLimitHelper": "When you reach 80% of a budget.",
+  "notifWeeklyDigest": "Weekly digest",
+  "notifWeeklyDigestHelper": "Summary of last week budget progress.",
+  "notifNewTransactions": "New transactions",
+  "notifMentionsInvites": "Mentions & invites",
+  "notifExpiryReminders": "Expiry reminders",
+  "notifExpiryRemindersHelper": "Free tier · receipts auto-delete after 90 days.",
+  "notifMonthlySummary": "Monthly summary",
+  "notifProductUpdates": "Product updates",
+  "notifSystemFooter": "System push permission is managed in your device settings.",
+
+  "prefsTitle": "Preferences",
+  "prefsLanguage": "Language",
+  "prefsAppLanguage": "App language",
+  "prefsCurrency": "Currency",
+  "prefsHomeCurrency": "Home currency",
+  "prefsRegion": "Region",
+  "prefsCountry": "Country",
+  "prefsCategory": "Categories",
+  "prefsManageCategories": "Manage categories",
+  "prefsCustomize": "Customize",
+  "prefsAppearance": "Appearance",
+  "prefsTheme": "Theme",
+  "prefsThemeSystem": "System",
+  "prefsThemeLight": "Light",
+  "prefsThemeDark": "Dark",
+  "prefsSyncFooter": "Theme + language preferences will sync across devices in a future release.",
+
+  "profileTitle": "Profile",
+  "profileName": "Name",
+  "profileEmail": "Email",
+  "profilePhone": "Phone",
+  "profileEmailHelper": "Email is managed by your auth provider.",
+  "profileNotifications": "NOTIFICATIONS",
+  "profileBudgetAlerts": "Budget alerts",
+  "profileRoomActivity": "Room activity",
+  "profileSaveChanges": "Save changes",
+  "profileSaved": "Profile saved",
+  "profileSaveFailed": "Save failed: {error}",
+  "@profileSaveFailed": {
+    "description": "Error message when profile save fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+
+  "securityTitle": "Security",
+  "securityLock": "Lock",
+  "securityPrivacy": "Privacy",
+  "securityBiometricUnlock": "Biometric unlock",
+  "securityBiometricHelper": "Lock LOIT with Face / fingerprint after 15s in background",
+  "securityBiometricNotAvailable": "Not available on this device",
+  "securityHideAmounts": "Hide amounts on lock screen",
+  "securityHideAmountsHelper": "Replace amounts with •••• in notifications.",
+  "securityBiometricSetupFailed": "Biometric setup failed: {error}",
+  "@securityBiometricSetupFailed": {
+    "description": "Error when biometric auth setup fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "securitySessionFooter": "Sessions are managed by your auth provider. Sign out from Settings to revoke access on this device.",
+  "securityBiometricReason": "Enable biometric lock for LOIT",
+
+  "settingsTitle": "Settings",
+  "settingsGeneral": "General",
+  "settingsMoney": "Money",
+  "settingsSubscription": "Subscription",
+  "settingsPrivacyData": "Privacy & data",
+  "settingsAbout": "About",
+  "settingsDebug": "Debug",
+  "settingsLanguage": "Language",
+  "settingsCurrency": "Currency",
+  "settingsTheme": "Theme",
+  "settingsCategories": "Categories",
+  "settingsCustomize": "Customize",
+  "settingsAccounts": "Accounts",
+  "settingsBudgets": "Budgets",
+  "settingsBudgetsActive": "{count} active",
+  "@settingsBudgetsActive": {
+    "description": "Number of active budgets, e.g. '3 active'",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "settingsScansThisMonth": "Scans this month",
+  "settingsUnlimited": "Unlimited",
+  "settingsPlan": "Plan",
+  "settingsReceipts": "Receipts",
+  "settingsSecurity": "Security",
+  "settingsNotifications": "Notifications",
+  "settingsExportData": "Export data",
+  "settingsCsvPdf": "CSV / PDF",
+  "settingsDeleteAccount": "Delete account",
+  "settingsHelpSupport": "Help & support",
+  "settingsTermsPrivacy": "Terms & privacy",
+  "settingsVersion": "Version",
+  "settingsSignOut": "Sign out",
+  "settingsHomeCurrency": "Home currency",
+  "settingsDeleteAccountTitle": "Delete account?",
+  "settingsDeleteAccountMessage": "All your data will be permanently removed. This cannot be undone.",
+  "settingsCancel": "Cancel",
+  "settingsDelete": "Delete",
+  "settingsDeleteAccountSnackbar": "Account deletion requires email to support.",
+
+  "debugSimulateOffline": "Simulate offline",
+  "debugSimulateOfflineHelper": "Show the offline banner for testing",
+
+  "tierActive": "ACTIVE"
 }

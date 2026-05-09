@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 
 class SettingsGroup extends StatelessWidget {
   const SettingsGroup({super.key, required this.label, required this.children});
@@ -187,6 +188,7 @@ class SettingsTierChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final upper = tier.toUpperCase();
     final isPaid = tier == 'pro' || tier == 'team';
     return Container(
@@ -196,7 +198,7 @@ class SettingsTierChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
-        isPaid ? '$upper · ACTIVE' : upper,
+        isPaid ? '$upper · ${l.tierActive}' : upper,
         style: LoitTypography.labelS.copyWith(
           color: isPaid ? c.brand : c.contentSecondary,
           fontWeight: FontWeight.w600,

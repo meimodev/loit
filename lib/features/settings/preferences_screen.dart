@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/preferences_provider.dart';
@@ -28,12 +29,25 @@ String _regionLabel(String code) => _kRegionCodes.entries
     .firstWhere((e) => e.value == code, orElse: () => _kRegionCodes.entries.first)
     .key;
 
+Map<String, ThemeMode> _themeOptions(BuildContext context) => {
+      context.l10n.prefsThemeSystem: ThemeMode.system,
+      context.l10n.prefsThemeLight: ThemeMode.light,
+      context.l10n.prefsThemeDark: ThemeMode.dark,
+    };
+
+String _themeLabel(BuildContext context, ThemeMode m) =>
+    _themeOptions(context)
+        .entries
+        .firstWhere((e) => e.value == m, orElse: () => _themeOptions(context).entries.first)
+        .key;
+
 class PreferencesScreen extends ConsumerWidget {
   const PreferencesScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     final profile = ref.watch(userProfileProvider).value;
     final prefs = ref.watch(preferencesProvider).value ?? const AppPreferences();
     final notifier = ref.read(preferencesProvider.notifier);
@@ -41,7 +55,7 @@ class PreferencesScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Preferences'),
+        title: Text(l.prefsTitle),
         backgroundColor: c.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -49,65 +63,62 @@ class PreferencesScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
-          SettingsGroup(label: 'Language', children: [
+          SettingsGroup(label: l.prefsLanguage, children: [
             SettingsRow(
-              label: 'App language',
+              label: l.prefsAppLanguage,
               value: _languageLabel(prefs.language == 'system' ? 'en' : prefs.language),
               onTap: () => _pick(
                 context: context,
-                title: 'Language',
+                title: l.prefsLanguage,
                 options: _kLanguageCodes.keys.toList(),
                 current: _languageLabel(prefs.language == 'system' ? 'en' : prefs.language),
                 onChosen: (v) => notifier.setLanguage(_kLanguageCodes[v] ?? 'en'),
               ),
             ),
           ]),
-          SettingsGroup(label: 'Currency', children: [
+          SettingsGroup(label: l.prefsCurrency, children: [
             SettingsRow(
-              label: 'Home currency',
+              label: l.prefsHomeCurrency,
               value: profile?.homeCurrency ?? 'IDR',
               onTap: () => _pickCurrency(context, ref, profile?.homeCurrency ?? 'IDR'),
             ),
           ]),
-          SettingsGroup(label: 'Region', children: [
+          SettingsGroup(label: l.prefsRegion, children: [
             SettingsRow(
-              label: 'Country',
+              label: l.prefsCountry,
               value: _regionLabel(prefs.region),
               onTap: () => _pick(
                 context: context,
-                title: 'Region',
+                title: l.prefsRegion,
                 options: _kRegionCodes.keys.toList(),
                 current: _regionLabel(prefs.region),
                 onChosen: (v) => notifier.setRegion(_kRegionCodes[v] ?? 'ID'),
               ),
             ),
           ]),
-          SettingsGroup(label: 'Categories', children: [
+          SettingsGroup(label: l.prefsCategory, children: [
             SettingsRow(
-              label: 'Manage categories',
-              value: 'Customize',
+              label: l.prefsManageCategories,
+              value: l.prefsCustomize,
               onTap: () => context.push('/categories'),
             ),
           ]),
-          SettingsGroup(label: 'Appearance', children: [
+          SettingsGroup(label: l.prefsAppearance, children: [
             SettingsRow(
-              label: 'Theme',
-              value: _themeLabel(prefs.themeMode),
-              onTap: () => _pick(
+              label: l.prefsTheme,
+              value: _themeLabel(context, prefs.themeMode),
+              onTap: () => _pickTheme(
                 context: context,
-                title: 'Theme',
-                options: const ['System', 'Light', 'Dark'],
-                current: _themeLabel(prefs.themeMode),
-                onChosen: (v) => notifier.setThemeMode(_themeFrom(v)),
+                current: prefs.themeMode,
+                onChosen: (m) => notifier.setThemeMode(m),
               ),
             ),
           ]),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Text(
-              'Theme + language preferences will sync across devices in a future release.',
-              style: LoitTypography.bodyS
-                  .copyWith(color: c.contentTertiary),
+              l.prefsSyncFooter,
+              style: LoitTypography.bodyS.copyWith(color: c.contentTertiary),
             ),
           ),
         ],
@@ -115,24 +126,13 @@ class PreferencesScreen extends ConsumerWidget {
     );
   }
 
-  String _themeLabel(ThemeMode m) => switch (m) {
-        ThemeMode.light => 'Light',
-        ThemeMode.dark => 'Dark',
-        ThemeMode.system => 'System',
-      };
-
-  ThemeMode _themeFrom(String s) => switch (s) {
-        'Light' => ThemeMode.light,
-        'Dark' => ThemeMode.dark,
-        _ => ThemeMode.system,
-      };
-
   Future<void> _pickCurrency(
       BuildContext context, WidgetRef ref, String current) async {
+    final l = context.l10n;
     final v = await pickCurrency(
       context,
       selected: current,
-      title: 'Home currency',
+      title: l.prefsHomeCurrency,
     );
     if (v == null || v == current) return;
     final user = Supabase.instance.client.auth.currentUser;
@@ -142,8 +142,6 @@ class PreferencesScreen extends ConsumerWidget {
         .update({'home_currency': v}).eq('id', user.id);
     await ref.read(preferencesProvider.notifier).setCurrency(v);
     ref.invalidate(userProfileProvider);
-    // Snapshots already cover all currencies — invalidating display providers
-    // is enough; no FX network calls fire.
     ref.invalidate(transactionsProvider);
     ref.invalidate(accountsProvider);
   }
@@ -158,6 +156,24 @@ class PreferencesScreen extends ConsumerWidget {
     final v = await _pickValue(
         context: context, title: title, options: options, current: current);
     if (v != null) onChosen(v);
+  }
+
+  Future<void> _pickTheme({
+    required BuildContext context,
+    required ThemeMode current,
+    required ValueChanged<ThemeMode> onChosen,
+  }) async {
+    final opts = _themeOptions(context);
+    final v = await _pickValue(
+      context: context,
+      title: context.l10n.prefsTheme,
+      options: opts.keys.toList(),
+      current: _themeLabel(context, current),
+    );
+    if (v != null) {
+      final mode = opts[v];
+      if (mode != null) onChosen(mode);
+    }
   }
 
   Future<String?> _pickValue({
@@ -225,4 +241,3 @@ class PreferencesScreen extends ConsumerWidget {
     );
   }
 }
-

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/preferences_provider.dart';
 import '_widgets.dart';
 
@@ -12,6 +13,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     final prefs = ref.watch(preferencesProvider).value ?? const AppPreferences();
     final notifier = ref.read(preferencesProvider.notifier);
     void set(String key, bool v) => notifier.setBool(key, v);
@@ -19,7 +21,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(l.notifTitle),
         backgroundColor: c.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -27,48 +29,48 @@ class NotificationSettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
-          SettingsGroup(label: 'Budgets', children: [
+          SettingsGroup(label: l.notifBudgets, children: [
             SettingsToggleRow(
-              label: 'Approaching limit',
-              helper: 'When you reach 80% of a budget.',
+              label: l.notifApproachingLimit,
+              helper: l.notifApproachingLimitHelper,
               value: prefs.notifBudgetAlerts,
               onChanged: (v) => set(PrefKeys.notifBudgetAlerts, v),
             ),
             SettingsToggleRow(
-              label: 'Weekly digest',
-              helper: 'Summary of last week budget progress.',
+              label: l.notifWeeklyDigest,
+              helper: l.notifWeeklyDigestHelper,
               value: prefs.notifBudgetWeeklyDigest,
               onChanged: (v) => set(PrefKeys.notifBudgetWeeklyDigest, v),
             ),
           ]),
-          SettingsGroup(label: 'Rooms', children: [
+          SettingsGroup(label: l.notifRooms, children: [
             SettingsToggleRow(
-              label: 'New transactions',
+              label: l.notifNewTransactions,
               value: prefs.notifRoomActivity,
               onChanged: (v) => set(PrefKeys.notifRoomActivity, v),
             ),
             SettingsToggleRow(
-              label: 'Mentions & invites',
+              label: l.notifMentionsInvites,
               value: prefs.notifRoomMentions,
               onChanged: (v) => set(PrefKeys.notifRoomMentions, v),
             ),
           ]),
-          SettingsGroup(label: 'Receipts', children: [
+          SettingsGroup(label: l.notifReceipts, children: [
             SettingsToggleRow(
-              label: 'Expiry reminders',
-              helper: 'Free tier · receipts auto-delete after 90 days.',
+              label: l.notifExpiryReminders,
+              helper: l.notifExpiryRemindersHelper,
               value: prefs.notifReceiptExpiry,
               onChanged: (v) => set(PrefKeys.notifReceiptExpiry, v),
             ),
           ]),
-          SettingsGroup(label: 'Digests & news', children: [
+          SettingsGroup(label: l.notifDigestsNews, children: [
             SettingsToggleRow(
-              label: 'Monthly summary',
+              label: l.notifMonthlySummary,
               value: prefs.notifMonthlyDigest,
               onChanged: (v) => set(PrefKeys.notifMonthlyDigest, v),
             ),
             SettingsToggleRow(
-              label: 'Product updates',
+              label: l.notifProductUpdates,
               value: prefs.notifProductUpdates,
               onChanged: (v) => set(PrefKeys.notifProductUpdates, v),
             ),
@@ -76,9 +78,8 @@ class NotificationSettingsScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Text(
-              'System push permission is managed in your device settings.',
-              style: LoitTypography.bodyS
-                  .copyWith(color: c.contentTertiary),
+              l.notifSystemFooter,
+              style: LoitTypography.bodyS.copyWith(color: c.contentTertiary),
             ),
           ),
         ],

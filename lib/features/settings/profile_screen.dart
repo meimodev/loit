@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/preferences_provider.dart';
 import '../../shared/widgets/loit_button.dart';
@@ -43,6 +44,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
     setState(() => _saving = true);
+    final l = context.l10n;
     try {
       await Supabase.instance.client
           .from('users')
@@ -50,13 +52,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ref.invalidate(userProfileProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile saved')),
+        SnackBar(content: Text(l.profileSaved)),
       );
       context.pop();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Save failed: $e')),
+        SnackBar(content: Text(l.profileSaveFailed(e.toString()))),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -66,6 +68,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final profileAsync = ref.watch(userProfileProvider);
     final profile = profileAsync.value;
     if (profile != null && !_hydrated) _hydrate(profile);
@@ -75,7 +78,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(l.profileTitle),
         backgroundColor: c.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -121,22 +124,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                LoitInput(controller: _name, label: 'Name'),
+                LoitInput(controller: _name, label: l.profileName),
                 const SizedBox(height: 10),
                 LoitInput(
                   controller: _email,
-                  label: 'Email',
+                  label: l.profileEmail,
                   enabled: false,
-                  helper: 'Email is managed by your auth provider.',
+                  helper: l.profileEmailHelper,
                 ),
                 const SizedBox(height: 10),
                 LoitInput(
                     controller: _phone,
-                    label: 'Phone',
+                    label: l.profilePhone,
                     keyboardType: TextInputType.phone),
                 const SizedBox(height: 18),
                 Text(
-                  'NOTIFICATIONS',
+                  l.profileNotifications,
                   style: LoitTypography.labelS.copyWith(
                     color: c.contentSecondary,
                     letterSpacing: 0.8,
@@ -153,25 +156,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: Column(
                     children: [
                       SettingsToggleRow(
-                        label: 'Budget alerts',
+                        label: l.profileBudgetAlerts,
                         value: prefs.notifBudgetAlerts,
                         onChanged: (v) =>
                             notifier.setBool(PrefKeys.notifBudgetAlerts, v),
                       ),
                       SettingsToggleRow(
-                        label: 'Room activity',
+                        label: l.profileRoomActivity,
                         value: prefs.notifRoomActivity,
                         onChanged: (v) =>
                             notifier.setBool(PrefKeys.notifRoomActivity, v),
                       ),
                       SettingsToggleRow(
-                        label: 'Weekly digest',
+                        label: l.notifWeeklyDigest,
                         value: prefs.notifBudgetWeeklyDigest,
                         onChanged: (v) => notifier.setBool(
                             PrefKeys.notifBudgetWeeklyDigest, v),
                       ),
                       SettingsToggleRow(
-                        label: 'Product updates',
+                        label: l.notifProductUpdates,
                         value: prefs.notifProductUpdates,
                         onChanged: (v) =>
                             notifier.setBool(PrefKeys.notifProductUpdates, v),
@@ -193,7 +196,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: SafeArea(
               top: false,
               child: LoitButton.primary(
-                label: 'Save changes',
+                label: l.profileSaveChanges,
                 size: LoitButtonSize.l,
                 fullWidth: true,
                 loading: _saving,

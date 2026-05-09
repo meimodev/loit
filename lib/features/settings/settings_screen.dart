@@ -7,6 +7,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../core/services/analytics_service.dart';
 import '../../core/services/push_service.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/budgets_provider.dart';
@@ -24,17 +25,17 @@ String _languageLabel(String code) => _kLanguageCodes.entries
         orElse: () => _kLanguageCodes.entries.first)
     .key;
 
-String _themeLabel(ThemeMode m) => switch (m) {
-      ThemeMode.light => 'Light',
-      ThemeMode.dark => 'Dark',
-      ThemeMode.system => 'System',
+Map<String, ThemeMode> _themeOptions(BuildContext context) => {
+      context.l10n.prefsThemeSystem: ThemeMode.system,
+      context.l10n.prefsThemeLight: ThemeMode.light,
+      context.l10n.prefsThemeDark: ThemeMode.dark,
     };
 
-ThemeMode _themeFrom(String s) => switch (s) {
-      'Light' => ThemeMode.light,
-      'Dark' => ThemeMode.dark,
-      _ => ThemeMode.system,
-    };
+String _themeLabel(BuildContext context, ThemeMode m) =>
+    _themeOptions(context)
+        .entries
+        .firstWhere((e) => e.value == m, orElse: () => _themeOptions(context).entries.first)
+        .key;
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -42,6 +43,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     final profile = ref.watch(userProfileProvider).value;
     final budgets = ref.watch(budgetsProvider).value ?? const [];
     final prefs = ref.watch(preferencesProvider).value ?? const AppPreferences();
@@ -50,7 +52,7 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(l.settingsTitle),
         backgroundColor: c.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -106,14 +108,14 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
 
-          SettingsGroup(label: 'General', children: [
+          SettingsGroup(label: l.settingsGeneral, children: [
             SettingsRow(
-              label: 'Language',
+              label: l.settingsLanguage,
               value: _languageLabel(
                   prefs.language == 'system' ? 'en' : prefs.language),
               onTap: () => _pick(
                 context: context,
-                title: 'Language',
+                title: l.settingsLanguage,
                 options: _kLanguageCodes.keys.toList(),
                 current: _languageLabel(
                     prefs.language == 'system' ? 'en' : prefs.language),
@@ -122,109 +124,107 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             SettingsRow(
-              label: 'Currency',
+              label: l.settingsCurrency,
               value: profile?.homeCurrency ?? 'IDR',
               onTap: () => _pickCurrency(
                   context, ref, profile?.homeCurrency ?? 'IDR'),
             ),
             SettingsRow(
-              label: 'Theme',
-              value: _themeLabel(prefs.themeMode),
-              onTap: () => _pick(
+              label: l.settingsTheme,
+              value: _themeLabel(context, prefs.themeMode),
+              onTap: () => _pickTheme(
                 context: context,
-                title: 'Theme',
-                options: const ['System', 'Light', 'Dark'],
-                current: _themeLabel(prefs.themeMode),
-                onChosen: (v) => prefsNotifier.setThemeMode(_themeFrom(v)),
+                current: prefs.themeMode,
+                onChosen: (m) => prefsNotifier.setThemeMode(m),
               ),
             ),
             SettingsRow(
-              label: 'Categories',
-              value: 'Customize',
+              label: l.settingsCategories,
+              value: l.settingsCustomize,
               onTap: () => context.push('/categories'),
             ),
           ]),
 
-          SettingsGroup(label: 'Money', children: [
+          SettingsGroup(label: l.settingsMoney, children: [
             SettingsRow(
-              label: 'Accounts',
+              label: l.settingsAccounts,
               onTap: () => context.push('/accounts'),
             ),
             SettingsRow(
-              label: 'Budgets',
-              value: '${budgets.length} active',
+              label: l.settingsBudgets,
+              value: l.settingsBudgetsActive(budgets.length),
               onTap: () => context.push('/budgets'),
             ),
             SettingsRow(
-              label: 'Scans this month',
+              label: l.settingsScansThisMonth,
               value: profile == null
                   ? '—'
                   : profile.hasUnlimitedScans
-                      ? 'Unlimited'
+                      ? l.settingsUnlimited
                       : '${profile.scansUsedThisMonth} / ${profile.scanQuota}',
               showChevron: false,
               onTap: null,
             ),
           ]),
 
-          SettingsGroup(label: 'Subscription', children: [
+          SettingsGroup(label: l.settingsSubscription, children: [
             SettingsRow(
-              label: 'Plan',
+              label: l.settingsPlan,
               value: profile?.tier.toUpperCase() ?? 'FREE',
               onTap: () => context.push('/billing/manage'),
             ),
             SettingsRow(
-              label: 'Receipts',
+              label: l.settingsReceipts,
               onTap: () => context.push('/receipts'),
             ),
           ]),
 
-          SettingsGroup(label: 'Privacy & data', children: [
+          SettingsGroup(label: l.settingsPrivacyData, children: [
             SettingsRow(
-              label: 'Security',
+              label: l.settingsSecurity,
               onTap: () => context.push('/settings/security'),
             ),
             SettingsRow(
-              label: 'Notifications',
+              label: l.settingsNotifications,
               onTap: () => context.push('/settings/notifications'),
             ),
             SettingsRow(
-              label: 'Export data',
-              value: 'CSV / PDF',
+              label: l.settingsExportData,
+              value: l.settingsCsvPdf,
               onTap: () => context.push('/reports/export'),
             ),
             SettingsRow(
-              label: 'Delete account',
+              label: l.settingsDeleteAccount,
               destructive: true,
               showChevron: false,
               onTap: () => _confirmDelete(context),
             ),
           ]),
 
-          SettingsGroup(label: 'About', children: [
+          SettingsGroup(label: l.settingsAbout, children: [
             SettingsRow(
-              label: 'Help & support',
+              label: l.settingsHelpSupport,
               onTap: () => context.push('/settings/about'),
             ),
             SettingsRow(
-              label: 'Terms & privacy',
+              label: l.settingsTermsPrivacy,
               onTap: () => context.push('/settings/about'),
             ),
-            const SettingsRow(
-              label: 'Version',
+            SettingsRow(
+              label: l.settingsVersion,
               value: '1.0.0',
               showChevron: false,
             ),
           ]),
 
           const SizedBox(height: 24),
-          SettingsGroup(label: 'Debug', children: [
+          SettingsGroup(label: l.settingsDebug, children: [
             _OfflineToggle(),
           ]),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: LoitButton.secondary(
-              label: 'Sign out',
+              label: l.settingsSignOut,
               fullWidth: true,
               onPressed: () => _signOut(context),
             ),
@@ -256,7 +256,7 @@ class SettingsScreen extends ConsumerWidget {
     final v = await pickCurrency(
       context,
       selected: current,
-      title: 'Home currency',
+      title: context.l10n.settingsHomeCurrency,
     );
     if (v == null || v == current) return;
     final user = Supabase.instance.client.auth.currentUser;
@@ -268,6 +268,25 @@ class SettingsScreen extends ConsumerWidget {
     ref.invalidate(userProfileProvider);
     ref.invalidate(transactionsProvider);
     ref.invalidate(accountsProvider);
+  }
+
+  Future<void> _pickTheme({
+    required BuildContext context,
+    required ThemeMode current,
+    required ValueChanged<ThemeMode> onChosen,
+  }) async {
+    final l = context.l10n;
+    final opts = _themeOptions(context);
+    final v = await _pickValue(
+      context: context,
+      title: l.prefsTheme,
+      options: opts.keys.toList(),
+      current: _themeLabel(context, current),
+    );
+    if (v != null) {
+      final mode = opts[v];
+      if (mode != null) onChosen(mode);
+    }
   }
 
   Future<String?> _pickValue({
@@ -345,21 +364,20 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   static Future<void> _confirmDelete(BuildContext context) async {
+    final l = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete account?'),
-        content: const Text(
-          'All your data will be permanently removed. This cannot be undone.',
-        ),
+        title: Text(l.settingsDeleteAccountTitle),
+        content: Text(l.settingsDeleteAccountMessage),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(l.settingsCancel)),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(l.settingsDelete),
           ),
         ],
       ),
@@ -367,9 +385,7 @@ class SettingsScreen extends ConsumerWidget {
     if (ok != true) return;
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Account deletion requires email to support.'),
-      ),
+      SnackBar(content: Text(l.settingsDeleteAccountSnackbar)),
     );
   }
 
@@ -387,10 +403,11 @@ class _OfflineToggle extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = context.l10n;
     final override = ref.watch(offlineDebugOverrideProvider);
     return SettingsToggleRow(
-      label: 'Simulate offline',
-      helper: 'Show the offline banner for testing',
+      label: l.debugSimulateOffline,
+      helper: l.debugSimulateOfflineHelper,
       value: override == true,
       onChanged: (v) =>
           ref.read(offlineDebugOverrideProvider.notifier).set(v ? true : null),

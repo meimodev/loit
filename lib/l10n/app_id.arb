@@ -1,5 +1,6 @@
 {
   "@@locale": "id",
+
   "scanQuotaUnlimited": "Tanpa batas",
   "scanQuotaUnlimitedDescription": "Pindai struk sebanyak yang Anda butuhkan",
   "annualSavingsBadge": "Gratis 4 bulan",
@@ -16,9 +17,138 @@
   "fxRateStale": "Kurs mungkin sudah tidak terbaru",
   "fxConvertedFrom": "≈ {amount} {currency}",
   "@fxConvertedFrom": {
+    "description": "Converted amount display, e.g. '≈ 150,000 IDR'",
     "placeholders": {
       "amount": {"type": "String"},
       "currency": {"type": "String"}
     }
-  }
+  },
+
+  "aboutTitle": "Tentang",
+  "aboutTagline": "Keuangan pribadi & bersama, tenang secara desain.",
+  "aboutHelp": "Bantuan",
+  "aboutLegal": "Hukum",
+  "aboutBuild": "Versi",
+  "aboutHelpCenter": "Pusat bantuan",
+  "aboutContactSupport": "Hubungi dukungan",
+  "aboutSendFeedback": "Kirim masukan",
+  "aboutTermsOfService": "Ketentuan layanan",
+  "aboutPrivacyPolicy": "Kebijakan privasi",
+  "aboutOpenSourceLicenses": "Lisensi sumber terbuka",
+
+  "notifTitle": "Notifikasi",
+  "notifBudgets": "Anggaran",
+  "notifRooms": "Ruangan",
+  "notifReceipts": "Struk",
+  "notifDigestsNews": "Ringkasan & berita",
+  "notifApproachingLimit": "Mendekati batas",
+  "notifApproachingLimitHelper": "Saat Anda mencapai 80% dari anggaran.",
+  "notifWeeklyDigest": "Ringkasan mingguan",
+  "notifWeeklyDigestHelper": "Ringkasan progres anggaran minggu lalu.",
+  "notifNewTransactions": "Transaksi baru",
+  "notifMentionsInvites": "Sebutan & undangan",
+  "notifExpiryReminders": "Pengingat kedaluwarsa",
+  "notifExpiryRemindersHelper": "Tingkat gratis · struk otomatis terhapus setelah 90 hari.",
+  "notifMonthlySummary": "Ringkasan bulanan",
+  "notifProductUpdates": "Pembaruan produk",
+  "notifSystemFooter": "Izin push sistem dikelola di pengaturan perangkat Anda.",
+
+  "prefsTitle": "Preferensi",
+  "prefsLanguage": "Bahasa",
+  "prefsAppLanguage": "Bahasa aplikasi",
+  "prefsCurrency": "Mata uang",
+  "prefsHomeCurrency": "Mata uang utama",
+  "prefsRegion": "Wilayah",
+  "prefsCountry": "Negara",
+  "prefsCategory": "Kategori",
+  "prefsManageCategories": "Kelola kategori",
+  "prefsCustomize": "Sesuaikan",
+  "prefsAppearance": "Tampilan",
+  "prefsTheme": "Tema",
+  "prefsThemeSystem": "Sistem",
+  "prefsThemeLight": "Terang",
+  "prefsThemeDark": "Gelap",
+  "prefsSyncFooter": "Preferensi tema + bahasa akan disinkronkan antar perangkat di rilis mendatang.",
+
+  "profileTitle": "Profil",
+  "profileName": "Nama",
+  "profileEmail": "Email",
+  "profilePhone": "Telepon",
+  "profileEmailHelper": "Email dikelola oleh penyedia autentikasi Anda.",
+  "profileNotifications": "NOTIFIKASI",
+  "profileBudgetAlerts": "Peringatan anggaran",
+  "profileRoomActivity": "Aktivitas ruangan",
+  "profileSaveChanges": "Simpan perubahan",
+  "profileSaved": "Profil disimpan",
+  "profileSaveFailed": "Gagal menyimpan: {error}",
+  "@profileSaveFailed": {
+    "description": "Error message when profile save fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+
+  "securityTitle": "Keamanan",
+  "securityLock": "Kunci",
+  "securityPrivacy": "Privasi",
+  "securityBiometricUnlock": "Buka kunci biometrik",
+  "securityBiometricHelper": "Kunci LOIT dengan Wajah / sidik jari setelah 15 detik di latar",
+  "securityBiometricNotAvailable": "Tidak tersedia di perangkat ini",
+  "securityHideAmounts": "Sembunyikan jumlah di layar kunci",
+  "securityHideAmountsHelper": "Ganti jumlah dengan •••• di notifikasi.",
+  "securityBiometricSetupFailed": "Penyiapan biometrik gagal: {error}",
+  "@securityBiometricSetupFailed": {
+    "description": "Error when biometric auth setup fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "securitySessionFooter": "Sesi dikelola oleh penyedia autentikasi Anda. Keluar dari Pengaturan untuk mencabut akses di perangkat ini.",
+  "securityBiometricReason": "Aktifkan kunci biometrik untuk LOIT",
+
+  "settingsTitle": "Pengaturan",
+  "settingsGeneral": "Umum",
+  "settingsMoney": "Keuangan",
+  "settingsSubscription": "Langganan",
+  "settingsPrivacyData": "Privasi & data",
+  "settingsAbout": "Tentang",
+  "settingsDebug": "Debug",
+  "settingsLanguage": "Bahasa",
+  "settingsCurrency": "Mata uang",
+  "settingsTheme": "Tema",
+  "settingsCategories": "Kategori",
+  "settingsCustomize": "Sesuaikan",
+  "settingsAccounts": "Akun",
+  "settingsBudgets": "Anggaran",
+  "settingsBudgetsActive": "{count} aktif",
+  "@settingsBudgetsActive": {
+    "description": "Number of active budgets, e.g. '3 active'",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "settingsScansThisMonth": "Pemindaian bulan ini",
+  "settingsUnlimited": "Tanpa batas",
+  "settingsPlan": "Paket",
+  "settingsReceipts": "Struk",
+  "settingsSecurity": "Keamanan",
+  "settingsNotifications": "Notifikasi",
+  "settingsExportData": "Ekspor data",
+  "settingsCsvPdf": "CSV / PDF",
+  "settingsDeleteAccount": "Hapus akun",
+  "settingsHelpSupport": "Bantuan & dukungan",
+  "settingsTermsPrivacy": "Ketentuan & privasi",
+  "settingsVersion": "Versi",
+  "settingsSignOut": "Keluar",
+  "settingsHomeCurrency": "Mata uang utama",
+  "settingsDeleteAccountTitle": "Hapus akun?",
+  "settingsDeleteAccountMessage": "Semua data Anda akan dihapus secara permanen. Ini tidak dapat dibatalkan.",
+  "settingsCancel": "Batal",
+  "settingsDelete": "Hapus",
+  "settingsDeleteAccountSnackbar": "Penghapusan akun memerlukan email ke dukungan.",
+
+  "debugSimulateOffline": "Simulasikan offline",
+  "debugSimulateOfflineHelper": "Tampilkan spanduk offline untuk pengujian",
+
+  "tierActive": "AKTIF"
 }

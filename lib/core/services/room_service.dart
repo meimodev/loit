@@ -163,6 +163,9 @@ class RoomService {
     required String category,
     required num budgetLimit,
     required String currency,
+    String period = 'monthly',
+    int resetDay = 1,
+    int? customDays,
   }) async {
     await _client.from('room_budgets').upsert(
       {
@@ -170,6 +173,9 @@ class RoomService {
         'category': category,
         'budget_limit': budgetLimit,
         'currency': currency,
+        'period': period,
+        'reset_day': resetDay,
+        'custom_days': period == 'custom' ? customDays : null,
         'created_by': _uid,
       },
       onConflict: 'room_id,category',
@@ -182,11 +188,17 @@ class RoomService {
     required String category,
     required num budgetLimit,
     required String currency,
+    String period = 'monthly',
+    int resetDay = 1,
+    int? customDays,
   }) async {
     await _client.from('room_budgets').update({
       'category': category,
       'budget_limit': budgetLimit,
       'currency': currency,
+      'period': period,
+      'reset_day': resetDay,
+      'custom_days': period == 'custom' ? customDays : null,
     }).eq('id', budgetId).eq('room_id', roomId);
   }
 

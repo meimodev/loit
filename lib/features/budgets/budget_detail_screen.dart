@@ -20,6 +20,14 @@ class BudgetDetailScreen extends ConsumerWidget {
 
   final String budgetId;
 
+  String _dayLabel(Budget b) {
+    final now = DateTime.now();
+    final start = b.windowStart(now);
+    final dayInCycle =
+        now.difference(DateTime(start.year, start.month, start.day)).inDays + 1;
+    return 'Day $dayInCycle / ${b.cycleDays(now)}';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
@@ -86,7 +94,7 @@ class BudgetDetailScreen extends ConsumerWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${catLabel.toUpperCase()} · MONTHLY',
+                        Text('${catLabel.toUpperCase()} · ${b.period.label.toUpperCase()}',
                             style: LoitTypography.bodyS.copyWith(
                               color: c.contentSecondary,
                               fontWeight: FontWeight.w600,
@@ -138,7 +146,7 @@ class BudgetDetailScreen extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Text('Day ${DateTime.now().day} / 30',
+                    Text(_dayLabel(b),
                         style: LoitTypography.bodyS
                             .copyWith(color: c.contentSecondary)),
                   ],

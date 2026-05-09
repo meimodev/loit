@@ -9,6 +9,7 @@ import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/home_currency_provider.dart';
 import '../../shared/providers/presence_provider.dart';
 import '../../shared/providers/room_aggregations_provider.dart';
@@ -1527,11 +1528,34 @@ class _BudgetTab extends ConsumerWidget {
                     ? c.warning
                     : style.tint;
             final now = DateTime.now();
-            final nextMonth = DateTime(now.year, now.month + 1, 1);
-            final daysLeft = nextMonth.difference(now).inDays;
-            final durationLabel = daysLeft <= 1
-                ? 'Monthly · resets tomorrow'
-                : 'Monthly · resets in ${daysLeft}d';
+            final period = BudgetPeriodX.fromWire(b['period'] as String?);
+            final resetDay = ((b['reset_day'] as num?) ?? 1).toInt();
+            final customDays = (b['custom_days'] as num?)?.toInt();
+            final winStart = budgetWindowStart(
+              period: period,
+              resetDay: resetDay,
+              customDays: customDays,
+              now: now,
+            );
+            final cycleLen = switch (period) {
+              BudgetPeriod.weekly => 7,
+              BudgetPeriod.monthly =>
+                DateTime(winStart.year, winStart.month + 1, winStart.day)
+                    .difference(winStart)
+                    .inDays,
+              BudgetPeriod.yearly => DateTime(now.year + 1, 1, 1)
+                  .difference(DateTime(now.year, 1, 1))
+                  .inDays,
+              BudgetPeriod.custom => customDays ?? 30,
+            };
+            final cycleEnd = winStart.add(Duration(days: cycleLen));
+            final daysLeft = cycleEnd.difference(now).inDays;
+            final resetsLabel = daysLeft <= 0
+                ? 'resets today'
+                : daysLeft == 1
+                    ? 'resets tomorrow'
+                    : 'resets in ${daysLeft}d';
+            final durationLabel = '${period.label} · $resetsLabel';
             return Container(
               margin: const EdgeInsets.only(top: LoitSpacing.s2),
               decoration: BoxDecoration(

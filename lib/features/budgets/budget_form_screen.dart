@@ -26,6 +26,9 @@ class BudgetFormScreen extends ConsumerStatefulWidget {
 class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
   late final TextEditingController _amount;
   String _category = 'dining';
+  BudgetPeriod _period = BudgetPeriod.monthly;
+  int _resetDay = 1;
+  int _customDays = 14;
   bool _alert70 = true;
   bool _alert100 = true;
   bool _alertDaily = false;
@@ -37,7 +40,12 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
     final init = widget.budget;
     _amount = TextEditingController(
         text: init == null ? '' : formatAmountInput(init.monthlyLimit));
-    if (init != null) _category = init.category;
+    if (init != null) {
+      _category = init.category;
+      _period = init.period;
+      _resetDay = init.resetDay;
+      _customDays = init.customDays ?? 14;
+    }
   }
 
   @override
@@ -62,6 +70,9 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
       await ref.read(budgetsProvider.notifier).upsert(
             category: _category,
             monthlyLimit: amt,
+            period: _period,
+            resetDay: _period == BudgetPeriod.custom ? 1 : _resetDay,
+            customDays: _period == BudgetPeriod.custom ? _customDays : null,
             id: widget.budget?.id,
           );
       Log.i('BudgetForm', 'Upsert completed successfully');
@@ -159,8 +170,18 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
                     if (picked != null) setState(() => _category = picked);
                   },
                 ),
-                _row(context, label: 'Period', value: 'Monthly · 1st'),
-                _row(context, label: 'Resets on', value: 'Day 1'),
+                _row(
+                  context,
+                  label: 'Period',
+                  value: _period.label,
+                  onTap: _pickPeriod,
+                ),
+                _row(
+                  context,
+                  label: 'Resets on',
+                  value: _resetsOnLabel(),
+                  onTap: _pickResetsOn,
+                ),
                 const LoitGroupLabel(label: 'ALERTS'),
                 _toggle(context, label: 'At 70%', value: _alert70,
                     onChanged: (v) => setState(() => _alert70 = v)),
@@ -216,6 +237,163 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  static const _weekdayNames = [
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday',
+    'Friday', 'Saturday', 'Sunday',
+  ];
+  static const _monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+
+  String _resetsOnLabel() {
+    switch (_period) {
+      case BudgetPeriod.weekly:
+        return _weekdayNames[(_resetDay - 1).clamp(0, 6)];
+      case BudgetPeriod.monthly:
+        return _resetDay == 0 ? 'Last day' : 'Day $_resetDay';
+      case BudgetPeriod.yearly:
+        return '1 ${_monthNames[(_resetDay - 1).clamp(0, 11)]}';
+      case BudgetPeriod.custom:
+        return 'Every $_customDays days';
+    }
+  }
+
+  Future<void> _pickPeriod() async {
+    final picked = await showModalBottomSheet<BudgetPeriod>(
+      context: context,
+      backgroundColor: context.loitColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: BudgetPeriod.values
+              .map((p) => ListTile(
+                    title: Text(p.label),
+                    trailing: p == _period
+                        ? const Icon(Icons.check, size: 18)
+                        : null,
+                    onTap: () => Navigator.pop(ctx, p),
+                  ))
+              .toList(),
+        ),
+      ),
+    );
+    if (picked == null || picked == _period) return;
+    setState(() {
+      _period = picked;
+      _resetDay = switch (picked) {
+        BudgetPeriod.weekly => 1,
+        BudgetPeriod.monthly => 1,
+        BudgetPeriod.yearly => 1,
+        BudgetPeriod.custom => 1,
+      };
+    });
+  }
+
+  Future<void> _pickResetsOn() async {
+    switch (_period) {
+      case BudgetPeriod.weekly:
+        final picked = await _pickFromList<int>(
+          title: 'Resets on',
+          options: List.generate(7, (i) => (i + 1, _weekdayNames[i])),
+          selected: _resetDay,
+        );
+        if (picked != null) setState(() => _resetDay = picked);
+        return;
+      case BudgetPeriod.monthly:
+        final opts = <(int, String)>[
+          for (var d = 1; d <= 28; d++) (d, 'Day $d'),
+          (0, 'Last day'),
+        ];
+        final picked = await _pickFromList<int>(
+          title: 'Resets on',
+          options: opts,
+          selected: _resetDay,
+        );
+        if (picked != null) setState(() => _resetDay = picked);
+        return;
+      case BudgetPeriod.yearly:
+        final picked = await _pickFromList<int>(
+          title: 'Resets on',
+          options: [
+            for (var m = 1; m <= 12; m++) (m, '1 ${_monthNames[m - 1]}'),
+          ],
+          selected: _resetDay,
+        );
+        if (picked != null) setState(() => _resetDay = picked);
+        return;
+      case BudgetPeriod.custom:
+        final picked = await _pickFromList<int>(
+          title: 'Every',
+          options: const [
+            (7, 'Every 7 days'),
+            (10, 'Every 10 days'),
+            (14, 'Every 14 days'),
+            (21, 'Every 21 days'),
+            (30, 'Every 30 days'),
+            (60, 'Every 60 days'),
+            (90, 'Every 90 days'),
+          ],
+          selected: _customDays,
+        );
+        if (picked != null) setState(() => _customDays = picked);
+        return;
+    }
+  }
+
+  Future<T?> _pickFromList<T>({
+    required String title,
+    required List<(T, String)> options,
+    required T selected,
+  }) {
+    return showModalBottomSheet<T>(
+      context: context,
+      backgroundColor: context.loitColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.6,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(title,
+                      style: LoitTypography.titleM.copyWith(
+                          color: ctx.loitColors.contentPrimary)),
+                ),
+              ),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: options
+                      .map((o) => ListTile(
+                            title: Text(o.$2),
+                            trailing: o.$1 == selected
+                                ? const Icon(Icons.check, size: 18)
+                                : null,
+                            onTap: () => Navigator.pop(ctx, o.$1),
+                          ))
+                      .toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/routing/app_router.dart';
@@ -14,7 +15,9 @@ import 'core/services/log_service.dart';
 import 'core/services/push_service.dart';
 import 'core/services/revenuecat_payment_service.dart';
 import 'shared/widgets/persistent_connectivity_banner.dart';
+import 'shared/widgets/persistent_export_banner.dart';
 import 'shared/providers/auth_providers.dart';
+import 'shared/providers/export_task_provider.dart';
 import 'shared/providers/notifications_provider.dart';
 import 'shared/providers/preferences_provider.dart';
 import 'shared/providers/presence_provider.dart';
@@ -30,6 +33,7 @@ class LoitApp extends ConsumerStatefulWidget {
 
 class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
   final _pushService = PushService();
+  final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
   StreamSubscription<void>? _entitlementSub;
   StreamSubscription<RemoteMessage>? _foregroundPushSub;
   RealtimeChannel? _userRowChannel;
@@ -179,6 +183,24 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       });
     });
 
+    // Background export task → trigger share sheet from anywhere when ready,
+    // or surface SnackBar on failure. Either resolves back to Idle so the
+    // export screen can start a new export.
+    ref.listen<ExportTaskState>(exportTaskProvider, (_, next) {
+      if (next is ExportTaskReady) {
+        Share.shareXFiles(
+          [XFile(next.file.path)],
+          subject: next.isPdf ? 'LOIT report' : 'LOIT export',
+        ).whenComplete(
+            () => ref.read(exportTaskProvider.notifier).consume());
+      } else if (next is ExportTaskFailed) {
+        _scaffoldMessengerKey.currentState?.showSnackBar(
+          SnackBar(content: Text('Export failed: ${next.message}')),
+        );
+        ref.read(exportTaskProvider.notifier).consume();
+      }
+    });
+
     // Push notification open → navigate to room
     _wirePushNavigation();
 
@@ -188,9 +210,11 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
 
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
+      scaffoldMessengerKey: _scaffoldMessengerKey,
       builder: (context, child) => Stack(
         children: [
           child!,
+          const PersistentExportBanner(),
           const PersistentConnectivityBanner(),
         ],
       ),

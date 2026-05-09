@@ -24,7 +24,7 @@ final List<String> _recentSearches = <String>[];
 
 enum _TypeFilter { income, expense }
 
-enum _DateFilter { week, month, year }
+enum _DateFilter { week, month, year, custom }
 
 enum _SourceFilter { rooms, personal }
 
@@ -46,6 +46,7 @@ class _TransactionSearchScreenState
   _TypeFilter? _type;
   _DateFilter? _date;
   _SourceFilter? _source;
+  DateTime? _customDate;
 
   bool get _anyFilter => _type != null || _date != null || _source != null;
 
@@ -78,7 +79,26 @@ class _TransactionSearchScreenState
         return d.year == now.year && d.month == now.month;
       case _DateFilter.year:
         return d.year == now.year;
+      case _DateFilter.custom:
+        final cd = _customDate;
+        if (cd == null) return true;
+        return d.year == cd.year && d.month == cd.month && d.day == cd.day;
     }
+  }
+
+  Future<void> _pickCustomDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _customDate ?? now,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 1, 12, 31),
+    );
+    if (picked == null) return;
+    setState(() {
+      _customDate = picked;
+      _date = _DateFilter.custom;
+    });
   }
 
   bool _matchesType(Txn t) {
@@ -195,9 +215,14 @@ class _TransactionSearchScreenState
                 type: _type,
                 date: _date,
                 source: _source,
+                customDate: _customDate,
                 onTypeChanged: (v) => setState(() => _type = v),
-                onDateChanged: (v) => setState(() => _date = v),
+                onDateChanged: (v) => setState(() {
+                  _date = v;
+                  if (v != _DateFilter.custom) _customDate = null;
+                }),
                 onSourceChanged: (v) => setState(() => _source = v),
+                onCustomTap: _pickCustomDate,
               ),
               Divider(height: 1, color: c.borderDefault),
               Expanded(
@@ -253,20 +278,22 @@ class _TransactionSearchScreenState
                                 accentStripeColor: roomAccent,
                                 onTap: () {
                                   _commit(_query);
+                                  // Snap selected month to the txn so the
+                                  // destination screen's monthly feed renders
+                                  // the row, enabling scroll-to + flash.
+                                  ref
+                                      .read(selectedMonthProvider.notifier)
+                                      .setMonth(t.createdAt.toLocal());
                                   if (isRoomTx) {
                                     final highlight = t.id != null
                                         ? '?highlight=${t.id}'
                                         : '';
+                                    // /rooms/:id sits in the Rooms shell
+                                    // branch, so `go` activates the Rooms
+                                    // bottom-nav tab.
                                     context
                                         .go('/rooms/${t.roomId}$highlight');
                                   } else if (t.id != null) {
-                                    // Snap feed to txn's month so highlight
-                                    // row renders, then navigate with
-                                    // highlight query so transactions screen
-                                    // scrolls + flashes.
-                                    ref
-                                        .read(selectedMonthProvider.notifier)
-                                        .setMonth(t.createdAt.toLocal());
                                     context.go(
                                         '/transactions?highlight=${t.id}');
                                   }
@@ -290,17 +317,21 @@ class _FiltersBar extends StatelessWidget {
     required this.type,
     required this.date,
     required this.source,
+    required this.customDate,
     required this.onTypeChanged,
     required this.onDateChanged,
     required this.onSourceChanged,
+    required this.onCustomTap,
   });
 
   final _TypeFilter? type;
   final _DateFilter? date;
   final _SourceFilter? source;
+  final DateTime? customDate;
   final ValueChanged<_TypeFilter?> onTypeChanged;
   final ValueChanged<_DateFilter?> onDateChanged;
   final ValueChanged<_SourceFilter?> onSourceChanged;
+  final VoidCallback onCustomTap;
 
   @override
   Widget build(BuildContext context) {
@@ -348,6 +379,20 @@ class _FiltersBar extends StatelessWidget {
                 selected: date == _DateFilter.year,
                 onTap: () => onDateChanged(
                     date == _DateFilter.year ? null : _DateFilter.year),
+              ),
+              _ChipSpec(
+                label: (date == _DateFilter.custom && customDate != null)
+                    ? DateFormat.yMMMd().format(customDate!)
+                    : 'Custom',
+                leading: Icons.event_outlined,
+                selected: date == _DateFilter.custom,
+                onTap: () {
+                  if (date == _DateFilter.custom) {
+                    onDateChanged(null);
+                  } else {
+                    onCustomTap();
+                  }
+                },
               ),
             ],
           ),

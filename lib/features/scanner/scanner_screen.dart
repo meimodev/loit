@@ -531,13 +531,17 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Receipt saved')),
       );
-      // When transaction routed to a room, jump straight into the room view.
+      // Land on detail first; back returns to the list (highlighted).
       if (roomId != null) {
         context.go('/rooms/$roomId?highlight=$insertedId');
+        if (insertedId != null) {
+          context.push('/rooms/$roomId/transactions/$insertedId');
+        }
       } else {
-        // Personal scan: surface the new row on the transactions tab so the
-        // user can see what just landed (with a one-shot flash highlight).
         context.go('/transactions?highlight=$insertedId');
+        if (insertedId != null) {
+          context.push('/transactions/$insertedId');
+        }
       }
       return true;
     } catch (e, st) {

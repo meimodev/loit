@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/services/currency_service.dart';
 import 'auth_providers.dart';
+import 'budgets_provider.dart';
 import 'services_providers.dart';
 
 /// Aggregated totals for a room, normalized into the room's `base_currency`.
@@ -176,26 +177,38 @@ final roomBudgetSpendConvertedProvider = FutureProvider.family<
 
   final budgets = await supabase
       .from('room_budgets')
-      .select('category, currency')
+      .select('category, currency, period, reset_day, custom_days')
       .eq('room_id', roomId);
 
+  final now = DateTime.now();
   final budgetCurrencies = <String, Set<String>>{};
+  // category -> window start. (room_id, category) is unique so one window per cat.
+  final windows = <String, DateTime>{};
+  DateTime? earliest;
   for (final m in budgets) {
     final cat = m['category'] as String?;
     final cur = m['currency'] as String?;
     if (cat == null || cur == null) continue;
     budgetCurrencies.putIfAbsent(cat, () => <String>{}).add(cur);
+    final start = budgetWindowStart(
+      period: BudgetPeriodX.fromWire(m['period'] as String?),
+      resetDay: ((m['reset_day'] as num?) ?? 1).toInt(),
+      customDays: (m['custom_days'] as num?)?.toInt(),
+      now: now,
+    );
+    windows[cat] = start;
+    if (earliest == null || start.isBefore(earliest)) earliest = start;
   }
 
-  final now = DateTime.now();
-  final monthStart = DateTime(now.year, now.month, 1).toUtc().toIso8601String();
+  final fromIso =
+      (earliest ?? DateTime(now.year, now.month, 1)).toUtc().toIso8601String();
 
   final rows = await supabase
       .from('transactions')
-      .select('category, currency, amount, type')
+      .select('category, currency, amount, type, created_at')
       .eq('room_id', roomId)
       .eq('type', 'expense')
-      .gte('created_at', monthStart);
+      .gte('created_at', fromIso);
 
   final pairs = <(String, String)>{};
   for (final m in rows) {
@@ -218,6 +231,13 @@ final roomBudgetSpendConvertedProvider = FutureProvider.family<
     final cat = m['category'] as String?;
     final cur = m['currency'] as String?;
     if (cat == null || cur == null) continue;
+    final winStart = windows[cat];
+    if (winStart == null) continue;
+    final createdRaw = m['created_at'];
+    final createdAt = createdRaw is String
+        ? DateTime.tryParse(createdRaw)?.toLocal()
+        : null;
+    if (createdAt == null || createdAt.isBefore(winStart)) continue;
     final amt = ((m['amount'] as num?) ?? 0).toDouble().abs();
     final targets = budgetCurrencies[cat] ?? const <String>{};
     for (final target in targets) {

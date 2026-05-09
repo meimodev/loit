@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_elevation.dart';
+import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
@@ -30,11 +31,44 @@ import '../../shared/widgets/receipt_expiry_banner.dart';
 ///   4. Hero summary band (day-of-month + MTD amount + goal bar)
 ///   5. Budget alerts and receipt expiry banners
 ///   6. Budgets group + edge-to-edge category rows
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _entrance;
+  bool _entranceStarted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _entrance = AnimationController(
+      vsync: this,
+      duration: LoitMotion.entrance + LoitMotion.staggerStep * 5,
+    );
+  }
+
+  void _maybeStartEntrance() {
+    if (_entranceStarted) return;
+    _entranceStarted = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _entrance.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _entrance.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = MediaQuery.disableAnimationsOf(context);
     final txns = ref.watch(transactionsProvider);
     final profile = ref.watch(userProfileProvider).value;
     final budgetStatuses = ref.watch(budgetStatusesProvider);
@@ -63,7 +97,7 @@ class DashboardScreen extends ConsumerWidget {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: LoitSpacing.s4),
-            child: GestureDetector(
+            child: _PressScale(
               onTap: () => context.push('/settings/profile'),
               child: CircleAvatar(
                 radius: 16,
@@ -84,6 +118,7 @@ class DashboardScreen extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Error: $e')),
           data: (items) {
+            _maybeStartEntrance();
             final summary = _MonthSummary.fromTxns(items, month);
             final currency = profile?.homeCurrency ?? 'IDR';
             final byDay = _spendByDay(items, month);
@@ -91,10 +126,22 @@ class DashboardScreen extends ConsumerWidget {
             final avgDay = activeDays == 0
                 ? 0.0
                 : byDay.reduce((a, b) => a + b) / activeDays;
+            Widget fadeUpSliver(int index, Widget child) {
+              return SliverToBoxAdapter(
+                child: _FadeUp(
+                  controller: _entrance,
+                  index: index,
+                  reduced: reduced,
+                  child: child,
+                ),
+              );
+            }
+
             return CustomScrollView(
               slivers: [
-                SliverToBoxAdapter(
-                  child: _ReportsPreviewCard(
+                fadeUpSliver(
+                  0,
+                  _ReportsPreviewCard(
                     byDay: byDay,
                     avgDay: avgDay,
                     mtdSpend: summary.expenses,
@@ -103,8 +150,9 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                 ),
                 // Net worth strip
-                SliverToBoxAdapter(
-                  child: LoitStatTriple(
+                fadeUpSliver(
+                  1,
+                  LoitStatTriple(
                     stats: [
                       LoitStat(
                         label: 'Assets',
@@ -126,17 +174,17 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 // Accounts list
                 if (accounts.isEmpty)
-                  SliverToBoxAdapter(
-                    child: _AddFirstAccountBanner(
+                  fadeUpSliver(
+                    2,
+                    _AddFirstAccountBanner(
                       onTap: () => context.push('/accounts/new'),
                     ),
                   )
                 else ...[
-                  const SliverToBoxAdapter(
-                    child: LoitGroupLabel(label: 'Accounts'),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Container(
+                  fadeUpSliver(2, const LoitGroupLabel(label: 'Accounts')),
+                  fadeUpSliver(
+                    3,
+                    Container(
                       color: c.surface,
                       child: Column(
                         children: [
@@ -160,24 +208,25 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                 ],
                 if (isDense) ...[
-                  SliverToBoxAdapter(
-                    child: _DenseAlertPill(
+                  fadeUpSliver(
+                    4,
+                    _DenseAlertPill(
                       message:
                           '$overBudgetCount budgets over. Day $dayOfMonth of $daysInMonth.',
                       onTap: () => context.push('/budgets'),
                     ),
                   ),
-                  const SliverToBoxAdapter(
-                    child: LoitGroupLabel(label: 'Quick stats'),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Container(
+                  fadeUpSliver(4, const LoitGroupLabel(label: 'Quick stats')),
+                  fadeUpSliver(
+                    5,
+                    Container(
                       color: c.surface,
                       child: Column(
                         children: [
                           _QuickStatRow(
                             label: 'Budgets',
-                            value: '$onTrackCount of ${budgetStatuses.length} on track',
+                            value:
+                                '$onTrackCount of ${budgetStatuses.length} on track',
                             valueColor: c.success,
                           ),
                           _QuickStatRow(
@@ -201,13 +250,12 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ),
                 ] else ...[
-                  const SliverToBoxAdapter(child: BudgetAlertBanner()),
-                  const SliverToBoxAdapter(child: ReceiptExpiryBanner()),
-                  const SliverToBoxAdapter(
-                    child: LoitGroupLabel(label: 'Budgets'),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Container(
+                  fadeUpSliver(4, const BudgetAlertBanner()),
+                  fadeUpSliver(4, const ReceiptExpiryBanner()),
+                  fadeUpSliver(4, const LoitGroupLabel(label: 'Budgets')),
+                  fadeUpSliver(
+                    5,
+                    Container(
                       color: c.surface,
                       child: Column(
                         children: [
@@ -224,8 +272,9 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  SliverToBoxAdapter(
-                    child: _ManageCategoriesCard(
+                  fadeUpSliver(
+                    5,
+                    _ManageCategoriesCard(
                       onTap: () => context.push('/categories'),
                     ),
                   ),
@@ -775,6 +824,88 @@ class _AccountRow extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Stagger entrance: fade + slide-up driven by a shared controller.
+/// Each section gets a slight delay based on [index]. Skipped under
+/// reduced-motion.
+class _FadeUp extends StatelessWidget {
+  const _FadeUp({
+    required this.controller,
+    required this.index,
+    required this.reduced,
+    required this.child,
+  });
+
+  final AnimationController controller;
+  final int index;
+  final bool reduced;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (reduced) return child;
+    const span = 0.65;
+    final start = (index * 0.10).clamp(0.0, 1 - span);
+    final end = (start + span).clamp(0.0, 1.0);
+    final curved = CurvedAnimation(
+      parent: controller,
+      curve: Interval(start, end, curve: LoitMotion.easeOutQuint),
+    );
+    return AnimatedBuilder(
+      animation: curved,
+      builder: (_, c) {
+        final v = curved.value;
+        return Opacity(
+          opacity: v,
+          child: Transform.translate(
+            offset: Offset(0, (1 - v) * 14),
+            child: c,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+/// Tap-down scale feedback. Drops to 0.94 on press, springs back via
+/// easeOutQuart. Used for circular avatars and small targets where
+/// InkWell ripple is too heavy.
+class _PressScale extends StatefulWidget {
+  const _PressScale({required this.child, required this.onTap});
+
+  final Widget child;
+  final VoidCallback onTap;
+
+  @override
+  State<_PressScale> createState() => _PressScaleState();
+}
+
+class _PressScaleState extends State<_PressScale> {
+  bool _down = false;
+
+  void _setDown(bool v) {
+    if (_down != v) setState(() => _down = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = MediaQuery.disableAnimationsOf(context);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _setDown(true),
+      onTapUp: (_) => _setDown(false),
+      onTapCancel: () => _setDown(false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: (!reduced && _down) ? 0.94 : 1.0,
+        duration: LoitMotion.instant,
+        curve: LoitMotion.easeOutQuart,
+        child: widget.child,
       ),
     );
   }

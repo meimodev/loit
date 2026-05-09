@@ -1,15 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../core/services/analytics_service.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/export_task_provider.dart';
+import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_group_label.dart';
@@ -19,7 +23,10 @@ import 'export_service.dart';
 enum _ExportFormat { csv, pdf }
 
 class ExportScreen extends ConsumerStatefulWidget {
-  const ExportScreen({super.key});
+  const ExportScreen({super.key, this.roomId});
+
+  /// When provided, export is scoped to transactions of this room only.
+  final String? roomId;
 
   @override
   ConsumerState<ExportScreen> createState() => _ExportScreenState();
@@ -28,10 +35,6 @@ class ExportScreen extends ConsumerStatefulWidget {
 class _ExportScreenState extends ConsumerState<ExportScreen> {
   late DateTimeRange _range;
   _ExportFormat _format = _ExportFormat.csv;
-  bool _includeReceipts = true;
-  bool _includeCategories = true;
-  bool _includeNotes = false;
-  bool _busy = false;
 
   @override
   void initState() {
@@ -46,18 +49,39 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    final txns = ref.watch(transactionsProvider).value ?? const [];
+    final roomId = widget.roomId;
+    final txns = roomId != null
+        ? (ref.watch(roomTransactionsProvider(roomId)).value ?? const [])
+        : (ref.watch(transactionsProvider).value ?? const []);
     final profile = ref.watch(userProfileProvider).value;
     final tier = profile?.tier ?? 'free';
     final flags = FeatureFlags.forTier(tier);
+    final rangeEnd = DateTime(
+        _range.end.year, _range.end.month, _range.end.day, 23, 59, 59);
     final filtered = txns.where((t) =>
         !t.createdAt.isBefore(_range.start) &&
-        !t.createdAt.isAfter(_range.end)).toList();
+        !t.createdAt.isAfter(rangeEnd)).toList();
+    final roomName = roomId != null
+        ? (ref.watch(roomDetailProvider(roomId)).value?['name'] as String?)
+        : null;
+    final accounts = ref.watch(accountsProvider).value ?? const [];
+    final balances = ref.watch(accountBalancesProvider);
+    final accountSnapshots = [
+      for (final a in accounts)
+        if (a.archivedAt == null)
+          AccountSnapshot(
+            name: a.name,
+            kind: a.kind,
+            balanceHome: balances[a.id] ?? a.initialBalance,
+          ),
+    ];
+    final exportState = ref.watch(exportTaskProvider);
+    final isBusy = exportState is ExportTaskRunning;
 
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Export'),
+        title: Text(roomId != null ? 'Export room' : 'Export'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -72,12 +96,6 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
             value:
                 '${DateFormat.yMMMd().format(_range.start)} — ${DateFormat.yMMMd().format(_range.end)}',
             onTap: _pickRange,
-          ),
-          _LineRow(
-            label: 'Compare to',
-            value: 'Off',
-            valueColor: c.contentTertiary,
-            onTap: null,
           ),
           const LoitGroupLabel(label: 'Format'),
           Container(
@@ -110,30 +128,6 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                 ),
               ],
             ),
-          ),
-          const LoitGroupLabel(label: 'Include'),
-          _CheckRow(
-            label: 'All transactions',
-            value: true,
-            onChanged: null,
-          ),
-          _CheckRow(
-            label: 'Receipts',
-            value: _includeReceipts,
-            onChanged: (v) =>
-                setState(() => _includeReceipts = v),
-          ),
-          _CheckRow(
-            label: 'Categories',
-            value: _includeCategories,
-            onChanged: (v) =>
-                setState(() => _includeCategories = v),
-          ),
-          _CheckRow(
-            label: 'Notes',
-            value: _includeNotes,
-            onChanged: (v) => setState(() => _includeNotes = v),
-            isLast: true,
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -169,14 +163,33 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
             color: c.surface,
             border: Border(top: BorderSide(color: c.borderSubtle)),
           ),
-          child: LoitButton.primary(
-            size: LoitButtonSize.l,
-            fullWidth: true,
-            loading: _busy,
-            label: 'Export ${filtered.length} transactions',
-            onPressed: filtered.isEmpty || _busy
-                ? null
-                : () => _doExport(filtered, profile?.homeCurrency ?? 'IDR', flags),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              LoitButton.primary(
+                size: LoitButtonSize.l,
+                fullWidth: true,
+                loading: isBusy,
+                label: 'Export ${filtered.length} transactions',
+                onPressed: filtered.isEmpty || isBusy
+                    ? null
+                    : () => _doExport(
+                          filtered,
+                          profile?.homeCurrency ?? 'IDR',
+                          flags,
+                          roomName,
+                          accountSnapshots,
+                        ),
+              ),
+              if (isBusy) ...[
+                const SizedBox(height: LoitSpacing.s2),
+                Text(
+                  'Export already running',
+                  style: LoitTypography.bodyS
+                      .copyWith(color: c.contentSecondary),
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -184,11 +197,19 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   }
 
   Future<void> _pickRange() async {
+    final now = DateTime.now();
+    final lastDate = DateTime(now.year, now.month + 1, 0);
+    final initial = DateTimeRange(
+      start: _range.start.isBefore(DateTime(2020))
+          ? DateTime(2020)
+          : _range.start,
+      end: _range.end.isAfter(lastDate) ? lastDate : _range.end,
+    );
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: _range,
+      lastDate: lastDate,
+      initialDateRange: initial,
     );
     if (picked != null) setState(() => _range = picked);
   }
@@ -197,6 +218,8 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     List<Txn> filtered,
     String home,
     FeatureFlags flags,
+    String? roomName,
+    List<AccountSnapshot> accounts,
   ) async {
     final isPdf = _format == _ExportFormat.pdf;
     final allowed = isPdf ? flags.pdfExport : flags.csvExport;
@@ -216,30 +239,26 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         return;
       }
     }
-    setState(() => _busy = true);
-    try {
-      final svc = ExportService();
-      final file = isPdf
-          ? await svc.exportPdf(
-              filtered,
-              home,
-              filtered.fold<double>(
-                  0, (s, t) => s + (t.amountHome ?? t.amount)),
-            )
-          : await svc.exportCsv(filtered);
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: isPdf ? 'LOIT report' : 'LOIT export',
-      );
-      if (mounted) context.pop();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Export failed: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+    final isRoom = widget.roomId != null;
+    final scope = ExportScope(
+      label: isRoom ? (roomName ?? 'Room') : 'Personal',
+      isRoom: isRoom,
+      start: _range.start,
+      end: _range.end,
+      homeCurrency: home,
+      accounts: accounts,
+    );
+    // Fire-and-forget. The app-scope ExportTaskNotifier owns the future and
+    // surfaces the share sheet (or failure SnackBar) globally — closing this
+    // screen does not cancel the work.
+    unawaited(
+      ref.read(exportTaskProvider.notifier).start(
+            transactions: filtered,
+            scope: scope,
+            isPdf: isPdf,
+          ),
+    );
+    if (mounted) context.pop();
   }
 }
 
@@ -247,12 +266,10 @@ class _LineRow extends StatelessWidget {
   const _LineRow({
     required this.label,
     required this.value,
-    this.valueColor,
     this.onTap,
   });
   final String label;
   final String value;
-  final Color? valueColor;
   final VoidCallback? onTap;
 
   @override
@@ -276,7 +293,7 @@ class _LineRow extends StatelessWidget {
             ),
             Text(value,
                 style: LoitTypography.bodyM.copyWith(
-                  color: valueColor ?? c.contentPrimary,
+                  color: c.contentPrimary,
                   fontWeight: FontWeight.w600,
                 )),
             if (onTap != null) ...[
@@ -337,49 +354,3 @@ class _FormatTile extends StatelessWidget {
   }
 }
 
-class _CheckRow extends StatelessWidget {
-  const _CheckRow({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-    this.isLast = false,
-  });
-  final String label;
-  final bool value;
-  final ValueChanged<bool>? onChanged;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.loitColors;
-    final disabled = onChanged == null;
-    return InkWell(
-      onTap: disabled ? null : () => onChanged!(!value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: LoitSpacing.s4, vertical: LoitSpacing.s3),
-        decoration: BoxDecoration(
-          color: c.surface,
-          border: Border(
-              bottom: isLast
-                  ? BorderSide.none
-                  : BorderSide(color: c.borderSubtle)),
-        ),
-        child: Row(
-          children: [
-            Checkbox(
-              value: value,
-              onChanged: disabled ? null : (v) => onChanged!(v ?? false),
-            ),
-            const SizedBox(width: LoitSpacing.s2),
-            Expanded(
-              child: Text(label,
-                  style: LoitTypography.bodyM
-                      .copyWith(color: c.contentPrimary)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

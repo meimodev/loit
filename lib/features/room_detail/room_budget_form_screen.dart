@@ -8,6 +8,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
@@ -36,6 +37,9 @@ class RoomBudgetFormScreen extends ConsumerStatefulWidget {
 class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
   late final TextEditingController _amount;
   String _category = 'dining';
+  BudgetPeriod _period = BudgetPeriod.monthly;
+  int _resetDay = 1;
+  int _customDays = 14;
   bool _busy = false;
   bool _hydrated = false;
   Map<String, dynamic>? _budget;
@@ -55,6 +59,11 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
     );
     final initCat = init?['category'] as String?;
     if (initCat != null && initCat.isNotEmpty) _category = initCat;
+    if (init != null) {
+      _period = BudgetPeriodX.fromWire(init['period'] as String?);
+      _resetDay = ((init['reset_day'] as num?) ?? 1).toInt();
+      _customDays = ((init['custom_days'] as num?) ?? 14).toInt();
+    }
     if (init != null && _currency != null) _hydrated = true;
   }
 
@@ -80,6 +89,9 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
     try {
       final svc = ref.read(roomServiceProvider);
       final existingId = _budget?['id'] as String? ?? widget.budgetId;
+      final pWire = _period.wire;
+      final rDay = _period == BudgetPeriod.custom ? 1 : _resetDay;
+      final cDays = _period == BudgetPeriod.custom ? _customDays : null;
       if (_isEdit && existingId != null) {
         Log.i('RoomBudgetForm', 'Updating $existingId → $_category=$amt');
         await svc.updateRoomBudget(
@@ -88,6 +100,9 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
           category: _category,
           budgetLimit: amt,
           currency: currency,
+          period: pWire,
+          resetDay: rDay,
+          customDays: cDays,
         );
       } else {
         Log.i('RoomBudgetForm', 'Upserting $_category=$amt');
@@ -96,6 +111,9 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
           category: _category,
           budgetLimit: amt,
           currency: currency,
+          period: pWire,
+          resetDay: rDay,
+          customDays: cDays,
         );
       }
       ref.invalidate(roomBudgetsProvider(widget.roomId));
@@ -198,6 +216,9 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
                 _amount.text =
                     limit == null ? '' : formatAmountInput(limit);
                 if (cat != null && cat.isNotEmpty) _category = cat;
+                _period = BudgetPeriodX.fromWire(row['period'] as String?);
+                _resetDay = ((row['reset_day'] as num?) ?? 1).toInt();
+                _customDays = ((row['custom_days'] as num?) ?? 14).toInt();
                 _currency ??= row['currency'] as String?;
                 if (_currency != null) _hydrated = true;
               });
@@ -304,8 +325,18 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
                     if (picked != null) setState(() => _category = picked);
                   },
                 ),
-                _row(context, label: 'Currency', value: currency),
-                _row(context, label: 'Period', value: 'Monthly · 1st'),
+                _row(
+                  context,
+                  label: 'Period',
+                  value: _period.label,
+                  onTap: _pickPeriod,
+                ),
+                _row(
+                  context,
+                  label: 'Resets on',
+                  value: _resetsOnLabel(),
+                  onTap: _pickResetsOn,
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
                   child: Container(
@@ -352,6 +383,158 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  static const _weekdayNames = [
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday',
+    'Friday', 'Saturday', 'Sunday',
+  ];
+  static const _monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+
+  String _resetsOnLabel() {
+    switch (_period) {
+      case BudgetPeriod.weekly:
+        return _weekdayNames[(_resetDay - 1).clamp(0, 6)];
+      case BudgetPeriod.monthly:
+        return _resetDay == 0 ? 'Last day' : 'Day $_resetDay';
+      case BudgetPeriod.yearly:
+        return '1 ${_monthNames[(_resetDay - 1).clamp(0, 11)]}';
+      case BudgetPeriod.custom:
+        return 'Every $_customDays days';
+    }
+  }
+
+  Future<void> _pickPeriod() async {
+    final picked = await showModalBottomSheet<BudgetPeriod>(
+      context: context,
+      backgroundColor: context.loitColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: BudgetPeriod.values
+              .map((p) => ListTile(
+                    title: Text(p.label),
+                    trailing: p == _period
+                        ? const Icon(Icons.check, size: 18)
+                        : null,
+                    onTap: () => Navigator.pop(ctx, p),
+                  ))
+              .toList(),
+        ),
+      ),
+    );
+    if (picked == null || picked == _period) return;
+    setState(() {
+      _period = picked;
+      _resetDay = 1;
+    });
+  }
+
+  Future<void> _pickResetsOn() async {
+    switch (_period) {
+      case BudgetPeriod.weekly:
+        final picked = await _pickFromList<int>(
+          title: 'Resets on',
+          options: List.generate(7, (i) => (i + 1, _weekdayNames[i])),
+          selected: _resetDay,
+        );
+        if (picked != null) setState(() => _resetDay = picked);
+        return;
+      case BudgetPeriod.monthly:
+        final opts = <(int, String)>[
+          for (var d = 1; d <= 28; d++) (d, 'Day $d'),
+          (0, 'Last day'),
+        ];
+        final picked = await _pickFromList<int>(
+          title: 'Resets on',
+          options: opts,
+          selected: _resetDay,
+        );
+        if (picked != null) setState(() => _resetDay = picked);
+        return;
+      case BudgetPeriod.yearly:
+        final picked = await _pickFromList<int>(
+          title: 'Resets on',
+          options: [
+            for (var m = 1; m <= 12; m++) (m, '1 ${_monthNames[m - 1]}'),
+          ],
+          selected: _resetDay,
+        );
+        if (picked != null) setState(() => _resetDay = picked);
+        return;
+      case BudgetPeriod.custom:
+        final picked = await _pickFromList<int>(
+          title: 'Every',
+          options: const [
+            (7, 'Every 7 days'),
+            (10, 'Every 10 days'),
+            (14, 'Every 14 days'),
+            (21, 'Every 21 days'),
+            (30, 'Every 30 days'),
+            (60, 'Every 60 days'),
+            (90, 'Every 90 days'),
+          ],
+          selected: _customDays,
+        );
+        if (picked != null) setState(() => _customDays = picked);
+        return;
+    }
+  }
+
+  Future<T?> _pickFromList<T>({
+    required String title,
+    required List<(T, String)> options,
+    required T selected,
+  }) {
+    return showModalBottomSheet<T>(
+      context: context,
+      backgroundColor: context.loitColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.6,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(title,
+                      style: LoitTypography.titleM.copyWith(
+                          color: ctx.loitColors.contentPrimary)),
+                ),
+              ),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: options
+                      .map((o) => ListTile(
+                            title: Text(o.$2),
+                            trailing: o.$1 == selected
+                                ? const Icon(Icons.check, size: 18)
+                                : null,
+                            onTap: () => Navigator.pop(ctx, o.$1),
+                          ))
+                      .toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

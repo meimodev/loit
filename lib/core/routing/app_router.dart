@@ -3,12 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../features/auth/auth_screen.dart';
 import '../../features/auth/otp_screen.dart';
 import '../../features/auth/permissions_screen.dart';
 import '../../features/auth/region_screen.dart';
 import '../../features/auth/sign_in_screen.dart';
-import '../../features/auth/sign_up_screen.dart';
 import '../../features/auth/splash_screen.dart';
 import '../../features/auth/welcome_screen.dart';
 import '../../features/accounts/account_form_screen.dart';
@@ -72,11 +70,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final loggedIn = session != null;
       final loc = state.matchedLocation;
       const publicPaths = {
-        '/auth',
         '/splash',
         '/welcome',
         '/sign-in',
-        '/sign-up',
         '/otp',
         '/region',
         '/permissions',
@@ -85,8 +81,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isPublic = publicPaths.contains(loc);
       if (!loggedIn && !isPublic) return '/welcome';
       if (loggedIn &&
-          (loc == '/auth' || loc == '/welcome' ||
-              loc == '/sign-in' || loc == '/sign-up')) {
+          (loc == '/welcome' || loc == '/sign-in')) {
         return '/';
       }
       return null;
@@ -94,7 +89,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
       GoRoute(path: '/welcome', builder: (_, __) => const WelcomeScreen()),
-      GoRoute(path: '/sign-up', builder: (_, __) => const SignUpScreen()),
       GoRoute(path: '/sign-in', builder: (_, __) => const SignInScreen()),
       GoRoute(
           path: '/otp',
@@ -107,10 +101,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/update-required',
           builder: (_, __) => const UpdateRequiredScreen()),
-      GoRoute(
-        path: '/auth',
-        builder: (_, __) => const AuthScreen(),
-      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             ShellScaffold(navigationShell: navigationShell),
@@ -293,6 +283,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/rooms/:roomId/reports',
         builder: (_, state) => ReportsScreen(
+          roomId: state.pathParameters['roomId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/rooms/:roomId/reports/export',
+        builder: (_, state) => ExportScreen(
           roomId: state.pathParameters['roomId']!,
         ),
       ),

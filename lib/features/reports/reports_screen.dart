@@ -94,12 +94,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         onNext: () => setState(
             () => _month = DateTime(_month.year, _month.month + 1)),
         actions: [
-          if (roomId == null)
-            IconButton(
-              icon: const Icon(Icons.ios_share, size: 20),
-              tooltip: 'Export',
-              onPressed: () => context.push('/reports/export'),
+          IconButton(
+            icon: const Icon(Icons.ios_share, size: 20),
+            tooltip: 'Export',
+            onPressed: () => context.push(
+              roomId != null
+                  ? '/rooms/$roomId/reports/export'
+                  : '/reports/export',
             ),
+          ),
         ],
       ),
       body: Column(

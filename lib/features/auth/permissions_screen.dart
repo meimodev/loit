@@ -5,6 +5,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 
 class PermissionsScreen extends StatefulWidget {
   const PermissionsScreen({super.key});
@@ -20,10 +21,11 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Almost there'),
+        title: Text(l10n.authPermissionsTitle),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(20),
           child: Padding(
@@ -40,7 +42,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
             child: ListView(
               padding: const EdgeInsets.all(24),
               children: [
-                Text('Two quick permissions',
+                Text(l10n.authPermissionsBody,
                     style: LoitTypography.titleL.copyWith(
                       color: c.contentPrimary,
                       fontWeight: FontWeight.w600,
@@ -53,9 +55,8 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                 _row(
                   context,
                   icon: Icons.camera_alt_outlined,
-                  name: 'Camera',
-                  why:
-                      'So you can snap receipts. Stored encrypted, deleted on request.',
+                  name: l10n.authPermissionsCamera,
+                  why: l10n.authPermissionsCameraDesc,
                   value: _camera,
                   onChanged: (v) => setState(() => _camera = v),
                 ),
@@ -63,8 +64,8 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                 _row(
                   context,
                   icon: Icons.notifications_active_outlined,
-                  name: 'Notifications',
-                  why: 'Budget alerts and room activity. Turn off anytime.',
+                  name: l10n.authPermissionsNotifications,
+                  why: l10n.authPermissionsNotificationsDesc,
                   value: _notifs,
                   onChanged: (v) => setState(() => _notifs = v),
                 ),
@@ -84,7 +85,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                 height: 52,
                 child: FilledButton(
                   onPressed: () => context.go('/'),
-                  child: const Text('Start using LOIT'),
+                  child: Text(l10n.authPermissionsContinue),
                 ),
               ),
             ),

@@ -8,6 +8,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/invite_token.dart';
@@ -33,6 +34,7 @@ class _RoomJoinScreenState extends ConsumerState<RoomJoinScreen> {
   }
 
   Future<void> _join() async {
+    final l = context.l10n;
     final token = extractInviteToken(_ctrl.text);
     if (token == null) {
       setState(() => _error = 'Paste an invite link or token');
@@ -55,12 +57,12 @@ class _RoomJoinScreenState extends ConsumerState<RoomJoinScreen> {
       if (mounted && roomId != null) {
         context.pushReplacement('/rooms/$roomId');
       } else if (mounted) {
-        setState(() => _error = 'Invite is invalid or expired');
+        setState(() => _error = l.roomJoinInvalid);
       }
     } catch (e) {
       InteractionLog.error(
           action: 'room_join', screen: 'join_room', message: '$e');
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = l.roomJoinFailed('$e'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -69,10 +71,11 @@ class _RoomJoinScreenState extends ConsumerState<RoomJoinScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Join room'),
+        title: Text(l.roomJoinTitle),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
@@ -99,7 +102,7 @@ class _RoomJoinScreenState extends ConsumerState<RoomJoinScreen> {
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
                 Text(
-                  'You can scan a QR from the inviter or paste the loit.app/invite/… URL below.',
+                  'You can scan a QR from the inviter or paste the loit.app/invite/\u2026 URL below.',
                   style: LoitTypography.bodyS
                       .copyWith(color: c.contentSecondary),
                 ),
@@ -110,7 +113,7 @@ class _RoomJoinScreenState extends ConsumerState<RoomJoinScreen> {
           LoitInput(
             label: 'Invite link or token',
             controller: _ctrl,
-            placeholder: 'loit.app/invite/…',
+            placeholder: 'loit.app/invite/\u2026',
             error: _error,
             autofocus: true,
             onSubmitted: (_) => _join(),
@@ -127,7 +130,7 @@ class _RoomJoinScreenState extends ConsumerState<RoomJoinScreen> {
             size: LoitButtonSize.l,
             fullWidth: true,
             loading: _busy,
-            label: 'Join room',
+            label: _busy ? l.roomJoinJoining : l.roomJoinTitle,
             onPressed:
                 _ctrl.text.trim().isEmpty || _busy ? null : _join,
           ),

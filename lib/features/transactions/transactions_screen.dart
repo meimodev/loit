@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_motion.dart';
+import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
@@ -24,7 +26,6 @@ import '../../shared/widgets/loit_fab_stack.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import '../../shared/widgets/loit_room_origin_badge.dart';
 import '../../shared/widgets/loit_sheet.dart';
-import '../../shared/widgets/loit_stat_triple.dart';
 import '../../shared/widgets/loit_tx_row.dart';
 import '../rooms/room_colors.dart';
 import 'notes_breakdown.dart';
@@ -39,17 +40,75 @@ class TransactionsScreen extends ConsumerStatefulWidget {
   ConsumerState<TransactionsScreen> createState() => _TransactionsScreenState();
 }
 
-class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
+class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
+    with TickerProviderStateMixin {
   _SourceFilter _sourceFilter = _SourceFilter.all;
 
   String? _pendingScrollTxId;
   bool _scrollScheduled = false;
   final GlobalKey _highlightRowKey = GlobalKey(debugLabel: 'tx-highlight-row');
 
+  late final AnimationController _entranceCtrl;
+  bool _entranceDone = false;
+  Set<String> _seenIds = const {};
+  bool _seedComplete = false;
+  final Set<String> _flashIds = {};
+  Timer? _flashTimer;
+
   @override
   void initState() {
     super.initState();
     _pendingScrollTxId = widget.highlightTxId;
+    _entranceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _entranceCtrl.addStatusListener((s) {
+      if (s == AnimationStatus.completed && mounted) {
+        setState(() => _entranceDone = true);
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _entranceCtrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _flashTimer?.cancel();
+    _entranceCtrl.dispose();
+    super.dispose();
+  }
+
+  bool get _reduceMotion =>
+      MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
+  void _trackArrivals(List<Txn> items) {
+    final ids = <String>{
+      for (final t in items)
+        if (t.id != null) t.id!,
+    };
+    if (!_seedComplete) {
+      _seenIds = ids;
+      _seedComplete = true;
+      return;
+    }
+    final fresh = ids.difference(_seenIds);
+    if (fresh.isEmpty) {
+      _seenIds = ids;
+      return;
+    }
+    _seenIds = ids;
+    if (_reduceMotion) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _flashIds.addAll(fresh));
+      _flashTimer?.cancel();
+      _flashTimer = Timer(const Duration(milliseconds: 1300), () {
+        if (!mounted) return;
+        setState(() => _flashIds.removeAll(fresh));
+      });
+    });
   }
 
   void _maybeScrollToHighlight() {
@@ -124,10 +183,11 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         onRefresh: () => ref.read(transactionsProvider.notifier).refresh(),
         child: txns.when(
           skipLoadingOnReload: true,
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => _SkeletonList(c: c),
           error: (e, _) => Center(child: Text('Error: $e')),
           data: (items) {
             _maybeScrollToHighlight();
+            _trackArrivals(items);
             final monthItems = items.where((t) {
               final d = t.createdAt.toLocal();
               return d.year == month.year && d.month == month.month;
@@ -154,24 +214,18 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               }
             }
             final netTotal = incomeSum - expenseSum;
-            final summaryTriple = LoitStatTriple(
-              stats: [
-                LoitStat(
-                  label: l.txListIncome,
-                  amount: _fmt(incomeSum, currency),
-                  color: c.info,
-                ),
-                LoitStat(
-                  label: l.txListExpenses,
-                  amount: _fmt(expenseSum, currency),
-                  color: c.danger,
-                ),
-                LoitStat(
-                  label: l.txListTotal,
-                  amount: _fmt(netTotal, currency),
-                  color: netTotal >= 0 ? c.info : c.danger,
-                ),
-              ],
+            final summaryTriple = _AnimatedSummaryTriple(
+              currency: currency,
+              income: incomeSum,
+              expense: expenseSum,
+              net: netTotal,
+              labels: (
+                income: l.txListIncome,
+                expenses: l.txListExpenses,
+                total: l.txListTotal,
+              ),
+              format: _fmt,
+              reduceMotion: _reduceMotion,
             );
 
             if (filtered.isEmpty) {
@@ -180,23 +234,28 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 children: [
                   summaryTriple,
                   const SizedBox(height: 24),
-                  LoitEmptyState(
-                    icon: Icons.receipt_long_outlined,
-                    title: isFiltered
-                        ? l.txListNoMatches
-                        : l.txListNoTransactions,
-                    body: isFiltered
-                        ? l.txListEmptySwitchAll
-                        : l.txListEmptyAddTransaction,
-                    primaryCta:
-                        isFiltered ? l.txListShowAll : l.txListNewTransaction,
-                    onPrimaryCta: isFiltered
-                        ? () => setState(
-                            () => _sourceFilter = _SourceFilter.all)
-                        : () => context.push('/transactions/new'),
-                    secondaryCta: isFiltered ? null : l.txListEmptyScanReceipt,
-                    onSecondaryCta:
-                        isFiltered ? null : () => context.push('/scan'),
+                  _FloatingHero(
+                    enabled: !_reduceMotion,
+                    child: LoitEmptyState(
+                      icon: Icons.receipt_long_outlined,
+                      title: isFiltered
+                          ? l.txListNoMatches
+                          : l.txListNoTransactions,
+                      body: isFiltered
+                          ? l.txListEmptySwitchAll
+                          : l.txListEmptyAddTransaction,
+                      primaryCta: isFiltered
+                          ? l.txListShowAll
+                          : l.txListNewTransaction,
+                      onPrimaryCta: isFiltered
+                          ? () => setState(
+                              () => _sourceFilter = _SourceFilter.all)
+                          : () => context.push('/transactions/new'),
+                      secondaryCta:
+                          isFiltered ? null : l.txListEmptyScanReceipt,
+                      onSecondaryCta:
+                          isFiltered ? null : () => context.push('/scan'),
+                    ),
                   ),
                 ],
               );
@@ -206,31 +265,20 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             final sortedDays = grouped.entries.toList()
               ..sort((a, b) => b.key.compareTo(a.key));
 
-            return CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(child: summaryTriple),
-                if (_overBudgetCount(filtered) > 0)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        LoitSpacing.s5,
-                        LoitSpacing.s3,
-                        LoitSpacing.s5,
-                        LoitSpacing.s3,
-                      ),
-                      child: LoitBanner(
-                        kind: LoitBannerKind.warning,
-                        title: l.txListCategoriesTrending(
-                            _overBudgetCount(filtered)),
-                        body: l.txListTapBudget,
-                        actionLabel: l.txListViewBudgets,
-                        onAction: () => context.push('/budgets'),
-                      ),
-                    ),
-                  ),
-                for (final entry in sortedDays) ...[
-                  SliverToBoxAdapter(
-                    child: LoitGroupLabel(
+            int staggerCursor = 0;
+            _StaggerSlot staggerOf(int idx) => _StaggerSlot(
+                  controller: _entranceCtrl,
+                  index: idx,
+                  frozen: _entranceDone,
+                  reduceMotion: _reduceMotion,
+                );
+            final daySlivers = <Widget>[];
+            for (final entry in sortedDays) {
+              final groupIdx = staggerCursor++;
+              daySlivers.add(
+                SliverToBoxAdapter(
+                  child: staggerOf(groupIdx).wrap(
+                    LoitGroupLabel(
                       label: _dayLabel(l, entry.key),
                       trailing: _dayTotalsTrailing(
                         context,
@@ -239,9 +287,14 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       ),
                     ),
                   ),
-                  SliverList.builder(
-                    itemCount: entry.value.length,
-                    itemBuilder: (_, i) {
+                ),
+              );
+              final rowsStart = staggerCursor;
+              staggerCursor += entry.value.length;
+              daySlivers.add(SliverList.builder(
+                itemCount: entry.value.length,
+                itemBuilder: (_, i) {
+                  final rowIdx = rowsStart + i;
                       final t = entry.value[i];
                       final fromName = t.accountId != null
                           ? accountMap[t.accountId]?.name
@@ -313,14 +366,25 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       final bool isHighlight = widget.highlightTxId != null &&
                           t.id != null &&
                           widget.highlightTxId == t.id;
-                      final Widget rowOrFlash = isHighlight
-                          ? _TxFlashWrapper(
-                              key: _highlightRowKey,
-                              tint: c.brand,
-                              child: row,
-                            )
-                          : row;
-                      if (t.id == null) return rowOrFlash;
+                      final bool isFreshArrival =
+                          t.id != null && _flashIds.contains(t.id);
+                      Widget rowOrFlash = row;
+                      if (isHighlight) {
+                        rowOrFlash = _TxFlashWrapper(
+                          key: _highlightRowKey,
+                          tint: c.brand,
+                          child: rowOrFlash,
+                        );
+                      } else if (isFreshArrival) {
+                        rowOrFlash = _TxFlashWrapper(
+                          key: ValueKey('arrival-${t.id}'),
+                          tint: t.isIncome ? c.info : c.accent,
+                          child: rowOrFlash,
+                        );
+                      }
+                      final staggered =
+                          staggerOf(rowIdx).wrap(rowOrFlash);
+                      if (t.id == null) return staggered;
                       if (t.roomId != null) {
                         return Dismissible(
                           key: ValueKey('tx-${t.id}'),
@@ -330,7 +394,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                             _showRoomDeleteRedirect(t);
                             return false;
                           },
-                          child: rowOrFlash,
+                          child: staggered,
                         );
                       }
                       return Dismissible(
@@ -338,11 +402,35 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         direction: DismissDirection.endToStart,
                         background: _swipeDeleteBackground(c, l),
                         onDismissed: (_) => _deleteWithUndo(t),
-                        child: rowOrFlash,
+                        child: staggered,
                       );
-                    },
+                },
+              ));
+            }
+
+            return CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(child: summaryTriple),
+                if (_overBudgetCount(filtered) > 0)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        LoitSpacing.s5,
+                        LoitSpacing.s3,
+                        LoitSpacing.s5,
+                        LoitSpacing.s3,
+                      ),
+                      child: LoitBanner(
+                        kind: LoitBannerKind.warning,
+                        title: l.txListCategoriesTrending(
+                            _overBudgetCount(filtered)),
+                        body: l.txListTapBudget,
+                        actionLabel: l.txListViewBudgets,
+                        onAction: () => context.push('/budgets'),
+                      ),
+                    ),
                   ),
-                ],
+                ...daySlivers,
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(LoitSpacing.s5),
@@ -496,23 +584,38 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final c = context.loitColors;
     final l = context.l10n;
     final isActive = _sourceFilter != _SourceFilter.all;
+    final dur = _reduceMotion ? Duration.zero : LoitMotion.emphasized;
     return Stack(
       clipBehavior: Clip.none,
       children: [
         IconButton(
-          icon: Icon(
-            isActive ? Icons.filter_alt : Icons.filter_alt_outlined,
-            size: 20,
-            color: isActive ? c.accent : null,
+          icon: AnimatedRotation(
+            turns: isActive ? 0.0833 : 0.0,
+            duration: dur,
+            curve: LoitMotion.easeOutExpo,
+            child: AnimatedSwitcher(
+              duration: LoitMotion.short,
+              transitionBuilder: (child, anim) =>
+                  ScaleTransition(scale: anim, child: child),
+              child: Icon(
+                isActive ? Icons.filter_alt : Icons.filter_alt_outlined,
+                key: ValueKey(isActive),
+                size: 20,
+                color: isActive ? c.accent : null,
+              ),
+            ),
           ),
           tooltip: l.txListFilterSource,
           onPressed: _openFilterSheet,
         ),
-        if (isActive)
-          Positioned(
-            top: 10,
-            right: 10,
-            child: IgnorePointer(
+        Positioned(
+          top: 10,
+          right: 10,
+          child: IgnorePointer(
+            child: AnimatedScale(
+              duration: dur,
+              curve: LoitMotion.easeOutExpo,
+              scale: isActive ? 1.0 : 0.0,
               child: Container(
                 width: 8,
                 height: 8,
@@ -524,6 +627,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               ),
             ),
           ),
+        ),
       ],
     );
   }
@@ -687,6 +791,378 @@ class _TxFlashWrapperState extends State<_TxFlashWrapper>
         ],
       ),
       child: widget.child,
+    );
+  }
+}
+
+class _StaggerSlot {
+  const _StaggerSlot({
+    required this.controller,
+    required this.index,
+    required this.frozen,
+    required this.reduceMotion,
+  });
+
+  final AnimationController controller;
+  final int index;
+  final bool frozen;
+  final bool reduceMotion;
+
+  Widget wrap(Widget child) {
+    if (frozen || reduceMotion) return child;
+    final start = (index * 0.05).clamp(0.0, 0.6);
+    const span = 0.5;
+    final end = (start + span).clamp(0.0, 1.0);
+    final curve = CurvedAnimation(
+      parent: controller,
+      curve: Interval(start, end, curve: LoitMotion.easeOutExpo),
+    );
+    return AnimatedBuilder(
+      animation: curve,
+      builder: (_, c) {
+        final t = curve.value;
+        return Opacity(
+          opacity: t,
+          child: Transform.translate(
+            offset: Offset(0, (1 - t) * 18),
+            child: c,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+class _AnimatedSummaryTriple extends StatefulWidget {
+  const _AnimatedSummaryTriple({
+    required this.currency,
+    required this.income,
+    required this.expense,
+    required this.net,
+    required this.labels,
+    required this.format,
+    required this.reduceMotion,
+  });
+
+  final String currency;
+  final double income;
+  final double expense;
+  final double net;
+  final ({String income, String expenses, String total}) labels;
+  final String Function(double, String) format;
+  final bool reduceMotion;
+
+  @override
+  State<_AnimatedSummaryTriple> createState() => _AnimatedSummaryTripleState();
+}
+
+class _AnimatedSummaryTripleState extends State<_AnimatedSummaryTriple> {
+  late double _income = widget.reduceMotion ? widget.income : 0;
+  late double _expense = widget.reduceMotion ? widget.expense : 0;
+  late double _net = widget.reduceMotion ? widget.net : 0;
+  double _prevIncome = 0;
+  double _prevExpense = 0;
+  double _prevNet = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _prevIncome = _income;
+    _prevExpense = _expense;
+    _prevNet = _net;
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedSummaryTriple old) {
+    super.didUpdateWidget(old);
+    _prevIncome = _income;
+    _prevExpense = _expense;
+    _prevNet = _net;
+    _income = widget.income;
+    _expense = widget.expense;
+    _net = widget.net;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    final dur = widget.reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 720);
+    return Container(
+      color: c.canvas,
+      padding: const EdgeInsets.fromLTRB(
+        LoitSpacing.s5,
+        LoitSpacing.s2,
+        LoitSpacing.s5,
+        LoitSpacing.s4,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _AnimatedStatCell(
+              label: widget.labels.income,
+              from: _prevIncome,
+              to: _income,
+              color: c.info,
+              currency: widget.currency,
+              format: widget.format,
+              duration: dur,
+            ),
+          ),
+          _Divider(c: c),
+          Expanded(
+            child: _AnimatedStatCell(
+              label: widget.labels.expenses,
+              from: _prevExpense,
+              to: _expense,
+              color: c.danger,
+              currency: widget.currency,
+              format: widget.format,
+              duration: dur,
+            ),
+          ),
+          _Divider(c: c),
+          Expanded(
+            child: _AnimatedStatCell(
+              label: widget.labels.total,
+              from: _prevNet,
+              to: _net,
+              color: _net >= 0 ? c.info : c.danger,
+              currency: widget.currency,
+              format: widget.format,
+              duration: dur,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Divider extends StatelessWidget {
+  const _Divider({required this.c});
+  final LoitColors c;
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 1,
+        height: 28,
+        color: c.borderSubtle,
+        margin: const EdgeInsets.symmetric(horizontal: LoitSpacing.s3),
+      );
+}
+
+class _AnimatedStatCell extends StatelessWidget {
+  const _AnimatedStatCell({
+    required this.label,
+    required this.from,
+    required this.to,
+    required this.color,
+    required this.currency,
+    required this.format,
+    required this.duration,
+  });
+
+  final String label;
+  final double from;
+  final double to;
+  final Color color;
+  final String currency;
+  final String Function(double, String) format;
+  final Duration duration;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: LoitTypography.labelS.copyWith(
+            color: c.contentTertiary,
+            letterSpacing: 0.6,
+          ),
+        ),
+        const SizedBox(height: 4),
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: from, end: to),
+          duration: duration,
+          curve: LoitMotion.easeOutExpo,
+          builder: (_, value, __) => Text(
+            format(value, currency),
+            style: LoitTypography.amountDefault.copyWith(color: color),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FloatingHero extends StatefulWidget {
+  const _FloatingHero({required this.child, required this.enabled});
+  final Widget child;
+  final bool enabled;
+
+  @override
+  State<_FloatingHero> createState() => _FloatingHeroState();
+}
+
+class _FloatingHeroState extends State<_FloatingHero>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3200),
+    );
+    if (widget.enabled) _ctrl.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.enabled) return widget.child;
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, child) {
+        final t = Curves.easeInOut.transform(_ctrl.value);
+        final dy = (t - 0.5) * 8;
+        return Transform.translate(
+          offset: Offset(0, dy),
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+class _SkeletonList extends StatefulWidget {
+  const _SkeletonList({required this.c});
+  final LoitColors c;
+
+  @override
+  State<_SkeletonList> createState() => _SkeletonListState();
+}
+
+class _SkeletonListState extends State<_SkeletonList>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduce =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    return ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 8,
+      padding: const EdgeInsets.symmetric(
+        vertical: LoitSpacing.s4,
+        horizontal: LoitSpacing.s5,
+      ),
+      itemBuilder: (_, i) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: LoitSpacing.s2),
+        child: AnimatedBuilder(
+          animation: _ctrl,
+          builder: (_, __) {
+            final t = reduce ? 0.5 : _ctrl.value;
+            final alpha = 0.35 + 0.35 * t;
+            return Row(
+              children: [
+                _Bone(
+                  c: widget.c,
+                  alpha: alpha,
+                  width: 36,
+                  height: 36,
+                  radius: LoitRadius.brFull,
+                ),
+                const SizedBox(width: LoitSpacing.s4),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _Bone(
+                        c: widget.c,
+                        alpha: alpha,
+                        width: 160,
+                        height: 12,
+                        radius: const BorderRadius.all(Radius.circular(4)),
+                      ),
+                      const SizedBox(height: 8),
+                      _Bone(
+                        c: widget.c,
+                        alpha: alpha * 0.85,
+                        width: 100,
+                        height: 10,
+                        radius: const BorderRadius.all(Radius.circular(4)),
+                      ),
+                    ],
+                  ),
+                ),
+                _Bone(
+                  c: widget.c,
+                  alpha: alpha,
+                  width: 70,
+                  height: 14,
+                  radius: const BorderRadius.all(Radius.circular(4)),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _Bone extends StatelessWidget {
+  const _Bone({
+    required this.c,
+    required this.alpha,
+    required this.width,
+    required this.height,
+    required this.radius,
+  });
+  final LoitColors c;
+  final double alpha;
+  final double width;
+  final double height;
+  final BorderRadius radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: c.borderSubtle.withValues(alpha: alpha),
+        borderRadius: radius,
+      ),
     );
   }
 }

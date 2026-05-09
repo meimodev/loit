@@ -10,6 +10,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/export_task_provider.dart';
@@ -25,7 +26,6 @@ enum _ExportFormat { csv, pdf }
 class ExportScreen extends ConsumerStatefulWidget {
   const ExportScreen({super.key, this.roomId});
 
-  /// When provided, export is scoped to transactions of this room only.
   final String? roomId;
 
   @override
@@ -49,6 +49,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l10n = context.l10n;
     final roomId = widget.roomId;
     final txns = roomId != null
         ? (ref.watch(roomTransactionsProvider(roomId)).value ?? const [])
@@ -81,7 +82,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: Text(roomId != null ? 'Export room' : 'Export'),
+        title: Text(l10n.exportScreenTitle),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -90,14 +91,14 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 120),
         children: [
-          const LoitGroupLabel(label: 'Period'),
+          LoitGroupLabel(label: l10n.exportScreenDateRange),
           _LineRow(
-            label: 'Range',
+            label: l10n.exportScreenDateRange,
             value:
                 '${DateFormat.yMMMd().format(_range.start)} — ${DateFormat.yMMMd().format(_range.end)}',
             onTap: _pickRange,
           ),
-          const LoitGroupLabel(label: 'Format'),
+          LoitGroupLabel(label: l10n.exportScreenFormat),
           Container(
             padding: const EdgeInsets.fromLTRB(
                 LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, LoitSpacing.s4),
@@ -145,7 +146,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                   const SizedBox(width: LoitSpacing.s2),
                   Expanded(
                     child: Text(
-                      'Export shared via system sheet. Files larger than 10 MB are linked.',
+                      l10n.exportScreenReady,
                       style: LoitTypography.bodyS
                           .copyWith(color: c.contentSecondary),
                     ),
@@ -170,7 +171,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                 size: LoitButtonSize.l,
                 fullWidth: true,
                 loading: isBusy,
-                label: 'Export ${filtered.length} transactions',
+                label: '${l10n.exportScreenExport} ${filtered.length} ${l10n.exportScreenTransactions}',
                 onPressed: filtered.isEmpty || isBusy
                     ? null
                     : () => _doExport(
@@ -184,7 +185,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
               if (isBusy) ...[
                 const SizedBox(height: LoitSpacing.s2),
                 Text(
-                  'Export already running',
+                  l10n.exportScreenExporting,
                   style: LoitTypography.bodyS
                       .copyWith(color: c.contentSecondary),
                 ),
@@ -221,6 +222,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     String? roomName,
     List<AccountSnapshot> accounts,
   ) async {
+    final l10n = context.l10n;
     final isPdf = _format == _ExportFormat.pdf;
     final allowed = isPdf ? flags.pdfExport : flags.csvExport;
     if (!allowed) {
@@ -233,8 +235,8 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           (_range.end.month - _range.start.month);
       if (months > ExportService.maxPdfMonths) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('PDF range exceeds 12 months — pick a smaller range')),
+          SnackBar(
+              content: Text(l10n.exportScreenFailed('PDF range exceeds 12 months'))),
         );
         return;
       }
@@ -248,9 +250,6 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       homeCurrency: home,
       accounts: accounts,
     );
-    // Fire-and-forget. The app-scope ExportTaskNotifier owns the future and
-    // surfaces the share sheet (or failure SnackBar) globally — closing this
-    // screen does not cancel the work.
     unawaited(
       ref.read(exportTaskProvider.notifier).start(
             transactions: filtered,
@@ -353,4 +352,3 @@ class _FormatTile extends StatelessWidget {
     );
   }
 }
-

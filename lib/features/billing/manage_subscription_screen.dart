@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/services_providers.dart';
 import '../../shared/widgets/loit_button.dart';
@@ -34,7 +35,7 @@ class _ManageSubscriptionScreenState
       await ref.read(paymentServiceProvider).restorePurchases();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Restoring purchases…')),
+        SnackBar(content: Text(context.l10n.paywallRestoring)),
       );
       ref.invalidate(userProfileProvider);
     } finally {
@@ -45,6 +46,7 @@ class _ManageSubscriptionScreenState
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l10n = context.l10n;
     final profile = ref.watch(userProfileProvider).value;
     final tier = profile?.tier ?? 'free';
     final isPaid = tier == 'pro' || tier == 'team';
@@ -52,7 +54,7 @@ class _ManageSubscriptionScreenState
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Subscription'),
+        title: Text(l10n.billingManageTitle),
         backgroundColor: c.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -79,7 +81,7 @@ class _ManageSubscriptionScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isPaid ? 'CURRENT PLAN' : 'PLAN',
+                  l10n.billingManageCurrentPlan,
                   style: LoitTypography.labelS.copyWith(
                     color: isPaid
                         ? Colors.white.withValues(alpha: 0.85)
@@ -127,7 +129,7 @@ class _ManageSubscriptionScreenState
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: LoitButton.primary(
-                label: 'Upgrade to Pro',
+                label: l10n.paywallTitle,
                 size: LoitButtonSize.l,
                 fullWidth: true,
                 onPressed: () => context.push('/paywall', extra: 'manage'),
@@ -135,7 +137,7 @@ class _ManageSubscriptionScreenState
             ),
           SettingsGroup(label: 'Billing', children: [
             SettingsRow(
-              label: 'Restore purchases',
+              label: l10n.restorePurchases,
               onTap: _busy ? null : _restore,
             ),
           ]),
@@ -146,7 +148,7 @@ class _ManageSubscriptionScreenState
                 onTap: _openPlay,
               ),
               SettingsRow(
-                label: 'Cancel subscription',
+                label: l10n.billingManageCancel,
                 destructive: true,
                 showChevron: false,
                 onTap: _openPlay,

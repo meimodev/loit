@@ -9,6 +9,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/presence_provider.dart';
 import '../../shared/providers/room_providers.dart';
@@ -23,22 +24,23 @@ class RoomsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     final rooms = ref.watch(myRoomsProvider);
     final invites = ref.watch(pendingInvitesProvider);
 
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Rooms'),
+        title: Text(l.roomsScreenTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.link),
-            tooltip: 'Join via link',
+            tooltip: l.roomsScreenJoinRoom,
             onPressed: () => context.push('/rooms/join'),
           ),
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'New room',
+            tooltip: l.roomsScreenCreateRoom,
             onPressed: () => context.push('/rooms/new'),
           ),
         ],
@@ -76,12 +78,11 @@ class RoomsScreen extends ConsumerWidget {
                         padding: const EdgeInsets.all(LoitSpacing.s5),
                         child: LoitEmptyState(
                           icon: Icons.group_outlined,
-                          title: 'No rooms yet',
-                          body:
-                              'Create a room to track shared expenses with friends or housemates.',
-                          primaryCta: 'New room',
+                          title: l.roomsScreenNoRooms,
+                          body: l.roomsScreenEmptyBody,
+                          primaryCta: l.roomsScreenCreateRoom,
                           onPrimaryCta: () => context.push('/rooms/new'),
-                          secondaryCta: 'Join via link',
+                          secondaryCta: l.roomsScreenJoinRoom,
                           onSecondaryCta: () => context.push('/rooms/join'),
                         ),
                       ),
@@ -113,6 +114,7 @@ class _RoomTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     final id = room['id'] as String? ?? '';
     final name = room['name'] as String? ?? 'Untitled';
     final description = (room['description'] as String?)?.trim();
@@ -240,9 +242,7 @@ class _RoomTile extends ConsumerWidget {
                     children: [
                       _MetaItem(
                         icon: Icons.group_outlined,
-                        text: memberCount == 1
-                            ? '1 member'
-                            : '$memberCount members',
+                        text: l.roomsScreenMembers(memberCount),
                       ),
                       if (onlineMemberIds.isNotEmpty && !isArchived)
                         _OnlineMeta(
@@ -470,6 +470,7 @@ class _InvitesBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     return Container(
       margin: const EdgeInsets.fromLTRB(
           LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, 0),
@@ -512,7 +513,7 @@ class _InvitesBanner extends ConsumerWidget {
                   ),
                   TextButton(
                     onPressed: () => _accept(context, ref, invite),
-                    child: const Text('Join'),
+                    child: Text(l.roomsScreenJoinRoom),
                   ),
                 ],
               ),
@@ -524,6 +525,7 @@ class _InvitesBanner extends ConsumerWidget {
 
   Future<void> _accept(BuildContext context, WidgetRef ref,
       Map<String, dynamic> invite) async {
+    final l = context.l10n;
     try {
       final roomId = await ref
           .read(roomServiceProvider)
@@ -541,7 +543,7 @@ class _InvitesBanner extends ConsumerWidget {
           action: 'room_join', screen: 'rooms', message: '$e');
       if (context.mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed to join: $e')));
+            .showSnackBar(SnackBar(content: Text(l.roomJoinFailed('$e'))));
       }
     }
   }

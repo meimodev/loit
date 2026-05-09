@@ -9,6 +9,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/supported_currencies_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
@@ -39,6 +40,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final color = RoomColors.palette[_colorIdx];
     final initial =
         _name.text.isEmpty ? 'R' : _name.text[0].toUpperCase();
@@ -46,7 +48,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('New room'),
+        title: Text(l.roomCreateTitle),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
@@ -73,9 +75,9 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
           ),
           const SizedBox(height: LoitSpacing.s5),
           LoitInput(
-            label: 'Room name',
+            label: l.roomCreateName,
             controller: _name,
-            placeholder: 'e.g. Bali Trip',
+            placeholder: l.roomCreateNamePlaceholder,
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: LoitSpacing.s5),
@@ -152,7 +154,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
             size: LoitButtonSize.l,
             fullWidth: true,
             loading: _busy,
-            label: 'Create room',
+            label: _busy ? l.roomCreateCreating : l.roomCreateCreate,
             onPressed: _name.text.trim().isEmpty || _busy ? null : _create,
           ),
         ),
@@ -201,6 +203,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   Future<void> _create() async {
     final name = _name.text.trim();
     if (name.isEmpty) return;
+    final l = context.l10n;
     setState(() => _busy = true);
     try {
       final room = await RoomService().createRoom(
@@ -227,7 +230,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed: $e')));
+            .showSnackBar(SnackBar(content: Text(l.roomCreateFailed('$e'))));
       }
     } finally {
       if (mounted) setState(() => _busy = false);

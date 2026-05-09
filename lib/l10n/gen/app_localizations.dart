@@ -2711,6 +2711,636 @@ abstract class AppLocalizations {
   /// **'Scanned receipts will appear here. Use the scanner to capture one.'**
   String get receiptsEmptyBody;
 
+  /// No description provided for @reportsScreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports'**
+  String get reportsScreenTitle;
+
+  /// No description provided for @reportsScreenIncome.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get reportsScreenIncome;
+
+  /// No description provided for @reportsScreenExpenses.
+  ///
+  /// In en, this message translates to:
+  /// **'Expenses'**
+  String get reportsScreenExpenses;
+
+  /// No description provided for @reportsScreenNet.
+  ///
+  /// In en, this message translates to:
+  /// **'Net'**
+  String get reportsScreenNet;
+
+  /// No description provided for @reportsScreenNoData.
+  ///
+  /// In en, this message translates to:
+  /// **'No data for this period'**
+  String get reportsScreenNoData;
+
+  /// No description provided for @reportsScreenCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get reportsScreenCategory;
+
+  /// No description provided for @reportsScreenAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get reportsScreenAmount;
+
+  /// No description provided for @reportsScreenPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'%'**
+  String get reportsScreenPercent;
+
+  /// No description provided for @reportsScreenEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports will appear when you have transactions.'**
+  String get reportsScreenEmptyBody;
+
+  /// No description provided for @exportScreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export data'**
+  String get exportScreenTitle;
+
+  /// No description provided for @exportScreenFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Format'**
+  String get exportScreenFormat;
+
+  /// No description provided for @exportScreenDateRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Date range'**
+  String get exportScreenDateRange;
+
+  /// No description provided for @exportScreenLastMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Last month'**
+  String get exportScreenLastMonth;
+
+  /// No description provided for @exportScreenLast3Months.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 3 months'**
+  String get exportScreenLast3Months;
+
+  /// No description provided for @exportScreenLast6Months.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 6 months'**
+  String get exportScreenLast6Months;
+
+  /// No description provided for @exportScreenLastYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Last year'**
+  String get exportScreenLastYear;
+
+  /// No description provided for @exportScreenAllTime.
+  ///
+  /// In en, this message translates to:
+  /// **'All time'**
+  String get exportScreenAllTime;
+
+  /// No description provided for @exportScreenExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get exportScreenExport;
+
+  /// No description provided for @exportScreenExporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting…'**
+  String get exportScreenExporting;
+
+  /// No description provided for @exportScreenReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Your export is ready.'**
+  String get exportScreenReady;
+
+  /// Error when export fails
+  ///
+  /// In en, this message translates to:
+  /// **'Export failed: {error}'**
+  String exportScreenFailed(String error);
+
+  /// No description provided for @exportScreenAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts'**
+  String get exportScreenAccounts;
+
+  /// No description provided for @exportScreenTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Transactions'**
+  String get exportScreenTransactions;
+
+  /// No description provided for @exportScreenBudgets.
+  ///
+  /// In en, this message translates to:
+  /// **'Budgets'**
+  String get exportScreenBudgets;
+
+  /// No description provided for @roomsScreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rooms'**
+  String get roomsScreenTitle;
+
+  /// No description provided for @roomsScreenNoRooms.
+  ///
+  /// In en, this message translates to:
+  /// **'No rooms yet'**
+  String get roomsScreenNoRooms;
+
+  /// No description provided for @roomsScreenEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Create or join a room to track shared expenses.'**
+  String get roomsScreenEmptyBody;
+
+  /// No description provided for @roomsScreenCreateRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Create room'**
+  String get roomsScreenCreateRoom;
+
+  /// No description provided for @roomsScreenJoinRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Join room'**
+  String get roomsScreenJoinRoom;
+
+  /// Room member count, e.g. '3 members'
+  ///
+  /// In en, this message translates to:
+  /// **'{n} members'**
+  String roomsScreenMembers(int n);
+
+  /// No description provided for @roomCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create room'**
+  String get roomCreateTitle;
+
+  /// No description provided for @roomCreateName.
+  ///
+  /// In en, this message translates to:
+  /// **'Room name'**
+  String get roomCreateName;
+
+  /// No description provided for @roomCreateNamePlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Flatmates, Trip to Bali'**
+  String get roomCreateNamePlaceholder;
+
+  /// No description provided for @roomCreateDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description (optional)'**
+  String get roomCreateDescription;
+
+  /// No description provided for @roomCreateCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get roomCreateCreate;
+
+  /// No description provided for @roomCreateCreating.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating…'**
+  String get roomCreateCreating;
+
+  /// Error when room creation fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to create room: {error}'**
+  String roomCreateFailed(String error);
+
+  /// No description provided for @roomInviteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite members'**
+  String get roomInviteTitle;
+
+  /// No description provided for @roomInviteShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share invite link'**
+  String get roomInviteShare;
+
+  /// No description provided for @roomInviteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone with this link can join the room.'**
+  String get roomInviteBody;
+
+  /// No description provided for @roomJoinTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Join room'**
+  String get roomJoinTitle;
+
+  /// No description provided for @roomJoinJoining.
+  ///
+  /// In en, this message translates to:
+  /// **'Joining…'**
+  String get roomJoinJoining;
+
+  /// No description provided for @roomJoinInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'This invite is invalid or expired.'**
+  String get roomJoinInvalid;
+
+  /// Error when joining a room fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to join: {error}'**
+  String roomJoinFailed(String error);
+
+  /// No description provided for @roomDetailAddTransaction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add transaction'**
+  String get roomDetailAddTransaction;
+
+  /// No description provided for @roomDetailMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Members'**
+  String get roomDetailMembers;
+
+  /// No description provided for @roomDetailBudgets.
+  ///
+  /// In en, this message translates to:
+  /// **'Budgets'**
+  String get roomDetailBudgets;
+
+  /// No description provided for @roomDetailLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave room'**
+  String get roomDetailLeave;
+
+  /// No description provided for @roomDetailLeaveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave room?'**
+  String get roomDetailLeaveTitle;
+
+  /// No description provided for @roomDetailLeaveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your transactions in this room will be kept.'**
+  String get roomDetailLeaveBody;
+
+  /// No description provided for @roomDetailLeaveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave'**
+  String get roomDetailLeaveConfirm;
+
+  /// No description provided for @roomDetailDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete room?'**
+  String get roomDetailDeleteTitle;
+
+  /// No description provided for @roomDetailDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'All shared data in this room will be permanently deleted.'**
+  String get roomDetailDeleteBody;
+
+  /// No description provided for @roomDetailDeleteRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete room'**
+  String get roomDetailDeleteRoom;
+
+  /// No description provided for @roomDetailBudgetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Room budget'**
+  String get roomDetailBudgetTitle;
+
+  /// No description provided for @roomDetailNotSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Not synced'**
+  String get roomDetailNotSynced;
+
+  /// No description provided for @roomDetailNotSyncedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This transaction hasn\'t synced yet. Edit to save it.'**
+  String get roomDetailNotSyncedBody;
+
+  /// No description provided for @paywallTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to Pro'**
+  String get paywallTitle;
+
+  /// No description provided for @paywallSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock unlimited scans, receipts, and budgets.'**
+  String get paywallSubtitle;
+
+  /// No description provided for @paywallContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get paywallContinue;
+
+  /// No description provided for @paywallRestoring.
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring…'**
+  String get paywallRestoring;
+
+  /// No description provided for @paywallFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Free'**
+  String get paywallFree;
+
+  /// No description provided for @paywallPro.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro'**
+  String get paywallPro;
+
+  /// No description provided for @paywallTeam.
+  ///
+  /// In en, this message translates to:
+  /// **'Team'**
+  String get paywallTeam;
+
+  /// No description provided for @pwProSuccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Pro!'**
+  String get pwProSuccessTitle;
+
+  /// No description provided for @pwProSuccessBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You now have unlimited scans and premium features.'**
+  String get pwProSuccessBody;
+
+  /// No description provided for @pwProSuccessDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get pwProSuccessDone;
+
+  /// No description provided for @billingManageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage subscription'**
+  String get billingManageTitle;
+
+  /// No description provided for @billingManageCurrentPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Current plan'**
+  String get billingManageCurrentPlan;
+
+  /// No description provided for @billingManageCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel subscription'**
+  String get billingManageCancel;
+
+  /// No description provided for @billingManageCancelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel subscription?'**
+  String get billingManageCancelTitle;
+
+  /// No description provided for @billingManageCancelBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You will lose Pro features at the end of your billing period.'**
+  String get billingManageCancelBody;
+
+  /// No description provided for @billingManageCancelConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get billingManageCancelConfirm;
+
+  /// No description provided for @billingManageCancelFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel failed: {error}'**
+  String billingManageCancelFailed(Object error);
+
+  /// No description provided for @authWelcomeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to LOIT'**
+  String get authWelcomeTitle;
+
+  /// No description provided for @authWelcomeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal & shared finance, calm by design.'**
+  String get authWelcomeSubtitle;
+
+  /// No description provided for @authWelcomeContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get authWelcomeContinue;
+
+  /// No description provided for @authWelcomeEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with email'**
+  String get authWelcomeEmail;
+
+  /// No description provided for @authWelcomeTerms.
+  ///
+  /// In en, this message translates to:
+  /// **'By continuing you agree to our Terms of Service and Privacy Policy.'**
+  String get authWelcomeTerms;
+
+  /// No description provided for @authSignInTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get authSignInTitle;
+
+  /// No description provided for @authSignInEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email address'**
+  String get authSignInEmail;
+
+  /// No description provided for @authSignInEmailPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'you@example.com'**
+  String get authSignInEmailPlaceholder;
+
+  /// No description provided for @authSignInContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get authSignInContinue;
+
+  /// No description provided for @authSignInError.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in failed: {error}'**
+  String authSignInError(Object error);
+
+  /// No description provided for @authOtpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify email'**
+  String get authOtpTitle;
+
+  /// No description provided for @authOtpBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the code sent to {email}'**
+  String authOtpBody(Object email);
+
+  /// No description provided for @authOtpPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'123456'**
+  String get authOtpPlaceholder;
+
+  /// No description provided for @authOtpVerify.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify'**
+  String get authOtpVerify;
+
+  /// No description provided for @authOtpResend.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend code'**
+  String get authOtpResend;
+
+  /// No description provided for @authOtpResendSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Code resent'**
+  String get authOtpResendSent;
+
+  /// No description provided for @authOtpError.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification failed: {error}'**
+  String authOtpError(Object error);
+
+  /// No description provided for @authPermissionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Almost there'**
+  String get authPermissionsTitle;
+
+  /// No description provided for @authPermissionsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'LOIT needs a few permissions to work.'**
+  String get authPermissionsBody;
+
+  /// No description provided for @authPermissionsNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get authPermissionsNotifications;
+
+  /// No description provided for @authPermissionsNotificationsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Get alerts for budgets, rooms, and receipts.'**
+  String get authPermissionsNotificationsDesc;
+
+  /// No description provided for @authPermissionsCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera'**
+  String get authPermissionsCamera;
+
+  /// No description provided for @authPermissionsCameraDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan receipts and room invites.'**
+  String get authPermissionsCameraDesc;
+
+  /// No description provided for @authPermissionsContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get authPermissionsContinue;
+
+  /// No description provided for @lockScreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LOIT'**
+  String get lockScreenTitle;
+
+  /// No description provided for @lockScreenUnlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get lockScreenUnlock;
+
+  /// No description provided for @lockScreenBiometricPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticate to unlock LOIT'**
+  String get lockScreenBiometricPrompt;
+
+  /// No description provided for @lockScreenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication failed'**
+  String get lockScreenFailed;
+
+  /// No description provided for @systemUpdateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update required'**
+  String get systemUpdateTitle;
+
+  /// No description provided for @systemUpdateBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Please update LOIT to the latest version to continue.'**
+  String get systemUpdateBody;
+
+  /// No description provided for @systemUpdateAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get systemUpdateAction;
+
   /// No description provided for @tierActive.
   ///
   /// In en, this message translates to:

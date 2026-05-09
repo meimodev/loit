@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 
 class UpdateRequiredScreen extends StatelessWidget {
   const UpdateRequiredScreen({super.key, this.onUpdate});
@@ -12,6 +13,7 @@ class UpdateRequiredScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: c.canvas,
       body: SafeArea(
@@ -33,7 +35,7 @@ class UpdateRequiredScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              Text('Update required',
+              Text(l10n.systemUpdateTitle,
                   textAlign: TextAlign.center,
                   style: LoitTypography.titleL.copyWith(
                     color: c.contentPrimary,
@@ -41,7 +43,7 @@ class UpdateRequiredScreen extends StatelessWidget {
                   )),
               const SizedBox(height: 8),
               Text(
-                "We've shipped important fixes. Update LOIT to keep going.",
+                l10n.systemUpdateBody,
                 textAlign: TextAlign.center,
                 style: LoitTypography.bodyM
                     .copyWith(color: c.contentSecondary, height: 1.4),
@@ -51,7 +53,7 @@ class UpdateRequiredScreen extends StatelessWidget {
                 height: 52,
                 child: FilledButton(
                   onPressed: onUpdate,
-                  child: const Text('Update now'),
+                  child: Text(l10n.systemUpdateAction),
                 ),
               ),
             ],

@@ -7,6 +7,7 @@ import '../../core/services/log_service.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/app_lock_provider.dart';
 import '../../shared/providers/preferences_provider.dart';
 
@@ -35,7 +36,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     });
     try {
       final ok = await LocalAuthentication().authenticate(
-        localizedReason: 'Unlock LOIT',
+        localizedReason: context.l10n.lockScreenBiometricPrompt,
         options: const AuthenticationOptions(
           stickyAuth: true,
           biometricOnly: false,
@@ -55,7 +56,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       if (!mounted) return;
       setState(() {
         _prompting = false;
-        _error = 'Authentication failed';
+        _error = context.l10n.lockScreenFailed;
       });
     }
   }
@@ -67,7 +68,6 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       Log.w('LockScreen', 'sign out failed', error: e);
     }
     if (!mounted) return;
-    // Disable lock so router redirect to /sign-in is visible.
     await ref
         .read(preferencesProvider.notifier)
         .setBool(PrefKeys.biometricLock, false);
@@ -77,6 +77,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: c.canvas,
       body: SafeArea(
@@ -116,12 +117,12 @@ class _LockScreenState extends ConsumerState<LockScreen> {
               FilledButton.icon(
                 onPressed: _prompting ? null : _authenticate,
                 icon: const Icon(Icons.fingerprint),
-                label: const Text('Unlock'),
+                label: Text(l10n.lockScreenUnlock),
               ),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: _prompting ? null : _signOut,
-                child: const Text('Sign out'),
+                child: Text(l10n.settingsSignOut),
               ),
             ],
           ),

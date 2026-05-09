@@ -724,5 +724,144 @@
   "receiptsNoReceipts": "No receipts yet",
   "receiptsEmptyBody": "Scanned receipts will appear here. Use the scanner to capture one.",
 
+  "reportsScreenTitle": "Reports",
+  "reportsScreenIncome": "Income",
+  "reportsScreenExpenses": "Expenses",
+  "reportsScreenNet": "Net",
+  "reportsScreenNoData": "No data for this period",
+  "reportsScreenCategory": "Category",
+  "reportsScreenAmount": "Amount",
+  "reportsScreenPercent": "%",
+  "reportsScreenEmptyBody": "Reports will appear when you have transactions.",
+  "exportScreenTitle": "Export data",
+  "exportScreenFormat": "Format",
+  "exportScreenDateRange": "Date range",
+  "exportScreenLastMonth": "Last month",
+  "exportScreenLast3Months": "Last 3 months",
+  "exportScreenLast6Months": "Last 6 months",
+  "exportScreenLastYear": "Last year",
+  "exportScreenAllTime": "All time",
+  "exportScreenExport": "Export",
+  "exportScreenExporting": "Exporting…",
+  "exportScreenReady": "Your export is ready.",
+  "exportScreenFailed": "Export failed: {error}",
+  "@exportScreenFailed": {
+    "description": "Error when export fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "exportScreenAccounts": "Accounts",
+  "exportScreenTransactions": "Transactions",
+  "exportScreenBudgets": "Budgets",
+
+  "roomsScreenTitle": "Rooms",
+  "roomsScreenNoRooms": "No rooms yet",
+  "roomsScreenEmptyBody": "Create or join a room to track shared expenses.",
+  "roomsScreenCreateRoom": "Create room",
+  "roomsScreenJoinRoom": "Join room",
+  "roomsScreenMembers": "{n} members",
+  "@roomsScreenMembers": {
+    "description": "Room member count, e.g. '3 members'",
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
+  "roomCreateTitle": "Create room",
+  "roomCreateName": "Room name",
+  "roomCreateNamePlaceholder": "e.g. Flatmates, Trip to Bali",
+  "roomCreateDescription": "Description (optional)",
+  "roomCreateCreate": "Create",
+  "roomCreateCreating": "Creating…",
+  "roomCreateFailed": "Failed to create room: {error}",
+  "@roomCreateFailed": {
+    "description": "Error when room creation fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "roomInviteTitle": "Invite members",
+  "roomInviteShare": "Share invite link",
+  "roomInviteBody": "Anyone with this link can join the room.",
+  "roomJoinTitle": "Join room",
+  "roomJoinJoining": "Joining…",
+  "roomJoinInvalid": "This invite is invalid or expired.",
+  "roomJoinFailed": "Failed to join: {error}",
+  "@roomJoinFailed": {
+    "description": "Error when joining a room fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "roomDetailAddTransaction": "Add transaction",
+  "roomDetailMembers": "Members",
+  "roomDetailBudgets": "Budgets",
+  "roomDetailLeave": "Leave room",
+  "roomDetailLeaveTitle": "Leave room?",
+  "roomDetailLeaveBody": "Your transactions in this room will be kept.",
+  "roomDetailLeaveConfirm": "Leave",
+  "roomDetailDeleteTitle": "Delete room?",
+  "roomDetailDeleteBody": "All shared data in this room will be permanently deleted.",
+  "roomDetailDeleteRoom": "Delete room",
+  "roomDetailBudgetTitle": "Room budget",
+  "roomDetailNotSynced": "Not synced",
+  "roomDetailNotSyncedBody": "This transaction hasn't synced yet. Edit to save it.",
+
+  "paywallTitle": "Upgrade to Pro",
+  "paywallSubtitle": "Unlock unlimited scans, receipts, and budgets.",
+  "paywallContinue": "Continue",
+  "paywallRestoring": "Restoring…",
+  "paywallFree": "Free",
+  "paywallPro": "Pro",
+  "paywallTeam": "Team",
+  "pwProSuccessTitle": "Welcome to Pro!",
+  "pwProSuccessBody": "You now have unlimited scans and premium features.",
+  "pwProSuccessDone": "Done",
+
+  "billingManageTitle": "Manage subscription",
+  "billingManageCurrentPlan": "Current plan",
+  "billingManageCancel": "Cancel subscription",
+  "billingManageCancelTitle": "Cancel subscription?",
+  "billingManageCancelBody": "You will lose Pro features at the end of your billing period.",
+  "billingManageCancelConfirm": "Cancel",
+  "billingManageCancelFailed": "Cancel failed: {error}",
+
+  "authWelcomeTitle": "Welcome to LOIT",
+  "authWelcomeSubtitle": "Personal & shared finance, calm by design.",
+  "authWelcomeContinue": "Continue with Google",
+  "authWelcomeEmail": "Sign in with email",
+  "authWelcomeTerms": "By continuing you agree to our Terms of Service and Privacy Policy.",
+
+  "authSignInTitle": "Sign in",
+  "authSignInEmail": "Email address",
+  "authSignInEmailPlaceholder": "you@example.com",
+  "authSignInContinue": "Continue",
+  "authSignInError": "Sign in failed: {error}",
+
+  "authOtpTitle": "Verify email",
+  "authOtpBody": "Enter the code sent to {email}",
+  "authOtpPlaceholder": "123456",
+  "authOtpVerify": "Verify",
+  "authOtpResend": "Resend code",
+  "authOtpResendSent": "Code resent",
+  "authOtpError": "Verification failed: {error}",
+
+  "authPermissionsTitle": "Almost there",
+  "authPermissionsBody": "LOIT needs a few permissions to work.",
+  "authPermissionsNotifications": "Notifications",
+  "authPermissionsNotificationsDesc": "Get alerts for budgets, rooms, and receipts.",
+  "authPermissionsCamera": "Camera",
+  "authPermissionsCameraDesc": "Scan receipts and room invites.",
+  "authPermissionsContinue": "Continue",
+
+  "lockScreenTitle": "LOIT",
+  "lockScreenUnlock": "Unlock",
+  "lockScreenBiometricPrompt": "Authenticate to unlock LOIT",
+  "lockScreenFailed": "Authentication failed",
+
+  "systemUpdateTitle": "Update required",
+  "systemUpdateBody": "Please update LOIT to the latest version to continue.",
+  "systemUpdateAction": "Update",
+
   "tierActive": "ACTIVE"
 }

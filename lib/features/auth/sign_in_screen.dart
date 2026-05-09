@@ -11,6 +11,7 @@ import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -84,12 +85,13 @@ class _SignInScreenState extends State<SignInScreen>
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l10n = context.l10n;
     final reduced = MediaQuery.of(context).disableAnimations;
 
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Sign in'),
+        title: Text(l10n.authSignInTitle),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () =>
@@ -109,7 +111,7 @@ class _SignInScreenState extends State<SignInScreen>
                 end: 0.55,
                 reduced: reduced,
                 child: Text(
-                  'Welcome to LOIT',
+                  l10n.authWelcomeTitle,
                   style: LoitTypography.titleL.copyWith(
                     color: c.contentPrimary,
                     fontWeight: FontWeight.w600,
@@ -123,7 +125,7 @@ class _SignInScreenState extends State<SignInScreen>
                 end: 0.65,
                 reduced: reduced,
                 child: Text(
-                  'Sign in to continue',
+                  l10n.authWelcomeSubtitle,
                   style: LoitTypography.bodyM
                       .copyWith(color: c.contentSecondary),
                 ),
@@ -179,7 +181,7 @@ class _SignInScreenState extends State<SignInScreen>
                                       ),
                                       const SizedBox(width: 10),
                                       Text(
-                                        'Continue with Google',
+                                        l10n.authWelcomeContinue,
                                         style: LoitTypography.bodyL.copyWith(
                                           color: c.contentPrimary,
                                           fontWeight: FontWeight.w600,
@@ -234,27 +236,11 @@ class _SignInScreenState extends State<SignInScreen>
                 start: 0.40,
                 end: 1.00,
                 reduced: reduced,
-                child: Text.rich(
-                  TextSpan(
-                    text: 'By continuing you agree to our ',
-                    style: LoitTypography.bodyS
-                        .copyWith(color: c.contentTertiary),
-                    children: [
-                      TextSpan(
-                        text: 'Terms',
-                        style: TextStyle(
-                            color: c.brand, fontWeight: FontWeight.w600),
-                      ),
-                      const TextSpan(text: ' and '),
-                      TextSpan(
-                        text: 'Privacy',
-                        style: TextStyle(
-                            color: c.brand, fontWeight: FontWeight.w600),
-                      ),
-                      const TextSpan(text: '.'),
-                    ],
-                  ),
+                child: Text(
+                  l10n.authWelcomeTerms,
                   textAlign: TextAlign.center,
+                  style: LoitTypography.bodyS
+                      .copyWith(color: c.contentTertiary),
                 ),
               ),
               const Spacer(),

@@ -9,6 +9,8 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/gen/app_localizations.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/home_currency_provider.dart';
@@ -39,14 +41,15 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     final user = ref.watch(currentUserProvider);
 
     AppBar appBar({required bool isOwner}) => AppBar(
-          title: const Text('Transaction'),
+          title: Text(l.txDetailTitle),
           actions: [
             if (isOwner)
               IconButton(
-                tooltip: 'Delete',
+                tooltip: l.txDetailDelete,
                 icon: Icon(Icons.delete_outline, color: c.danger),
                 onPressed: () => _confirmAndDelete(context, ref),
               ),
@@ -76,7 +79,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (row) {
-          if (row == null) return const Center(child: Text('Not found'));
+          if (row == null) return Center(child: Text(l.txDetailNotFound));
           return _buildDetail(context, ref, row);
         },
       ),
@@ -85,20 +88,21 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
 
   Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
     final c = context.loitColors;
+    final l = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete transaction?'),
+        title: Text(l.txDetailDeleteTitle),
         content: const Text(
             'This removes the transaction from the room for everyone. Cannot be undone.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(l.txDetailCancel)),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: c.danger),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(l.txDetailDelete),
           ),
         ],
       ),
@@ -124,6 +128,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
     Map<String, dynamic> t,
   ) {
     final c = context.loitColors;
+    final l = context.l10n;
     final amount = (t['amount'] as num?)?.toDouble() ?? 0;
     final type = t['type'] as String? ?? (amount < 0 ? 'income' : 'expense');
     final isIncome = type == 'income';
@@ -179,20 +184,20 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
         const LoitGroupLabel(label: 'Created by'),
         _creatorRow(context, payer, avatarUrl, email),
         const SizedBox(height: LoitSpacing.s4),
-        const LoitGroupLabel(label: 'Details'),
-        _row(context, 'Date',
+        LoitGroupLabel(label: l.txDetailDetails),
+        _row(context, l.txDetailDate,
             DateFormat.yMMMMEEEEd().add_jm().format(created)),
-        _row(context, 'Type', _typeName(type)),
+        _row(context, l.txDetailType, _typeName(l, type)),
         if (!isTransfer)
-          _row(context, 'Category', catLabel),
-        _row(context, 'Currency', currency),
+          _row(context, l.txDetailCategory, catLabel),
+        _row(context, l.txDetailCurrency, currency),
         if (currency != homeCurrency && snapshotRate(homeCurrency) != null)
-          _row(context, 'FX rate',
+          _row(context, l.txDetailFxRate,
               snapshotRate(homeCurrency)!.toStringAsFixed(4)),
         if (currency != homeCurrency && snapshotRate(homeCurrency) != null)
           _row(
             context,
-            'Home amount',
+            l.txDetailHomeAmount,
             formatMoney(amount * snapshotRate(homeCurrency)!, homeCurrency),
           ),
         _row(
@@ -200,8 +205,8 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
           'Amount',
           '${isTransfer ? '' : isIncome ? '+' : ''}${fmt(amount.abs())}',
         ),
-        if (aiParsed) _row(context, 'Source', 'AI scanned'),
-        if (isManualFallback) _row(context, 'Source', 'Manual fallback'),
+        if (aiParsed) _row(context, l.txDetailSource, l.txDetailAiScanned),
+        if (isManualFallback) _row(context, l.txDetailSource, l.txDetailManualFallback),
         if (isOwner)
           _AccountRow(
             roomId: roomId,
@@ -210,7 +215,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
           ),
         if (notes != null && notes.isNotEmpty) ...[
           const SizedBox(height: LoitSpacing.s4),
-          const LoitGroupLabel(label: 'Notes'),
+          LoitGroupLabel(label: l.txDetailNotes),
           Builder(builder: (_) {
             final parsed = parseBreakdown(notes);
             if (parsed == null) {
@@ -231,7 +236,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
         ],
         if (receiptUrl != null && receiptUrl.isNotEmpty) ...[
           const SizedBox(height: LoitSpacing.s4),
-          const LoitGroupLabel(label: 'Receipt'),
+          LoitGroupLabel(label: l.txDetailReceipt),
           ClipRRect(
             borderRadius: LoitRadius.brM,
             child: LoitReceiptImage(path: receiptUrl),
@@ -241,14 +246,14 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
     );
   }
 
-  String _typeName(String type) {
+  String _typeName(AppLocalizations l, String type) {
     switch (type) {
       case 'income':
-        return 'Income';
+        return l.txFormIncome;
       case 'transfer':
-        return 'Transfer';
+        return l.txFormTransfer;
       default:
-        return 'Expense';
+        return l.txFormExpense;
     }
   }
 
@@ -261,6 +266,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
     bool isTransfer,
   ) {
     final c = context.loitColors;
+    final l = context.l10n;
     final notes = t['notes'] as String?;
     final amount = (t['amount'] as num?)?.toDouble() ?? 0;
     final category = t['category'] as String?;
@@ -298,7 +304,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
                     Builder(builder: (_) {
                       final t0 = breakdownTitle(notes);
                       final fallback =
-                          isTransfer ? 'Transfer' : 'Transaction';
+                          isTransfer ? l.txDetailFallbackTransfer : l.txDetailTitle;
                       return Text(
                           t0.isEmpty ? fallback : t0,
                           style: LoitTypography.titleM
@@ -306,7 +312,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
                     }),
                     const SizedBox(height: 2),
                     Text(
-                      isTransfer ? 'Transfer' : catLabel,
+                      isTransfer ? l.txDetailFallbackTransfer : catLabel,
                       style: LoitTypography.bodyS
                           .copyWith(color: c.contentSecondary),
                     ),
@@ -420,11 +426,11 @@ class _BreakdownView extends StatelessWidget {
   String _itemRight(NotesBreakdownItem it) {
     final parts = <String>[];
     if (it.qty != null && it.unitPrice != null) {
-      parts.add('${_f.format(it.qty)} × ${_f.format(it.unitPrice)}');
+      parts.add('${_f.format(it.qty)} \u00d7 ${_f.format(it.unitPrice)}');
     } else if (it.qty != null) {
-      parts.add('${_f.format(it.qty)} ×');
+      parts.add('${_f.format(it.qty)} \u00d7');
     } else if (it.unitPrice != null) {
-      parts.add('× ${_f.format(it.unitPrice)}');
+      parts.add('\u00d7 ${_f.format(it.unitPrice)}');
     }
     if (it.totalPrice != null) {
       parts.add('= ${_f.format(it.totalPrice)}');
@@ -462,7 +468,7 @@ class _BreakdownView extends StatelessWidget {
                   Expanded(
                     child: Text(
                       parsed.items[i].name.isEmpty
-                          ? '—'
+                          ? '\u2014'
                           : parsed.items[i].name,
                       style: LoitTypography.bodyM
                           .copyWith(color: c.contentPrimary),
@@ -527,6 +533,7 @@ class _AccountRowState extends ConsumerState<_AccountRow> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final fresh = ref.watch(roomTransactionProvider(
         RoomTxKey(roomId: widget.roomId, txId: widget.transactionId)));
     final accId = fresh.maybeWhen(
@@ -551,7 +558,7 @@ class _AccountRowState extends ConsumerState<_AccountRow> {
           children: [
             SizedBox(
               width: 110,
-              child: Text('Account',
+              child: Text(l.txDetailAccount,
                   style: LoitTypography.bodyM
                       .copyWith(color: c.contentSecondary)),
             ),
@@ -584,7 +591,7 @@ class _AccountRowState extends ConsumerState<_AccountRow> {
       ref.invalidate(roomFeedProvider(widget.roomId));
       ref.invalidate(accountsProvider);
       // Wait one microtask so the watched provider re-emits before we drop
-      // the busy flag — avoids a flash of the stale name between shimmer
+      // the busy flag \u2014 avoids a flash of the stale name between shimmer
       // and the refreshed value.
       await Future<void>.delayed(const Duration(milliseconds: 120));
     } catch (e) {

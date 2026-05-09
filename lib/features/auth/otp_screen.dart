@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({super.key, this.email = ''});
@@ -54,6 +55,8 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l10n = context.l10n;
+    final email = widget.email.isEmpty ? 'your email' : widget.email;
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
@@ -67,25 +70,16 @@ class _OtpScreenState extends State<OtpScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Check your email',
+            Text(l10n.authOtpTitle,
                 style: LoitTypography.titleL.copyWith(
                   color: c.contentPrimary,
                   fontWeight: FontWeight.w600,
                 )),
             const SizedBox(height: 6),
-            Text.rich(
-              TextSpan(
-                style: LoitTypography.bodyM
-                    .copyWith(color: c.contentSecondary, height: 1.4),
-                children: [
-                  const TextSpan(text: 'We sent a 6-digit code to\n'),
-                  TextSpan(
-                    text: widget.email.isEmpty ? 'your email' : widget.email,
-                    style: TextStyle(
-                        color: c.contentPrimary, fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
+            Text(
+              l10n.authOtpBody(email),
+              style: LoitTypography.bodyM
+                  .copyWith(color: c.contentSecondary, height: 1.4),
             ),
             const SizedBox(height: 28),
             Row(
@@ -137,7 +131,7 @@ class _OtpScreenState extends State<OtpScreen> {
                     TextSpan(
                       text: _seconds > 0
                           ? 'Resend in 0:${_seconds.toString().padLeft(2, '0')}'
-                          : 'Resend code',
+                          : l10n.authOtpResend,
                       style: TextStyle(
                           color: c.brand, fontWeight: FontWeight.w600),
                     ),

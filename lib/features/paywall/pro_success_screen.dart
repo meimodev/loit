@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/widgets/loit_button.dart';
 
@@ -14,10 +15,8 @@ class ProSuccessScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l10n = context.l10n;
     final profile = ref.watch(userProfileProvider).value;
-    final firstName = (profile?.name.isNotEmpty ?? false)
-        ? profile!.name.split(' ').first
-        : 'there';
     final renewal = profile?.tier == 'team' || profile?.tier == 'pro'
         ? _renewalLabel()
         : null;
@@ -64,7 +63,7 @@ class ProSuccessScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 20),
                           Text(
-                            'WELCOME TO PRO',
+                            l10n.pwProSuccessTitle,
                             style: LoitTypography.labelS.copyWith(
                               color: c.brand,
                               letterSpacing: 1.2,
@@ -73,7 +72,7 @@ class ProSuccessScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            "You're all set, $firstName.",
+                            l10n.pwProSuccessBody,
                             textAlign: TextAlign.center,
                             style: LoitTypography.titleL.copyWith(
                               color: c.contentPrimary,
@@ -84,19 +83,18 @@ class ProSuccessScreen extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 280),
-                            child: Text(
-                              renewal != null
-                                  ? "Everything's unlocked. Your subscription renews $renewal."
-                                  : "Everything's unlocked.",
-                              textAlign: TextAlign.center,
-                              style: LoitTypography.bodyM.copyWith(
-                                color: c.contentSecondary,
-                                height: 20 / 14,
+                          if (renewal != null)
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 280),
+                              child: Text(
+                                'Your subscription renews $renewal.',
+                                textAlign: TextAlign.center,
+                                style: LoitTypography.bodyM.copyWith(
+                                  color: c.contentSecondary,
+                                  height: 20 / 14,
+                                ),
                               ),
                             ),
-                          ),
                           const SizedBox(height: 24),
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 320),
@@ -158,7 +156,7 @@ class ProSuccessScreen extends ConsumerWidget {
                   ),
                 ),
                 LoitButton.primary(
-                  label: 'Start using Pro',
+                  label: l10n.pwProSuccessDone,
                   size: LoitButtonSize.l,
                   fullWidth: true,
                   onPressed: () => context.go('/'),

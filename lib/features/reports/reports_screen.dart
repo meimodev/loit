@@ -8,6 +8,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
@@ -33,17 +34,14 @@ class ReportsScreen extends ConsumerStatefulWidget {
 
 class _ReportsScreenState extends ConsumerState<ReportsScreen>
     with SingleTickerProviderStateMixin {
-  static const _tabLabels = [
-    'Overview',
-    'Categories',
-    'Trend',
-    'Insights',
-    'Income',
-  ];
-
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
-  late final TabController _tabController =
-      TabController(length: _tabLabels.length, vsync: this);
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 5, vsync: this);
+  }
 
   @override
   void dispose() {
@@ -54,6 +52,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l10n = context.l10n;
     final roomId = widget.roomId;
     final txns = roomId != null
         ? (ref.watch(roomTransactionsProvider(roomId)).value ?? const [])
@@ -96,7 +95,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         actions: [
           IconButton(
             icon: const Icon(Icons.ios_share, size: 20),
-            tooltip: 'Export',
+            tooltip: l10n.exportScreenTitle,
             onPressed: () => context.push(
               roomId != null
                   ? '/rooms/$roomId/reports/export'
@@ -109,11 +108,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         children: [
           LoitStatTriple(
             stats: [
-              LoitStat(label: 'Income', amount: fmt(income), color: c.info),
               LoitStat(
-                  label: 'Expenses', amount: fmt(expenses), color: c.danger),
+                  label: l10n.reportsScreenIncome,
+                  amount: fmt(income),
+                  color: c.info),
               LoitStat(
-                label: 'Net',
+                  label: l10n.reportsScreenExpenses,
+                  amount: fmt(expenses),
+                  color: c.danger),
+              LoitStat(
+                label: l10n.reportsScreenNet,
                 amount: fmt(net),
                 color: net >= 0 ? c.success : c.danger,
               ),
@@ -137,7 +141,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                   LoitTypography.bodyS.copyWith(fontWeight: FontWeight.w700),
               unselectedLabelStyle:
                   LoitTypography.bodyS.copyWith(fontWeight: FontWeight.w600),
-              tabs: [for (final l in _tabLabels) Tab(text: l)],
+              tabs: const [
+                Tab(text: 'Overview'),
+                Tab(text: 'Categories'),
+                Tab(text: 'Trend'),
+                Tab(text: 'Insights'),
+                Tab(text: 'Income'),
+              ],
             ),
           ),
           Expanded(
@@ -168,13 +178,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
   }
 
   List<Widget> _incomeSlivers(List<Txn> monthTxns, String Function(double) fmt, String home) {
+    final l10n = context.l10n;
     final cats = _incomeCategoryTotals(monthTxns, home).entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final total = cats.fold<double>(0, (s, e) => s + e.value);
     if (cats.isEmpty) {
-      return const [
+      return [
         SliverToBoxAdapter(
-            child: _EmptyHint(text: 'No income recorded this month')),
+            child: _EmptyHint(text: l10n.reportsScreenNoData)),
       ];
     }
     return [
@@ -205,6 +216,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
   List<Widget> _overviewSlivers(List<Txn> monthTxns, String Function(double) fmt, String home) {
     final c = context.loitColors;
+    final l10n = context.l10n;
     final byDay = _spendByDay(monthTxns, _month, home);
     final avgDay = byDay.isEmpty
         ? 0.0
@@ -256,7 +268,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         ),
       ),
       if (cats.isEmpty)
-        const SliverToBoxAdapter(child: _EmptyHint(text: 'No spend this month'))
+        SliverToBoxAdapter(child: _EmptyHint(text: l10n.reportsScreenNoData))
       else
         SliverList.builder(
           itemCount: cats.length,
@@ -271,12 +283,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
   }
 
   List<Widget> _categoriesSlivers(List<Txn> monthTxns, String Function(double) fmt, String home) {
+    final l10n = context.l10n;
     final cats = _categoryTotals(monthTxns, home).entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final total = cats.fold<double>(0, (s, e) => s + e.value);
     if (cats.isEmpty) {
-      return const [
-        SliverToBoxAdapter(child: _EmptyHint(text: 'No category data this month')),
+      return [
+        SliverToBoxAdapter(child: _EmptyHint(text: l10n.reportsScreenNoData)),
       ];
     }
     return [
@@ -413,11 +426,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
   List<Widget> _insightsSlivers(List<Txn> monthTxns, String Function(double) fmt, String home) {
     final c = context.loitColors;
+    final l10n = context.l10n;
     final cats = _categoryTotals(monthTxns, home).entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final cards = <_InsightCard>[];
 
-    // Top category card
     if (cats.isNotEmpty) {
       final top = cats.first;
       final style = ref.watch(categoryStyleProvider(top.key));
@@ -430,7 +443,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       ));
     }
 
-    // Recurring merchant card (≥3 visits this month)
     if (monthTxns.isNotEmpty) {
       final byMerchant = <String, int>{};
       final spendByMerchant = <String, double>{};
@@ -457,7 +469,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       }
     }
 
-    // Potential subscriptions card: same merchant, exactly 1 hit this month, similar amount last month.
     final subs = _detectSubscriptions(monthTxns);
     if (subs.isNotEmpty) {
       cards.add(_InsightCard(
@@ -469,9 +480,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     }
 
     if (cards.isEmpty) {
-      return const [
+      return [
         SliverToBoxAdapter(
-            child: _EmptyHint(text: 'Insights appear once you have spend data')),
+            child: _EmptyHint(text: l10n.reportsScreenEmptyBody)),
       ];
     }
     return [
@@ -515,8 +526,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
   }
 
   List<String> _detectSubscriptions(List<Txn> monthTxns) {
-    // Heuristic: merchants with exactly 1 hit this month, amount > 20k IDR-ish,
-    // categorized as utilities/entertainment.
     const subCats = {'utilities', 'entertainment'};
     final byMerchant = <String, int>{};
     for (final t in monthTxns) {

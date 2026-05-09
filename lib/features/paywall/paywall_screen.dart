@@ -12,6 +12,7 @@ import '../../core/services/interaction_log_service.dart';
 import '../../core/services/payment_service.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/services_providers.dart';
 import '../../shared/widgets/loit_button.dart';
@@ -96,7 +97,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     try {
       await ref.read(paymentServiceProvider).restorePurchases();
       if (!mounted) return;
-      _showSnack('Restoring purchases…');
+      _showSnack(context.l10n.paywallRestoring);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -177,6 +178,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l10n = context.l10n;
     final profile = ref.watch(userProfileProvider).value;
     final isPro = profile?.tier == 'pro' || profile?.tier == 'team';
 
@@ -195,7 +197,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         ? context.pop()
                         : context.go('/'),
                     child: Text(
-                      'Not now',
+                      l10n.scanNotNow,
                       style: LoitTypography.bodyM.copyWith(
                         color: c.contentSecondary,
                         fontWeight: FontWeight.w600,
@@ -253,7 +255,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     _ProActiveCard(profile: profile)
                   else ...[
                     _PlanCard(
-                      title: 'Free',
+                      title: l10n.paywallFree,
                       price: 'Rp 0',
                       period: '/mo',
                       features:
@@ -262,7 +264,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       onTap: () => setState(() => _selected = _Plan.free),
                     ),
                     _PlanCard(
-                      title: 'Pro · Yearly',
+                      title: '${l10n.paywallPro} · Yearly',
                       price: _formatIdr(PricingConstants.proAnnualIdr),
                       period: '/yr',
                       features:
@@ -273,7 +275,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                           setState(() => _selected = _Plan.proAnnual),
                     ),
                     _PlanCard(
-                      title: 'Pro · Monthly',
+                      title: '${l10n.paywallPro} · Monthly',
                       price: _formatIdr(PricingConstants.proMonthlyIdr),
                       period: '/mo',
                       features: 'Cancel anytime',
@@ -286,7 +288,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   Center(
                     child: TextButton(
                       onPressed: _busy ? null : _restorePurchases,
-                      child: Text('Restore purchases',
+                      child: Text(l10n.restorePurchases,
                           style: LoitTypography.bodyS.copyWith(
                             color: c.brand,
                             fontWeight: FontWeight.w600,
@@ -315,7 +317,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Billed via Google Play · Cancel anytime · Terms & Privacy',
+                    l10n.paymentGooglePlayOnly,
                     style: LoitTypography.bodyS
                         .copyWith(color: c.contentTertiary),
                     textAlign: TextAlign.center,

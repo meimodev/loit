@@ -8,6 +8,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/home_currency_provider.dart';
@@ -254,6 +255,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   }
 
   Future<void> _confirmArchive(BuildContext context) async {
+    final l = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -263,7 +265,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(l.txDetailCancel)),
           FilledButton(
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Archive')),
@@ -278,18 +280,19 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   }
 
   Future<void> _confirmLeave(BuildContext context) async {
+    final l = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Leave room?'),
-        content: const Text('You can rejoin via a new invite.'),
+        title: Text(l.roomDetailLeaveTitle),
+        content: Text(l.roomDetailLeaveBody),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(l.txDetailCancel)),
           FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Leave')),
+              child: Text(l.roomDetailLeaveConfirm)),
         ],
       ),
     );
@@ -309,6 +312,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
             final onlineIds =
                 ref.watch(onlineUsersProvider).value ?? const <String>{};
             final c = ctx.loitColors;
+            final l = ctx.l10n;
             final onlineCount = members
                 .where((m) => onlineIds.contains(m['user_id'] as String?))
                 .length;
@@ -319,8 +323,8 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      const Text('Members',
-                          style: TextStyle(
+                      Text(l.roomDetailMembers,
+                          style: const TextStyle(
                               fontWeight: FontWeight.w600, fontSize: 16)),
                       const Spacer(),
                       if (onlineCount > 0)
@@ -417,6 +421,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     return Container(
       padding: const EdgeInsets.fromLTRB(
           LoitSpacing.s3, LoitSpacing.s2, LoitSpacing.s3, LoitSpacing.s3),
@@ -490,13 +495,13 @@ class _Header extends StatelessWidget {
                 itemBuilder: (_) => [
                   PopupMenuItem(
                       value: 'members',
-                      child: Text('Members (${members.length})')),
+                      child: Text('${l.roomDetailMembers} (${members.length})')),
                   if (isCreator && !isArchived)
                     const PopupMenuItem(
                         value: 'archive', child: Text('Archive room')),
                   if (!isCreator)
-                    const PopupMenuItem(
-                        value: 'leave', child: Text('Leave room')),
+                    PopupMenuItem(
+                        value: 'leave', child: Text(l.roomDetailLeave)),
                 ],
               ),
             ],
@@ -515,8 +520,7 @@ class _Header extends StatelessWidget {
                     final onlineCount = members
                         .where((m) => onlineIds.contains(m['user_id'] as String?))
                         .length;
-                    final base =
-                        '${members.length} member${members.length == 1 ? '' : 's'}';
+                    final base = l.roomsScreenMembers(members.length);
                     return Text.rich(
                       TextSpan(
                         children: [
@@ -527,7 +531,7 @@ class _Header extends StatelessWidget {
                           ),
                           if (onlineCount > 0) ...[
                             TextSpan(
-                              text: '  · ',
+                              text: '  \u00b7 ',
                               style: LoitTypography.bodyS
                                   .copyWith(color: c.contentTertiary),
                             ),
@@ -663,7 +667,8 @@ class _TabStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    const labels = ['Feed', 'Budget', 'Categories'];
+    final l = context.l10n;
+    final labels = ['Feed', l.roomDetailBudgets, 'Categories'];
     return Container(
       margin: const EdgeInsets.fromLTRB(
           LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, LoitSpacing.s2),
@@ -923,6 +928,7 @@ class _TotalSpentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final incomeColor = const Color(0xFF2F8F5E);
     final expenseColor = c.danger;
     return Container(
@@ -944,7 +950,7 @@ class _TotalSpentCard extends StatelessWidget {
                   Icon(Icons.schedule, size: 14, color: c.contentTertiary),
                   const SizedBox(width: 4),
                   Text(
-                    'Rates may be outdated',
+                    l.fxRateStale,
                     style: LoitTypography.bodyS
                         .copyWith(color: c.contentTertiary),
                   ),
@@ -1270,7 +1276,7 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '$payer · $catLabel',
+                  '$payer \u00b7 $catLabel',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: LoitTypography.bodyS
@@ -1292,7 +1298,7 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${isTransfer ? '' : isIncome ? '+' : '−'}${formatMoney(amount.abs(), txCurrency)}',
+                '${isTransfer ? '' : isIncome ? '+' : '\u2212'}${formatMoney(amount.abs(), txCurrency)}',
                 style: LoitTypography.bodyM.copyWith(
                     color: isTransfer
                         ? c.contentSecondary
@@ -1305,7 +1311,7 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
               if (isForeign && convertedAmount != null) ...[
                 const SizedBox(height: 2),
                 Text(
-                  '≈ ${formatMoney(convertedAmount, homeCurrency)}',
+                  '\u2248 ${formatMoney(convertedAmount, homeCurrency)}',
                   style: LoitTypography.bodyS.copyWith(
                     color: c.contentTertiary,
                     fontFeatures: const [FontFeature.tabularFigures()],
@@ -1577,7 +1583,7 @@ class _BudgetTab extends ConsumerWidget {
                 : daysLeft == 1
                     ? 'resets tomorrow'
                     : 'resets in ${daysLeft}d';
-            final durationLabel = '${period.label} · $resetsLabel';
+            final durationLabel = '${period.label} \u00b7 $resetsLabel';
             return Container(
               margin: const EdgeInsets.only(top: LoitSpacing.s2),
               decoration: BoxDecoration(
@@ -1675,7 +1681,7 @@ class _BudgetTab extends ConsumerWidget {
                             ),
                             Text(
                               limit <= 0
-                                  ? '—'
+                                  ? '\u2014'
                                   : '${(ratio * 100).round()}%',
                               style: LoitTypography.bodyS.copyWith(
                                 color: c.contentTertiary,

@@ -1443,5 +1443,350 @@ class AppLocalizationsId extends AppLocalizations {
       'Struk yang dipindai akan muncul di sini. Gunakan pemindai untuk menangkap satu.';
 
   @override
+  String get reportsScreenTitle => 'Laporan';
+
+  @override
+  String get reportsScreenIncome => 'Pemasukan';
+
+  @override
+  String get reportsScreenExpenses => 'Pengeluaran';
+
+  @override
+  String get reportsScreenNet => 'Bersih';
+
+  @override
+  String get reportsScreenNoData => 'Tidak ada data untuk periode ini';
+
+  @override
+  String get reportsScreenCategory => 'Kategori';
+
+  @override
+  String get reportsScreenAmount => 'Jumlah';
+
+  @override
+  String get reportsScreenPercent => '%';
+
+  @override
+  String get reportsScreenEmptyBody =>
+      'Laporan akan muncul saat Anda memiliki transaksi.';
+
+  @override
+  String get exportScreenTitle => 'Ekspor data';
+
+  @override
+  String get exportScreenFormat => 'Format';
+
+  @override
+  String get exportScreenDateRange => 'Rentang tanggal';
+
+  @override
+  String get exportScreenLastMonth => 'Bulan lalu';
+
+  @override
+  String get exportScreenLast3Months => '3 bulan terakhir';
+
+  @override
+  String get exportScreenLast6Months => '6 bulan terakhir';
+
+  @override
+  String get exportScreenLastYear => 'Tahun lalu';
+
+  @override
+  String get exportScreenAllTime => 'Sepanjang waktu';
+
+  @override
+  String get exportScreenExport => 'Ekspor';
+
+  @override
+  String get exportScreenExporting => 'Mengekspor…';
+
+  @override
+  String get exportScreenReady => 'Ekspor Anda siap.';
+
+  @override
+  String exportScreenFailed(String error) {
+    return 'Ekspor gagal: $error';
+  }
+
+  @override
+  String get exportScreenAccounts => 'Akun';
+
+  @override
+  String get exportScreenTransactions => 'Transaksi';
+
+  @override
+  String get exportScreenBudgets => 'Anggaran';
+
+  @override
+  String get roomsScreenTitle => 'Ruangan';
+
+  @override
+  String get roomsScreenNoRooms => 'Belum ada ruangan';
+
+  @override
+  String get roomsScreenEmptyBody =>
+      'Buat atau gabung ruangan untuk melacak pengeluaran bersama.';
+
+  @override
+  String get roomsScreenCreateRoom => 'Buat ruangan';
+
+  @override
+  String get roomsScreenJoinRoom => 'Gabung ruangan';
+
+  @override
+  String roomsScreenMembers(int n) {
+    return '$n anggota';
+  }
+
+  @override
+  String get roomCreateTitle => 'Buat ruangan';
+
+  @override
+  String get roomCreateName => 'Nama ruangan';
+
+  @override
+  String get roomCreateNamePlaceholder => 'mis. Teman Serumah, Liburan ke Bali';
+
+  @override
+  String get roomCreateDescription => 'Deskripsi (opsional)';
+
+  @override
+  String get roomCreateCreate => 'Buat';
+
+  @override
+  String get roomCreateCreating => 'Membuat…';
+
+  @override
+  String roomCreateFailed(String error) {
+    return 'Gagal membuat ruangan: $error';
+  }
+
+  @override
+  String get roomInviteTitle => 'Undang anggota';
+
+  @override
+  String get roomInviteShare => 'Bagikan tautan undangan';
+
+  @override
+  String get roomInviteBody =>
+      'Siapa pun dengan tautan ini dapat bergabung ke ruangan.';
+
+  @override
+  String get roomJoinTitle => 'Gabung ruangan';
+
+  @override
+  String get roomJoinJoining => 'Bergabung…';
+
+  @override
+  String get roomJoinInvalid => 'Undangan ini tidak valid atau kedaluwarsa.';
+
+  @override
+  String roomJoinFailed(String error) {
+    return 'Gagal bergabung: $error';
+  }
+
+  @override
+  String get roomDetailAddTransaction => 'Tambah transaksi';
+
+  @override
+  String get roomDetailMembers => 'Anggota';
+
+  @override
+  String get roomDetailBudgets => 'Anggaran';
+
+  @override
+  String get roomDetailLeave => 'Tinggalkan ruangan';
+
+  @override
+  String get roomDetailLeaveTitle => 'Tinggalkan ruangan?';
+
+  @override
+  String get roomDetailLeaveBody =>
+      'Transaksi Anda di ruangan ini akan tetap disimpan.';
+
+  @override
+  String get roomDetailLeaveConfirm => 'Tinggalkan';
+
+  @override
+  String get roomDetailDeleteTitle => 'Hapus ruangan?';
+
+  @override
+  String get roomDetailDeleteBody =>
+      'Semua data bersama di ruangan ini akan dihapus permanen.';
+
+  @override
+  String get roomDetailDeleteRoom => 'Hapus ruangan';
+
+  @override
+  String get roomDetailBudgetTitle => 'Anggaran ruangan';
+
+  @override
+  String get roomDetailNotSynced => 'Belum disinkronkan';
+
+  @override
+  String get roomDetailNotSyncedBody =>
+      'Transaksi ini belum disinkronkan. Edit untuk menyimpan.';
+
+  @override
+  String get paywallTitle => 'Upgrade ke Pro';
+
+  @override
+  String get paywallSubtitle =>
+      'Buka pemindaian, struk, dan anggaran tanpa batas.';
+
+  @override
+  String get paywallContinue => 'Lanjutkan';
+
+  @override
+  String get paywallRestoring => 'Memulihkan…';
+
+  @override
+  String get paywallFree => 'Gratis';
+
+  @override
+  String get paywallPro => 'Pro';
+
+  @override
+  String get paywallTeam => 'Tim';
+
+  @override
+  String get pwProSuccessTitle => 'Selamat datang di Pro!';
+
+  @override
+  String get pwProSuccessBody =>
+      'Anda sekarang memiliki pemindaian tanpa batas dan fitur premium.';
+
+  @override
+  String get pwProSuccessDone => 'Selesai';
+
+  @override
+  String get billingManageTitle => 'Kelola langganan';
+
+  @override
+  String get billingManageCurrentPlan => 'Paket saat ini';
+
+  @override
+  String get billingManageCancel => 'Batalkan langganan';
+
+  @override
+  String get billingManageCancelTitle => 'Batalkan langganan?';
+
+  @override
+  String get billingManageCancelBody =>
+      'Anda akan kehilangan fitur Pro di akhir periode penagihan.';
+
+  @override
+  String get billingManageCancelConfirm => 'Batalkan';
+
+  @override
+  String billingManageCancelFailed(Object error) {
+    return 'Gagal membatalkan: $error';
+  }
+
+  @override
+  String get authWelcomeTitle => 'Selamat datang di LOIT';
+
+  @override
+  String get authWelcomeSubtitle =>
+      'Keuangan pribadi & bersama, tenang secara desain.';
+
+  @override
+  String get authWelcomeContinue => 'Lanjutkan dengan Google';
+
+  @override
+  String get authWelcomeEmail => 'Masuk dengan email';
+
+  @override
+  String get authWelcomeTerms =>
+      'Dengan melanjutkan Anda menyetujui Ketentuan Layanan dan Kebijakan Privasi kami.';
+
+  @override
+  String get authSignInTitle => 'Masuk';
+
+  @override
+  String get authSignInEmail => 'Alamat email';
+
+  @override
+  String get authSignInEmailPlaceholder => 'anda@contoh.com';
+
+  @override
+  String get authSignInContinue => 'Lanjutkan';
+
+  @override
+  String authSignInError(Object error) {
+    return 'Gagal masuk: $error';
+  }
+
+  @override
+  String get authOtpTitle => 'Verifikasi email';
+
+  @override
+  String authOtpBody(Object email) {
+    return 'Masukkan kode yang dikirim ke $email';
+  }
+
+  @override
+  String get authOtpPlaceholder => '123456';
+
+  @override
+  String get authOtpVerify => 'Verifikasi';
+
+  @override
+  String get authOtpResend => 'Kirim ulang kode';
+
+  @override
+  String get authOtpResendSent => 'Kode dikirim ulang';
+
+  @override
+  String authOtpError(Object error) {
+    return 'Verifikasi gagal: $error';
+  }
+
+  @override
+  String get authPermissionsTitle => 'Hampir selesai';
+
+  @override
+  String get authPermissionsBody =>
+      'LOIT membutuhkan beberapa izin untuk bekerja.';
+
+  @override
+  String get authPermissionsNotifications => 'Notifikasi';
+
+  @override
+  String get authPermissionsNotificationsDesc =>
+      'Dapatkan peringatan untuk anggaran, ruangan, dan struk.';
+
+  @override
+  String get authPermissionsCamera => 'Kamera';
+
+  @override
+  String get authPermissionsCameraDesc => 'Pindai struk dan undangan ruangan.';
+
+  @override
+  String get authPermissionsContinue => 'Lanjutkan';
+
+  @override
+  String get lockScreenTitle => 'LOIT';
+
+  @override
+  String get lockScreenUnlock => 'Buka kunci';
+
+  @override
+  String get lockScreenBiometricPrompt => 'Autentikasi untuk membuka LOIT';
+
+  @override
+  String get lockScreenFailed => 'Autentikasi gagal';
+
+  @override
+  String get systemUpdateTitle => 'Pembaruan diperlukan';
+
+  @override
+  String get systemUpdateBody =>
+      'Silakan perbarui LOIT ke versi terbaru untuk melanjutkan.';
+
+  @override
+  String get systemUpdateAction => 'Perbarui';
+
+  @override
   String get tierActive => 'AKTIF';
 }

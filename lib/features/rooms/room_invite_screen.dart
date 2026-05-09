@@ -10,6 +10,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/widgets/loit_button.dart';
@@ -49,6 +50,7 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final roomAsync = ref.watch(roomDetailProvider(widget.roomId));
     final user = ref.watch(currentUserProvider);
 
@@ -70,7 +72,7 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
         return Scaffold(
           backgroundColor: c.canvas,
           appBar: AppBar(
-            title: Text('Invite to $name'),
+            title: Text(l.roomInviteTitle),
             leading: IconButton(
               icon: const Icon(Icons.close),
               onPressed: () => context.pop(),
@@ -105,7 +107,7 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
                   Text(
-                    'Anyone with this code can join. Regenerate to invalidate.',
+                    l.roomInviteBody,
                     textAlign: TextAlign.center,
                     style: LoitTypography.bodyS
                         .copyWith(color: c.contentSecondary),
@@ -155,7 +157,7 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
                   LoitButton.secondary(
                     fullWidth: true,
                     icon: Icons.share,
-                    label: 'Share via app',
+                    label: l.roomInviteShare,
                     onPressed: token.isEmpty
                         ? null
                         : () => Share.share('Join $name on LOIT: $url'),
@@ -164,7 +166,7 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
                     const SizedBox(height: LoitSpacing.s2),
                     LoitButton.tertiary(
                       label: _regenerating
-                          ? 'Regenerating…'
+                          ? 'Regenerating\u2026'
                           : 'Regenerate link',
                       onPressed: _regenerating ? null : _regen,
                     ),
@@ -177,7 +179,7 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
                       borderRadius: LoitRadius.brM,
                     ),
                     child: Text(
-                      'Free plan · up to 3 members per room. Currently $memberCount.',
+                      'Free plan \u00b7 up to 3 members per room. Currently $memberCount.',
                       style: LoitTypography.bodyS
                           .copyWith(color: c.contentSecondary),
                     ),

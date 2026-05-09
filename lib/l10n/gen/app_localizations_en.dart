@@ -1436,5 +1436,348 @@ class AppLocalizationsEn extends AppLocalizations {
       'Scanned receipts will appear here. Use the scanner to capture one.';
 
   @override
+  String get reportsScreenTitle => 'Reports';
+
+  @override
+  String get reportsScreenIncome => 'Income';
+
+  @override
+  String get reportsScreenExpenses => 'Expenses';
+
+  @override
+  String get reportsScreenNet => 'Net';
+
+  @override
+  String get reportsScreenNoData => 'No data for this period';
+
+  @override
+  String get reportsScreenCategory => 'Category';
+
+  @override
+  String get reportsScreenAmount => 'Amount';
+
+  @override
+  String get reportsScreenPercent => '%';
+
+  @override
+  String get reportsScreenEmptyBody =>
+      'Reports will appear when you have transactions.';
+
+  @override
+  String get exportScreenTitle => 'Export data';
+
+  @override
+  String get exportScreenFormat => 'Format';
+
+  @override
+  String get exportScreenDateRange => 'Date range';
+
+  @override
+  String get exportScreenLastMonth => 'Last month';
+
+  @override
+  String get exportScreenLast3Months => 'Last 3 months';
+
+  @override
+  String get exportScreenLast6Months => 'Last 6 months';
+
+  @override
+  String get exportScreenLastYear => 'Last year';
+
+  @override
+  String get exportScreenAllTime => 'All time';
+
+  @override
+  String get exportScreenExport => 'Export';
+
+  @override
+  String get exportScreenExporting => 'Exporting…';
+
+  @override
+  String get exportScreenReady => 'Your export is ready.';
+
+  @override
+  String exportScreenFailed(String error) {
+    return 'Export failed: $error';
+  }
+
+  @override
+  String get exportScreenAccounts => 'Accounts';
+
+  @override
+  String get exportScreenTransactions => 'Transactions';
+
+  @override
+  String get exportScreenBudgets => 'Budgets';
+
+  @override
+  String get roomsScreenTitle => 'Rooms';
+
+  @override
+  String get roomsScreenNoRooms => 'No rooms yet';
+
+  @override
+  String get roomsScreenEmptyBody =>
+      'Create or join a room to track shared expenses.';
+
+  @override
+  String get roomsScreenCreateRoom => 'Create room';
+
+  @override
+  String get roomsScreenJoinRoom => 'Join room';
+
+  @override
+  String roomsScreenMembers(int n) {
+    return '$n members';
+  }
+
+  @override
+  String get roomCreateTitle => 'Create room';
+
+  @override
+  String get roomCreateName => 'Room name';
+
+  @override
+  String get roomCreateNamePlaceholder => 'e.g. Flatmates, Trip to Bali';
+
+  @override
+  String get roomCreateDescription => 'Description (optional)';
+
+  @override
+  String get roomCreateCreate => 'Create';
+
+  @override
+  String get roomCreateCreating => 'Creating…';
+
+  @override
+  String roomCreateFailed(String error) {
+    return 'Failed to create room: $error';
+  }
+
+  @override
+  String get roomInviteTitle => 'Invite members';
+
+  @override
+  String get roomInviteShare => 'Share invite link';
+
+  @override
+  String get roomInviteBody => 'Anyone with this link can join the room.';
+
+  @override
+  String get roomJoinTitle => 'Join room';
+
+  @override
+  String get roomJoinJoining => 'Joining…';
+
+  @override
+  String get roomJoinInvalid => 'This invite is invalid or expired.';
+
+  @override
+  String roomJoinFailed(String error) {
+    return 'Failed to join: $error';
+  }
+
+  @override
+  String get roomDetailAddTransaction => 'Add transaction';
+
+  @override
+  String get roomDetailMembers => 'Members';
+
+  @override
+  String get roomDetailBudgets => 'Budgets';
+
+  @override
+  String get roomDetailLeave => 'Leave room';
+
+  @override
+  String get roomDetailLeaveTitle => 'Leave room?';
+
+  @override
+  String get roomDetailLeaveBody =>
+      'Your transactions in this room will be kept.';
+
+  @override
+  String get roomDetailLeaveConfirm => 'Leave';
+
+  @override
+  String get roomDetailDeleteTitle => 'Delete room?';
+
+  @override
+  String get roomDetailDeleteBody =>
+      'All shared data in this room will be permanently deleted.';
+
+  @override
+  String get roomDetailDeleteRoom => 'Delete room';
+
+  @override
+  String get roomDetailBudgetTitle => 'Room budget';
+
+  @override
+  String get roomDetailNotSynced => 'Not synced';
+
+  @override
+  String get roomDetailNotSyncedBody =>
+      'This transaction hasn\'t synced yet. Edit to save it.';
+
+  @override
+  String get paywallTitle => 'Upgrade to Pro';
+
+  @override
+  String get paywallSubtitle =>
+      'Unlock unlimited scans, receipts, and budgets.';
+
+  @override
+  String get paywallContinue => 'Continue';
+
+  @override
+  String get paywallRestoring => 'Restoring…';
+
+  @override
+  String get paywallFree => 'Free';
+
+  @override
+  String get paywallPro => 'Pro';
+
+  @override
+  String get paywallTeam => 'Team';
+
+  @override
+  String get pwProSuccessTitle => 'Welcome to Pro!';
+
+  @override
+  String get pwProSuccessBody =>
+      'You now have unlimited scans and premium features.';
+
+  @override
+  String get pwProSuccessDone => 'Done';
+
+  @override
+  String get billingManageTitle => 'Manage subscription';
+
+  @override
+  String get billingManageCurrentPlan => 'Current plan';
+
+  @override
+  String get billingManageCancel => 'Cancel subscription';
+
+  @override
+  String get billingManageCancelTitle => 'Cancel subscription?';
+
+  @override
+  String get billingManageCancelBody =>
+      'You will lose Pro features at the end of your billing period.';
+
+  @override
+  String get billingManageCancelConfirm => 'Cancel';
+
+  @override
+  String billingManageCancelFailed(Object error) {
+    return 'Cancel failed: $error';
+  }
+
+  @override
+  String get authWelcomeTitle => 'Welcome to LOIT';
+
+  @override
+  String get authWelcomeSubtitle =>
+      'Personal & shared finance, calm by design.';
+
+  @override
+  String get authWelcomeContinue => 'Continue with Google';
+
+  @override
+  String get authWelcomeEmail => 'Sign in with email';
+
+  @override
+  String get authWelcomeTerms =>
+      'By continuing you agree to our Terms of Service and Privacy Policy.';
+
+  @override
+  String get authSignInTitle => 'Sign in';
+
+  @override
+  String get authSignInEmail => 'Email address';
+
+  @override
+  String get authSignInEmailPlaceholder => 'you@example.com';
+
+  @override
+  String get authSignInContinue => 'Continue';
+
+  @override
+  String authSignInError(Object error) {
+    return 'Sign in failed: $error';
+  }
+
+  @override
+  String get authOtpTitle => 'Verify email';
+
+  @override
+  String authOtpBody(Object email) {
+    return 'Enter the code sent to $email';
+  }
+
+  @override
+  String get authOtpPlaceholder => '123456';
+
+  @override
+  String get authOtpVerify => 'Verify';
+
+  @override
+  String get authOtpResend => 'Resend code';
+
+  @override
+  String get authOtpResendSent => 'Code resent';
+
+  @override
+  String authOtpError(Object error) {
+    return 'Verification failed: $error';
+  }
+
+  @override
+  String get authPermissionsTitle => 'Almost there';
+
+  @override
+  String get authPermissionsBody => 'LOIT needs a few permissions to work.';
+
+  @override
+  String get authPermissionsNotifications => 'Notifications';
+
+  @override
+  String get authPermissionsNotificationsDesc =>
+      'Get alerts for budgets, rooms, and receipts.';
+
+  @override
+  String get authPermissionsCamera => 'Camera';
+
+  @override
+  String get authPermissionsCameraDesc => 'Scan receipts and room invites.';
+
+  @override
+  String get authPermissionsContinue => 'Continue';
+
+  @override
+  String get lockScreenTitle => 'LOIT';
+
+  @override
+  String get lockScreenUnlock => 'Unlock';
+
+  @override
+  String get lockScreenBiometricPrompt => 'Authenticate to unlock LOIT';
+
+  @override
+  String get lockScreenFailed => 'Authentication failed';
+
+  @override
+  String get systemUpdateTitle => 'Update required';
+
+  @override
+  String get systemUpdateBody =>
+      'Please update LOIT to the latest version to continue.';
+
+  @override
+  String get systemUpdateAction => 'Update';
+
+  @override
   String get tierActive => 'ACTIVE';
 }

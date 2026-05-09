@@ -8,6 +8,8 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/gen/app_localizations.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/user_categories_provider.dart';
@@ -74,11 +76,12 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
   }
 
   Future<void> _save() async {
+    final l = context.l10n;
     final amt = parseAmountInput(_amount.text);
     if (amt == null || amt <= 0) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter an amount greater than 0')),
+          SnackBar(content: Text(l.budgetFormInvalidAmount)),
         );
       }
       return;
@@ -93,7 +96,7 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
       final rDay = _period == BudgetPeriod.custom ? 1 : _resetDay;
       final cDays = _period == BudgetPeriod.custom ? _customDays : null;
       if (_isEdit && existingId != null) {
-        Log.i('RoomBudgetForm', 'Updating $existingId → $_category=$amt');
+        Log.i('RoomBudgetForm', 'Updating $existingId \u2192 $_category=$amt');
         await svc.updateRoomBudget(
           budgetId: existingId,
           roomId: widget.roomId,
@@ -132,19 +135,20 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
   Future<void> _delete() async {
     final existingId = _budget?['id'] as String? ?? widget.budgetId;
     if (existingId == null) return;
+    final l = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete budget?'),
-        content: const Text('This cannot be undone.'),
+        title: Text(l.budgetDetailDeleteTitle),
+        content: Text(l.txDetailDeleteBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l.budgetDetailCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(l.budgetDetailDelete),
           ),
         ],
       ),
@@ -172,6 +176,7 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
 
     // Hydrate from server when route extra is absent.
     if (!_hydrated) {
@@ -203,8 +208,9 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
           data: (row) {
             if (row == null) {
               return Scaffold(
-                appBar: AppBar(title: const Text('Edit room budget')),
-                body: const Center(child: Text('Budget not found')),
+                appBar: AppBar(
+                    title: Text(l.roomDetailBudgetTitle)),
+                body: Center(child: Text(l.budgetDetailNotFound)),
               );
             }
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -242,7 +248,9 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: Text(_isEdit ? 'Edit room budget' : 'New room budget'),
+        title: Text(_isEdit
+            ? '${l.roomDetailBudgetTitle} \u2014 Edit'
+            : '${l.roomDetailBudgetTitle} \u2014 ${l.budgetFormNewBudget}'),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
@@ -250,7 +258,7 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
         actions: [
           if (_isEdit)
             IconButton(
-              tooltip: 'Delete',
+              tooltip: l.txDetailDelete,
               icon: const Icon(Icons.delete_outline),
               onPressed: _busy ? null : _delete,
             ),
@@ -266,7 +274,7 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Column(
                     children: [
-                      Text('LIMIT',
+                      Text(l.budgetFormLimit,
                           style: LoitTypography.bodyS.copyWith(
                             color: c.contentSecondary,
                             fontWeight: FontWeight.w600,
@@ -304,10 +312,10 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
                   ),
                 ),
                 Divider(height: 1, color: c.borderSubtle),
-                const LoitGroupLabel(label: 'SETUP'),
+                LoitGroupLabel(label: l.budgetFormSetup),
                 _row(
                   context,
-                  label: 'Category',
+                  label: l.budgetFormCategory,
                   value: catLabel,
                   leading: Container(
                     width: 32,
@@ -327,15 +335,15 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
                 ),
                 _row(
                   context,
-                  label: 'Period',
-                  value: _period.label,
-                  onTap: _pickPeriod,
+                  label: l.budgetFormPeriod,
+                  value: _periodLabel(l, _period),
+                  onTap: () => _pickPeriod(l),
                 ),
                 _row(
                   context,
-                  label: 'Resets on',
-                  value: _resetsOnLabel(),
-                  onTap: _pickResetsOn,
+                  label: l.budgetFormResetsOn,
+                  value: _resetsOnLabel(l),
+                  onTap: () => _pickResetsOn(l),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
@@ -377,7 +385,9 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
                 height: 52,
                 child: FilledButton(
                   onPressed: _busy ? null : _save,
-                  child: Text(_isEdit ? 'Save changes' : 'Create budget'),
+                  child: Text(_isEdit
+                      ? l.budgetFormSaveChanges
+                      : l.budgetFormCreateBudget),
                 ),
               ),
             ),
@@ -387,29 +397,54 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
     );
   }
 
-  static const _weekdayNames = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday',
-    'Friday', 'Saturday', 'Sunday',
-  ];
-  static const _monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
+  List<String> _weekdayList(AppLocalizations l) => [
+        l.budgetFormMonday,
+        l.budgetFormTuesday,
+        l.budgetFormWednesday,
+        l.budgetFormThursday,
+        l.budgetFormFriday,
+        l.budgetFormSaturday,
+        l.budgetFormSunday,
+      ];
 
-  String _resetsOnLabel() {
+  List<String> _monthList(AppLocalizations l) => [
+        l.budgetFormJanuary,
+        l.budgetFormFebruary,
+        l.budgetFormMarch,
+        l.budgetFormApril,
+        l.budgetFormMay,
+        l.budgetFormJune,
+        l.budgetFormJuly,
+        l.budgetFormAugust,
+        l.budgetFormSeptember,
+        l.budgetFormOctober,
+        l.budgetFormNovember,
+        l.budgetFormDecember,
+      ];
+
+  String _periodLabel(AppLocalizations l, BudgetPeriod p) => switch (p) {
+        BudgetPeriod.weekly => l.budgetsScreenWeekly,
+        BudgetPeriod.monthly => l.budgetsScreenMonthly,
+        BudgetPeriod.yearly => l.budgetForm1Month(l.budgetFormJanuary),
+        BudgetPeriod.custom => l.budgetsScreenCustom,
+      };
+
+  String _resetsOnLabel(AppLocalizations l) {
     switch (_period) {
       case BudgetPeriod.weekly:
-        return _weekdayNames[(_resetDay - 1).clamp(0, 6)];
+        return _weekdayList(l)[(_resetDay - 1).clamp(0, 6)];
       case BudgetPeriod.monthly:
-        return _resetDay == 0 ? 'Last day' : 'Day $_resetDay';
+        return _resetDay == 0
+            ? l.budgetFormLastDay
+            : l.budgetFormDay(_resetDay);
       case BudgetPeriod.yearly:
-        return '1 ${_monthNames[(_resetDay - 1).clamp(0, 11)]}';
+        return '1 ${_monthList(l)[(_resetDay - 1).clamp(0, 11)]}';
       case BudgetPeriod.custom:
-        return 'Every $_customDays days';
+        return l.budgetFormEveryNDays(_customDays);
     }
   }
 
-  Future<void> _pickPeriod() async {
+  Future<void> _pickPeriod(AppLocalizations l) async {
     final picked = await showModalBottomSheet<BudgetPeriod>(
       context: context,
       backgroundColor: context.loitColors.surface,
@@ -421,7 +456,7 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
           mainAxisSize: MainAxisSize.min,
           children: BudgetPeriod.values
               .map((p) => ListTile(
-                    title: Text(p.label),
+                    title: Text(_periodLabel(l, p)),
                     trailing: p == _period
                         ? const Icon(Icons.check, size: 18)
                         : null,
@@ -438,33 +473,35 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
     });
   }
 
-  Future<void> _pickResetsOn() async {
+  Future<void> _pickResetsOn(AppLocalizations l) async {
     switch (_period) {
       case BudgetPeriod.weekly:
         final picked = await _pickFromList<int>(
-          title: 'Resets on',
-          options: List.generate(7, (i) => (i + 1, _weekdayNames[i])),
+          title: l.budgetFormResetsOn,
+          options: List.generate(
+              7, (i) => (i + 1, _weekdayList(l)[i])),
           selected: _resetDay,
         );
         if (picked != null) setState(() => _resetDay = picked);
         return;
       case BudgetPeriod.monthly:
         final opts = <(int, String)>[
-          for (var d = 1; d <= 28; d++) (d, 'Day $d'),
-          (0, 'Last day'),
+          for (var d = 1; d <= 28; d++) (d, l.budgetFormDay(d)),
+          (0, l.budgetFormLastDay),
         ];
         final picked = await _pickFromList<int>(
-          title: 'Resets on',
+          title: l.budgetFormResetsOn,
           options: opts,
           selected: _resetDay,
         );
         if (picked != null) setState(() => _resetDay = picked);
         return;
       case BudgetPeriod.yearly:
+        final months = _monthList(l);
         final picked = await _pickFromList<int>(
-          title: 'Resets on',
+          title: l.budgetFormResetsOn,
           options: [
-            for (var m = 1; m <= 12; m++) (m, '1 ${_monthNames[m - 1]}'),
+            for (var m = 1; m <= 12; m++) (m, '1 ${months[m - 1]}'),
           ],
           selected: _resetDay,
         );
@@ -472,15 +509,15 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
         return;
       case BudgetPeriod.custom:
         final picked = await _pickFromList<int>(
-          title: 'Every',
-          options: const [
-            (7, 'Every 7 days'),
-            (10, 'Every 10 days'),
-            (14, 'Every 14 days'),
-            (21, 'Every 21 days'),
-            (30, 'Every 30 days'),
-            (60, 'Every 60 days'),
-            (90, 'Every 90 days'),
+          title: l.budgetFormEvery,
+          options: [
+            (7, l.budgetFormEveryNDays(7)),
+            (10, l.budgetFormEveryNDays(10)),
+            (14, l.budgetFormEveryNDays(14)),
+            (21, l.budgetFormEveryNDays(21)),
+            (30, l.budgetFormEveryNDays(30)),
+            (60, l.budgetFormEveryNDays(60)),
+            (90, l.budgetFormEveryNDays(90)),
           ],
           selected: _customDays,
         );
@@ -546,7 +583,7 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
       case 'USD':
         return r'$ ';
       case 'EUR':
-        return '€ ';
+        return '\u20AC ';
       default:
         return '$code ';
     }

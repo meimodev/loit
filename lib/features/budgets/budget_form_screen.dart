@@ -8,6 +8,8 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/gen/app_localizations.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/home_currency_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
@@ -59,8 +61,9 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
     final amt = parseAmountInput(_amount.text);
     if (amt == null || amt <= 0) {
       if (mounted) {
+        final l = context.l10n;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter an amount greater than 0')),
+          SnackBar(content: Text(l.budgetFormInvalidAmount)),
         );
       }
       return;
@@ -93,6 +96,7 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final style = ref.watch(categoryStyleProvider(_category));
     final catLabel = ref
         .watch(categoryLabelProvider(CategoryLabelKey(key: _category)));
@@ -118,7 +122,7 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: Text(widget.budget == null ? 'New budget' : 'Edit budget'),
+        title: Text(isEdit ? l.budgetFormEditBudget : l.budgetFormNewBudget),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
@@ -134,7 +138,7 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Column(
                     children: [
-                      Text('LIMIT',
+                      Text(l.budgetFormLimit,
                           style: LoitTypography.bodyS.copyWith(
                             color: c.contentSecondary,
                             fontWeight: FontWeight.w600,
@@ -172,10 +176,10 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
                   ),
                 ),
                 Divider(height: 1, color: c.borderSubtle),
-                const LoitGroupLabel(label: 'SETUP'),
+                LoitGroupLabel(label: l.budgetFormSetup),
                 _row(
                   context,
-                  label: 'Category',
+                  label: l.budgetFormCategory,
                   value: catLabel,
                   leading: Container(
                     width: 32,
@@ -202,22 +206,22 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
                 ),
                 _row(
                   context,
-                  label: 'Period',
-                  value: _period.label,
+                  label: l.budgetFormPeriod,
+                  value: _periodLabel(l, _period),
                   onTap: _pickPeriod,
                 ),
                 _row(
                   context,
-                  label: 'Resets on',
-                  value: _resetsOnLabel(),
+                  label: l.budgetFormResetsOn,
+                  value: _resetsOnLabel(l),
                   onTap: _pickResetsOn,
                 ),
-                const LoitGroupLabel(label: 'ALERTS'),
-                _toggle(context, label: 'At 70%', value: _alert70,
+                LoitGroupLabel(label: l.budgetFormAlerts),
+                _toggle(context, label: l.budgetFormAt70, value: _alert70,
                     onChanged: (v) => setState(() => _alert70 = v)),
-                _toggle(context, label: 'At 100%', value: _alert100,
+                _toggle(context, label: l.budgetFormAt100, value: _alert100,
                     onChanged: (v) => setState(() => _alert100 = v)),
-                _toggle(context, label: 'Daily over budget', value: _alertDaily,
+                _toggle(context, label: l.budgetFormDailyOverBudget, value: _alertDaily,
                     onChanged: (v) => setState(() => _alertDaily = v)),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
@@ -235,7 +239,7 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                              "You'll see this in Personal only. Room budgets are set in each room.",
+                              l.budgetFormPersonalOnlyInfo,
                               style: LoitTypography.bodyS.copyWith(
                                   color: LoitPalette.teal800, height: 1.4)),
                         ),
@@ -259,9 +263,9 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
                 height: 52,
                 child: FilledButton(
                   onPressed: _busy ? null : _save,
-                  child: Text(widget.budget == null
-                      ? 'Create budget'
-                      : 'Save changes'),
+                  child: Text(isEdit
+                      ? l.budgetFormSaveChanges
+                      : l.budgetFormCreateBudget),
                 ),
               ),
             ),
@@ -271,29 +275,53 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
     );
   }
 
-  static const _weekdayNames = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday',
-    'Friday', 'Saturday', 'Sunday',
-  ];
-  static const _monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
+  List<String> _weekdayList(AppLocalizations l) => [
+        l.budgetFormMonday,
+        l.budgetFormTuesday,
+        l.budgetFormWednesday,
+        l.budgetFormThursday,
+        l.budgetFormFriday,
+        l.budgetFormSaturday,
+        l.budgetFormSunday,
+      ];
 
-  String _resetsOnLabel() {
+  List<String> _monthList(AppLocalizations l) => [
+        l.budgetFormJanuary,
+        l.budgetFormFebruary,
+        l.budgetFormMarch,
+        l.budgetFormApril,
+        l.budgetFormMay,
+        l.budgetFormJune,
+        l.budgetFormJuly,
+        l.budgetFormAugust,
+        l.budgetFormSeptember,
+        l.budgetFormOctober,
+        l.budgetFormNovember,
+        l.budgetFormDecember,
+      ];
+
+  String _periodLabel(AppLocalizations l, BudgetPeriod p) => switch (p) {
+        BudgetPeriod.weekly => l.budgetsScreenWeekly,
+        BudgetPeriod.monthly => l.budgetsScreenMonthly,
+        BudgetPeriod.yearly => p.label,
+        BudgetPeriod.custom => l.budgetsScreenCustom,
+      };
+
+  String _resetsOnLabel(AppLocalizations l) {
     switch (_period) {
       case BudgetPeriod.weekly:
-        return _weekdayNames[(_resetDay - 1).clamp(0, 6)];
+        return _weekdayList(l)[(_resetDay - 1).clamp(0, 6)];
       case BudgetPeriod.monthly:
-        return _resetDay == 0 ? 'Last day' : 'Day $_resetDay';
+        return _resetDay == 0 ? l.budgetFormLastDay : l.budgetFormDay(_resetDay);
       case BudgetPeriod.yearly:
-        return '1 ${_monthNames[(_resetDay - 1).clamp(0, 11)]}';
+        return l.budgetForm1Month(_monthList(l)[(_resetDay - 1).clamp(0, 11)]);
       case BudgetPeriod.custom:
-        return 'Every $_customDays days';
+        return l.budgetFormEveryNDays(_customDays);
     }
   }
 
   Future<void> _pickPeriod() async {
+    final l = context.l10n;
     final picked = await showModalBottomSheet<BudgetPeriod>(
       context: context,
       backgroundColor: context.loitColors.surface,
@@ -305,7 +333,7 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
           mainAxisSize: MainAxisSize.min,
           children: BudgetPeriod.values
               .map((p) => ListTile(
-                    title: Text(p.label),
+                    title: Text(_periodLabel(l, p)),
                     trailing: p == _period
                         ? const Icon(Icons.check, size: 18)
                         : null,
@@ -328,22 +356,25 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
   }
 
   Future<void> _pickResetsOn() async {
+    final l = context.l10n;
+    final weekdays = _weekdayList(l);
+    final months = _monthList(l);
     switch (_period) {
       case BudgetPeriod.weekly:
         final picked = await _pickFromList<int>(
-          title: 'Resets on',
-          options: List.generate(7, (i) => (i + 1, _weekdayNames[i])),
+          title: l.budgetFormResetsOn,
+          options: List.generate(7, (i) => (i + 1, weekdays[i])),
           selected: _resetDay,
         );
         if (picked != null) setState(() => _resetDay = picked);
         return;
       case BudgetPeriod.monthly:
         final opts = <(int, String)>[
-          for (var d = 1; d <= 28; d++) (d, 'Day $d'),
-          (0, 'Last day'),
+          for (var d = 1; d <= 28; d++) (d, l.budgetFormDay(d)),
+          (0, l.budgetFormLastDay),
         ];
         final picked = await _pickFromList<int>(
-          title: 'Resets on',
+          title: l.budgetFormResetsOn,
           options: opts,
           selected: _resetDay,
         );
@@ -351,9 +382,9 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
         return;
       case BudgetPeriod.yearly:
         final picked = await _pickFromList<int>(
-          title: 'Resets on',
+          title: l.budgetFormResetsOn,
           options: [
-            for (var m = 1; m <= 12; m++) (m, '1 ${_monthNames[m - 1]}'),
+            for (var m = 1; m <= 12; m++) (m, l.budgetForm1Month(months[m - 1])),
           ],
           selected: _resetDay,
         );
@@ -361,15 +392,15 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
         return;
       case BudgetPeriod.custom:
         final picked = await _pickFromList<int>(
-          title: 'Every',
-          options: const [
-            (7, 'Every 7 days'),
-            (10, 'Every 10 days'),
-            (14, 'Every 14 days'),
-            (21, 'Every 21 days'),
-            (30, 'Every 30 days'),
-            (60, 'Every 60 days'),
-            (90, 'Every 90 days'),
+          title: l.budgetFormEvery,
+          options: [
+            (7, l.budgetFormEveryNDays(7)),
+            (10, l.budgetFormEveryNDays(10)),
+            (14, l.budgetFormEveryNDays(14)),
+            (21, l.budgetFormEveryNDays(21)),
+            (30, l.budgetFormEveryNDays(30)),
+            (60, l.budgetFormEveryNDays(60)),
+            (90, l.budgetFormEveryNDays(90)),
           ],
           selected: _customDays,
         );

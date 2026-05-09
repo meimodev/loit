@@ -9,6 +9,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/services_providers.dart';
 import '../../shared/providers/supported_currencies_provider.dart';
@@ -64,13 +65,15 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
 
   bool _validate() {
     final name = _nameCtrl.text.trim();
-    final err = name.isEmpty ? 'Name required' : null;
+    final l = context.l10n;
+    final err = name.isEmpty ? l.accountFormNameRequired : null;
     setState(() => _nameError = err);
     return err == null;
   }
 
   Future<void> _save() async {
     if (!_validate()) return;
+    final l = context.l10n;
     setState(() => _busy = true);
     try {
       final notifier = ref.read(accountsProvider.notifier);
@@ -131,7 +134,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
             'type': delta > 0 ? 'income' : 'expense',
             'account_id': old.id,
             'category': 'adjustment',
-            'notes': 'Balance adjustment',
+            'notes': l.accountFormBalanceAdjustment,
             'ai_parsed': false,
             'is_manual_fallback': false,
             'created_at': DateTime.now().toUtc().toIso8601String(),
@@ -154,11 +157,13 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
 
       if (mounted) context.pop();
     } on AccountNameTakenException {
-      if (mounted) setState(() => _nameError = 'Name already used');
+      if (mounted) {
+        setState(() => _nameError = l.accountFormNameAlreadyUsed);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Save failed: $e')));
+            .showSnackBar(SnackBar(content: Text(l.accountFormSaveFailed('$e'))));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -170,28 +175,32 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
     required double target,
     required double delta,
   }) {
+    final l = context.l10n;
     final isIncome = delta > 0;
-    final txLabel = isIncome ? 'Income' : 'Expense';
+    final txLabel = isIncome ? l.txFormIncome : l.txFormExpense;
     final deltaStr = formatMoney(delta.abs(), _currency);
     final currentStr = formatMoney(current, _currency);
     final targetStr = formatMoney(target, _currency);
     return showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Add adjustment transaction?'),
+        title: Text(l.accountFormAddAdjustmentTitle),
         content: Text(
-          'Balance will change from $currentStr to $targetStr.\n\n'
-          'A $txLabel transaction of $deltaStr (category "Adjustment") '
-          'will be added to record the change.',
+          l.accountFormAddAdjustmentBody(
+            currentStr,
+            targetStr,
+            txLabel,
+            deltaStr,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l.accountFormCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Add adjustment'),
+            child: Text(l.accountFormAddAdjustment),
           ),
         ],
       ),
@@ -199,18 +208,19 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
   }
 
   Future<void> _archive() async {
+    final l = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Archive account?'),
-        content: const Text('The account will be hidden but data is kept.'),
+        title: Text(l.accountFormArchiveTitle),
+        content: Text(l.accountFormArchiveBody),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(l.accountFormCancel)),
           FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Archive')),
+              child: Text(l.accountFormArchive)),
         ],
       ),
     );
@@ -222,6 +232,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
   }
 
   Future<void> _delete() async {
+    final l = context.l10n;
     final accountId = widget.account!.id;
     final txns = ref.read(transactionsProvider).value ?? const [];
     final affected = txns
@@ -231,21 +242,25 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete account?'),
+        title: Text(l.accountFormDeleteTitle),
         content: Text(
           affected == 0
-              ? 'This permanently deletes "${widget.account!.name}". This cannot be undone.'
-              : 'This permanently deletes "${widget.account!.name}" and $affected transaction${affected == 1 ? '' : 's'} that reference it. This cannot be undone.',
+              ? l.accountFormDeleteBody(widget.account!.name)
+              : l.accountFormDeleteBodyWithTxns(
+                  widget.account!.name,
+                  affected,
+                  affected == 1 ? '' : 's',
+                ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l.accountFormCancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: c.danger),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(l.accountFormDelete),
           ),
         ],
       ),
@@ -258,7 +273,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+            .showSnackBar(SnackBar(content: Text(l.accountFormDeleteFailed('$e'))));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -275,6 +290,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final isEdit = widget.account != null;
     if (isEdit) {
       final balances = ref.watch(accountNativeBalancesProvider);
@@ -296,18 +312,18 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: Text(isEdit ? 'Edit account' : 'New account'),
+        title: Text(isEdit ? l.accountFormEditAccount : l.accountFormNewAccount),
         actions: [
           if (isEdit)
             IconButton(
               icon: const Icon(Icons.archive_outlined),
-              tooltip: 'Archive',
+              tooltip: l.accountFormArchive,
               onPressed: _archive,
             ),
           if (isEdit)
             IconButton(
               icon: Icon(Icons.delete_outline, color: c.danger),
-              tooltip: 'Delete',
+              tooltip: l.accountFormDelete,
               onPressed: _busy ? null : _delete,
             ),
         ],
@@ -317,13 +333,13 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
         children: [
           LoitInput(
             controller: _nameCtrl,
-            label: 'Name',
-            placeholder: 'e.g. BCA Savings',
+            label: l.accountFormName,
+            placeholder: l.accountFormNamePlaceholder,
             error: _nameError,
           ),
           const SizedBox(height: LoitSpacing.s4),
           Text(
-            'Type',
+            l.accountFormType,
             style: LoitTypography.bodyM.copyWith(
               color: c.contentPrimary,
               fontWeight: FontWeight.w600,
@@ -334,7 +350,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
             children: [
               Expanded(
                 child: _KindOption(
-                  label: 'Asset',
+                  label: l.accountFormAsset,
                   icon: Icons.account_balance_wallet_outlined,
                   selected: _kind == AccountKind.asset,
                   color: c.info,
@@ -344,7 +360,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
               const SizedBox(width: LoitSpacing.s3),
               Expanded(
                 child: _KindOption(
-                  label: 'Liability',
+                  label: l.accountFormLiability,
                   icon: Icons.credit_card_outlined,
                   selected: _kind == AccountKind.liability,
                   color: c.danger,
@@ -359,14 +375,14 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
           ],
           const SizedBox(height: LoitSpacing.s4),
           _picker(
-            label: 'Currency',
+            label: l.accountFormCurrency,
             value: _currency,
             onTap: _pickCurrency,
           ),
           const SizedBox(height: LoitSpacing.s4),
           LoitInput(
             controller: _balanceCtrl,
-            label: isEdit ? 'Current balance' : 'Opening balance',
+            label: isEdit ? l.accountFormCurrentBalance : l.accountFormOpeningBalance,
             enabled: _kind != AccountKind.liability,
             placeholder: '0',
             leading: Padding(
@@ -400,7 +416,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(isEdit ? 'Save changes' : 'Create account'),
+                : Text(isEdit ? l.accountFormSaveChanges : l.accountFormCreateAccount),
           ),
           if (isEdit) _recentTransactions(widget.account!.id),
         ],
@@ -410,6 +426,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
 
   Widget _liabilityInfoBox() {
     final c = context.loitColors;
+    final l = context.l10n;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: LoitSpacing.s4,
@@ -426,7 +443,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
           const SizedBox(width: LoitSpacing.s2),
           Expanded(
             child: Text(
-              'For loans, create a Transfer from this liability account to an asset account.',
+              l.accountFormLiabilityInfo,
               style: LoitTypography.bodyS.copyWith(
                 color: c.info,
                 fontWeight: FontWeight.w500,
@@ -440,6 +457,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
 
   Widget _recentTransactions(String accountId) {
     final c = context.loitColors;
+    final l = context.l10n;
     final txns = ref.watch(transactionsProvider).value ?? const [];
     final allAccounts = ref.watch(accountsProvider).value ?? const [];
     final accountMap = {for (final a in allAccounts) a.id: a};
@@ -459,7 +477,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
       children: [
         const SizedBox(height: LoitSpacing.s6),
         Text(
-          'Recent transactions',
+          l.accountFormRecentTransactions,
           style: LoitTypography.bodyM.copyWith(
             color: c.contentPrimary,
             fontWeight: FontWeight.w600,

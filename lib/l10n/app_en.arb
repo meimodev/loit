@@ -648,5 +648,81 @@
   "accountFormLiabilityInfo": "For loans, create a Transfer from this liability account to an asset account.",
   "accountFormRecentTransactions": "Recent transactions",
 
+  "scanReceiptTitle": "Scan receipt",
+  "scanReceipt": "RECEIPT",
+  "scanAlignHint": "Align receipt within frame",
+  "scanReadingTitle": "Reading receipt",
+  "scanReadingBody": "Reading your receipt…",
+  "scanReadingSubtitle": "Usually takes about 2 seconds. We're extracting merchant, total, and items.",
+  "scanPersonal": "Personal",
+  "scanRooms": "Rooms",
+  "scanRoom": "Room",
+  "scanSaved": "Receipt saved",
+  "scanNoRooms": "No rooms yet — create one before scanning to a room.",
+  "scanSendToRoom": "Send receipt to room",
+  "scanLimitReached": "Scan limit reached",
+  "scanUsedAllScans": "Used all {quota} scans on {tier} this month.",
+  "@scanUsedAllScans": {
+    "description": "Quota exceeded message showing used scans",
+    "placeholders": {
+      "quota": {"type": "String"},
+      "tier": {"type": "String"}
+    }
+  },
+  "scanQuotaDefault": "You have used your monthly scan quota.",
+  "scanTopUp": "Top up · 10 scans for Rp19,000",
+  "scanUpgrade": "Upgrade to Pro — unlimited scans",
+  "scanNotNow": "Not now",
+  "scanTakeAnother": "Take another photo",
+  "scanRetry": "Retry",
+  "scanCancel": "Cancel",
+  "scanInviteInvalid": "Invite is invalid or expired",
+  "scanCouldNotJoinRoom": "Could not join room: {error}",
+  "@scanCouldNotJoinRoom": {
+    "description": "Error when joining room from QR scan",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "scanJoinRoomTitle": "Join room?",
+  "scanJoinRoomBody": "A LOIT room invite QR was detected. Join the room?",
+  "scanJoinRoom": "Join room",
+  "scanJoining": "Joining…",
+  "scanNotTransaction": "That doesn't look like a transaction",
+  "scanNotTransactionBody": "We couldn't find a receipt, invoice, transfer slip, payslip, or similar transaction record in this image. Try a clearer photo of the document.",
+  "scanOfflineTitle": "You're offline",
+  "scanOfflineBody": "We couldn't reach the scan service. Check connection and retry.",
+  "scanUnavailableTitle": "Scan service unavailable",
+  "scanUnavailableBody": "Scan service temporarily unavailable. Try again in a moment.",
+
+  "receiptsTitle": "Receipts",
+  "receiptsFailed": "Failed to load: {error}",
+  "@receiptsFailed": {
+    "description": "Error loading receipts",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "receiptsDownloadFailed": "Download failed: {error}",
+  "@receiptsDownloadFailed": {
+    "description": "Error downloading receipt file",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "receiptsShareSubject": "Receipt {date}",
+  "@receiptsShareSubject": {
+    "description": "Share sheet subject for receipt, e.g. 'Receipt Jan 15, 2026'",
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "receiptsFallback": "Receipt",
+  "receiptsActive": "Active",
+  "receiptsExpiring": "Expiring",
+  "receiptsExpired": "Expired",
+  "receiptsNoReceipts": "No receipts yet",
+  "receiptsEmptyBody": "Scanned receipts will appear here. Use the scanner to capture one.",
+
   "tierActive": "ACTIVE"
 }

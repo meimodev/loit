@@ -648,5 +648,81 @@
   "accountFormLiabilityInfo": "Untuk pinjaman, buat Transfer dari akun liabilitas ini ke akun aset.",
   "accountFormRecentTransactions": "Transaksi terbaru",
 
+  "scanReceiptTitle": "Pindai struk",
+  "scanReceipt": "STRUK",
+  "scanAlignHint": "Sejajarkan struk dalam bingkai",
+  "scanReadingTitle": "Membaca struk",
+  "scanReadingBody": "Membaca struk Anda…",
+  "scanReadingSubtitle": "Biasanya sekitar 2 detik. Kami mengekstrak toko, total, dan item.",
+  "scanPersonal": "Pribadi",
+  "scanRooms": "Ruangan",
+  "scanRoom": "Ruangan",
+  "scanSaved": "Struk disimpan",
+  "scanNoRooms": "Belum ada ruangan — buat ruangan sebelum memindai ke ruangan.",
+  "scanSendToRoom": "Kirim struk ke ruangan",
+  "scanLimitReached": "Batas pemindaian tercapai",
+  "scanUsedAllScans": "Menggunakan semua {quota} pemindaian di {tier} bulan ini.",
+  "@scanUsedAllScans": {
+    "description": "Quota exceeded message showing used scans",
+    "placeholders": {
+      "quota": {"type": "String"},
+      "tier": {"type": "String"}
+    }
+  },
+  "scanQuotaDefault": "Anda telah menggunakan kuota pemindaian bulanan Anda.",
+  "scanTopUp": "Isi ulang · 10 pemindaian seharga Rp19.000",
+  "scanUpgrade": "Upgrade ke Pro — pemindaian tanpa batas",
+  "scanNotNow": "Nanti saja",
+  "scanTakeAnother": "Ambil foto lain",
+  "scanRetry": "Coba lagi",
+  "scanCancel": "Batal",
+  "scanInviteInvalid": "Undangan tidak valid atau kedaluwarsa",
+  "scanCouldNotJoinRoom": "Tidak dapat bergabung ke ruangan: {error}",
+  "@scanCouldNotJoinRoom": {
+    "description": "Error when joining room from QR scan",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "scanJoinRoomTitle": "Gabung ruangan?",
+  "scanJoinRoomBody": "QR undangan ruangan LOIT terdeteksi. Gabung ruangan?",
+  "scanJoinRoom": "Gabung ruangan",
+  "scanJoining": "Bergabung…",
+  "scanNotTransaction": "Itu tidak terlihat seperti transaksi",
+  "scanNotTransactionBody": "Kami tidak menemukan struk, faktur, slip transfer, slip gaji, atau catatan transaksi serupa di gambar ini. Coba foto yang lebih jelas dari dokumen.",
+  "scanOfflineTitle": "Anda sedang offline",
+  "scanOfflineBody": "Kami tidak dapat menjangkau layanan pemindaian. Periksa koneksi dan coba lagi.",
+  "scanUnavailableTitle": "Layanan pemindaian tidak tersedia",
+  "scanUnavailableBody": "Layanan pemindaian sementara tidak tersedia. Coba lagi sebentar lagi.",
+
+  "receiptsTitle": "Struk",
+  "receiptsFailed": "Gagal memuat: {error}",
+  "@receiptsFailed": {
+    "description": "Error loading receipts",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "receiptsDownloadFailed": "Gagal mengunduh: {error}",
+  "@receiptsDownloadFailed": {
+    "description": "Error downloading receipt file",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "receiptsShareSubject": "Struk {date}",
+  "@receiptsShareSubject": {
+    "description": "Share sheet subject for receipt, e.g. 'Receipt Jan 15, 2026'",
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "receiptsFallback": "Struk",
+  "receiptsActive": "Aktif",
+  "receiptsExpiring": "Segera kedaluwarsa",
+  "receiptsExpired": "Kedaluwarsa",
+  "receiptsNoReceipts": "Belum ada struk",
+  "receiptsEmptyBody": "Struk yang dipindai akan muncul di sini. Gunakan pemindai untuk menangkap satu.",
+
   "tierActive": "AKTIF"
 }

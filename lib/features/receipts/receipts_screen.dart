@@ -18,6 +18,7 @@ import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_receipt_image.dart';
+import '../../l10n/l10n_x.dart';
 
 class ReceiptItem {
   final String transactionId;
@@ -104,6 +105,7 @@ class _ReceiptsScreenState extends ConsumerState<ReceiptsScreen> {
     final id = item.transactionId;
     if (_progress.containsKey(id)) return;
     setState(() => _progress[id] = 0.0);
+    final l = context.l10n;
     try {
       final file = await _fetchToTemp(item, onProgress: (received, total) {
         if (!mounted) return;
@@ -121,7 +123,7 @@ class _ReceiptsScreenState extends ConsumerState<ReceiptsScreen> {
       Log.e(_tag, 'download failed', error: e, stack: st);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Download failed: $e')),
+          SnackBar(content: Text(l.receiptsDownloadFailed(e.toString()))),
         );
       }
     } finally {
@@ -166,6 +168,7 @@ class _ReceiptsScreenState extends ConsumerState<ReceiptsScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final async = ref.watch(receiptsProvider);
 
     return Scaffold(
@@ -174,7 +177,7 @@ class _ReceiptsScreenState extends ConsumerState<ReceiptsScreen> {
         backgroundColor: c.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
-        title: const Text('Receipts'),
+        title: Text(l.receiptsTitle),
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -182,7 +185,7 @@ class _ReceiptsScreenState extends ConsumerState<ReceiptsScreen> {
           child: Padding(
             padding: const EdgeInsets.all(LoitSpacing.s5),
             child: Text(
-              'Failed to load: $e',
+              l.receiptsFailed(e.toString()),
               style:
                   LoitTypography.bodyM.copyWith(color: c.contentSecondary),
               textAlign: TextAlign.center,
@@ -240,11 +243,12 @@ class _ReceiptCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final status = _statusOf(item.expiresAt);
     final dateLabel = DateFormat.yMMMd().format(item.createdAt.toLocal());
     final title = (item.notes != null && item.notes!.trim().isNotEmpty)
         ? item.notes!.trim()
-        : (item.category ?? 'Receipt');
+        : (item.category ?? l.receiptsFallback);
     final amountStr = formatMoney(item.amount.abs(), item.currency);
 
     return InkWell(
@@ -386,13 +390,14 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final (label, bg, fg) = switch (status) {
       _ReceiptStatus.active =>
-        ('Active', c.success.withValues(alpha: 0.15), c.success),
+        (l.receiptsActive, c.success.withValues(alpha: 0.15), c.success),
       _ReceiptStatus.expiring =>
-        ('Expiring', c.warning.withValues(alpha: 0.18), c.warning),
+        (l.receiptsExpiring, c.warning.withValues(alpha: 0.18), c.warning),
       _ReceiptStatus.expired =>
-        ('Expired', c.danger.withValues(alpha: 0.15), c.danger),
+        (l.receiptsExpired, c.danger.withValues(alpha: 0.15), c.danger),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -417,6 +422,7 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(LoitSpacing.s6),
@@ -427,12 +433,12 @@ class _EmptyState extends StatelessWidget {
                 size: 56, color: c.contentTertiary),
             const SizedBox(height: LoitSpacing.s3),
             Text(
-              'No receipts yet',
+              l.receiptsNoReceipts,
               style: LoitTypography.titleM.copyWith(color: c.contentPrimary),
             ),
             const SizedBox(height: LoitSpacing.s2),
             Text(
-              'Scanned receipts will appear here. Use the scanner to capture one.',
+              l.receiptsEmptyBody,
               textAlign: TextAlign.center,
               style:
                   LoitTypography.bodyS.copyWith(color: c.contentSecondary),

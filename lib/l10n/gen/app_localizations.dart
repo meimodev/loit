@@ -2453,6 +2453,264 @@ abstract class AppLocalizations {
   /// **'Recent transactions'**
   String get accountFormRecentTransactions;
 
+  /// No description provided for @scanReceiptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan receipt'**
+  String get scanReceiptTitle;
+
+  /// No description provided for @scanReceipt.
+  ///
+  /// In en, this message translates to:
+  /// **'RECEIPT'**
+  String get scanReceipt;
+
+  /// No description provided for @scanAlignHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Align receipt within frame'**
+  String get scanAlignHint;
+
+  /// No description provided for @scanReadingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading receipt'**
+  String get scanReadingTitle;
+
+  /// No description provided for @scanReadingBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your receipt…'**
+  String get scanReadingBody;
+
+  /// No description provided for @scanReadingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Usually takes about 2 seconds. We\'re extracting merchant, total, and items.'**
+  String get scanReadingSubtitle;
+
+  /// No description provided for @scanPersonal.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal'**
+  String get scanPersonal;
+
+  /// No description provided for @scanRooms.
+  ///
+  /// In en, this message translates to:
+  /// **'Rooms'**
+  String get scanRooms;
+
+  /// No description provided for @scanRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Room'**
+  String get scanRoom;
+
+  /// No description provided for @scanSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Receipt saved'**
+  String get scanSaved;
+
+  /// No description provided for @scanNoRooms.
+  ///
+  /// In en, this message translates to:
+  /// **'No rooms yet — create one before scanning to a room.'**
+  String get scanNoRooms;
+
+  /// No description provided for @scanSendToRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Send receipt to room'**
+  String get scanSendToRoom;
+
+  /// No description provided for @scanLimitReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan limit reached'**
+  String get scanLimitReached;
+
+  /// Quota exceeded message showing used scans
+  ///
+  /// In en, this message translates to:
+  /// **'Used all {quota} scans on {tier} this month.'**
+  String scanUsedAllScans(String quota, String tier);
+
+  /// No description provided for @scanQuotaDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'You have used your monthly scan quota.'**
+  String get scanQuotaDefault;
+
+  /// No description provided for @scanTopUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Top up · 10 scans for Rp19,000'**
+  String get scanTopUp;
+
+  /// No description provided for @scanUpgrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to Pro — unlimited scans'**
+  String get scanUpgrade;
+
+  /// No description provided for @scanNotNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get scanNotNow;
+
+  /// No description provided for @scanTakeAnother.
+  ///
+  /// In en, this message translates to:
+  /// **'Take another photo'**
+  String get scanTakeAnother;
+
+  /// No description provided for @scanRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get scanRetry;
+
+  /// No description provided for @scanCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get scanCancel;
+
+  /// No description provided for @scanInviteInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite is invalid or expired'**
+  String get scanInviteInvalid;
+
+  /// Error when joining room from QR scan
+  ///
+  /// In en, this message translates to:
+  /// **'Could not join room: {error}'**
+  String scanCouldNotJoinRoom(String error);
+
+  /// No description provided for @scanJoinRoomTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Join room?'**
+  String get scanJoinRoomTitle;
+
+  /// No description provided for @scanJoinRoomBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A LOIT room invite QR was detected. Join the room?'**
+  String get scanJoinRoomBody;
+
+  /// No description provided for @scanJoinRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Join room'**
+  String get scanJoinRoom;
+
+  /// No description provided for @scanJoining.
+  ///
+  /// In en, this message translates to:
+  /// **'Joining…'**
+  String get scanJoining;
+
+  /// No description provided for @scanNotTransaction.
+  ///
+  /// In en, this message translates to:
+  /// **'That doesn\'t look like a transaction'**
+  String get scanNotTransaction;
+
+  /// No description provided for @scanNotTransactionBody.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t find a receipt, invoice, transfer slip, payslip, or similar transaction record in this image. Try a clearer photo of the document.'**
+  String get scanNotTransactionBody;
+
+  /// No description provided for @scanOfflineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline'**
+  String get scanOfflineTitle;
+
+  /// No description provided for @scanOfflineBody.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t reach the scan service. Check connection and retry.'**
+  String get scanOfflineBody;
+
+  /// No description provided for @scanUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan service unavailable'**
+  String get scanUnavailableTitle;
+
+  /// No description provided for @scanUnavailableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan service temporarily unavailable. Try again in a moment.'**
+  String get scanUnavailableBody;
+
+  /// No description provided for @receiptsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Receipts'**
+  String get receiptsTitle;
+
+  /// Error loading receipts
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load: {error}'**
+  String receiptsFailed(String error);
+
+  /// Error downloading receipt file
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed: {error}'**
+  String receiptsDownloadFailed(String error);
+
+  /// Share sheet subject for receipt, e.g. 'Receipt Jan 15, 2026'
+  ///
+  /// In en, this message translates to:
+  /// **'Receipt {date}'**
+  String receiptsShareSubject(String date);
+
+  /// No description provided for @receiptsFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Receipt'**
+  String get receiptsFallback;
+
+  /// No description provided for @receiptsActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get receiptsActive;
+
+  /// No description provided for @receiptsExpiring.
+  ///
+  /// In en, this message translates to:
+  /// **'Expiring'**
+  String get receiptsExpiring;
+
+  /// No description provided for @receiptsExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get receiptsExpired;
+
+  /// No description provided for @receiptsNoReceipts.
+  ///
+  /// In en, this message translates to:
+  /// **'No receipts yet'**
+  String get receiptsNoReceipts;
+
+  /// No description provided for @receiptsEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanned receipts will appear here. Use the scanner to capture one.'**
+  String get receiptsEmptyBody;
+
   /// No description provided for @tierActive.
   ///
   /// In en, this message translates to:

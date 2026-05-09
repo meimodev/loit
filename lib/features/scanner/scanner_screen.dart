@@ -33,6 +33,7 @@ import '../../shared/widgets/loit_sheet.dart';
 import '../paywall/feature_gate.dart';
 import '../paywall/paywall_screen.dart';
 import '../transactions/notes_breakdown.dart';
+import '../../l10n/l10n_x.dart';
 
 /// LOIT scanner flow.
 ///
@@ -222,6 +223,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   Future<void> _acceptInvite(BuildContext sheetCtx, String token) async {
+    final l = context.l10n;
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
     final sheetNav = Navigator.of(sheetCtx);
@@ -244,7 +246,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         router.pushReplacement('/rooms/$roomId');
       } else {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Invite is invalid or expired')),
+          SnackBar(content: Text(l.scanInviteInvalid)),
         );
       }
     } catch (e) {
@@ -256,7 +258,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       if (!mounted) return;
       if (sheetNav.canPop()) sheetNav.pop();
       messenger.showSnackBar(
-        SnackBar(content: Text('Could not join room: $e')),
+        SnackBar(content: Text(l.scanCouldNotJoinRoom(e.toString()))),
       );
     }
   }
@@ -533,8 +535,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       );
 
       if (!mounted) return true;
+      final l = context.l10n;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Receipt saved')),
+        SnackBar(content: Text(l.scanSaved)),
       );
       // Land on detail first; back returns to the list (highlighted).
       if (roomId != null) {
@@ -557,20 +560,19 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   /// Bottom sheet — list rooms, return selected room id or null on cancel.
   Future<String?> _pickRoom() async {
+    final l = context.l10n;
     final rooms = await ref.read(myRoomsProvider.future);
     if (!mounted) return null;
     if (rooms.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No rooms yet — create one before scanning to a room.'),
-        ),
+        SnackBar(content: Text(l.scanNoRooms)),
       );
       return null;
     }
     return showLoitSheet<String>(
       context,
       builder: (sheetCtx) => LoitSheet(
-        title: 'Send receipt to room',
+        title: l.scanSendToRoom,
         child: SafeArea(
           top: false,
           child: ListView.separated(
@@ -580,7 +582,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             itemBuilder: (_, i) {
               final r = rooms[i];
               final id = r['id'] as String;
-              final name = (r['name'] as String?) ?? 'Room';
+              final name = (r['name'] as String?) ?? l.scanRoom;
               return ListTile(
                 leading: const Icon(Icons.group_outlined),
                 title: Text(name),
@@ -624,10 +626,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   Future<void> _showQuotaSheet() async {
+    final l = context.l10n;
     await showLoitSheet<void>(
       context,
       builder: (_) => LoitSheet(
-        title: 'Scan limit reached',
+        title: l.scanLimitReached,
         child: _QuotaExceededSheet(onTopUp: _handleTopUp),
       ),
     );
@@ -684,6 +687,7 @@ class _CaptureView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     final size = MediaQuery.sizeOf(context);
     final isLandscape = size.width > size.height;
     final isBigScreen = size.shortestSide >= 600;
@@ -733,7 +737,7 @@ class _CaptureView extends StatelessWidget {
                         borderRadius: LoitRadius.brFull,
                       ),
                       child: Text(
-                        'RECEIPT',
+                        l.scanReceipt,
                         style: LoitTypography.labelS.copyWith(
                           color: Colors.white,
                           letterSpacing: 0.5,
@@ -861,6 +865,7 @@ class _FrameGuide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Stack(
       children: [
         Container(
@@ -884,9 +889,9 @@ class _FrameGuide extends StatelessWidget {
             ),
           ),
         ),
-        const Center(
+        Center(
           child: Text(
-            'Align receipt within frame',
+            l.scanAlignHint,
             style: TextStyle(
               color: Color(0xD9FFFFFF),
               fontSize: 13,
@@ -928,6 +933,7 @@ class _TargetToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Container(
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.55),
@@ -943,13 +949,13 @@ class _TargetToggle extends StatelessWidget {
         children: [
           _segment(
               icon: Icons.person_outline,
-              label: 'Personal',
+              label: l.scanPersonal,
               selected: !useRoom,
               disabled: locked,
               onTap: locked ? null : () => onChanged(false)),
           _segment(
               icon: Icons.group_outlined,
-              label: 'Rooms',
+              label: l.scanRooms,
               selected: useRoom,
               disabled: false,
               onTap: locked ? null : () => onChanged(true)),
@@ -1055,10 +1061,11 @@ class _ProcessingViewState extends State<_ProcessingView>
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Reading receipt'),
+        title: Text(l.scanReadingTitle),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () {},
@@ -1073,14 +1080,14 @@ class _ProcessingViewState extends State<_ProcessingView>
               _ReceiptSkeleton(controller: _ctrl),
               const SizedBox(height: LoitSpacing.s6),
               Text(
-                'Reading your receipt…',
+                l.scanReadingBody,
                 style: LoitTypography.titleM.copyWith(color: c.contentPrimary),
               ),
               const SizedBox(height: LoitSpacing.s2),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 260),
                 child: Text(
-                  "Usually takes about 2 seconds. We're extracting merchant, total, and items.",
+                  l.scanReadingSubtitle,
                   textAlign: TextAlign.center,
                   style: LoitTypography.bodyS.copyWith(color: c.contentSecondary),
                 ),
@@ -1228,31 +1235,28 @@ class _ErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final isOffline = kind == 'connection';
     final isNotTransaction = kind == 'not_transaction';
     final String title;
     final String body;
     final LoitBannerKind bannerKind;
     if (isNotTransaction) {
-      title = "That doesn't look like a transaction";
-      body =
-          "We couldn't find a receipt, invoice, transfer slip, payslip, or "
-          "similar transaction record in this image. Try a clearer photo of "
-          "the document.";
+      title = l.scanNotTransaction;
+      body = l.scanNotTransactionBody;
       bannerKind = LoitBannerKind.warning;
     } else if (isOffline) {
-      title = "You're offline";
-      body =
-          "We couldn't reach the scan service. Check connection and retry.";
+      title = l.scanOfflineTitle;
+      body = l.scanOfflineBody;
       bannerKind = LoitBannerKind.warning;
     } else {
-      title = 'Scan service unavailable';
-      body = 'Scan service temporarily unavailable. Try again in a moment.';
+      title = l.scanUnavailableTitle;
+      body = l.scanUnavailableBody;
       bannerKind = LoitBannerKind.error;
     }
     return Scaffold(
       backgroundColor: c.canvas,
-      appBar: AppBar(title: const Text('Scan receipt')),
+      appBar: AppBar(title: Text(l.scanReceiptTitle)),
       body: Padding(
         padding: const EdgeInsets.all(LoitSpacing.s5),
         child: Column(
@@ -1267,14 +1271,14 @@ class _ErrorView extends StatelessWidget {
             // Retrying the same image won't help when it isn't a transaction
             // doc — only offer "Take another photo" which returns to capture.
             LoitButton.primary(
-              label: isNotTransaction ? 'Take another photo' : 'Retry',
+              label: isNotTransaction ? l.scanTakeAnother : l.scanRetry,
               icon: isNotTransaction ? Icons.camera_alt : Icons.refresh,
               onPressed: isNotTransaction ? onCancel : onRetry,
               fullWidth: true,
             ),
             const SizedBox(height: LoitSpacing.s2),
             LoitButton.tertiary(
-              label: 'Cancel',
+              label: l.scanCancel,
               onPressed: onCancel,
               fullWidth: true,
             ),
@@ -1292,6 +1296,7 @@ class _QuotaExceededSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     final profile = ref.watch(userProfileProvider).value;
     final canTopUp = profile?.canPurchaseScanTopUp ?? true;
     return Padding(
@@ -1304,16 +1309,15 @@ class _QuotaExceededSheet extends ConsumerWidget {
           const SizedBox(height: LoitSpacing.s3),
           Text(
             profile == null
-                ? 'You have used your monthly scan quota.'
-                : "Used all ${profile.scanQuota ?? '∞'} scans on "
-                    "${profile.tier.toUpperCase()} this month.",
+                ? l.scanQuotaDefault
+                : l.scanUsedAllScans('${profile.scanQuota ?? '0'}', profile.tier.toUpperCase()),
             textAlign: TextAlign.center,
             style: LoitTypography.bodyM.copyWith(color: c.contentSecondary),
           ),
           const SizedBox(height: LoitSpacing.s5),
           if (canTopUp) ...[
             LoitButton.primary(
-              label: 'Top up · 10 scans for Rp19,000',
+              label: l.scanTopUp,
               onPressed: () {
                 Navigator.of(context).pop();
                 onTopUp();
@@ -1323,7 +1327,7 @@ class _QuotaExceededSheet extends ConsumerWidget {
             const SizedBox(height: LoitSpacing.s2),
           ],
           LoitButton.secondary(
-            label: 'Upgrade to Pro — unlimited scans',
+            label: l.scanUpgrade,
             onPressed: () {
               Navigator.of(context).pop();
               showPaywallSheet(context, feature: 'more_scan_quota');
@@ -1332,7 +1336,7 @@ class _QuotaExceededSheet extends ConsumerWidget {
           ),
           const SizedBox(height: LoitSpacing.s2),
           LoitButton.tertiary(
-            label: 'Not now',
+            label: l.scanNotNow,
             onPressed: () => Navigator.of(context).pop(),
             fullWidth: true,
           ),
@@ -1363,8 +1367,9 @@ class _InviteJoinSheetState extends State<_InviteJoinSheet> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     return LoitSheet(
-      title: 'Join room?',
+      title: l.scanJoinRoomTitle,
       child: SafeArea(
         top: false,
         child: Padding(
@@ -1374,12 +1379,12 @@ class _InviteJoinSheetState extends State<_InviteJoinSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'A LOIT room invite QR was detected. Join the room?',
+                l.scanJoinRoomBody,
                 style: LoitTypography.bodyM.copyWith(color: c.contentSecondary),
               ),
               const SizedBox(height: LoitSpacing.s4),
               LoitButton.primary(
-                label: _busy ? 'Joining…' : 'Join room',
+                label: _busy ? l.scanJoining : l.scanJoinRoom,
                 fullWidth: true,
                 onPressed: _busy
                     ? null
@@ -1391,7 +1396,7 @@ class _InviteJoinSheetState extends State<_InviteJoinSheet> {
               ),
               const SizedBox(height: LoitSpacing.s2),
               LoitButton.tertiary(
-                label: 'Cancel',
+                label: l.scanCancel,
                 fullWidth: true,
                 onPressed: _busy ? null : widget.onCancel,
               ),

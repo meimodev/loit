@@ -1296,5 +1296,152 @@ class AppLocalizationsId extends AppLocalizations {
   String get accountFormRecentTransactions => 'Transaksi terbaru';
 
   @override
+  String get scanReceiptTitle => 'Pindai struk';
+
+  @override
+  String get scanReceipt => 'STRUK';
+
+  @override
+  String get scanAlignHint => 'Sejajarkan struk dalam bingkai';
+
+  @override
+  String get scanReadingTitle => 'Membaca struk';
+
+  @override
+  String get scanReadingBody => 'Membaca struk Anda…';
+
+  @override
+  String get scanReadingSubtitle =>
+      'Biasanya sekitar 2 detik. Kami mengekstrak toko, total, dan item.';
+
+  @override
+  String get scanPersonal => 'Pribadi';
+
+  @override
+  String get scanRooms => 'Ruangan';
+
+  @override
+  String get scanRoom => 'Ruangan';
+
+  @override
+  String get scanSaved => 'Struk disimpan';
+
+  @override
+  String get scanNoRooms =>
+      'Belum ada ruangan — buat ruangan sebelum memindai ke ruangan.';
+
+  @override
+  String get scanSendToRoom => 'Kirim struk ke ruangan';
+
+  @override
+  String get scanLimitReached => 'Batas pemindaian tercapai';
+
+  @override
+  String scanUsedAllScans(String quota, String tier) {
+    return 'Menggunakan semua $quota pemindaian di $tier bulan ini.';
+  }
+
+  @override
+  String get scanQuotaDefault =>
+      'Anda telah menggunakan kuota pemindaian bulanan Anda.';
+
+  @override
+  String get scanTopUp => 'Isi ulang · 10 pemindaian seharga Rp19.000';
+
+  @override
+  String get scanUpgrade => 'Upgrade ke Pro — pemindaian tanpa batas';
+
+  @override
+  String get scanNotNow => 'Nanti saja';
+
+  @override
+  String get scanTakeAnother => 'Ambil foto lain';
+
+  @override
+  String get scanRetry => 'Coba lagi';
+
+  @override
+  String get scanCancel => 'Batal';
+
+  @override
+  String get scanInviteInvalid => 'Undangan tidak valid atau kedaluwarsa';
+
+  @override
+  String scanCouldNotJoinRoom(String error) {
+    return 'Tidak dapat bergabung ke ruangan: $error';
+  }
+
+  @override
+  String get scanJoinRoomTitle => 'Gabung ruangan?';
+
+  @override
+  String get scanJoinRoomBody =>
+      'QR undangan ruangan LOIT terdeteksi. Gabung ruangan?';
+
+  @override
+  String get scanJoinRoom => 'Gabung ruangan';
+
+  @override
+  String get scanJoining => 'Bergabung…';
+
+  @override
+  String get scanNotTransaction => 'Itu tidak terlihat seperti transaksi';
+
+  @override
+  String get scanNotTransactionBody =>
+      'Kami tidak menemukan struk, faktur, slip transfer, slip gaji, atau catatan transaksi serupa di gambar ini. Coba foto yang lebih jelas dari dokumen.';
+
+  @override
+  String get scanOfflineTitle => 'Anda sedang offline';
+
+  @override
+  String get scanOfflineBody =>
+      'Kami tidak dapat menjangkau layanan pemindaian. Periksa koneksi dan coba lagi.';
+
+  @override
+  String get scanUnavailableTitle => 'Layanan pemindaian tidak tersedia';
+
+  @override
+  String get scanUnavailableBody =>
+      'Layanan pemindaian sementara tidak tersedia. Coba lagi sebentar lagi.';
+
+  @override
+  String get receiptsTitle => 'Struk';
+
+  @override
+  String receiptsFailed(String error) {
+    return 'Gagal memuat: $error';
+  }
+
+  @override
+  String receiptsDownloadFailed(String error) {
+    return 'Gagal mengunduh: $error';
+  }
+
+  @override
+  String receiptsShareSubject(String date) {
+    return 'Struk $date';
+  }
+
+  @override
+  String get receiptsFallback => 'Struk';
+
+  @override
+  String get receiptsActive => 'Aktif';
+
+  @override
+  String get receiptsExpiring => 'Segera kedaluwarsa';
+
+  @override
+  String get receiptsExpired => 'Kedaluwarsa';
+
+  @override
+  String get receiptsNoReceipts => 'Belum ada struk';
+
+  @override
+  String get receiptsEmptyBody =>
+      'Struk yang dipindai akan muncul di sini. Gunakan pemindai untuk menangkap satu.';
+
+  @override
   String get tierActive => 'AKTIF';
 }

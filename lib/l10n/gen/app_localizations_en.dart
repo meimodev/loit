@@ -1290,5 +1290,151 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountFormRecentTransactions => 'Recent transactions';
 
   @override
+  String get scanReceiptTitle => 'Scan receipt';
+
+  @override
+  String get scanReceipt => 'RECEIPT';
+
+  @override
+  String get scanAlignHint => 'Align receipt within frame';
+
+  @override
+  String get scanReadingTitle => 'Reading receipt';
+
+  @override
+  String get scanReadingBody => 'Reading your receipt…';
+
+  @override
+  String get scanReadingSubtitle =>
+      'Usually takes about 2 seconds. We\'re extracting merchant, total, and items.';
+
+  @override
+  String get scanPersonal => 'Personal';
+
+  @override
+  String get scanRooms => 'Rooms';
+
+  @override
+  String get scanRoom => 'Room';
+
+  @override
+  String get scanSaved => 'Receipt saved';
+
+  @override
+  String get scanNoRooms =>
+      'No rooms yet — create one before scanning to a room.';
+
+  @override
+  String get scanSendToRoom => 'Send receipt to room';
+
+  @override
+  String get scanLimitReached => 'Scan limit reached';
+
+  @override
+  String scanUsedAllScans(String quota, String tier) {
+    return 'Used all $quota scans on $tier this month.';
+  }
+
+  @override
+  String get scanQuotaDefault => 'You have used your monthly scan quota.';
+
+  @override
+  String get scanTopUp => 'Top up · 10 scans for Rp19,000';
+
+  @override
+  String get scanUpgrade => 'Upgrade to Pro — unlimited scans';
+
+  @override
+  String get scanNotNow => 'Not now';
+
+  @override
+  String get scanTakeAnother => 'Take another photo';
+
+  @override
+  String get scanRetry => 'Retry';
+
+  @override
+  String get scanCancel => 'Cancel';
+
+  @override
+  String get scanInviteInvalid => 'Invite is invalid or expired';
+
+  @override
+  String scanCouldNotJoinRoom(String error) {
+    return 'Could not join room: $error';
+  }
+
+  @override
+  String get scanJoinRoomTitle => 'Join room?';
+
+  @override
+  String get scanJoinRoomBody =>
+      'A LOIT room invite QR was detected. Join the room?';
+
+  @override
+  String get scanJoinRoom => 'Join room';
+
+  @override
+  String get scanJoining => 'Joining…';
+
+  @override
+  String get scanNotTransaction => 'That doesn\'t look like a transaction';
+
+  @override
+  String get scanNotTransactionBody =>
+      'We couldn\'t find a receipt, invoice, transfer slip, payslip, or similar transaction record in this image. Try a clearer photo of the document.';
+
+  @override
+  String get scanOfflineTitle => 'You\'re offline';
+
+  @override
+  String get scanOfflineBody =>
+      'We couldn\'t reach the scan service. Check connection and retry.';
+
+  @override
+  String get scanUnavailableTitle => 'Scan service unavailable';
+
+  @override
+  String get scanUnavailableBody =>
+      'Scan service temporarily unavailable. Try again in a moment.';
+
+  @override
+  String get receiptsTitle => 'Receipts';
+
+  @override
+  String receiptsFailed(String error) {
+    return 'Failed to load: $error';
+  }
+
+  @override
+  String receiptsDownloadFailed(String error) {
+    return 'Download failed: $error';
+  }
+
+  @override
+  String receiptsShareSubject(String date) {
+    return 'Receipt $date';
+  }
+
+  @override
+  String get receiptsFallback => 'Receipt';
+
+  @override
+  String get receiptsActive => 'Active';
+
+  @override
+  String get receiptsExpiring => 'Expiring';
+
+  @override
+  String get receiptsExpired => 'Expired';
+
+  @override
+  String get receiptsNoReceipts => 'No receipts yet';
+
+  @override
+  String get receiptsEmptyBody =>
+      'Scanned receipts will appear here. Use the scanner to capture one.';
+
+  @override
   String get tierActive => 'ACTIVE';
 }

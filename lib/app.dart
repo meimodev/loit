@@ -15,6 +15,7 @@ import 'core/services/log_service.dart';
 import 'core/services/push_service.dart';
 import 'core/services/revenuecat_payment_service.dart';
 import 'features/system/lock_screen.dart';
+import 'l10n/gen/app_localizations.dart';
 import 'shared/widgets/persistent_connectivity_banner.dart';
 import 'shared/widgets/persistent_export_banner.dart';
 import 'shared/providers/app_lock_provider.dart';
@@ -269,6 +270,16 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       theme: LoitTheme.light(),
       darkTheme: LoitTheme.dark(),
       themeMode: ref.watch(themeModePrefProvider),
+      locale: ref.watch(localePrefProvider),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      localeResolutionCallback: (device, supported) {
+        if (device == null) return const Locale('en');
+        for (final s in supported) {
+          if (s.languageCode == device.languageCode) return s;
+        }
+        return const Locale('en');
+      },
       routerConfig: router,
     );
   }

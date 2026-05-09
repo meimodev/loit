@@ -236,6 +236,19 @@ final themeModePrefProvider = Provider<ThemeMode>((ref) {
   );
 });
 
+/// Synchronous locale for `MaterialApp.router.locale`.
+final localePrefProvider = Provider<Locale?>((ref) {
+  final lang = ref.watch(preferencesProvider).maybeWhen(
+        data: (p) => p.language,
+        orElse: () => 'system',
+      );
+  return switch (lang) {
+    'en' => const Locale('en'),
+    'id' => const Locale('id'),
+    _ => null,
+  };
+});
+
 /// Pref keys exposed for convenience in widgets calling [setBool].
 class PrefKeys {
   static const biometricLock = _Keys.biometricLock;

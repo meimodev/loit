@@ -30,7 +30,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
           preferredSize: const Size.fromHeight(20),
           child: Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Text('Step 2 of 2',
+            child: Text(l10n.permissionsStep,
                 style: LoitTypography.bodyS
                     .copyWith(color: c.contentSecondary)),
           ),

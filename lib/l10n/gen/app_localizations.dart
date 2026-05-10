@@ -3689,6 +3689,66 @@ abstract class AppLocalizations {
   /// **'{category} is at {pct}% of budget'**
   String budgetNearAlert(String category, String pct);
 
+  /// No description provided for @permissionsStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Step 2 of 2'**
+  String get permissionsStep;
+
+  /// No description provided for @roomArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'ARCHIVED'**
+  String get roomArchived;
+
+  /// No description provided for @roomColorIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'COLOR IDENTITY'**
+  String get roomColorIdentity;
+
+  /// No description provided for @roomBaseCurrency.
+  ///
+  /// In en, this message translates to:
+  /// **'BASE CURRENCY'**
+  String get roomBaseCurrency;
+
+  /// No description provided for @roomScanToJoin.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan to join'**
+  String get roomScanToJoin;
+
+  /// No description provided for @roomPasteInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste an invite link or token'**
+  String get roomPasteInvite;
+
+  /// No description provided for @reportsThisMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'THIS MONTH'**
+  String get reportsThisMonth;
+
+  /// No description provided for @reportsBeta.
+  ///
+  /// In en, this message translates to:
+  /// **'BETA'**
+  String get reportsBeta;
+
+  /// No description provided for @shellPressBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Press back again to exit'**
+  String get shellPressBack;
+
+  /// Snackbar when export fails
+  ///
+  /// In en, this message translates to:
+  /// **'Export failed: {error}'**
+  String exportFailed(String error);
+
   /// No description provided for @tierActive.
   ///
   /// In en, this message translates to:

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/rooms/room_colors.dart';
+import '../../l10n/l10n_x.dart';
 import 'loit_tab_bar.dart';
 
 /// LOIT bottom-nav shell. Backed by `StatefulShellRoute.indexedStack` so each
@@ -52,7 +53,7 @@ class _ShellScaffoldState extends State<ShellScaffold> {
     messenger.showSnackBar(
       SnackBar(
         duration: _exitWindow,
-        content: const Text('Press back again to exit'),
+        content: Text(context.l10n.shellPressBack),
       ),
     );
   }

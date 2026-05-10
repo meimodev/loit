@@ -996,5 +996,22 @@
     }
   },
 
+  "permissionsStep": "Step 2 of 2",
+  "roomArchived": "ARCHIVED",
+  "roomColorIdentity": "COLOR IDENTITY",
+  "roomBaseCurrency": "BASE CURRENCY",
+  "roomScanToJoin": "Scan to join",
+  "roomPasteInvite": "Paste an invite link or token",
+  "reportsThisMonth": "THIS MONTH",
+  "reportsBeta": "BETA",
+  "shellPressBack": "Press back again to exit",
+  "exportFailed": "Export failed: {error}",
+  "@exportFailed": {
+    "description": "Snackbar when export fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+
   "tierActive": "ACTIVE"
 }

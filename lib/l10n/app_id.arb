@@ -990,5 +990,22 @@
     }
   },
 
+  "permissionsStep": "Langkah 2 dari 2",
+  "roomArchived": "DIARSIPKAN",
+  "roomColorIdentity": "IDENTITAS WARNA",
+  "roomBaseCurrency": "MATA UANG DASAR",
+  "roomScanToJoin": "Pindai untuk bergabung",
+  "roomPasteInvite": "Tempel tautan atau token undangan",
+  "reportsThisMonth": "BULAN INI",
+  "reportsBeta": "BETA",
+  "shellPressBack": "Tekan kembali lagi untuk keluar",
+  "exportFailed": "Ekspor gagal: {error}",
+  "@exportFailed": {
+    "description": "Snackbar when export fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+
   "tierActive": "AKTIF"
 }

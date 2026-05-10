@@ -16,6 +16,7 @@ import 'core/services/push_service.dart';
 import 'core/services/revenuecat_payment_service.dart';
 import 'features/system/lock_screen.dart';
 import 'l10n/gen/app_localizations.dart';
+import 'l10n/l10n_x.dart';
 import 'shared/widgets/persistent_connectivity_banner.dart';
 import 'shared/widgets/persistent_export_banner.dart';
 import 'shared/providers/app_lock_provider.dart';
@@ -242,7 +243,7 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
             () => ref.read(exportTaskProvider.notifier).consume());
       } else if (next is ExportTaskFailed) {
         _scaffoldMessengerKey.currentState?.showSnackBar(
-          SnackBar(content: Text('Export failed: ${next.message}')),
+          SnackBar(content: Text(context.l10n.exportFailed(next.message))),
         );
         ref.read(exportTaskProvider.notifier).consume();
       }

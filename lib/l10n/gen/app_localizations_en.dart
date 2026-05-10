@@ -1981,5 +1981,37 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get permissionsStep => 'Step 2 of 2';
+
+  @override
+  String get roomArchived => 'ARCHIVED';
+
+  @override
+  String get roomColorIdentity => 'COLOR IDENTITY';
+
+  @override
+  String get roomBaseCurrency => 'BASE CURRENCY';
+
+  @override
+  String get roomScanToJoin => 'Scan to join';
+
+  @override
+  String get roomPasteInvite => 'Paste an invite link or token';
+
+  @override
+  String get reportsThisMonth => 'THIS MONTH';
+
+  @override
+  String get reportsBeta => 'BETA';
+
+  @override
+  String get shellPressBack => 'Press back again to exit';
+
+  @override
+  String exportFailed(String error) {
+    return 'Export failed: $error';
+  }
+
+  @override
   String get tierActive => 'ACTIVE';
 }

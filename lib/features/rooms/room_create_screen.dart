@@ -81,7 +81,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: LoitSpacing.s5),
-          Text('COLOR IDENTITY',
+          Text(l.roomColorIdentity,
               style: LoitTypography.labelS.copyWith(
                   color: c.contentSecondary, letterSpacing: 0.5)),
           const SizedBox(height: LoitSpacing.s2),
@@ -115,7 +115,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
             ],
           ),
           const SizedBox(height: LoitSpacing.s5),
-          Text('BASE CURRENCY',
+          Text(l.roomBaseCurrency,
               style: LoitTypography.labelS.copyWith(
                   color: c.contentSecondary, letterSpacing: 0.5)),
           const SizedBox(height: LoitSpacing.s2),

@@ -498,7 +498,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('THIS MONTH',
+              Text(l10n.reportsThisMonth,
                   style: LoitTypography.labelS.copyWith(
                       color: c.contentSecondary, letterSpacing: 0.4)),
               const SizedBox(height: 4),
@@ -770,7 +770,7 @@ class _BetaChip extends StatelessWidget {
         color: const Color(0xFFE6F4F0),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Text('BETA',
+      child: Text(context.l10n.reportsBeta,
           style: LoitTypography.labelS.copyWith(
               color: c.brand, letterSpacing: 0.4, fontWeight: FontWeight.w700)),
     );

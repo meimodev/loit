@@ -493,7 +493,7 @@ class _BreakdownView extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text('Total',
+                    child: Text(context.l10n.txDetailTotal,
                         style: LoitTypography.bodyM.copyWith(
                           color: c.contentPrimary,
                           fontWeight: FontWeight.w600,

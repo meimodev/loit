@@ -1990,5 +1990,37 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get permissionsStep => 'Langkah 2 dari 2';
+
+  @override
+  String get roomArchived => 'DIARSIPKAN';
+
+  @override
+  String get roomColorIdentity => 'IDENTITAS WARNA';
+
+  @override
+  String get roomBaseCurrency => 'MATA UANG DASAR';
+
+  @override
+  String get roomScanToJoin => 'Pindai untuk bergabung';
+
+  @override
+  String get roomPasteInvite => 'Tempel tautan atau token undangan';
+
+  @override
+  String get reportsThisMonth => 'BULAN INI';
+
+  @override
+  String get reportsBeta => 'BETA';
+
+  @override
+  String get shellPressBack => 'Tekan kembali lagi untuk keluar';
+
+  @override
+  String exportFailed(String error) {
+    return 'Ekspor gagal: $error';
+  }
+
+  @override
   String get tierActive => 'AKTIF';
 }

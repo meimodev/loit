@@ -510,7 +510,7 @@ class _Header extends StatelessWidget {
                       color: c.muted,
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text('ARCHIVED',
+                    child: Text(context.l10n.roomArchived,
                         style: LoitTypography.labelS.copyWith(
                             color: c.contentSecondary, letterSpacing: 0.4)),
                   ),

@@ -37,7 +37,7 @@ class _RoomJoinScreenState extends ConsumerState<RoomJoinScreen> {
     final l = context.l10n;
     final token = extractInviteToken(_ctrl.text);
     if (token == null) {
-      setState(() => _error = 'Paste an invite link or token');
+      setState(() => _error = l.roomPasteInvite);
       return;
     }
     setState(() {
@@ -96,7 +96,7 @@ class _RoomJoinScreenState extends ConsumerState<RoomJoinScreen> {
               children: [
                 Icon(Icons.qr_code_2, size: 36, color: c.brand),
                 const SizedBox(height: LoitSpacing.s2),
-                Text('Paste an invite link or token',
+                Text(l.roomPasteInvite,
                     style: LoitTypography.titleM.copyWith(
                         color: c.contentPrimary,
                         fontWeight: FontWeight.w600)),

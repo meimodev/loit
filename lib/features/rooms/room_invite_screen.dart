@@ -101,7 +101,7 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
                           ),
                   ),
                   const SizedBox(height: LoitSpacing.s4),
-                  Text('Scan to join',
+                  Text(context.l10n.roomScanToJoin,
                       style: LoitTypography.titleM.copyWith(
                           color: c.contentPrimary,
                           fontWeight: FontWeight.w600)),

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key, this.next = '/welcome'});
@@ -27,6 +28,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Scaffold(
       backgroundColor: LoitPalette.teal700,
       body: Center(
@@ -57,7 +59,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   letterSpacing: -1,
                 )),
             const SizedBox(height: 8),
-            Text('Split bills, not friendships.',
+            Text(l.splashTagline,
                 style: LoitTypography.bodyS
                     .copyWith(color: LoitPalette.teal100, letterSpacing: 0.3)),
           ],

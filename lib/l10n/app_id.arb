@@ -954,5 +954,16 @@
   "roomUpgrade": "Upgrade",
   "roomCopy": "SALIN",
 
+  "splashTagline": "Bagi tagihan, bukan pertemanan.",
+
+  "welcomeSlide1Title": "Lacak pengeluaran dalam hitungan detik.",
+  "welcomeSlide1Body": "Jepret struk atau ketik jumlah. Kami yang menghitung.",
+  "welcomeSlide2Title": "Berbagi dengan teman, secara privat.",
+  "welcomeSlide2Body": "Buat ruangan untuk liburan atau apartemen. Tidak ada yang melihat sisanya.",
+  "welcomeSlide3Title": "Anggaran yang masuk akal.",
+  "welcomeSlide3Body": "Batas kategori, peringatan lembut, wawasan nyata.",
+  "welcomeNext": "Lanjut",
+  "welcomeGetStarted": "Mulai",
+
   "tierActive": "AKTIF"
 }

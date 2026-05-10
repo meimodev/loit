@@ -3611,6 +3611,60 @@ abstract class AppLocalizations {
   /// **'COPY'**
   String get roomCopy;
 
+  /// No description provided for @splashTagline.
+  ///
+  /// In en, this message translates to:
+  /// **'Split bills, not friendships.'**
+  String get splashTagline;
+
+  /// No description provided for @welcomeSlide1Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Track spending in seconds.'**
+  String get welcomeSlide1Title;
+
+  /// No description provided for @welcomeSlide1Body.
+  ///
+  /// In en, this message translates to:
+  /// **'Snap a receipt or tap in an amount. We do the math.'**
+  String get welcomeSlide1Body;
+
+  /// No description provided for @welcomeSlide2Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Share with friends, privately.'**
+  String get welcomeSlide2Title;
+
+  /// No description provided for @welcomeSlide2Body.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a room for trips or the apartment. No one sees the rest.'**
+  String get welcomeSlide2Body;
+
+  /// No description provided for @welcomeSlide3Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Budgets that make sense.'**
+  String get welcomeSlide3Title;
+
+  /// No description provided for @welcomeSlide3Body.
+  ///
+  /// In en, this message translates to:
+  /// **'Category limits, gentle alerts, real insight.'**
+  String get welcomeSlide3Body;
+
+  /// No description provided for @welcomeNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get welcomeNext;
+
+  /// No description provided for @welcomeGetStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Get started'**
+  String get welcomeGetStarted;
+
   /// No description provided for @tierActive.
   ///
   /// In en, this message translates to:

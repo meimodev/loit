@@ -1942,5 +1942,35 @@ class AppLocalizationsId extends AppLocalizations {
   String get roomCopy => 'SALIN';
 
   @override
+  String get splashTagline => 'Bagi tagihan, bukan pertemanan.';
+
+  @override
+  String get welcomeSlide1Title => 'Lacak pengeluaran dalam hitungan detik.';
+
+  @override
+  String get welcomeSlide1Body =>
+      'Jepret struk atau ketik jumlah. Kami yang menghitung.';
+
+  @override
+  String get welcomeSlide2Title => 'Berbagi dengan teman, secara privat.';
+
+  @override
+  String get welcomeSlide2Body =>
+      'Buat ruangan untuk liburan atau apartemen. Tidak ada yang melihat sisanya.';
+
+  @override
+  String get welcomeSlide3Title => 'Anggaran yang masuk akal.';
+
+  @override
+  String get welcomeSlide3Body =>
+      'Batas kategori, peringatan lembut, wawasan nyata.';
+
+  @override
+  String get welcomeNext => 'Lanjut';
+
+  @override
+  String get welcomeGetStarted => 'Mulai';
+
+  @override
   String get tierActive => 'AKTIF';
 }

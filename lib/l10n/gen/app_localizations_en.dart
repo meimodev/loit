@@ -1933,5 +1933,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomCopy => 'COPY';
 
   @override
+  String get splashTagline => 'Split bills, not friendships.';
+
+  @override
+  String get welcomeSlide1Title => 'Track spending in seconds.';
+
+  @override
+  String get welcomeSlide1Body =>
+      'Snap a receipt or tap in an amount. We do the math.';
+
+  @override
+  String get welcomeSlide2Title => 'Share with friends, privately.';
+
+  @override
+  String get welcomeSlide2Body =>
+      'Create a room for trips or the apartment. No one sees the rest.';
+
+  @override
+  String get welcomeSlide3Title => 'Budgets that make sense.';
+
+  @override
+  String get welcomeSlide3Body =>
+      'Category limits, gentle alerts, real insight.';
+
+  @override
+  String get welcomeNext => 'Next';
+
+  @override
+  String get welcomeGetStarted => 'Get started';
+
+  @override
   String get tierActive => 'ACTIVE';
 }

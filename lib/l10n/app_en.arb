@@ -960,5 +960,16 @@
   "roomUpgrade": "Upgrade",
   "roomCopy": "COPY",
 
+  "splashTagline": "Split bills, not friendships.",
+
+  "welcomeSlide1Title": "Track spending in seconds.",
+  "welcomeSlide1Body": "Snap a receipt or tap in an amount. We do the math.",
+  "welcomeSlide2Title": "Share with friends, privately.",
+  "welcomeSlide2Body": "Create a room for trips or the apartment. No one sees the rest.",
+  "welcomeSlide3Title": "Budgets that make sense.",
+  "welcomeSlide3Body": "Category limits, gentle alerts, real insight.",
+  "welcomeNext": "Next",
+  "welcomeGetStarted": "Get started",
+
   "tierActive": "ACTIVE"
 }

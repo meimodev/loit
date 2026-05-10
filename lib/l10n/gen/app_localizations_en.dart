@@ -1963,5 +1963,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get welcomeGetStarted => 'Get started';
 
   @override
+  String get receiptExpiringToday => 'Receipt photos are being deleted today.';
+
+  @override
+  String receiptExpiringDays(int days) {
+    return 'Receipt photos expire in $days days.';
+  }
+
+  @override
+  String budgetOverAlert(String category, String pct) {
+    return '$category is over budget ($pct%)';
+  }
+
+  @override
+  String budgetNearAlert(String category, String pct) {
+    return '$category is at $pct% of budget';
+  }
+
+  @override
   String get tierActive => 'ACTIVE';
 }

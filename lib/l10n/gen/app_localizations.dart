@@ -3665,6 +3665,30 @@ abstract class AppLocalizations {
   /// **'Get started'**
   String get welcomeGetStarted;
 
+  /// No description provided for @receiptExpiringToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Receipt photos are being deleted today.'**
+  String get receiptExpiringToday;
+
+  /// Expiry warning showing days remaining
+  ///
+  /// In en, this message translates to:
+  /// **'Receipt photos expire in {days} days.'**
+  String receiptExpiringDays(int days);
+
+  /// Budget exceeded alert
+  ///
+  /// In en, this message translates to:
+  /// **'{category} is over budget ({pct}%)'**
+  String budgetOverAlert(String category, String pct);
+
+  /// Budget near-limit alert
+  ///
+  /// In en, this message translates to:
+  /// **'{category} is at {pct}% of budget'**
+  String budgetNearAlert(String category, String pct);
+
   /// No description provided for @tierActive.
   ///
   /// In en, this message translates to:

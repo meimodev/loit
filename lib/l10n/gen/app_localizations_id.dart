@@ -1972,5 +1972,23 @@ class AppLocalizationsId extends AppLocalizations {
   String get welcomeGetStarted => 'Mulai';
 
   @override
+  String get receiptExpiringToday => 'Foto struk sedang dihapus hari ini.';
+
+  @override
+  String receiptExpiringDays(int days) {
+    return 'Foto struk kedaluwarsa dalam $days hari.';
+  }
+
+  @override
+  String budgetOverAlert(String category, String pct) {
+    return '$category melebihi anggaran ($pct%)';
+  }
+
+  @override
+  String budgetNearAlert(String category, String pct) {
+    return '$category di $pct% dari anggaran';
+  }
+
+  @override
   String get tierActive => 'AKTIF';
 }

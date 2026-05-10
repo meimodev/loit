@@ -965,5 +965,30 @@
   "welcomeNext": "Lanjut",
   "welcomeGetStarted": "Mulai",
 
+  "receiptExpiringToday": "Foto struk sedang dihapus hari ini.",
+  "receiptExpiringDays": "Foto struk kedaluwarsa dalam {days} hari.",
+  "@receiptExpiringDays": {
+    "description": "Expiry warning showing days remaining",
+    "placeholders": {
+      "days": {"type": "int"}
+    }
+  },
+  "budgetOverAlert": "{category} melebihi anggaran ({pct}%)",
+  "@budgetOverAlert": {
+    "description": "Budget exceeded alert",
+    "placeholders": {
+      "category": {"type": "String"},
+      "pct": {"type": "String"}
+    }
+  },
+  "budgetNearAlert": "{category} di {pct}% dari anggaran",
+  "@budgetNearAlert": {
+    "description": "Budget near-limit alert",
+    "placeholders": {
+      "category": {"type": "String"},
+      "pct": {"type": "String"}
+    }
+  },
+
   "tierActive": "AKTIF"
 }

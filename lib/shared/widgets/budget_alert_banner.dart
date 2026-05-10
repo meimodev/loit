@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/services/analytics_service.dart';
+import '../../l10n/l10n_x.dart';
 import '../providers/budgets_provider.dart';
 
-/// Renders the most urgent active budget alert (exceeded > 80%).
-/// Fires `budget_alert_shown` analytics exactly once per category+type per session.
 class BudgetAlertBanner extends ConsumerStatefulWidget {
   const BudgetAlertBanner({super.key});
 
@@ -18,11 +17,11 @@ class _BudgetAlertBannerState extends ConsumerState<BudgetAlertBanner> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     final statuses = ref.watch(budgetStatusesProvider);
     final alerts = statuses.where((s) => s.isOver || s.isNearLimit).toList();
     if (alerts.isEmpty) return const SizedBox.shrink();
 
-    // Pick the worst: exceeded first, then near limit.
     alerts.sort((a, b) => b.ratio.compareTo(a.ratio));
     final worst = alerts.first;
     final type = worst.isOver ? 'exceeded' : '80_percent';
@@ -41,6 +40,7 @@ class _BudgetAlertBannerState extends ConsumerState<BudgetAlertBanner> {
         ? Theme.of(context).colorScheme.onErrorContainer
         : Colors.amber.shade900;
 
+    final pct = (worst.ratio * 100).toStringAsFixed(0);
     return Container(
       margin: const EdgeInsets.all(12),
       padding: const EdgeInsets.all(12),
@@ -56,10 +56,8 @@ class _BudgetAlertBannerState extends ConsumerState<BudgetAlertBanner> {
           Expanded(
             child: Text(
               worst.isOver
-                  ? '${worst.budget.category} is over budget '
-                      '(${(worst.ratio * 100).toStringAsFixed(0)}%)'
-                  : '${worst.budget.category} is at '
-                      '${(worst.ratio * 100).toStringAsFixed(0)}% of budget',
+                  ? l.budgetOverAlert(worst.budget.category, pct)
+                  : l.budgetNearAlert(worst.budget.category, pct),
               style: TextStyle(color: onColor, fontWeight: FontWeight.w600),
             ),
           ),

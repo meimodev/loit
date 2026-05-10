@@ -971,5 +971,30 @@
   "welcomeNext": "Next",
   "welcomeGetStarted": "Get started",
 
+  "receiptExpiringToday": "Receipt photos are being deleted today.",
+  "receiptExpiringDays": "Receipt photos expire in {days} days.",
+  "@receiptExpiringDays": {
+    "description": "Expiry warning showing days remaining",
+    "placeholders": {
+      "days": {"type": "int"}
+    }
+  },
+  "budgetOverAlert": "{category} is over budget ({pct}%)",
+  "@budgetOverAlert": {
+    "description": "Budget exceeded alert",
+    "placeholders": {
+      "category": {"type": "String"},
+      "pct": {"type": "String"}
+    }
+  },
+  "budgetNearAlert": "{category} is at {pct}% of budget",
+  "@budgetNearAlert": {
+    "description": "Budget near-limit alert",
+    "placeholders": {
+      "category": {"type": "String"},
+      "pct": {"type": "String"}
+    }
+  },
+
   "tierActive": "ACTIVE"
 }

@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/l10n_x.dart';
 import '../providers/auth_providers.dart';
 
-/// Shows when the user's earliest receipt expires within the next 30 days.
-/// Driven by `users.next_receipt_expiry_at`, refreshed daily by the
-/// `receipt-expiry-cron` Edge Function.
 class ReceiptExpiryBanner extends ConsumerWidget {
   const ReceiptExpiryBanner({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(userProfileProvider).value;
+    final l = context.l10n;
     final next = profile?.nextReceiptExpiryAt;
     if (next == null) return const SizedBox.shrink();
 
@@ -33,8 +32,8 @@ class ReceiptExpiryBanner extends ConsumerWidget {
           Expanded(
             child: Text(
               daysLeft <= 0
-                  ? 'Receipt photos are being deleted today.'
-                  : 'Receipt photos expire in $daysLeft days.',
+                  ? l.receiptExpiringToday
+                  : l.receiptExpiringDays(daysLeft),
               style: TextStyle(color: cs.onErrorContainer),
             ),
           ),

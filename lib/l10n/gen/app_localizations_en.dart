@@ -1930,5 +1930,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomUpgrade => 'Upgrade';
 
   @override
+  String get roomCopy => 'COPY';
+
+  @override
   String get tierActive => 'ACTIVE';
 }

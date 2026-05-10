@@ -144,7 +144,7 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
                                             content: Text(context.l10n.roomInviteLinkCopied)));
                                   }
                                 },
-                          child: Text('COPY',
+                          child: Text(context.l10n.roomCopy,
                               style: LoitTypography.labelS.copyWith(
                                   color: c.brand,
                                   fontWeight: FontWeight.w700,

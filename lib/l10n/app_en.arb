@@ -958,6 +958,7 @@
     }
   },
   "roomUpgrade": "Upgrade",
+  "roomCopy": "COPY",
 
   "tierActive": "ACTIVE"
 }

@@ -1939,5 +1939,8 @@ class AppLocalizationsId extends AppLocalizations {
   String get roomUpgrade => 'Upgrade';
 
   @override
+  String get roomCopy => 'SALIN';
+
+  @override
   String get tierActive => 'AKTIF';
 }

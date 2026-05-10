@@ -952,6 +952,7 @@
     }
   },
   "roomUpgrade": "Upgrade",
+  "roomCopy": "SALIN",
 
   "tierActive": "AKTIF"
 }

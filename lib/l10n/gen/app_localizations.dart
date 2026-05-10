@@ -3605,6 +3605,12 @@ abstract class AppLocalizations {
   /// **'Upgrade'**
   String get roomUpgrade;
 
+  /// No description provided for @roomCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'COPY'**
+  String get roomCopy;
+
   /// No description provided for @tierActive.
   ///
   /// In en, this message translates to:

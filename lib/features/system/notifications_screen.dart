@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/notifications_provider.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 
@@ -24,12 +25,13 @@ class SystemNotificationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     final async = ref.watch(notificationsProvider);
 
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(l.notifFeedTitle),
         backgroundColor: c.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,

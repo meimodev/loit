@@ -891,5 +891,73 @@
     }
   },
 
+  "catScreenTitle": "Categories",
+  "catScreenPersonalExpense": "Personal · Expense",
+  "catScreenPersonalIncome": "Personal · Income",
+  "catScreenRoom": "Room",
+  "catScreenRoomLabel": "Room · {name}",
+  "@catScreenRoomLabel": {
+    "description": "Room category group header",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "catScreenInherited": "Inherited · read-only",
+  "catScreenNoCategories": "No categories yet",
+  "catScreenEmptyBody": "Tap \"Add category\" to create your first one.",
+  "catScreenDeleteTitle": "Delete \"{name}\"?",
+  "@catScreenDeleteTitle": {
+    "description": "Delete category confirmation title",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "catScreenDeleteBody": "Transactions or budgets with this category key will fall back to \"Other\".",
+  "catScreenDeleteBodyPermanent": "Transactions or budgets with this category key will fall back to \"Other\". This cannot be undone.",
+  "catScreenCancel": "Cancel",
+  "catScreenDelete": "Delete",
+
+  "catFormNewCategory": "New category",
+  "catFormEditCategory": "Edit category",
+  "catFormNewRoomCategory": "New room category",
+  "catFormEditRoomCategory": "Edit room category",
+  "catFormName": "Name",
+  "catFormNamePlaceholder": "e.g. Coffee",
+  "catFormType": "Type",
+  "catFormExpense": "Expense",
+  "catFormIncome": "Income",
+  "catFormColor": "Color",
+  "catFormIcon": "Icon",
+  "catFormSaveChanges": "Save changes",
+  "catFormCreateCategory": "Create category",
+  "catFormNameRequired": "Name required",
+  "catFormSaveFailed": "Save failed: {error}",
+  "@catFormSaveFailed": {
+    "description": "Error when category save fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "catFormDelete": "Delete",
+  "catFormDeleteFailed": "Delete failed: {error}",
+  "@catFormDeleteFailed": {
+    "description": "Error when category delete fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+
+  "notifFeedTitle": "Notifications",
+  "roomInviteLinkCopied": "Link copied",
+  "roomInviteNoToken": "No invite token",
+  "roomInviteRegenFailed": "Failed to regenerate: {error}",
+  "@roomInviteRegenFailed": {
+    "description": "Error when regenerating invite link",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "roomUpgrade": "Upgrade",
+
   "tierActive": "ACTIVE"
 }

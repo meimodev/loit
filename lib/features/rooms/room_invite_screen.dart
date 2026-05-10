@@ -39,7 +39,7 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to regenerate: $e')),
+          SnackBar(content: Text(context.l10n.roomInviteRegenFailed(e.toString()))),
         );
       }
     } finally {
@@ -94,7 +94,7 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
                       borderRadius: LoitRadius.brM,
                     ),
                     child: token.isEmpty
-                        ? const Center(child: Text('No invite token'))
+                        ? Center(child: Text(context.l10n.roomInviteNoToken))
                         : QrImageView(
                             data: url,
                             backgroundColor: c.surface,
@@ -140,8 +140,8 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
                                       ClipboardData(text: url));
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context)
-                                        .showSnackBar(const SnackBar(
-                                            content: Text('Link copied')));
+                                        .showSnackBar(SnackBar(
+                                            content: Text(context.l10n.roomInviteLinkCopied)));
                                   }
                                 },
                           child: Text('COPY',

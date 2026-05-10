@@ -885,5 +885,73 @@
     }
   },
 
+  "catScreenTitle": "Kategori",
+  "catScreenPersonalExpense": "Pribadi · Pengeluaran",
+  "catScreenPersonalIncome": "Pribadi · Pemasukan",
+  "catScreenRoom": "Ruangan",
+  "catScreenRoomLabel": "Ruangan · {name}",
+  "@catScreenRoomLabel": {
+    "description": "Room category group header",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "catScreenInherited": "Diwariskan · hanya baca",
+  "catScreenNoCategories": "Belum ada kategori",
+  "catScreenEmptyBody": "Ketuk \"Tambah kategori\" untuk membuat yang pertama.",
+  "catScreenDeleteTitle": "Hapus \"{name}\"?",
+  "@catScreenDeleteTitle": {
+    "description": "Delete category confirmation title",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "catScreenDeleteBody": "Transaksi atau anggaran dengan kunci kategori ini akan jatuh ke \"Lainnya\".",
+  "catScreenDeleteBodyPermanent": "Transaksi atau anggaran dengan kunci kategori ini akan jatuh ke \"Lainnya\". Ini tidak dapat dibatalkan.",
+  "catScreenCancel": "Batal",
+  "catScreenDelete": "Hapus",
+
+  "catFormNewCategory": "Kategori baru",
+  "catFormEditCategory": "Edit kategori",
+  "catFormNewRoomCategory": "Kategori ruangan baru",
+  "catFormEditRoomCategory": "Edit kategori ruangan",
+  "catFormName": "Nama",
+  "catFormNamePlaceholder": "mis. Kopi",
+  "catFormType": "Tipe",
+  "catFormExpense": "Pengeluaran",
+  "catFormIncome": "Pemasukan",
+  "catFormColor": "Warna",
+  "catFormIcon": "Ikon",
+  "catFormSaveChanges": "Simpan perubahan",
+  "catFormCreateCategory": "Buat kategori",
+  "catFormNameRequired": "Nama diperlukan",
+  "catFormSaveFailed": "Gagal menyimpan: {error}",
+  "@catFormSaveFailed": {
+    "description": "Error when category save fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "catFormDelete": "Hapus",
+  "catFormDeleteFailed": "Gagal menghapus: {error}",
+  "@catFormDeleteFailed": {
+    "description": "Error when category delete fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+
+  "notifFeedTitle": "Notifikasi",
+  "roomInviteLinkCopied": "Tautan disalin",
+  "roomInviteNoToken": "Tidak ada token undangan",
+  "roomInviteRegenFailed": "Gagal membuat ulang: {error}",
+  "@roomInviteRegenFailed": {
+    "description": "Error when regenerating invite link",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "roomUpgrade": "Upgrade",
+
   "tierActive": "AKTIF"
 }

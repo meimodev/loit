@@ -3395,6 +3395,216 @@ abstract class AppLocalizations {
   /// **'Update failed: {error}'**
   String roomUpdateFailed(String error);
 
+  /// No description provided for @catScreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get catScreenTitle;
+
+  /// No description provided for @catScreenPersonalExpense.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal · Expense'**
+  String get catScreenPersonalExpense;
+
+  /// No description provided for @catScreenPersonalIncome.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal · Income'**
+  String get catScreenPersonalIncome;
+
+  /// No description provided for @catScreenRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Room'**
+  String get catScreenRoom;
+
+  /// Room category group header
+  ///
+  /// In en, this message translates to:
+  /// **'Room · {name}'**
+  String catScreenRoomLabel(String name);
+
+  /// No description provided for @catScreenInherited.
+  ///
+  /// In en, this message translates to:
+  /// **'Inherited · read-only'**
+  String get catScreenInherited;
+
+  /// No description provided for @catScreenNoCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'No categories yet'**
+  String get catScreenNoCategories;
+
+  /// No description provided for @catScreenEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap \"Add category\" to create your first one.'**
+  String get catScreenEmptyBody;
+
+  /// Delete category confirmation title
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"?'**
+  String catScreenDeleteTitle(String name);
+
+  /// No description provided for @catScreenDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Transactions or budgets with this category key will fall back to \"Other\".'**
+  String get catScreenDeleteBody;
+
+  /// No description provided for @catScreenDeleteBodyPermanent.
+  ///
+  /// In en, this message translates to:
+  /// **'Transactions or budgets with this category key will fall back to \"Other\". This cannot be undone.'**
+  String get catScreenDeleteBodyPermanent;
+
+  /// No description provided for @catScreenCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get catScreenCancel;
+
+  /// No description provided for @catScreenDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get catScreenDelete;
+
+  /// No description provided for @catFormNewCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'New category'**
+  String get catFormNewCategory;
+
+  /// No description provided for @catFormEditCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit category'**
+  String get catFormEditCategory;
+
+  /// No description provided for @catFormNewRoomCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'New room category'**
+  String get catFormNewRoomCategory;
+
+  /// No description provided for @catFormEditRoomCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit room category'**
+  String get catFormEditRoomCategory;
+
+  /// No description provided for @catFormName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get catFormName;
+
+  /// No description provided for @catFormNamePlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Coffee'**
+  String get catFormNamePlaceholder;
+
+  /// No description provided for @catFormType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get catFormType;
+
+  /// No description provided for @catFormExpense.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense'**
+  String get catFormExpense;
+
+  /// No description provided for @catFormIncome.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get catFormIncome;
+
+  /// No description provided for @catFormColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get catFormColor;
+
+  /// No description provided for @catFormIcon.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon'**
+  String get catFormIcon;
+
+  /// No description provided for @catFormSaveChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Save changes'**
+  String get catFormSaveChanges;
+
+  /// No description provided for @catFormCreateCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Create category'**
+  String get catFormCreateCategory;
+
+  /// No description provided for @catFormNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Name required'**
+  String get catFormNameRequired;
+
+  /// Error when category save fails
+  ///
+  /// In en, this message translates to:
+  /// **'Save failed: {error}'**
+  String catFormSaveFailed(String error);
+
+  /// No description provided for @catFormDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get catFormDelete;
+
+  /// Error when category delete fails
+  ///
+  /// In en, this message translates to:
+  /// **'Delete failed: {error}'**
+  String catFormDeleteFailed(String error);
+
+  /// No description provided for @notifFeedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notifFeedTitle;
+
+  /// No description provided for @roomInviteLinkCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Link copied'**
+  String get roomInviteLinkCopied;
+
+  /// No description provided for @roomInviteNoToken.
+  ///
+  /// In en, this message translates to:
+  /// **'No invite token'**
+  String get roomInviteNoToken;
+
+  /// Error when regenerating invite link
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to regenerate: {error}'**
+  String roomInviteRegenFailed(String error);
+
+  /// No description provided for @roomUpgrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade'**
+  String get roomUpgrade;
+
   /// No description provided for @tierActive.
   ///
   /// In en, this message translates to:

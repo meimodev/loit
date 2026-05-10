@@ -386,7 +386,7 @@ class _MembershipCard extends ConsumerWidget {
                 TextButton(
                   onPressed: () =>
                       showPaywallSheet(context, feature: 'more_rooms'),
-                  child: const Text('Upgrade'),
+                  child: Text(context.l10n.roomUpgrade),
                 ),
               ],
             ),

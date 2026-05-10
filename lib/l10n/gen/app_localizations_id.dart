@@ -1821,5 +1821,123 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get catScreenTitle => 'Kategori';
+
+  @override
+  String get catScreenPersonalExpense => 'Pribadi · Pengeluaran';
+
+  @override
+  String get catScreenPersonalIncome => 'Pribadi · Pemasukan';
+
+  @override
+  String get catScreenRoom => 'Ruangan';
+
+  @override
+  String catScreenRoomLabel(String name) {
+    return 'Ruangan · $name';
+  }
+
+  @override
+  String get catScreenInherited => 'Diwariskan · hanya baca';
+
+  @override
+  String get catScreenNoCategories => 'Belum ada kategori';
+
+  @override
+  String get catScreenEmptyBody =>
+      'Ketuk \"Tambah kategori\" untuk membuat yang pertama.';
+
+  @override
+  String catScreenDeleteTitle(String name) {
+    return 'Hapus \"$name\"?';
+  }
+
+  @override
+  String get catScreenDeleteBody =>
+      'Transaksi atau anggaran dengan kunci kategori ini akan jatuh ke \"Lainnya\".';
+
+  @override
+  String get catScreenDeleteBodyPermanent =>
+      'Transaksi atau anggaran dengan kunci kategori ini akan jatuh ke \"Lainnya\". Ini tidak dapat dibatalkan.';
+
+  @override
+  String get catScreenCancel => 'Batal';
+
+  @override
+  String get catScreenDelete => 'Hapus';
+
+  @override
+  String get catFormNewCategory => 'Kategori baru';
+
+  @override
+  String get catFormEditCategory => 'Edit kategori';
+
+  @override
+  String get catFormNewRoomCategory => 'Kategori ruangan baru';
+
+  @override
+  String get catFormEditRoomCategory => 'Edit kategori ruangan';
+
+  @override
+  String get catFormName => 'Nama';
+
+  @override
+  String get catFormNamePlaceholder => 'mis. Kopi';
+
+  @override
+  String get catFormType => 'Tipe';
+
+  @override
+  String get catFormExpense => 'Pengeluaran';
+
+  @override
+  String get catFormIncome => 'Pemasukan';
+
+  @override
+  String get catFormColor => 'Warna';
+
+  @override
+  String get catFormIcon => 'Ikon';
+
+  @override
+  String get catFormSaveChanges => 'Simpan perubahan';
+
+  @override
+  String get catFormCreateCategory => 'Buat kategori';
+
+  @override
+  String get catFormNameRequired => 'Nama diperlukan';
+
+  @override
+  String catFormSaveFailed(String error) {
+    return 'Gagal menyimpan: $error';
+  }
+
+  @override
+  String get catFormDelete => 'Hapus';
+
+  @override
+  String catFormDeleteFailed(String error) {
+    return 'Gagal menghapus: $error';
+  }
+
+  @override
+  String get notifFeedTitle => 'Notifikasi';
+
+  @override
+  String get roomInviteLinkCopied => 'Tautan disalin';
+
+  @override
+  String get roomInviteNoToken => 'Tidak ada token undangan';
+
+  @override
+  String roomInviteRegenFailed(String error) {
+    return 'Gagal membuat ulang: $error';
+  }
+
+  @override
+  String get roomUpgrade => 'Upgrade';
+
+  @override
   String get tierActive => 'AKTIF';
 }

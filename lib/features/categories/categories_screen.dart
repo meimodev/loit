@@ -6,6 +6,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/loit_category_avatar.dart';
@@ -24,13 +25,14 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final catsAsync = ref.watch(userCategoriesProvider);
     final user = ref.watch(currentUserProvider);
 
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Categories'),
+        title: Text(l.catScreenTitle),
         backgroundColor: c.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -47,7 +49,6 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
           final personalIncome =
               visible.where((cat) => cat.isPersonal && cat.isIncome).toList();
 
-          // Bucket room categories by roomId, preserving sort_order.
           final roomBuckets = <String, List<UserCategory>>{};
           for (final cat in visible) {
             if (!cat.isRoom) continue;
@@ -65,7 +66,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
             children: [
               if (personalExpense.isNotEmpty) ...[
                 LoitGroupLabel(
-                  label: 'Personal · Expense',
+                  label: l.catScreenPersonalExpense,
                   trailing: _CountBadge(count: personalExpense.length),
                 ),
                 _RowGroup(
@@ -78,7 +79,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
               ],
               if (personalIncome.isNotEmpty) ...[
                 LoitGroupLabel(
-                  label: 'Personal · Income',
+                  label: l.catScreenPersonalIncome,
                   trailing: _CountBadge(count: personalIncome.length),
                 ),
                 _RowGroup(
@@ -93,11 +94,11 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                 Builder(builder: (_) {
                   final first = group.value.first;
                   final canManage = first.canManageBy(user?.id);
-                  final roomName = first.roomName ?? 'Room';
+                  final roomName = first.roomName ?? l.catScreenRoom;
                   return Column(
                     children: [
                       LoitGroupLabel(
-                        label: 'Room · $roomName',
+                        label: l.catScreenRoomLabel(roomName),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -107,11 +108,11 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                               InkWell(
                                 onTap: () => context.push(
                                     '/rooms/${group.key}/categories/new'),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(
                                       horizontal: 6, vertical: 2),
                                   child: Icon(Icons.add,
-                                      size: 18, color: c.contentSecondary),
+                                      size: 18, color: Colors.grey),
                                 ),
                               ),
                             ],
@@ -147,22 +148,23 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
 
   Future<bool> _confirmDelete(UserCategory cat) async {
     final c = context.loitColors;
+    final l = context.l10n;
     return await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
-            title: Text('Delete "${cat.name}"?'),
-            content: const Text(
-              'Transactions or budgets with this category key will fall back to "Other".',
+            title: Text(l.catScreenDeleteTitle(cat.name)),
+            content: Text(
+              l.catScreenDeleteBody,
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+                child: Text(l.catScreenCancel),
               ),
               FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: c.danger),
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Delete'),
+                child: Text(l.catScreenDelete),
               ),
             ],
           ),
@@ -235,6 +237,7 @@ class _CategoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final readOnly = onTap == null;
     final row = InkWell(
       onTap: onTap,
@@ -262,7 +265,7 @@ class _CategoryRow extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
-                        'Inherited · read-only',
+                        l.catScreenInherited,
                         style: LoitTypography.bodyS
                             .copyWith(color: c.contentTertiary),
                       ),
@@ -332,6 +335,7 @@ class _EmptyCategoriesState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(LoitSpacing.s6),
@@ -351,13 +355,13 @@ class _EmptyCategoriesState extends StatelessWidget {
             ),
             const SizedBox(height: LoitSpacing.s4),
             Text(
-              'No categories yet',
+              l.catScreenNoCategories,
               style: LoitTypography.titleM
                   .copyWith(color: c.contentPrimary, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
             Text(
-              'Tap "Add category" to create your first one.',
+              l.catScreenEmptyBody,
               textAlign: TextAlign.center,
               style: LoitTypography.bodyS.copyWith(color: c.contentSecondary),
             ),

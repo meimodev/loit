@@ -1812,5 +1812,123 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get catScreenTitle => 'Categories';
+
+  @override
+  String get catScreenPersonalExpense => 'Personal · Expense';
+
+  @override
+  String get catScreenPersonalIncome => 'Personal · Income';
+
+  @override
+  String get catScreenRoom => 'Room';
+
+  @override
+  String catScreenRoomLabel(String name) {
+    return 'Room · $name';
+  }
+
+  @override
+  String get catScreenInherited => 'Inherited · read-only';
+
+  @override
+  String get catScreenNoCategories => 'No categories yet';
+
+  @override
+  String get catScreenEmptyBody =>
+      'Tap \"Add category\" to create your first one.';
+
+  @override
+  String catScreenDeleteTitle(String name) {
+    return 'Delete \"$name\"?';
+  }
+
+  @override
+  String get catScreenDeleteBody =>
+      'Transactions or budgets with this category key will fall back to \"Other\".';
+
+  @override
+  String get catScreenDeleteBodyPermanent =>
+      'Transactions or budgets with this category key will fall back to \"Other\". This cannot be undone.';
+
+  @override
+  String get catScreenCancel => 'Cancel';
+
+  @override
+  String get catScreenDelete => 'Delete';
+
+  @override
+  String get catFormNewCategory => 'New category';
+
+  @override
+  String get catFormEditCategory => 'Edit category';
+
+  @override
+  String get catFormNewRoomCategory => 'New room category';
+
+  @override
+  String get catFormEditRoomCategory => 'Edit room category';
+
+  @override
+  String get catFormName => 'Name';
+
+  @override
+  String get catFormNamePlaceholder => 'e.g. Coffee';
+
+  @override
+  String get catFormType => 'Type';
+
+  @override
+  String get catFormExpense => 'Expense';
+
+  @override
+  String get catFormIncome => 'Income';
+
+  @override
+  String get catFormColor => 'Color';
+
+  @override
+  String get catFormIcon => 'Icon';
+
+  @override
+  String get catFormSaveChanges => 'Save changes';
+
+  @override
+  String get catFormCreateCategory => 'Create category';
+
+  @override
+  String get catFormNameRequired => 'Name required';
+
+  @override
+  String catFormSaveFailed(String error) {
+    return 'Save failed: $error';
+  }
+
+  @override
+  String get catFormDelete => 'Delete';
+
+  @override
+  String catFormDeleteFailed(String error) {
+    return 'Delete failed: $error';
+  }
+
+  @override
+  String get notifFeedTitle => 'Notifications';
+
+  @override
+  String get roomInviteLinkCopied => 'Link copied';
+
+  @override
+  String get roomInviteNoToken => 'No invite token';
+
+  @override
+  String roomInviteRegenFailed(String error) {
+    return 'Failed to regenerate: $error';
+  }
+
+  @override
+  String get roomUpgrade => 'Upgrade';
+
+  @override
   String get tierActive => 'ACTIVE';
 }

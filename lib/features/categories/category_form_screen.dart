@@ -7,6 +7,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/loit_input.dart';
 
@@ -59,8 +60,9 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
   }
 
   bool _validate() {
+    final l = context.l10n;
     final name = _nameCtrl.text.trim();
-    final err = name.isEmpty ? 'Name required' : null;
+    final err = name.isEmpty ? l.catFormNameRequired : null;
     setState(() => _nameError = err);
     return err == null;
   }
@@ -96,8 +98,6 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
           roomId: _effectiveRoomId,
         );
       } else {
-        // Preserve the existing storage key so referencing transactions and
-        // budgets keep their category association after a rename.
         await notifier.updateCategory(
           id: widget.category!.id,
           name: name,
@@ -110,7 +110,7 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Save failed: $e')));
+            .showSnackBar(SnackBar(content: Text(context.l10n.catFormSaveFailed(e.toString()))));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -119,22 +119,23 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
 
   Future<void> _delete() async {
     final c = context.loitColors;
+    final l = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Delete "${widget.category!.name}"?'),
-        content: const Text(
-          'Transactions or budgets with this category key will fall back to "Other". This cannot be undone.',
+        title: Text(l.catScreenDeleteTitle(widget.category!.name)),
+        content: Text(
+          l.catScreenDeleteBodyPermanent,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l.catScreenCancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: c.danger),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(l.catScreenDelete),
           ),
         ],
       ),
@@ -149,7 +150,7 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+            .showSnackBar(SnackBar(content: Text(l.catFormDeleteFailed(e.toString()))));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -159,20 +160,26 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final isEdit = widget.category != null;
     final tintColor = _parseColor(_tint);
 
-    final titlePrefix = _isRoom ? 'room ' : '';
+    String title;
+    if (_isRoom) {
+      title = isEdit ? l.catFormEditRoomCategory : l.catFormNewRoomCategory;
+    } else {
+      title = isEdit ? l.catFormEditCategory : l.catFormNewCategory;
+    }
+
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: Text(
-            isEdit ? 'Edit ${titlePrefix}category' : 'New ${titlePrefix}category'),
+        title: Text(title),
         actions: [
           if (isEdit)
             IconButton(
               icon: Icon(Icons.delete_outline, color: c.danger),
-              tooltip: 'Delete',
+              tooltip: l.catFormDelete,
               onPressed: _busy ? null : _delete,
             ),
         ],
@@ -182,13 +189,13 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
         children: [
           LoitInput(
             controller: _nameCtrl,
-            label: 'Name',
-            placeholder: 'e.g. Coffee',
+            label: l.catFormName,
+            placeholder: l.catFormNamePlaceholder,
             error: _nameError,
           ),
           const SizedBox(height: LoitSpacing.s5),
           Text(
-            'Type',
+            l.catFormType,
             style: LoitTypography.bodyM.copyWith(
               color: c.contentPrimary,
               fontWeight: FontWeight.w600,
@@ -196,16 +203,16 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
           ),
           const SizedBox(height: 8),
           SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'expense', label: Text('Expense')),
-              ButtonSegment(value: 'income', label: Text('Income')),
+            segments: [
+              ButtonSegment(value: 'expense', label: Text(l.catFormExpense)),
+              ButtonSegment(value: 'income', label: Text(l.catFormIncome)),
             ],
             selected: {_kind},
             onSelectionChanged: (v) => setState(() => _kind = v.first),
           ),
           const SizedBox(height: LoitSpacing.s5),
           Text(
-            'Color',
+            l.catFormColor,
             style: LoitTypography.bodyM.copyWith(
               color: c.contentPrimary,
               fontWeight: FontWeight.w600,
@@ -235,7 +242,7 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
           ),
           const SizedBox(height: LoitSpacing.s5),
           Text(
-            'Icon',
+            l.catFormIcon,
             style: LoitTypography.bodyM.copyWith(
               color: c.contentPrimary,
               fontWeight: FontWeight.w600,
@@ -289,7 +296,7 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(isEdit ? 'Save changes' : 'Create category'),
+                : Text(isEdit ? l.catFormSaveChanges : l.catFormCreateCategory),
           ),
         ],
       ),

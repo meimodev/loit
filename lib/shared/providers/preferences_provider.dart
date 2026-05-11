@@ -138,6 +138,25 @@ class PreferencesNotifier extends AsyncNotifier<AppPreferences> {
     await _sp.setString(_Keys.themeMode, _encodeThemeMode(m));
     final cur = state.value ?? const AppPreferences();
     await _update(cur.copyWith(themeMode: m));
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      try {
+        await Supabase.instance.client
+            .from('users')
+            .update({'theme': _encodeThemeMode(m)})
+            .eq('id', user.id);
+      } catch (e) {
+        Log.w('Preferences', 'theme DB write failed', error: e);
+      }
+    }
+  }
+
+  Future<void> syncThemeFromDb(String dbValue) async {
+    final cur = state.value ?? const AppPreferences();
+    final m = _decodeThemeMode(dbValue);
+    if (cur.themeMode == m) return;
+    await _sp.setString(_Keys.themeMode, dbValue);
+    await _update(cur.copyWith(themeMode: m));
   }
 
   Future<void> setLanguage(String v) async {

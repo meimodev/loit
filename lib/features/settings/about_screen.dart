@@ -53,7 +53,7 @@ class AboutScreen extends StatelessWidget {
                       size: 32, color: Colors.white),
                 ),
                 const SizedBox(height: 12),
-                Text('LOIT',
+                Text(l.aboutAppName,
                     style: LoitTypography.titleL.copyWith(
                       color: c.contentPrimary,
                       fontWeight: FontWeight.w700,
@@ -69,36 +69,14 @@ class AboutScreen extends StatelessWidget {
               ],
             ),
           ),
-          SettingsGroup(label: l.aboutHelp, children: [
-            SettingsRow(
-              label: l.aboutHelpCenter,
-              onTap: () => _open('https://loit.app/help'),
-            ),
-            SettingsRow(
-              label: l.aboutContactSupport,
-              onTap: () => _open('mailto:support@loit.app'),
-            ),
-            SettingsRow(
-              label: l.aboutSendFeedback,
-              onTap: () => _open('mailto:feedback@loit.app'),
-            ),
-          ]),
           SettingsGroup(label: l.aboutLegal, children: [
             SettingsRow(
               label: l.aboutTermsOfService,
-              onTap: () => _open('https://loit.app/terms'),
+              onTap: () => _open('https://www.activid.id/terms'),
             ),
             SettingsRow(
               label: l.aboutPrivacyPolicy,
-              onTap: () => _open('https://loit.app/privacy'),
-            ),
-            SettingsRow(
-              label: l.aboutOpenSourceLicenses,
-              onTap: () => showLicensePage(
-                context: context,
-                applicationName: 'LOIT',
-                applicationVersion: _appVersion,
-              ),
+              onTap: () => _open('https://www.activid.id/privacy'),
             ),
           ]),
           SettingsGroup(label: l.aboutBuild, children: [

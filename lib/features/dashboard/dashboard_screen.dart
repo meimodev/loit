@@ -689,7 +689,7 @@ List<Widget> _topBudgetRows({
         percent: (picked[i].ratio * 100).round(),
         subtitle: l.dashboardOfPattern(
             formatMoney(picked[i].spent, currency),
-            formatMoney(picked[i].budget.monthlyLimit, currency)),
+            formatMoney(picked[i].monthlyLimit, currency)),
         showDivider: true,
         onTap: () =>
             GoRouter.of(context).push('/budgets/${picked[i].budget.id}'),

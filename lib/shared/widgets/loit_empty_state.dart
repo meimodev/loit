@@ -4,6 +4,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import 'loit_animations.dart';
 
 /// Empty-state slot: icon bubble + title + body + optional CTA.
 class LoitEmptyState extends StatelessWidget {
@@ -40,14 +41,17 @@ class LoitEmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              color: c.muted,
-              borderRadius: LoitRadius.brFull,
+          LoitFloating(
+            amplitude: 4,
+            child: Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: c.muted,
+                borderRadius: LoitRadius.brFull,
+              ),
+              child: Icon(icon, size: size * 0.45, color: c.contentTertiary),
             ),
-            child: Icon(icon, size: size * 0.45, color: c.contentTertiary),
           ),
           const SizedBox(height: LoitSpacing.s5),
           Text(title,

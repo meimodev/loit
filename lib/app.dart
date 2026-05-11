@@ -219,6 +219,11 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
           Log.w('App', 'language local sync failed', error: e);
         },
       );
+      notifier.syncThemeFromDb(profile.theme).catchError(
+        (Object e, StackTrace st) {
+          Log.w('App', 'theme local sync failed', error: e);
+        },
+      );
     });
 
     // Deep link → navigate to joined room

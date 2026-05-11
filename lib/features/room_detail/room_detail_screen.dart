@@ -192,12 +192,15 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
             ),
           ),
           floatingActionButton: AnimatedSwitcher(
-            duration: LoitMotion.short,
-            switchInCurve: LoitMotion.easeOutQuart,
+            duration: LoitMotion.base,
+            switchInCurve: LoitMotion.easeOutQuint,
             switchOutCurve: LoitMotion.easeOutQuart,
             transitionBuilder: (child, anim) => ScaleTransition(
               scale: anim,
-              child: FadeTransition(opacity: anim, child: child),
+              child: RotationTransition(
+                turns: Tween<double>(begin: -0.18, end: 0.0).animate(anim),
+                child: FadeTransition(opacity: anim, child: child),
+              ),
             ),
             child: _buildFab(
               accent: accent,
@@ -477,7 +480,10 @@ class _Header extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          LoitFadeSlideIn(
+            offset: 8,
+            duration: LoitMotion.entrance,
+            child: Row(
             children: [
               IconButton(
                 icon: const Icon(Icons.arrow_back, size: 22),
@@ -551,8 +557,13 @@ class _Header extends StatelessWidget {
               ),
             ],
           ),
+          ),
           const SizedBox(height: LoitSpacing.s2),
-          Padding(
+          LoitFadeSlideIn(
+            delay: LoitMotion.staggerStep,
+            offset: 6,
+            duration: LoitMotion.entrance,
+            child: Padding(
             padding: const EdgeInsets.only(left: LoitSpacing.s2),
             child: Row(
               children: [
@@ -605,6 +616,7 @@ class _Header extends StatelessWidget {
                 ),
               ],
             ),
+          ),
           ),
         ],
       ),
@@ -759,22 +771,25 @@ class _TabStrip extends StatelessWidget {
                   children: [
                     for (var i = 0; i < labels.length; i++)
                       Expanded(
-                        child: GestureDetector(
-                          onTap: () => onTap(i),
-                          behavior: HitTestBehavior.opaque,
-                          child: Container(
-                            height: 32,
-                            alignment: Alignment.center,
-                            child: AnimatedDefaultTextStyle(
-                              duration: LoitMotion.short,
-                              curve: LoitMotion.easeOutQuart,
-                              style: LoitTypography.bodyS.copyWith(
-                                color: i == active
-                                    ? c.contentPrimary
-                                    : c.contentSecondary,
-                                fontWeight: FontWeight.w600,
+                        child: LoitTapScale(
+                          scale: 0.94,
+                          child: GestureDetector(
+                            onTap: () => onTap(i),
+                            behavior: HitTestBehavior.opaque,
+                            child: Container(
+                              height: 32,
+                              alignment: Alignment.center,
+                              child: AnimatedDefaultTextStyle(
+                                duration: LoitMotion.short,
+                                curve: LoitMotion.easeOutQuart,
+                                style: LoitTypography.bodyS.copyWith(
+                                  color: i == active
+                                      ? c.contentPrimary
+                                      : c.contentSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                child: Text(labels[i]),
                               ),
-                              child: Text(labels[i]),
                             ),
                           ),
                         ),
@@ -945,14 +960,30 @@ class _FeedTab extends ConsumerWidget {
   }
 }
 
-class _MonthBar extends ConsumerWidget {
+class _MonthBar extends ConsumerStatefulWidget {
   const _MonthBar({required this.month});
   final DateTime month;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MonthBar> createState() => _MonthBarState();
+}
+
+class _MonthBarState extends ConsumerState<_MonthBar> {
+  int _dir = 0;
+
+  @override
+  void didUpdateWidget(covariant _MonthBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.month != oldWidget.month) {
+      _dir = widget.month.isAfter(oldWidget.month) ? 1 : -1;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.loitColors;
     final notifier = ref.read(selectedMonthProvider.notifier);
+    final dir = _dir;
     return Container(
       margin: const EdgeInsets.only(top: LoitSpacing.s2),
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -963,26 +994,49 @@ class _MonthBar extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left, size: 22),
-            color: c.contentSecondary,
-            onPressed: notifier.prev,
+          LoitTapScale(
+            child: IconButton(
+              icon: const Icon(Icons.chevron_left, size: 22),
+              color: c.contentSecondary,
+              onPressed: notifier.prev,
+            ),
           ),
           Expanded(
             child: Center(
-              child: Text(
-                yMMM(context).format(month),
-                style: LoitTypography.bodyM.copyWith(
-                  color: c.contentPrimary,
-                  fontWeight: FontWeight.w600,
+              child: AnimatedSwitcher(
+                duration: LoitMotion.base,
+                switchInCurve: LoitMotion.easeOutQuint,
+                switchOutCurve: LoitMotion.easeOutQuart,
+                transitionBuilder: (child, anim) {
+                  final isIncoming =
+                      child.key == ValueKey(widget.month.toIso8601String());
+                  final beginX = isIncoming ? (dir >= 0 ? 0.4 : -0.4) : 0.0;
+                  final slide = Tween<Offset>(
+                    begin: Offset(beginX, 0),
+                    end: Offset.zero,
+                  ).animate(anim);
+                  return FadeTransition(
+                    opacity: anim,
+                    child: SlideTransition(position: slide, child: child),
+                  );
+                },
+                child: Text(
+                  yMMM(context).format(widget.month),
+                  key: ValueKey(widget.month.toIso8601String()),
+                  style: LoitTypography.bodyM.copyWith(
+                    color: c.contentPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right, size: 22),
-            color: c.contentSecondary,
-            onPressed: notifier.next,
+          LoitTapScale(
+            child: IconButton(
+              icon: const Icon(Icons.chevron_right, size: 22),
+              color: c.contentSecondary,
+              onPressed: notifier.next,
+            ),
           ),
         ],
       ),
@@ -1167,19 +1221,25 @@ class _DayGroup extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < txns.length; i++)
-            _RoomTxRow(
-              key: (highlightTxId != null &&
-                      highlightTxId == txns[i]['id'] &&
-                      highlightRowKey != null)
-                  ? highlightRowKey
-                  : null,
-              roomId: roomId,
-              tx: txns[i],
-              isLast: i == txns.length - 1,
-              fmt: fmt,
-              currentUserId: currentUserId,
-              isCreator: isCreator,
-              highlightTxId: highlightTxId,
+            LoitFadeSlideIn(
+              key: ValueKey('fade-${txns[i]['id'] ?? i}'),
+              delay: LoitMotion.staggerStep * (i.clamp(0, 6)),
+              offset: 8,
+              duration: LoitMotion.entrance,
+              child: _RoomTxRow(
+                key: (highlightTxId != null &&
+                        highlightTxId == txns[i]['id'] &&
+                        highlightRowKey != null)
+                    ? highlightRowKey
+                    : null,
+                roomId: roomId,
+                tx: txns[i],
+                isLast: i == txns.length - 1,
+                fmt: fmt,
+                currentUserId: currentUserId,
+                isCreator: isCreator,
+                highlightTxId: highlightTxId,
+              ),
             ),
         ],
       ),
@@ -1421,14 +1481,16 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
     if (txId == null) {
       core = body;
     } else {
-      final tappable = Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => context.push(
-            '/rooms/$roomId/transactions/$txId',
-            extra: tx,
+      final tappable = LoitTapScale(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => context.push(
+              '/rooms/$roomId/transactions/$txId',
+              extra: tx,
+            ),
+            child: body,
           ),
-          child: body,
         ),
       );
       final isOwner =
@@ -1672,7 +1734,12 @@ class _BudgetTab extends ConsumerWidget {
                     ? 'resets tomorrow'
                     : 'resets in ${daysLeft}d';
             final durationLabel = '${period.label} \u00b7 $resetsLabel';
-            return Container(
+            return LoitFadeSlideIn(
+              key: ValueKey('budget-fade-${b['id'] ?? i}'),
+              delay: LoitMotion.staggerStep * (i.clamp(0, 6)),
+              offset: 8,
+              duration: LoitMotion.entrance,
+              child: Container(
               margin: const EdgeInsets.only(top: LoitSpacing.s2),
               decoration: BoxDecoration(
                 color: c.surface,
@@ -1680,7 +1747,8 @@ class _BudgetTab extends ConsumerWidget {
                 borderRadius: LoitRadius.brM,
               ),
               clipBehavior: Clip.antiAlias,
-              child: Material(
+              child: LoitTapScale(
+                child: Material(
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: isArchived
@@ -1779,6 +1847,8 @@ class _BudgetTab extends ConsumerWidget {
                     ),
                   ),
                 ),
+              ),
+              ),
               ),
             );
           },
@@ -1942,7 +2012,13 @@ class _CategoryGroup extends ConsumerWidget {
       child: Column(
         children: [
           for (var i = 0; i < cats.length; i++)
-            _row(context, ref, cats[i], i != cats.length - 1),
+            LoitFadeSlideIn(
+              key: ValueKey('cat-fade-${cats[i].id}'),
+              delay: LoitMotion.staggerStep * (i.clamp(0, 6)),
+              offset: 8,
+              duration: LoitMotion.entrance,
+              child: _row(context, ref, cats[i], i != cats.length - 1),
+            ),
         ],
       ),
     );
@@ -2017,7 +2093,8 @@ class _CategoryRow extends StatelessWidget {
         ? () => context.push('/rooms/$roomId/categories/${cat.id}/edit',
             extra: cat)
         : null;
-    final body = InkWell(
+    final body = LoitTapScale(
+      child: InkWell(
       onTap: tap,
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -2059,6 +2136,7 @@ class _CategoryRow extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
 
     if (!divider) return body;

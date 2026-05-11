@@ -61,6 +61,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get aboutTitle => 'Tentang';
 
   @override
+  String get aboutAppName => 'LOIT';
+
+  @override
   String get aboutTagline =>
       'Keuangan pribadi & bersama, tenang secara desain.';
 
@@ -1940,6 +1943,86 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get roomCopy => 'SALIN';
+
+  @override
+  String get roomTileUntitled => 'Tanpa Judul';
+
+  @override
+  String get roomTileArchivedLabel => 'Diarsipkan';
+
+  @override
+  String get roomTileNoDescription =>
+      'Belum ada deskripsi — ketuk untuk menambahkan.';
+
+  @override
+  String get roomTileYouOwn => 'Kamu pemiliknya';
+
+  @override
+  String roomTileYourRole(String role) {
+    return 'Kamu · $role';
+  }
+
+  @override
+  String roomTileCreated(String date) {
+    return 'Dibuat $date';
+  }
+
+  @override
+  String get roomOnlineOnlyYou => 'Hanya kamu yang online';
+
+  @override
+  String get roomOnlineStatus => 'Online';
+
+  @override
+  String roomOnlineYouPlus(int count) {
+    return 'Kamu + $count online';
+  }
+
+  @override
+  String roomOnlineOthers(int count) {
+    return '$count online';
+  }
+
+  @override
+  String get roomMembershipTitle => 'Keanggotaan';
+
+  @override
+  String roomMembershipUsageUnlimited(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ruangan / ∞',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String roomMembershipUsageLimited(int count, int limit) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ruangan / $limit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String roomMembershipAtLimit(String tier) {
+    return 'Kamu telah mencapai batas ruangan di $tier.';
+  }
+
+  @override
+  String roomInvitesPending(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count undangan tertunda',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get roomUnknownRoom => 'Ruangan tidak dikenal';
 
   @override
   String get splashTagline => 'Bagi tagihan, bukan pertemanan.';

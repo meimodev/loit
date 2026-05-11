@@ -25,6 +25,7 @@
   },
 
   "aboutTitle": "About",
+  "aboutAppName": "LOIT",
   "aboutTagline": "Personal & shared finance, calm by design.",
   "aboutHelp": "Help",
   "aboutLegal": "Legal",
@@ -959,6 +960,72 @@
   },
   "roomUpgrade": "Upgrade",
   "roomCopy": "COPY",
+
+  "roomTileUntitled": "Untitled",
+  "roomTileArchivedLabel": "Archived",
+  "roomTileNoDescription": "No description set — tap to add one.",
+  "roomTileYouOwn": "You own this",
+  "roomTileYourRole": "You · {role}",
+  "@roomTileYourRole": {
+    "description": "Role label, e.g. 'You · Admin'",
+    "placeholders": {
+      "role": {"type": "String"}
+    }
+  },
+  "roomTileCreated": "Created {date}",
+  "@roomTileCreated": {
+    "description": "Creation date label, e.g. 'Created Jan 15, 2026'",
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "roomOnlineOnlyYou": "Only you online",
+  "roomOnlineStatus": "Online",
+  "roomOnlineYouPlus": "You + {count} online",
+  "@roomOnlineYouPlus": {
+    "description": "Online status with self and others, e.g. 'You + 3 online'",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "roomOnlineOthers": "{count} online",
+  "@roomOnlineOthers": {
+    "description": "Online count for others, e.g. '3 online'",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "roomMembershipTitle": "Membership",
+  "roomMembershipUsageUnlimited": "{count, plural, one{1 room / ∞} other{{count} rooms / ∞}}",
+  "@roomMembershipUsageUnlimited": {
+    "description": "Unlimited room usage text",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "roomMembershipUsageLimited": "{count, plural, one{1 room / {limit}} other{{count} rooms / {limit}}}",
+  "@roomMembershipUsageLimited": {
+    "description": "Limited room usage text, e.g. '2 rooms / 3'",
+    "placeholders": {
+      "count": {"type": "int"},
+      "limit": {"type": "int"}
+    }
+  },
+  "roomMembershipAtLimit": "You've reached the room limit on {tier}.",
+  "@roomMembershipAtLimit": {
+    "description": "At room limit message, e.g. 'You've reached the room limit on Free.'",
+    "placeholders": {
+      "tier": {"type": "String"}
+    }
+  },
+  "roomInvitesPending": "{count, plural, one{1 pending invite} other{{count} pending invites}}",
+  "@roomInvitesPending": {
+    "description": "Pending invites count",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "roomUnknownRoom": "Unknown room",
 
   "splashTagline": "Split bills, not friendships.",
 

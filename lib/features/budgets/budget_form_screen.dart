@@ -10,6 +10,8 @@ import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../l10n/l10n_x.dart';
+import '../../core/services/currency_service.dart';
+import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/home_currency_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
@@ -41,13 +43,30 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
   void initState() {
     super.initState();
     final init = widget.budget;
-    _amount = TextEditingController(
-        text: init == null ? '' : formatAmountInput(init.monthlyLimit));
+    final initialDisplay =
+        init == null ? '' : formatAmountInput(_initialLimitInHome(init));
+    _amount = TextEditingController(text: initialDisplay);
     if (init != null) {
       _category = init.category;
       _period = init.period;
       _resetDay = init.resetDay;
       _customDays = init.customDays ?? 14;
+    }
+  }
+
+  /// Convert the stored `monthly_limit` from the budget's `currency` into
+  /// the user's current home currency so the editor always shows the limit
+  /// in the same units the user enters.
+  double _initialLimitInHome(Budget b) {
+    final home = ref.read(homeCurrencyProvider);
+    if (b.currency == home || b.monthlyLimit == 0) return b.monthlyLimit;
+    final rates = ref.read(usdBaseRatesProvider).value;
+    if (rates == null) return b.monthlyLimit;
+    try {
+      return b.monthlyLimit *
+          CurrencyService.convert(from: b.currency, to: home, rates: rates);
+    } catch (_) {
+      return b.monthlyLimit;
     }
   }
 

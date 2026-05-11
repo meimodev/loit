@@ -25,6 +25,7 @@ class UserProfile {
   final DateTime? nextReceiptExpiryAt;
   final bool hideAmounts;
   final String language;
+  final String theme; // 'system' | 'light' | 'dark'
 
   const UserProfile({
     required this.id,
@@ -38,6 +39,7 @@ class UserProfile {
     this.nextReceiptExpiryAt,
     this.hideAmounts = false,
     this.language = 'en',
+    this.theme = 'system',
   });
 
   factory UserProfile.fromRow(Map<String, dynamic> r) => UserProfile(
@@ -54,6 +56,7 @@ class UserProfile {
         : DateTime.parse(r['next_receipt_expiry_at'] as String).toLocal(),
     hideAmounts: (r['hide_amounts'] as bool?) ?? false,
     language: (r['language'] as String?) ?? 'en',
+    theme: (r['theme'] as String?) ?? 'system',
   );
 
   /// `null` = unlimited (Pro / Team). Otherwise the monthly scan cap.

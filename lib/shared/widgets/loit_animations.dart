@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/loit_motion.dart';
@@ -235,6 +237,91 @@ class LoitAnimatedProgress extends StatelessWidget {
           backgroundColor: background,
           valueColor: AlwaysStoppedAnimation<Color>(color),
         ),
+      ),
+    );
+  }
+}
+
+/// Gentle Y-axis bob loop. Use for empty-state illustrations/icons.
+class LoitFloating extends StatefulWidget {
+  const LoitFloating({
+    super.key,
+    required this.child,
+    this.amplitude = 5,
+    this.period = const Duration(milliseconds: 2600),
+  });
+
+  final Widget child;
+  final double amplitude;
+  final Duration period;
+
+  @override
+  State<LoitFloating> createState() => _LoitFloatingState();
+}
+
+class _LoitFloatingState extends State<LoitFloating>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl =
+      AnimationController(vsync: this, duration: widget.period)..repeat();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_reduceMotion(context)) return widget.child;
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, child) {
+        final dy = math.sin(_ctrl.value * 2 * math.pi) * widget.amplitude;
+        return Transform.translate(offset: Offset(0, dy), child: child);
+      },
+      child: widget.child,
+    );
+  }
+}
+
+/// Passive press-scale via pointer events. Does NOT consume taps —
+/// safe to wrap around an `InkWell`/`GestureDetector`/`Dismissible`.
+class LoitTapScale extends StatefulWidget {
+  const LoitTapScale({
+    super.key,
+    required this.child,
+    this.scale = 0.97,
+  });
+
+  final Widget child;
+  final double scale;
+
+  @override
+  State<LoitTapScale> createState() => _LoitTapScaleState();
+}
+
+class _LoitTapScaleState extends State<LoitTapScale> {
+  bool _down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduce = _reduceMotion(context);
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) {
+        if (!_down) setState(() => _down = true);
+      },
+      onPointerUp: (_) {
+        if (_down) setState(() => _down = false);
+      },
+      onPointerCancel: (_) {
+        if (_down) setState(() => _down = false);
+      },
+      child: AnimatedScale(
+        scale: _down && !reduce ? widget.scale : 1.0,
+        duration: LoitMotion.short,
+        curve: LoitMotion.easeOutQuart,
+        child: widget.child,
       ),
     );
   }

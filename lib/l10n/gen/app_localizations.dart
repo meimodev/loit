@@ -194,6 +194,12 @@ abstract class AppLocalizations {
   /// **'About'**
   String get aboutTitle;
 
+  /// No description provided for @aboutAppName.
+  ///
+  /// In en, this message translates to:
+  /// **'LOIT'**
+  String get aboutAppName;
+
   /// No description provided for @aboutTagline.
   ///
   /// In en, this message translates to:
@@ -3610,6 +3616,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'COPY'**
   String get roomCopy;
+
+  /// No description provided for @roomTileUntitled.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled'**
+  String get roomTileUntitled;
+
+  /// No description provided for @roomTileArchivedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived'**
+  String get roomTileArchivedLabel;
+
+  /// No description provided for @roomTileNoDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'No description set — tap to add one.'**
+  String get roomTileNoDescription;
+
+  /// No description provided for @roomTileYouOwn.
+  ///
+  /// In en, this message translates to:
+  /// **'You own this'**
+  String get roomTileYouOwn;
+
+  /// Role label, e.g. 'You · Admin'
+  ///
+  /// In en, this message translates to:
+  /// **'You · {role}'**
+  String roomTileYourRole(String role);
+
+  /// Creation date label, e.g. 'Created Jan 15, 2026'
+  ///
+  /// In en, this message translates to:
+  /// **'Created {date}'**
+  String roomTileCreated(String date);
+
+  /// No description provided for @roomOnlineOnlyYou.
+  ///
+  /// In en, this message translates to:
+  /// **'Only you online'**
+  String get roomOnlineOnlyYou;
+
+  /// No description provided for @roomOnlineStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Online'**
+  String get roomOnlineStatus;
+
+  /// Online status with self and others, e.g. 'You + 3 online'
+  ///
+  /// In en, this message translates to:
+  /// **'You + {count} online'**
+  String roomOnlineYouPlus(int count);
+
+  /// Online count for others, e.g. '3 online'
+  ///
+  /// In en, this message translates to:
+  /// **'{count} online'**
+  String roomOnlineOthers(int count);
+
+  /// No description provided for @roomMembershipTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Membership'**
+  String get roomMembershipTitle;
+
+  /// Unlimited room usage text
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 room / ∞} other{{count} rooms / ∞}}'**
+  String roomMembershipUsageUnlimited(int count);
+
+  /// Limited room usage text, e.g. '2 rooms / 3'
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 room / {limit}} other{{count} rooms / {limit}}}'**
+  String roomMembershipUsageLimited(int count, int limit);
+
+  /// At room limit message, e.g. 'You've reached the room limit on Free.'
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve reached the room limit on {tier}.'**
+  String roomMembershipAtLimit(String tier);
+
+  /// Pending invites count
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 pending invite} other{{count} pending invites}}'**
+  String roomInvitesPending(int count);
+
+  /// No description provided for @roomUnknownRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown room'**
+  String get roomUnknownRoom;
 
   /// No description provided for @splashTagline.
   ///

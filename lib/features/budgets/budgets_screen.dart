@@ -47,7 +47,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
 
     final totalLimit = statuses.fold<double>(
       0,
-      (s, b) => s + b.budget.monthlyLimit,
+      (s, b) => s + b.monthlyLimit,
     );
     final totalSpent = statuses.fold<double>(0, (s, b) => s + b.spent);
     final left = (totalLimit - totalSpent).clamp(0, double.infinity).toDouble();
@@ -146,10 +146,10 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                   itemBuilder: (_, i) {
                     final s = statuses[i];
                     final pct = (s.ratio * 100).round();
-                    final overAmt = s.spent - s.budget.monthlyLimit;
+                    final overAmt = s.spent - s.monthlyLimit;
                     final subtitleParts = [
                       l.dashboardOfPattern(
-                          fmt(s.spent), fmt(s.budget.monthlyLimit)),
+                          fmt(s.spent), fmt(s.monthlyLimit)),
                       if (s.isOver) l.budgetDetailOverBudget(pct, fmt(overAmt)),
                     ];
                     return LoitBudgetRow(

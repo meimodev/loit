@@ -132,7 +132,7 @@ class _RoomTile extends ConsumerWidget {
     final c = context.loitColors;
     final l = context.l10n;
     final id = room['id'] as String? ?? '';
-    final name = room['name'] as String? ?? 'Untitled';
+    final name = room['name'] as String? ?? l.roomTileUntitled;
     final description = (room['description'] as String?)?.trim();
     final baseCurrency = (room['base_currency'] as String?) ?? 'IDR';
     final createdBy = room['created_by'] as String?;
@@ -234,7 +234,7 @@ class _RoomTile extends ConsumerWidget {
                       _Pill(label: baseCurrency, color: c.contentSecondary),
                       if (isArchived) ...[
                         const SizedBox(width: 4),
-                        _Pill(label: 'Archived', color: c.warning),
+                        _Pill(label: l.roomTileArchivedLabel, color: c.warning),
                       ],
                     ],
                   ),
@@ -250,7 +250,7 @@ class _RoomTile extends ConsumerWidget {
                   ] else ...[
                     const SizedBox(height: 4),
                     Text(
-                      'No description set — tap to add one.',
+                      l.roomTileNoDescription,
                       style: LoitTypography.bodyS.copyWith(
                           color: c.contentTertiary,
                           fontStyle: FontStyle.italic),
@@ -271,18 +271,18 @@ class _RoomTile extends ConsumerWidget {
                           selfOnline: selfOnline,
                         ),
                       if (isOwner)
-                        const _MetaItem(
-                            icon: Icons.shield_outlined, text: 'You own this')
+                        _MetaItem(
+                            icon: Icons.shield_outlined, text: l.roomTileYouOwn)
                       else if (myRole != null)
                         _MetaItem(
                             icon: Icons.badge_outlined,
-                            text:
-                                'You · ${myRole[0].toUpperCase()}${myRole.substring(1)}'),
+                            text: l.roomTileYourRole(
+                                '${myRole[0].toUpperCase()}${myRole.substring(1)}')),
                       if (createdAt != null)
                         _MetaItem(
                           icon: Icons.event_outlined,
-                          text:
-                              'Created ${yMMMd(context).format(createdAt)}',
+                          text: l.roomTileCreated(
+                              yMMMd(context).format(createdAt)),
                         ),
                     ],
                   ),
@@ -324,10 +324,6 @@ class _MembershipCard extends ConsumerWidget {
     final progress = unlimited
         ? 0.0
         : (limit == 0 ? 0.0 : (roomCount / limit!).clamp(0.0, 1.0));
-    final roomWord = roomCount == 1 ? 'room' : 'rooms';
-    final usageText = unlimited
-        ? '$roomCount $roomWord / ∞'
-        : '$roomCount $roomWord / $limit';
 
     return Container(
       margin: const EdgeInsets.fromLTRB(
@@ -349,7 +345,7 @@ class _MembershipCard extends ConsumerWidget {
                   size: 18, color: tierColor),
               const SizedBox(width: 6),
               Text(
-                'Membership',
+                context.l10n.roomMembershipTitle,
                 style: LoitTypography.bodyS
                     .copyWith(color: c.contentSecondary),
               ),
@@ -359,7 +355,10 @@ class _MembershipCard extends ConsumerWidget {
           ),
           const SizedBox(height: LoitSpacing.s3),
           Text(
-            usageText,
+            unlimited
+                ? context.l10n.roomMembershipUsageUnlimited(roomCount)
+                : context.l10n.roomMembershipUsageLimited(
+                    roomCount, limit ?? 0),
             style: LoitTypography.bodyL.copyWith(
                 color: c.contentPrimary, fontWeight: FontWeight.w600),
           ),
@@ -378,7 +377,7 @@ class _MembershipCard extends ConsumerWidget {
               children: [
                 Expanded(
                   child: Text(
-                    "You've reached the room limit on $tierLabel.",
+                    context.l10n.roomMembershipAtLimit(tierLabel),
                     style: LoitTypography.bodyS
                         .copyWith(color: c.contentSecondary),
                   ),
@@ -430,15 +429,16 @@ class _OnlineMeta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
     final String text;
     if (othersOnline == 0 && selfOnline) {
-      text = 'Only you online';
+      text = l.roomOnlineOnlyYou;
     } else if (othersOnline == 0) {
-      text = 'Online';
+      text = l.roomOnlineStatus;
     } else if (selfOnline) {
-      text = 'You + $othersOnline online';
+      text = l.roomOnlineYouPlus(othersOnline);
     } else {
-      text = '$othersOnline online';
+      text = l.roomOnlineOthers(othersOnline);
     }
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -499,7 +499,7 @@ class _InvitesBanner extends ConsumerWidget {
               const SizedBox(width: LoitSpacing.s2),
               Expanded(
                 child: Text(
-                  '${invites.length} pending invite${invites.length == 1 ? '' : 's'}',
+                  l.roomInvitesPending(invites.length),
                   style: LoitTypography.bodyM.copyWith(
                       color: const Color(0xFF7D5916),
                       fontWeight: FontWeight.w600),
@@ -516,7 +516,7 @@ class _InvitesBanner extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       (invite['rooms'] as Map?)?['name'] as String? ??
-                          'Unknown room',
+                          l.roomUnknownRoom,
                       style: LoitTypography.bodyS
                           .copyWith(color: c.contentPrimary),
                     ),

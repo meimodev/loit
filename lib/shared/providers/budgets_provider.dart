@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/services/currency_service.dart';
 import '../../core/services/log_service.dart';
 import '../widgets/connectivity_banner.dart';
+import 'accounts_provider.dart';
 import 'auth_providers.dart';
 import 'home_currency_provider.dart';
 import 'transactions_provider.dart';
@@ -106,19 +108,6 @@ class Budget {
             : DateTime.parse(r['rollover_cycle_start'] as String).toLocal(),
       );
 
-  /// Effective limit for the cycle window starting at [windowStart].
-  /// Applies the one-shot rollover penalty when the stored
-  /// [rolloverCycleStart] matches the active window (compared by date).
-  double effectiveLimitFor(DateTime windowStart) {
-    final r = rolloverCycleStart;
-    if (r == null || rolloverAmount == 0) return monthlyLimit;
-    final sameDay = r.year == windowStart.year &&
-        r.month == windowStart.month &&
-        r.day == windowStart.day;
-    if (!sameDay) return monthlyLimit;
-    return (monthlyLimit - rolloverAmount).clamp(0, double.infinity).toDouble();
-  }
-
   /// Start of the next cycle after [from].
   DateTime nextWindowStart(DateTime from) {
     final current = windowStart(from);
@@ -165,14 +154,22 @@ class BudgetStatus {
   final Budget budget;
   final double spent;
   final double effectiveLimit;
+  /// `budget.monthlyLimit` converted into the user's current home currency
+  /// via live FX. Display sites should prefer this over `budget.monthlyLimit`,
+  /// which is in the budget's stored `currency`.
+  final double monthlyLimit;
+  /// `budget.rolloverAmount` converted into the user's current home currency.
+  final double rolloverAmount;
   double get ratio => effectiveLimit <= 0 ? 0 : spent / effectiveLimit;
   bool get isOver => ratio >= 1.0;
   bool get isNearLimit => ratio >= 0.8 && !isOver;
-  bool get rolloverActive => effectiveLimit < budget.monthlyLimit;
+  bool get rolloverActive => effectiveLimit < monthlyLimit;
   const BudgetStatus({
     required this.budget,
     required this.spent,
     required this.effectiveLimit,
+    required this.monthlyLimit,
+    required this.rolloverAmount,
   });
 }
 
@@ -250,27 +247,53 @@ class BudgetsNotifier extends AsyncNotifier<List<Budget>> {
   }
 
   /// Auto-restamp the pending rollover when current-cycle overspend has
-  /// grown beyond the previously stamped amount. No-op if not stamped,
-  /// not actually larger, or a write is already in flight for this id.
+  /// grown beyond the previously stamped amount. [currentOverspendHome] is
+  /// in the user's home currency; it is converted back to the budget's
+  /// stored currency before persisting. No-op if not stamped, not larger,
+  /// or a write is already in flight for this id.
   void maybeRestampRollover({
     required Budget budget,
-    required double currentOverspend,
+    required double currentOverspendHome,
+    required String homeCurrency,
+    required Map<String, double>? rates,
   }) {
     if (budget.rolloverCycleStart == null) return;
-    if (currentOverspend <= budget.rolloverAmount + 0.01) return;
+    final overspendBudgetCcy = toBudgetCurrency(
+      amountHome: currentOverspendHome,
+      budgetCurrency: budget.currency,
+      home: homeCurrency,
+      rates: rates,
+    );
+    if (overspendBudgetCcy <= budget.rolloverAmount + 0.01) return;
     if (_restampInflight.contains(budget.id)) return;
     _restampInflight.add(budget.id);
     Future<void>.microtask(() async {
       try {
         await rollOver(
           budgetId: budget.id,
-          overspend: currentOverspend,
+          overspend: overspendBudgetCcy,
           nextCycleStart: budget.rolloverCycleStart!,
         );
       } finally {
         _restampInflight.remove(budget.id);
       }
     });
+  }
+
+  static double toBudgetCurrency({
+    required double amountHome,
+    required String budgetCurrency,
+    required String home,
+    required Map<String, double>? rates,
+  }) {
+    if (budgetCurrency == home || amountHome == 0) return amountHome;
+    if (rates == null) return amountHome;
+    try {
+      return amountHome *
+          CurrencyService.convert(from: home, to: budgetCurrency, rates: rates);
+    } catch (_) {
+      return amountHome;
+    }
   }
 
   Future<void> delete(String id) async {
@@ -288,13 +311,26 @@ final budgetsProvider =
 
 /// Computes spend-per-category for the current period in the user's
 /// home currency. Each contributing transaction is converted via its
-/// `fx_snapshot`. Budget limits are also stored in home currency.
+/// `fx_snapshot`. Budget limits stored in their own `currency` are
+/// converted on-the-fly to home currency via live FX rates.
 final budgetStatusesProvider = Provider<List<BudgetStatus>>((ref) {
   final budgets = ref.watch(budgetsProvider).value ?? const [];
   final txns = ref.watch(transactionsProvider).value ?? const [];
   final home = ref.watch(homeCurrencyProvider);
+  final rates = ref.watch(usdBaseRatesProvider).value;
   final now = DateTime.now();
   final notifier = ref.read(budgetsProvider.notifier);
+
+  double toHome(String from, double amt) {
+    if (from == home || amt == 0) return amt;
+    if (rates == null) return amt;
+    try {
+      return amt * CurrencyService.convert(from: from, to: home, rates: rates);
+    } catch (_) {
+      return amt;
+    }
+  }
+
   final result = budgets.map((b) {
     final start = b.windowStart(now);
     final spent = txns
@@ -304,18 +340,32 @@ final budgetStatusesProvider = Provider<List<BudgetStatus>>((ref) {
             (t.category ?? '') == b.category &&
             !t.createdAt.isBefore(start))
         .fold<double>(0, (sum, t) => sum + t.absAmountIn(home));
+    final limitHome = toHome(b.currency, b.monthlyLimit);
+    final rolloverHome = toHome(b.currency, b.rolloverAmount);
+    final r = b.rolloverCycleStart;
+    final sameDay = r != null &&
+        r.year == start.year &&
+        r.month == start.month &&
+        r.day == start.day;
+    final effective = (sameDay && rolloverHome != 0)
+        ? (limitHome - rolloverHome).clamp(0, double.infinity).toDouble()
+        : limitHome;
     return BudgetStatus(
       budget: b,
       spent: spent,
-      effectiveLimit: b.effectiveLimitFor(start),
+      effectiveLimit: effective,
+      monthlyLimit: limitHome,
+      rolloverAmount: rolloverHome,
     );
   }).toList();
   for (final s in result) {
-    final overspend = s.spent - s.budget.monthlyLimit;
+    final overspend = s.spent - s.monthlyLimit;
     if (overspend > 0) {
       notifier.maybeRestampRollover(
         budget: s.budget,
-        currentOverspend: overspend,
+        currentOverspendHome: overspend,
+        homeCurrency: home,
+        rates: rates,
       );
     }
   }

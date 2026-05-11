@@ -8,6 +8,7 @@ import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/home_currency_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
@@ -114,7 +115,7 @@ class BudgetDetailScreen extends ConsumerWidget {
                             children: [
                               TextSpan(text: fmt(status.spent)),
                               TextSpan(
-                                text: ' / ${fmt(b.monthlyLimit)}',
+                                text: ' / ${fmt(status.monthlyLimit)}',
                                 style: LoitTypography.bodyM.copyWith(
                                   color: c.contentSecondary,
                                   fontWeight: FontWeight.w500,
@@ -278,12 +279,21 @@ class BudgetDetailScreen extends ConsumerWidget {
                     child: FilledButton(
                       onPressed: () async {
                         final next = b.nextWindowStart(DateTime.now());
+                        final rates =
+                            ref.read(usdBaseRatesProvider).value;
+                        final overspendStored = BudgetsNotifier
+                            .toBudgetCurrency(
+                          amountHome: overAmt,
+                          budgetCurrency: b.currency,
+                          home: currency,
+                          rates: rates,
+                        );
                         try {
                           await ref
                               .read(budgetsProvider.notifier)
                               .rollOver(
                                 budgetId: b.id,
-                                overspend: overAmt,
+                                overspend: overspendStored,
                                 nextCycleStart: next,
                               );
                           if (!context.mounted) return;

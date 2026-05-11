@@ -61,6 +61,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutTitle => 'About';
 
   @override
+  String get aboutAppName => 'LOIT';
+
+  @override
   String get aboutTagline => 'Personal & shared finance, calm by design.';
 
   @override
@@ -1931,6 +1934,88 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get roomCopy => 'COPY';
+
+  @override
+  String get roomTileUntitled => 'Untitled';
+
+  @override
+  String get roomTileArchivedLabel => 'Archived';
+
+  @override
+  String get roomTileNoDescription => 'No description set — tap to add one.';
+
+  @override
+  String get roomTileYouOwn => 'You own this';
+
+  @override
+  String roomTileYourRole(String role) {
+    return 'You · $role';
+  }
+
+  @override
+  String roomTileCreated(String date) {
+    return 'Created $date';
+  }
+
+  @override
+  String get roomOnlineOnlyYou => 'Only you online';
+
+  @override
+  String get roomOnlineStatus => 'Online';
+
+  @override
+  String roomOnlineYouPlus(int count) {
+    return 'You + $count online';
+  }
+
+  @override
+  String roomOnlineOthers(int count) {
+    return '$count online';
+  }
+
+  @override
+  String get roomMembershipTitle => 'Membership';
+
+  @override
+  String roomMembershipUsageUnlimited(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rooms / ∞',
+      one: '1 room / ∞',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String roomMembershipUsageLimited(int count, int limit) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rooms / $limit',
+      one: '1 room / $limit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String roomMembershipAtLimit(String tier) {
+    return 'You\'ve reached the room limit on $tier.';
+  }
+
+  @override
+  String roomInvitesPending(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pending invites',
+      one: '1 pending invite',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get roomUnknownRoom => 'Unknown room';
 
   @override
   String get splashTagline => 'Split bills, not friendships.';

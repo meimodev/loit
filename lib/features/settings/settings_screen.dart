@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../core/services/analytics_service.dart';
 import '../../core/services/push_service.dart';
@@ -15,6 +17,7 @@ import '../../shared/providers/preferences_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/currency_picker_sheet.dart';
 import '../../shared/widgets/connectivity_banner.dart';
+import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_button.dart';
 import '_widgets.dart';
 
@@ -61,54 +64,76 @@ class SettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           if (profile != null)
-            InkWell(
-              onTap: () => context.push('/settings/profile'),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                decoration: BoxDecoration(
-                  color: c.surface,
-                  border: Border(
-                    bottom: BorderSide(color: c.borderSubtle, width: 1),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    SettingsAvatar(
-                      initials: _initials(profile.name, profile.email),
-                      color: c.brand,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            profile.name.isEmpty
-                                ? profile.email
-                                : profile.name,
-                            style: LoitTypography.titleM.copyWith(
-                              color: c.contentPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(profile.email,
-                              style: LoitTypography.bodyS
-                                  .copyWith(color: c.contentSecondary)),
-                          const SizedBox(height: 6),
-                          SettingsTierChip(tier: profile.tier),
-                        ],
+            LoitFadeSlideIn(
+              duration: LoitMotion.entrance,
+              offset: 14,
+              child: LoitTapScale(
+                scale: 0.99,
+                child: InkWell(
+                  onTap: () => context.push('/settings/profile'),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                    decoration: BoxDecoration(
+                      color: c.surface,
+                      border: Border(
+                        bottom: BorderSide(color: c.borderSubtle, width: 1),
                       ),
                     ),
-                    Icon(Icons.chevron_right,
-                        size: 18, color: c.contentTertiary),
-                  ],
+                    child: Row(
+                      children: [
+                        SettingsAvatar(
+                          initials: _initials(profile.name, profile.email),
+                          color: c.brand,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              LoitFadeSlideIn(
+                                delay: const Duration(milliseconds: 80),
+                                offset: 6,
+                                child: Text(
+                                  profile.name.isEmpty
+                                      ? profile.email
+                                      : profile.name,
+                                  style: LoitTypography.titleM.copyWith(
+                                    color: c.contentPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              LoitFadeSlideIn(
+                                delay: const Duration(milliseconds: 140),
+                                offset: 6,
+                                child: Text(profile.email,
+                                    style: LoitTypography.bodyS.copyWith(
+                                        color: c.contentSecondary)),
+                              ),
+                              const SizedBox(height: 6),
+                              LoitFadeSlideIn(
+                                delay: const Duration(milliseconds: 220),
+                                offset: 6,
+                                child: SettingsTierChip(tier: profile.tier),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right,
+                            size: 18, color: c.contentTertiary),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
 
-          SettingsGroup(label: l.settingsGeneral, children: [
+          LoitFadeSlideIn(
+            delay: const Duration(milliseconds: 120),
+            offset: 10,
+            child: SettingsGroup(label: l.settingsGeneral, children: [
             SettingsRow(
               label: l.settingsLanguage,
               value: _languageLabel(
@@ -144,89 +169,113 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => context.push('/categories'),
             ),
           ]),
+          ),
 
-          SettingsGroup(label: l.settingsMoney, children: [
-            SettingsRow(
-              label: l.settingsAccounts,
-              onTap: () => context.push('/accounts'),
-            ),
-            SettingsRow(
-              label: l.settingsBudgets,
-              value: l.settingsBudgetsActive(budgets.length),
-              onTap: () => context.push('/budgets'),
-            ),
-            SettingsRow(
-              label: l.settingsScansThisMonth,
-              value: profile == null
-                  ? '—'
-                  : profile.hasUnlimitedScans
-                      ? l.settingsUnlimited
-                      : '${profile.scansUsedThisMonth} / ${profile.scanQuota}',
-              showChevron: false,
-              onTap: null,
-            ),
-          ]),
+          LoitFadeSlideIn(
+            delay: const Duration(milliseconds: 200),
+            offset: 10,
+            child: SettingsGroup(label: l.settingsMoney, children: [
+              SettingsRow(
+                label: l.settingsAccounts,
+                onTap: () => context.push('/accounts'),
+              ),
+              SettingsRow(
+                label: l.settingsBudgets,
+                value: l.settingsBudgetsActive(budgets.length),
+                onTap: () => context.push('/budgets'),
+              ),
+              SettingsRow(
+                label: l.settingsScansThisMonth,
+                value: profile == null
+                    ? '—'
+                    : profile.hasUnlimitedScans
+                        ? l.settingsUnlimited
+                        : '${profile.scansUsedThisMonth} / ${profile.scanQuota}',
+                showChevron: false,
+                onTap: null,
+              ),
+            ]),
+          ),
 
-          SettingsGroup(label: l.settingsSubscription, children: [
-            SettingsRow(
-              label: l.settingsPlan,
-              value: profile?.tier.toUpperCase() ?? 'FREE',
-              onTap: () => context.push('/billing/manage'),
-            ),
-            SettingsRow(
-              label: l.settingsReceipts,
-              onTap: () => context.push('/receipts'),
-            ),
-          ]),
+          LoitFadeSlideIn(
+            delay: const Duration(milliseconds: 280),
+            offset: 10,
+            child: SettingsGroup(label: l.settingsSubscription, children: [
+              SettingsRow(
+                label: l.settingsPlan,
+                value: profile?.tier.toUpperCase() ?? 'FREE',
+                onTap: () => context.push('/billing/manage'),
+              ),
+              SettingsRow(
+                label: l.settingsReceipts,
+                onTap: () => context.push('/receipts'),
+              ),
+            ]),
+          ),
 
-          SettingsGroup(label: l.settingsPrivacyData, children: [
-            SettingsRow(
-              label: l.settingsSecurity,
-              onTap: () => context.push('/settings/security'),
-            ),
-            SettingsRow(
-              label: l.settingsNotifications,
-              onTap: () => context.push('/settings/notifications'),
-            ),
-            SettingsRow(
-              label: l.settingsExportData,
-              value: l.settingsCsvPdf,
-              onTap: () => context.push('/reports/export'),
-            ),
-            SettingsRow(
-              label: l.settingsDeleteAccount,
-              destructive: true,
-              showChevron: false,
-              onTap: () => _confirmDelete(context),
-            ),
-          ]),
+          LoitFadeSlideIn(
+            delay: const Duration(milliseconds: 360),
+            offset: 10,
+            child: SettingsGroup(label: l.settingsPrivacyData, children: [
+              SettingsRow(
+                label: l.settingsSecurity,
+                onTap: () => context.push('/settings/security'),
+              ),
+              SettingsRow(
+                label: l.settingsNotifications,
+                onTap: () => context.push('/settings/notifications'),
+              ),
+              SettingsRow(
+                label: l.settingsExportData,
+                value: l.settingsCsvPdf,
+                onTap: () => context.push('/reports/export'),
+              ),
+              SettingsRow(
+                label: l.settingsDeleteAccount,
+                destructive: true,
+                showChevron: false,
+                onTap: () => _confirmDelete(context),
+              ),
+            ]),
+          ),
 
-          SettingsGroup(label: l.settingsAbout, children: [
-            SettingsRow(
-              label: l.settingsHelpSupport,
-              onTap: () => context.push('/settings/about'),
-            ),
-            SettingsRow(
-              label: l.settingsTermsPrivacy,
-              onTap: () => context.push('/settings/about'),
-            ),
-            SettingsRow(
-              label: l.settingsVersion,
-              value: '1.0.0',
-              showChevron: false,
-            ),
-          ]),
+          LoitFadeSlideIn(
+            delay: const Duration(milliseconds: 440),
+            offset: 10,
+              child: SettingsGroup(label: l.settingsAbout, children: [
+                SettingsRow(
+                  label: l.settingsHelpSupport,
+                  onTap: () => context.push('/settings/about'),
+                ),
+                SettingsRow(
+                  label: l.settingsVersion,
+                  value: '1.0.0',
+                  showChevron: false,
+                ),
+              ]),
+          ),
 
           const SizedBox(height: 24),
-          SettingsGroup(label: l.settingsDebug, children: [
-            _OfflineToggle(),
-          ]),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: LoitButton.secondary(
-              label: l.settingsSignOut,
-              fullWidth: true,
-              onPressed: () => _signOut(context),
+          LoitFadeSlideIn(
+            delay: const Duration(milliseconds: 520),
+            offset: 10,
+            child: SettingsGroup(label: l.settingsDebug, children: [
+              _OfflineToggle(),
+            ]),
+          ),
+          LoitFadeSlideIn(
+            delay: const Duration(milliseconds: 600),
+            offset: 12,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: LoitTapScale(
+                scale: 0.98,
+                child: LoitButton.secondary(
+                  label: l.settingsSignOut,
+                  fullWidth: true,
+                  onPressed: () => _signOut(context),
+                ),
+              ),
             ),
           ),
         ],
@@ -259,11 +308,6 @@ class SettingsScreen extends ConsumerWidget {
       title: context.l10n.settingsHomeCurrency,
     );
     if (v == null || v == current) return;
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
-    await Supabase.instance.client
-        .from('users')
-        .update({'home_currency': v}).eq('id', user.id);
     await ref.read(preferencesProvider.notifier).setCurrency(v);
     ref.invalidate(userProfileProvider);
     ref.invalidate(transactionsProvider);
@@ -309,23 +353,31 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             const SizedBox(height: 12),
             Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: c.borderStrong,
-                  borderRadius: BorderRadius.circular(999),
+              child: LoitFadeSlideIn(
+                offset: 4,
+                duration: LoitMotion.base,
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: c.borderStrong,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 14),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(title,
-                  style: LoitTypography.titleM.copyWith(
-                    color: c.contentPrimary,
-                    fontWeight: FontWeight.w600,
-                  )),
+            LoitFadeSlideIn(
+              delay: const Duration(milliseconds: 60),
+              offset: 8,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(title,
+                    style: LoitTypography.titleM.copyWith(
+                      color: c.contentPrimary,
+                      fontWeight: FontWeight.w600,
+                    )),
+              ),
             ),
             const SizedBox(height: 8),
             Flexible(
@@ -333,23 +385,15 @@ class SettingsScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    for (final o in options)
-                      InkWell(
-                        onTap: () => Navigator.pop(ctx, o),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 14),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(o,
-                                    style: LoitTypography.bodyL.copyWith(
-                                        color: c.contentPrimary)),
-                              ),
-                              if (o == current)
-                                Icon(Icons.check, size: 20, color: c.brand),
-                            ],
-                          ),
+                    for (var i = 0; i < options.length; i++)
+                      LoitFadeSlideIn(
+                        delay: Duration(milliseconds: 120 + i * 50),
+                        offset: 10,
+                        duration: LoitMotion.emphasized,
+                        child: _PickerOption(
+                          label: options[i],
+                          selected: options[i] == current,
+                          onTap: () => Navigator.pop(ctx, options[i]),
                         ),
                       ),
                   ],
@@ -364,28 +408,9 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   static Future<void> _confirmDelete(BuildContext context) async {
-    final l = context.l10n;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.settingsDeleteAccountTitle),
-        content: Text(l.settingsDeleteAccountMessage),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l.settingsCancel)),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(l.settingsDelete),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.settingsDeleteAccountSnackbar)),
+    await launchUrl(
+      Uri.parse('https://www.activid.id/account-deletion'),
+      mode: LaunchMode.externalApplication,
     );
   }
 
@@ -411,6 +436,86 @@ class _OfflineToggle extends ConsumerWidget {
       value: override == true,
       onChanged: (v) =>
           ref.read(offlineDebugOverrideProvider.notifier).set(v ? true : null),
+    );
+  }
+}
+
+class _PickerOption extends StatefulWidget {
+  const _PickerOption({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  State<_PickerOption> createState() => _PickerOptionState();
+}
+
+class _PickerOptionState extends State<_PickerOption> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    return LoitTapScale(
+      scale: 0.985,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapCancel: () => setState(() => _pressed = false),
+        onTapUp: (_) => setState(() => _pressed = false),
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: LoitMotion.short,
+          curve: LoitMotion.easeOutQuart,
+          padding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          color: _pressed
+              ? Color.alphaBlend(c.brand.withValues(alpha: 0.08), c.surface)
+              : (widget.selected
+                  ? Color.alphaBlend(c.brand.withValues(alpha: 0.04), c.surface)
+                  : c.surface),
+          child: Row(
+            children: [
+              Expanded(
+                child: AnimatedDefaultTextStyle(
+                  duration: LoitMotion.short,
+                  curve: LoitMotion.easeOutQuart,
+                  style: LoitTypography.bodyL.copyWith(
+                    color: c.contentPrimary,
+                    fontWeight: widget.selected
+                        ? FontWeight.w600
+                        : FontWeight.w400,
+                  ),
+                  child: Text(widget.label),
+                ),
+              ),
+              AnimatedSwitcher(
+                duration: LoitMotion.base,
+                switchInCurve: LoitMotion.easeOutExpo,
+                switchOutCurve: LoitMotion.easeOutQuart,
+                transitionBuilder: (child, anim) {
+                  return ScaleTransition(
+                    scale: anim,
+                    child: FadeTransition(opacity: anim, child: child),
+                  );
+                },
+                child: widget.selected
+                    ? Icon(Icons.check,
+                        key: const ValueKey('check'),
+                        size: 20,
+                        color: c.brand)
+                    : const SizedBox(
+                        key: ValueKey('empty'), width: 20, height: 20),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

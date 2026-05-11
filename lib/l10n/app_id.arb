@@ -25,6 +25,7 @@
   },
 
   "aboutTitle": "Tentang",
+  "aboutAppName": "LOIT",
   "aboutTagline": "Keuangan pribadi & bersama, tenang secara desain.",
   "aboutHelp": "Bantuan",
   "aboutLegal": "Hukum",
@@ -953,6 +954,72 @@
   },
   "roomUpgrade": "Upgrade",
   "roomCopy": "SALIN",
+
+  "roomTileUntitled": "Tanpa Judul",
+  "roomTileArchivedLabel": "Diarsipkan",
+  "roomTileNoDescription": "Belum ada deskripsi — ketuk untuk menambahkan.",
+  "roomTileYouOwn": "Kamu pemiliknya",
+  "roomTileYourRole": "Kamu · {role}",
+  "@roomTileYourRole": {
+    "description": "Role label, e.g. 'You · Admin'",
+    "placeholders": {
+      "role": {"type": "String"}
+    }
+  },
+  "roomTileCreated": "Dibuat {date}",
+  "@roomTileCreated": {
+    "description": "Creation date label",
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "roomOnlineOnlyYou": "Hanya kamu yang online",
+  "roomOnlineStatus": "Online",
+  "roomOnlineYouPlus": "Kamu + {count} online",
+  "@roomOnlineYouPlus": {
+    "description": "Online status with self and others",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "roomOnlineOthers": "{count} online",
+  "@roomOnlineOthers": {
+    "description": "Online count for others",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "roomMembershipTitle": "Keanggotaan",
+  "roomMembershipUsageUnlimited": "{count, plural, other{{count} ruangan / ∞}}",
+  "@roomMembershipUsageUnlimited": {
+    "description": "Unlimited room usage text",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "roomMembershipUsageLimited": "{count, plural, other{{count} ruangan / {limit}}}",
+  "@roomMembershipUsageLimited": {
+    "description": "Limited room usage text",
+    "placeholders": {
+      "count": {"type": "int"},
+      "limit": {"type": "int"}
+    }
+  },
+  "roomMembershipAtLimit": "Kamu telah mencapai batas ruangan di {tier}.",
+  "@roomMembershipAtLimit": {
+    "description": "At room limit message",
+    "placeholders": {
+      "tier": {"type": "String"}
+    }
+  },
+  "roomInvitesPending": "{count, plural, other{{count} undangan tertunda}}",
+  "@roomInvitesPending": {
+    "description": "Pending invites count",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "roomUnknownRoom": "Ruangan tidak dikenal",
 
   "splashTagline": "Bagi tagihan, bukan pertemanan.",
 

@@ -2025,6 +2025,94 @@ class AppLocalizationsId extends AppLocalizations {
   String get roomUnknownRoom => 'Ruangan tidak dikenal';
 
   @override
+  String get roomDetailRoomFallback => 'Ruangan';
+
+  @override
+  String get roomArchiveBody =>
+      'Anggota akan tetap bisa melihat (hanya baca). Ini tidak dapat dibatalkan.';
+
+  @override
+  String get roomMemberUnknown => 'Tidak dikenal';
+
+  @override
+  String get roomMemberRoleFallback => 'anggota';
+
+  @override
+  String get roomReportsTooltip => 'Laporan';
+
+  @override
+  String get roomInviteTooltip => 'Undang';
+
+  @override
+  String get roomDetailFeedTab => 'Umpan';
+
+  @override
+  String get roomDetailCategoriesTab => 'Kategori';
+
+  @override
+  String get roomFeedNoActivity => 'Tidak ada aktivitas';
+
+  @override
+  String get roomFeedNoActivityMonth => 'Tidak ada aktivitas bulan ini';
+
+  @override
+  String get roomFeedArchivedEmpty => 'Ruangan ini diarsipkan';
+
+  @override
+  String get roomFeedEmptyBody =>
+      'Coba bulan lain atau catat pengeluaran baru.';
+
+  @override
+  String get roomFeedEarlier => 'Sebelumnya';
+
+  @override
+  String get roomSummaryExpenses => 'PENGELUARAN';
+
+  @override
+  String get roomSummaryIncome => 'PEMASUKAN';
+
+  @override
+  String get roomBudgetsNoSet => 'Belum ada anggaran';
+
+  @override
+  String get roomBudgetsNoSetBody =>
+      'Tetapkan batas kategori agar ruangan tahu kapan harus melambat.';
+
+  @override
+  String get roomBudgetResetsToday => 'reset hari ini';
+
+  @override
+  String get roomBudgetResetsTomorrow => 'reset besok';
+
+  @override
+  String roomBudgetResetsInDays(int days) {
+    return 'reset dalam ${days}h';
+  }
+
+  @override
+  String roomBudgetSpent(String amount) {
+    return '$amount terpakai';
+  }
+
+  @override
+  String get roomCatsEmptyBody =>
+      'Tambah kategori khusus ruangan agar anggota menandai transaksi secara konsisten.';
+
+  @override
+  String get roomCatsArchivedNote =>
+      'Ruangan diarsipkan. Kategori hanya bisa dibaca.';
+
+  @override
+  String get roomCatsCreatorOnlyNote =>
+      'Hanya pembuat ruangan yang dapat menambah atau mengedit kategori.';
+
+  @override
+  String get roomSectionExpenseLabel => 'PENGELUARAN';
+
+  @override
+  String get roomSectionIncomeLabel => 'PEMASUKAN';
+
+  @override
   String get splashTagline => 'Bagi tagihan, bukan pertemanan.';
 
   @override

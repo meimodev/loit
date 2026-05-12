@@ -2018,6 +2018,93 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomUnknownRoom => 'Unknown room';
 
   @override
+  String get roomDetailRoomFallback => 'Room';
+
+  @override
+  String get roomArchiveBody =>
+      'Members will retain read-only access. This cannot be undone.';
+
+  @override
+  String get roomMemberUnknown => 'Unknown';
+
+  @override
+  String get roomMemberRoleFallback => 'member';
+
+  @override
+  String get roomReportsTooltip => 'Reports';
+
+  @override
+  String get roomInviteTooltip => 'Invite';
+
+  @override
+  String get roomDetailFeedTab => 'Feed';
+
+  @override
+  String get roomDetailCategoriesTab => 'Categories';
+
+  @override
+  String get roomFeedNoActivity => 'No activity';
+
+  @override
+  String get roomFeedNoActivityMonth => 'No activity this month';
+
+  @override
+  String get roomFeedArchivedEmpty => 'This room is archived';
+
+  @override
+  String get roomFeedEmptyBody => 'Try a different month or log a new expense.';
+
+  @override
+  String get roomFeedEarlier => 'Earlier';
+
+  @override
+  String get roomSummaryExpenses => 'EXPENSES';
+
+  @override
+  String get roomSummaryIncome => 'INCOME';
+
+  @override
+  String get roomBudgetsNoSet => 'No budgets set';
+
+  @override
+  String get roomBudgetsNoSetBody =>
+      'Set category caps so the room knows when to slow down.';
+
+  @override
+  String get roomBudgetResetsToday => 'resets today';
+
+  @override
+  String get roomBudgetResetsTomorrow => 'resets tomorrow';
+
+  @override
+  String roomBudgetResetsInDays(int days) {
+    return 'resets in ${days}d';
+  }
+
+  @override
+  String roomBudgetSpent(String amount) {
+    return '$amount spent';
+  }
+
+  @override
+  String get roomCatsEmptyBody =>
+      'Add room-specific categories so members tag transactions consistently.';
+
+  @override
+  String get roomCatsArchivedNote =>
+      'Room is archived. Categories are read-only.';
+
+  @override
+  String get roomCatsCreatorOnlyNote =>
+      'Only the room creator can add or edit categories.';
+
+  @override
+  String get roomSectionExpenseLabel => 'EXPENSE';
+
+  @override
+  String get roomSectionIncomeLabel => 'INCOME';
+
+  @override
   String get splashTagline => 'Split bills, not friendships.';
 
   @override

@@ -1026,6 +1026,44 @@
     }
   },
   "roomUnknownRoom": "Unknown room",
+  "roomDetailRoomFallback": "Room",
+  "roomArchiveBody": "Members will retain read-only access. This cannot be undone.",
+  "roomMemberUnknown": "Unknown",
+  "roomMemberRoleFallback": "member",
+  "roomReportsTooltip": "Reports",
+  "roomInviteTooltip": "Invite",
+  "roomDetailFeedTab": "Feed",
+  "roomDetailCategoriesTab": "Categories",
+  "roomFeedNoActivity": "No activity",
+  "roomFeedNoActivityMonth": "No activity this month",
+  "roomFeedArchivedEmpty": "This room is archived",
+  "roomFeedEmptyBody": "Try a different month or log a new expense.",
+  "roomFeedEarlier": "Earlier",
+  "roomSummaryExpenses": "EXPENSES",
+  "roomSummaryIncome": "INCOME",
+  "roomBudgetsNoSet": "No budgets set",
+  "roomBudgetsNoSetBody": "Set category caps so the room knows when to slow down.",
+  "roomBudgetResetsToday": "resets today",
+  "roomBudgetResetsTomorrow": "resets tomorrow",
+  "roomBudgetResetsInDays": "resets in {days}d",
+  "@roomBudgetResetsInDays": {
+    "description": "Budget reset countdown, e.g. 'resets in 5d'",
+    "placeholders": {
+      "days": {"type": "int"}
+    }
+  },
+  "roomBudgetSpent": "{amount} spent",
+  "@roomBudgetSpent": {
+    "description": "Budget spent amount label, e.g. 'Rp50,000 spent'",
+    "placeholders": {
+      "amount": {"type": "String"}
+    }
+  },
+  "roomCatsEmptyBody": "Add room-specific categories so members tag transactions consistently.",
+  "roomCatsArchivedNote": "Room is archived. Categories are read-only.",
+  "roomCatsCreatorOnlyNote": "Only the room creator can add or edit categories.",
+  "roomSectionExpenseLabel": "EXPENSE",
+  "roomSectionIncomeLabel": "INCOME",
 
   "splashTagline": "Split bills, not friendships.",
 

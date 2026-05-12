@@ -3713,6 +3713,162 @@ abstract class AppLocalizations {
   /// **'Unknown room'**
   String get roomUnknownRoom;
 
+  /// No description provided for @roomDetailRoomFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Room'**
+  String get roomDetailRoomFallback;
+
+  /// No description provided for @roomArchiveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Members will retain read-only access. This cannot be undone.'**
+  String get roomArchiveBody;
+
+  /// No description provided for @roomMemberUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get roomMemberUnknown;
+
+  /// No description provided for @roomMemberRoleFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'member'**
+  String get roomMemberRoleFallback;
+
+  /// No description provided for @roomReportsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports'**
+  String get roomReportsTooltip;
+
+  /// No description provided for @roomInviteTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite'**
+  String get roomInviteTooltip;
+
+  /// No description provided for @roomDetailFeedTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Feed'**
+  String get roomDetailFeedTab;
+
+  /// No description provided for @roomDetailCategoriesTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get roomDetailCategoriesTab;
+
+  /// No description provided for @roomFeedNoActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'No activity'**
+  String get roomFeedNoActivity;
+
+  /// No description provided for @roomFeedNoActivityMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'No activity this month'**
+  String get roomFeedNoActivityMonth;
+
+  /// No description provided for @roomFeedArchivedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'This room is archived'**
+  String get roomFeedArchivedEmpty;
+
+  /// No description provided for @roomFeedEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Try a different month or log a new expense.'**
+  String get roomFeedEmptyBody;
+
+  /// No description provided for @roomFeedEarlier.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier'**
+  String get roomFeedEarlier;
+
+  /// No description provided for @roomSummaryExpenses.
+  ///
+  /// In en, this message translates to:
+  /// **'EXPENSES'**
+  String get roomSummaryExpenses;
+
+  /// No description provided for @roomSummaryIncome.
+  ///
+  /// In en, this message translates to:
+  /// **'INCOME'**
+  String get roomSummaryIncome;
+
+  /// No description provided for @roomBudgetsNoSet.
+  ///
+  /// In en, this message translates to:
+  /// **'No budgets set'**
+  String get roomBudgetsNoSet;
+
+  /// No description provided for @roomBudgetsNoSetBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Set category caps so the room knows when to slow down.'**
+  String get roomBudgetsNoSetBody;
+
+  /// No description provided for @roomBudgetResetsToday.
+  ///
+  /// In en, this message translates to:
+  /// **'resets today'**
+  String get roomBudgetResetsToday;
+
+  /// No description provided for @roomBudgetResetsTomorrow.
+  ///
+  /// In en, this message translates to:
+  /// **'resets tomorrow'**
+  String get roomBudgetResetsTomorrow;
+
+  /// Budget reset countdown, e.g. 'resets in 5d'
+  ///
+  /// In en, this message translates to:
+  /// **'resets in {days}d'**
+  String roomBudgetResetsInDays(int days);
+
+  /// Budget spent amount label, e.g. 'Rp50,000 spent'
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} spent'**
+  String roomBudgetSpent(String amount);
+
+  /// No description provided for @roomCatsEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Add room-specific categories so members tag transactions consistently.'**
+  String get roomCatsEmptyBody;
+
+  /// No description provided for @roomCatsArchivedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Room is archived. Categories are read-only.'**
+  String get roomCatsArchivedNote;
+
+  /// No description provided for @roomCatsCreatorOnlyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the room creator can add or edit categories.'**
+  String get roomCatsCreatorOnlyNote;
+
+  /// No description provided for @roomSectionExpenseLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'EXPENSE'**
+  String get roomSectionExpenseLabel;
+
+  /// No description provided for @roomSectionIncomeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'INCOME'**
+  String get roomSectionIncomeLabel;
+
   /// No description provided for @splashTagline.
   ///
   /// In en, this message translates to:

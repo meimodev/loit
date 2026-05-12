@@ -19,7 +19,7 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _pc = PageController();
   late final AnimationController _entrance;
   late final AnimationController _bob;

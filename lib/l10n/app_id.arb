@@ -1020,6 +1020,44 @@
     }
   },
   "roomUnknownRoom": "Ruangan tidak dikenal",
+  "roomDetailRoomFallback": "Ruangan",
+  "roomArchiveBody": "Anggota akan tetap bisa melihat (hanya baca). Ini tidak dapat dibatalkan.",
+  "roomMemberUnknown": "Tidak dikenal",
+  "roomMemberRoleFallback": "anggota",
+  "roomReportsTooltip": "Laporan",
+  "roomInviteTooltip": "Undang",
+  "roomDetailFeedTab": "Umpan",
+  "roomDetailCategoriesTab": "Kategori",
+  "roomFeedNoActivity": "Tidak ada aktivitas",
+  "roomFeedNoActivityMonth": "Tidak ada aktivitas bulan ini",
+  "roomFeedArchivedEmpty": "Ruangan ini diarsipkan",
+  "roomFeedEmptyBody": "Coba bulan lain atau catat pengeluaran baru.",
+  "roomFeedEarlier": "Sebelumnya",
+  "roomSummaryExpenses": "PENGELUARAN",
+  "roomSummaryIncome": "PEMASUKAN",
+  "roomBudgetsNoSet": "Belum ada anggaran",
+  "roomBudgetsNoSetBody": "Tetapkan batas kategori agar ruangan tahu kapan harus melambat.",
+  "roomBudgetResetsToday": "reset hari ini",
+  "roomBudgetResetsTomorrow": "reset besok",
+  "roomBudgetResetsInDays": "reset dalam {days}h",
+  "@roomBudgetResetsInDays": {
+    "description": "Budget reset countdown",
+    "placeholders": {
+      "days": {"type": "int"}
+    }
+  },
+  "roomBudgetSpent": "{amount} terpakai",
+  "@roomBudgetSpent": {
+    "description": "Budget spent amount label",
+    "placeholders": {
+      "amount": {"type": "String"}
+    }
+  },
+  "roomCatsEmptyBody": "Tambah kategori khusus ruangan agar anggota menandai transaksi secara konsisten.",
+  "roomCatsArchivedNote": "Ruangan diarsipkan. Kategori hanya bisa dibaca.",
+  "roomCatsCreatorOnlyNote": "Hanya pembuat ruangan yang dapat menambah atau mengedit kategori.",
+  "roomSectionExpenseLabel": "PENGELUARAN",
+  "roomSectionIncomeLabel": "PEMASUKAN",
 
   "splashTagline": "Bagi tagihan, bukan pertemanan.",
 

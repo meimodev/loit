@@ -106,7 +106,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       error: (e, _) => Scaffold(
           appBar: AppBar(), body: Center(child: Text('Error: $e'))),
       data: (room) {
-        final name = room['name'] as String? ?? 'Room';
+        final name = room['name'] as String? ?? context.l10n.roomDetailRoomFallback;
         final isCreator = room['created_by'] == user?.id;
         final isArchived = room['is_archived'] as bool? ?? false;
         final members = (room['room_members'] as List?)
@@ -316,8 +316,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: Text(l.roomArchiveTitle),
-        content: const Text(
-            'Members will retain read-only access. This cannot be undone.'),
+        content: Text(l.roomArchiveBody),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -392,7 +391,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                                 size: 8,
                                 maxRing: 14),
                             const SizedBox(width: 6),
-                            Text('$onlineCount online',
+                            Text(l.roomOnlineOthers(onlineCount),
                                 style: TextStyle(
                                     color: c.contentSecondary, fontSize: 13)),
                           ],
@@ -403,24 +402,24 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                 for (final m in members)
                   ListTile(
                     leading: _MemberAvatar(member: m, size: 36),
-                    title: Text(_memberName(m)),
+                    title: Text(_memberName(m, fallback: l.roomMemberUnknown)),
                     subtitle: onlineIds.contains(m['user_id'] as String?)
                         ? Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              LoitPulseDot(
+                            children: [
+                              const LoitPulseDot(
                                   color: Color(0xFF22C55E),
                                   size: 6,
                                   maxRing: 12),
-                              SizedBox(width: 6),
-                              Text('Online',
-                                  style: TextStyle(
+                              const SizedBox(width: 6),
+                              Text(l.roomOnlineStatus,
+                                  style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600)),
                             ],
                           )
                         : null,
-                    trailing: Text((m['role'] as String?) ?? 'member'),
+                    trailing: Text((m['role'] as String?) ?? l.roomMemberRoleFallback),
                   ),
               ],
             );
@@ -431,13 +430,13 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   }
 }
 
-String _memberName(Map<String, dynamic> m) {
+String _memberName(Map<String, dynamic> m, {String fallback = ''}) {
   final n = ((m['users']?['name'] as String?) ?? '').trim();
   if (n.isNotEmpty) return n;
   final email = ((m['users']?['email'] as String?) ?? '').trim();
   if (email.contains('@')) return email.split('@').first;
   if (email.isNotEmpty) return email;
-  return 'Unknown';
+  return fallback;
 }
 
 class _Header extends StatelessWidget {
@@ -523,13 +522,13 @@ class _Header extends StatelessWidget {
                 ),
               IconButton(
                 icon: const Icon(Icons.bar_chart, size: 20),
-                tooltip: 'Reports',
+                tooltip: l.roomReportsTooltip,
                 onPressed: onReports,
               ),
               if (!isArchived)
                 IconButton(
                     icon: const Icon(Icons.person_add_alt, size: 20),
-                    tooltip: 'Invite',
+                    tooltip: l.roomInviteTooltip,
                     onPressed: onInvite),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_horiz, size: 22),
@@ -603,7 +602,7 @@ class _Header extends StatelessWidget {
                               ),
                             ),
                             TextSpan(
-                              text: '$onlineCount online',
+                              text: l.roomOnlineOthers(onlineCount),
                               style: LoitTypography.bodyS.copyWith(
                                   color: c.contentPrimary,
                                   fontWeight: FontWeight.w600),
@@ -730,7 +729,7 @@ class _TabStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.loitColors;
     final l = context.l10n;
-    final labels = ['Feed', l.roomDetailBudgets, 'Categories'];
+    final labels = [l.roomDetailFeedTab, l.roomDetailBudgets, l.roomDetailCategoriesTab];
     return Container(
       margin: const EdgeInsets.fromLTRB(
           LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, LoitSpacing.s2),
@@ -889,10 +888,12 @@ class _FeedTab extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(vertical: LoitSpacing.s7),
                 child: LoitEmptyState(
                   icon: Icons.receipt_long_outlined,
-                  title: isArchived ? 'No activity' : 'No activity this month',
+                  title: isArchived
+                      ? context.l10n.roomFeedNoActivity
+                      : context.l10n.roomFeedNoActivityMonth,
                   body: isArchived
-                      ? 'This room is archived'
-                      : 'Try a different month or log a new expense.',
+                      ? context.l10n.roomFeedArchivedEmpty
+                      : context.l10n.roomFeedEmptyBody,
                 ),
               ),
             ],
@@ -941,15 +942,15 @@ class _FeedTab extends ConsumerWidget {
       final dt = DateTime.tryParse((t['created_at'] as String?) ?? '');
       String key;
       if (dt == null) {
-        key = 'Earlier';
+        key = context.l10n.roomFeedEarlier;
       } else {
         final d = DateTime(dt.year, dt.month, dt.day);
         final today = DateTime(now.year, now.month, now.day);
         final diff = today.difference(d).inDays;
         if (diff == 0) {
-          key = 'Today';
+          key = context.l10n.txListToday;
         } else if (diff == 1) {
-          key = 'Yesterday';
+          key = context.l10n.txListYesterday;
         } else {
           key = MMMd(context).format(dt);
         }
@@ -1099,7 +1100,7 @@ class _TotalSpentCard extends StatelessWidget {
                 child: LoitAnimatedCount(
                   value: total,
                   builder: (_, v) => _SummaryStat(
-                    label: 'EXPENSES',
+                    label: l.roomSummaryExpenses,
                     value: fmt(v),
                     icon: Icons.trending_down,
                     tint: expenseColor,
@@ -1117,7 +1118,7 @@ class _TotalSpentCard extends StatelessWidget {
                 child: LoitAnimatedCount(
                   value: income,
                   builder: (_, v) => _SummaryStat(
-                    label: 'INCOME',
+                    label: l.roomSummaryIncome,
                     value: fmt(v),
                     icon: Icons.trending_up,
                     tint: incomeColor,
@@ -1348,7 +1349,11 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
     final notes = (tx['notes'] as String?)?.trim();
     final merchant = (notes != null && notes.isNotEmpty)
         ? notes.split('\n').first
-        : (isTransfer ? 'Transfer' : isIncome ? 'Income' : 'Expense');
+        : (isTransfer
+            ? context.l10n.txDetailFallbackTransfer
+            : isIncome
+                ? context.l10n.txFormIncome
+                : context.l10n.txFormExpense);
     final cat = tx['category'] as String?;
     final style = ref.watch(categoryStyleProvider(cat));
     final catLabel = ref.watch(categoryLabelProvider(
@@ -1362,7 +1367,7 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
         ? rawName
         : (emailHandle != null && emailHandle.isNotEmpty)
             ? emailHandle
-            : 'Unknown';
+            : context.l10n.roomMemberUnknown;
     final incomeColor = const Color(0xFF2F8F5E);
 
     final createdRaw = tx['created_at'] as String?;
@@ -1433,7 +1438,7 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
                   const SizedBox(height: 6),
                   _RoomChip(
                     icon: Icons.call_received,
-                    label: 'Income',
+                    label: context.l10n.txFormIncome,
                     tint: incomeColor,
                   ),
                 ],
@@ -1550,7 +1555,7 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
         duration: window,
         content: Text(context.l10n.roomDeletedLabel(label)),
         action: SnackBarAction(
-          label: 'Undo',
+          label: context.l10n.txListUndo,
           onPressed: () =>
               ref.read(pendingRoomTxDeletesProvider.notifier).undo(txId),
         ),
@@ -1660,10 +1665,10 @@ class _BudgetTab extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.symmetric(vertical: LoitSpacing.s7),
             children: [
-              const LoitEmptyState(
+              LoitEmptyState(
                 icon: Icons.savings_outlined,
-                title: 'No budgets set',
-                body: 'Set category caps so the room knows when to slow down.',
+                title: l.roomBudgetsNoSet,
+                body: l.roomBudgetsNoSetBody,
               ),
               if (!isArchived) ...[
                 const SizedBox(height: LoitSpacing.s4),
@@ -1729,10 +1734,10 @@ class _BudgetTab extends ConsumerWidget {
             final cycleEnd = winStart.add(Duration(days: cycleLen));
             final daysLeft = cycleEnd.difference(now).inDays;
             final resetsLabel = daysLeft <= 0
-                ? 'resets today'
+                ? l.roomBudgetResetsToday
                 : daysLeft == 1
-                    ? 'resets tomorrow'
-                    : 'resets in ${daysLeft}d';
+                    ? l.roomBudgetResetsTomorrow
+                    : l.roomBudgetResetsInDays(daysLeft);
             final durationLabel = '${period.label} \u00b7 $resetsLabel';
             return LoitFadeSlideIn(
               key: ValueKey('budget-fade-${b['id'] ?? i}'),
@@ -1818,7 +1823,7 @@ class _BudgetTab extends ConsumerWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              '${rowFmt(spent)} spent',
+                              l.roomBudgetSpent(rowFmt(spent)),
                               style: LoitTypography.bodyS.copyWith(
                                 color: isOver
                                     ? c.danger
@@ -1891,11 +1896,10 @@ class _CategoriesTab extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.symmetric(vertical: LoitSpacing.s7),
             children: [
-              const LoitEmptyState(
+              LoitEmptyState(
                 icon: Icons.category_outlined,
-                title: 'No categories yet',
-                body:
-                    'Add room-specific categories so members tag transactions consistently.',
+                title: l.catScreenNoCategories,
+                body: l.roomCatsEmptyBody,
               ),
               if (canManage) ...[
                 const SizedBox(height: LoitSpacing.s4),
@@ -1917,7 +1921,7 @@ class _CategoriesTab extends ConsumerWidget {
               LoitSpacing.s4, LoitSpacing.s2, LoitSpacing.s4, 100),
           children: [
             if (expense.isNotEmpty) ...[
-              _SectionLabel(label: 'EXPENSE', count: expense.length),
+              _SectionLabel(label: l.roomSectionExpenseLabel, count: expense.length),
               _CategoryGroup(
                 roomId: roomId,
                 cats: expense,
@@ -1926,7 +1930,7 @@ class _CategoriesTab extends ConsumerWidget {
             ],
             if (income.isNotEmpty) ...[
               const SizedBox(height: LoitSpacing.s4),
-              _SectionLabel(label: 'INCOME', count: income.length),
+              _SectionLabel(label: l.roomSectionIncomeLabel, count: income.length),
               _CategoryGroup(
                 roomId: roomId,
                 cats: income,
@@ -1943,8 +1947,8 @@ class _CategoriesTab extends ConsumerWidget {
                 ),
                 child: Text(
                   isArchived
-                      ? 'Room is archived. Categories are read-only.'
-                      : 'Only the room creator can add or edit categories.',
+                      ? l.roomCatsArchivedNote
+                      : l.roomCatsCreatorOnlyNote,
                   style: LoitTypography.bodyS
                       .copyWith(color: c.contentSecondary),
                 ),
@@ -2061,7 +2065,7 @@ class _CategoryGroup extends ConsumerWidget {
         duration: window,
         content: Text(context.l10n.roomDeleteCategory(cat.name)),
         action: SnackBarAction(
-          label: 'Undo',
+          label: context.l10n.txListUndo,
           onPressed: () => ref
               .read(pendingCategoryDeletesProvider.notifier)
               .undo(cat.id),

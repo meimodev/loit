@@ -7,7 +7,6 @@ import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
-import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/loit_category_avatar.dart';
 import '../../shared/widgets/loit_group_label.dart';
@@ -27,7 +26,6 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
     final c = context.loitColors;
     final l = context.l10n;
     final catsAsync = ref.watch(userCategoriesProvider);
-    final user = ref.watch(currentUserProvider);
 
     return Scaffold(
       backgroundColor: c.canvas,
@@ -41,26 +39,15 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (cats) {
-          final visible = cats.where((c) => !_dismissed.contains(c.id)).toList();
+          final visible = cats
+              .where((c) => c.isPersonal && !_dismissed.contains(c.id))
+              .toList();
           if (visible.isEmpty) return const _EmptyCategoriesState();
 
           final personalExpense =
-              visible.where((cat) => cat.isPersonal && cat.isExpense).toList();
+              visible.where((cat) => cat.isExpense).toList();
           final personalIncome =
-              visible.where((cat) => cat.isPersonal && cat.isIncome).toList();
-
-          final roomBuckets = <String, List<UserCategory>>{};
-          for (final cat in visible) {
-            if (!cat.isRoom) continue;
-            final id = cat.roomId ?? '';
-            roomBuckets.putIfAbsent(id, () => []).add(cat);
-          }
-          final roomGroups = roomBuckets.entries.toList()
-            ..sort((a, b) {
-              final an = a.value.first.roomName ?? '';
-              final bn = b.value.first.roomName ?? '';
-              return an.compareTo(bn);
-            });
+              visible.where((cat) => cat.isIncome).toList();
 
           return ListView(
             children: [
@@ -90,50 +77,6 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                   canManage: true,
                 ),
               ],
-              for (final group in roomGroups) ...[
-                Builder(builder: (_) {
-                  final first = group.value.first;
-                  final canManage = first.canManageBy(user?.id);
-                  final roomName = first.roomName ?? l.catScreenRoom;
-                  return Column(
-                    children: [
-                      LoitGroupLabel(
-                        label: l.catScreenRoomLabel(roomName),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _CountBadge(count: group.value.length),
-                            if (canManage) ...[
-                              const SizedBox(width: 8),
-                              InkWell(
-                                onTap: () => context.push(
-                                    '/rooms/${group.key}/categories/new'),
-                                child: const Padding(
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  child: Icon(Icons.add,
-                                      size: 18, color: Colors.grey),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      _RowGroup(
-                        cats: group.value,
-                        canManage: canManage,
-                        onEdit: canManage
-                            ? (cat) => context.push(
-                                '/rooms/${group.key}/categories/${cat.id}/edit',
-                                extra: cat,
-                              )
-                            : null,
-                        onDelete: canManage ? _confirmDelete : null,
-                      ),
-                    ],
-                  );
-                }),
-              ],
               const SizedBox(height: 80),
             ],
           );
@@ -147,23 +90,25 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
   }
 
   Future<bool> _confirmDelete(UserCategory cat) async {
+    if (!mounted) return false;
     final c = context.loitColors;
     final l = context.l10n;
     return await showDialog<bool>(
           context: context,
-          builder: (_) => AlertDialog(
+          useRootNavigator: false,
+          builder: (dialogCtx) => AlertDialog(
             title: Text(l.catScreenDeleteTitle(cat.name)),
             content: Text(
               l.catScreenDeleteBody,
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context, false),
+                onPressed: () => Navigator.pop(dialogCtx, false),
                 child: Text(l.catScreenCancel),
               ),
               FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: c.danger),
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () => Navigator.pop(dialogCtx, true),
                 child: Text(l.catScreenDelete),
               ),
             ],

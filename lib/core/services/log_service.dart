@@ -80,6 +80,66 @@ class Log {
     );
   }
 
+  /// Sentry breadcrumb — attach context to next captured exception.
+  /// Use for non-error events that aid post-mortem in production
+  /// (auth milestones, payment steps, deep-link arrivals).
+  static void breadcrumb(
+    String category,
+    String message, {
+    SentryLevel level = SentryLevel.info,
+    Map<String, dynamic>? data,
+  }) {
+    Sentry.addBreadcrumb(Breadcrumb(
+      category: category,
+      message: message,
+      level: level,
+      data: data,
+      timestamp: DateTime.now().toUtc(),
+    ));
+    if (_enabled) {
+      final time = _timestamp();
+      final dataStr = data != null && data.isNotEmpty ? ' $data' : '';
+      debugPrint('$_gray$time 🛡️ $category: $message$dataStr$_reset');
+    }
+  }
+
+  /// Standalone Sentry event — appears as its own issue in Sentry,
+  /// not attached to an exception. Use for flow-completion milestones
+  /// you want to query/alert on (e.g. sign-in started, sign-in succeeded).
+  /// All breadcrumbs to that point come along.
+  static void event(
+    String tag,
+    String message, {
+    SentryLevel level = SentryLevel.info,
+    Map<String, dynamic>? data,
+  }) {
+    Sentry.captureMessage(
+      message,
+      level: level,
+      withScope: (scope) {
+        scope.setTag('log.tag', tag);
+        if (data != null) {
+          scope.setContexts('event_data', data);
+        }
+      },
+    );
+    if (_enabled) {
+      _log(LogLevel.info, tag, message);
+    }
+  }
+
+  /// Set Sentry user context — auto-attached to every subsequent event.
+  /// Pass `null` to clear (sign-out).
+  static void setUser({String? id, String? email}) {
+    Sentry.configureScope((scope) {
+      if (id == null) {
+        scope.setUser(null);
+      } else {
+        scope.setUser(SentryUser(id: id, email: email));
+      }
+    });
+  }
+
   /// Lifecycle — app startup/shutdown milestones. Always visible.
   static void lifecycle(String message) {
     if (!_enabled) return;

@@ -31,6 +31,11 @@ dependencies:
   # Supabase (client SDK — auth, realtime, storage, postgrest, functions)
   supabase_flutter: ^2.8.0
 
+  # Native Google Sign-In — used with Supabase signInWithIdToken so we skip
+  # the OAuth web flow and Custom Tab callback. Eliminates the deep-link
+  # callback race during sign-in.
+  google_sign_in: ^6.2.1
+
   # State management — Riverpod 3 (Notifier/AsyncNotifier API, code-gen first)
   flutter_riverpod: ^3.0.0
   riverpod_annotation: ^3.0.0
@@ -108,6 +113,7 @@ dependencies:
   pdf: ^3.11.1
   printing: ^5.13.2
   share_plus: ^10.1.2
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   sentry_dart_plugin: ^3.3.0
@@ -124,6 +130,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true   # enables gen_l10n for Phase 4 localization  # the material Icons class.
+  assets:
+    - assets/icons/
 
 flutter_launcher_icons:
   android: "launcher_icon"

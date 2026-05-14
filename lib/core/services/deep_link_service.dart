@@ -15,6 +15,12 @@ final deepLinkRoomIdProvider = StreamProvider<String>((ref) {
 
   Future<String?> handle(Uri uri) async {
     Log.d('DeepLink', 'Received: $uri');
+    Log.breadcrumb('deep-link', 'received', data: {
+      'scheme': uri.scheme,
+      'host': uri.host,
+      'path': uri.path,
+      'hasCode': uri.queryParameters.containsKey('code'),
+    });
     // Matches https://loit.app/invite/{token} (path starts with /invite/)
     // and id.activid.loit://invite/{token} (host == 'invite').
     final isHttpsInvite = uri.path.startsWith('/invite/');

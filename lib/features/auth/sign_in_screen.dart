@@ -1,11 +1,14 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/config/env.dart';
 import '../../core/services/analytics_service.dart';
+import '../../core/services/log_service.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_radius.dart';
@@ -27,7 +30,6 @@ class _SignInScreenState extends State<SignInScreen>
   String? _error;
 
   late final AnimationController _entrance;
-  late final AnimationController _shimmer;
   late final AnimationController _shake;
 
   @override
@@ -37,10 +39,6 @@ class _SignInScreenState extends State<SignInScreen>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..forward();
-    _shimmer = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 4200),
-    )..repeat();
     _shake = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 380),
@@ -50,7 +48,6 @@ class _SignInScreenState extends State<SignInScreen>
   @override
   void dispose() {
     _entrance.dispose();
-    _shimmer.dispose();
     _shake.dispose();
     super.dispose();
   }
@@ -60,19 +57,45 @@ class _SignInScreenState extends State<SignInScreen>
       _busy = true;
       _error = null;
     });
+    Log.breadcrumb('auth', 'sign-in tapped', data: {'provider': 'google'});
+    Log.event('SignIn', 'native flow started', data: {'provider': 'google'});
     try {
-      await Supabase.instance.client.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: 'id.activid.loit://callback',
-        queryParams: {'apikey': Env.supabaseAnonKey},
+      final googleSignIn = GoogleSignIn(
+        serverClientId: Env.googleWebClientId,
+        scopes: const ['email', 'profile', 'openid'],
       );
+      await googleSignIn.signOut(); // force fresh account picker
+      final account = await googleSignIn.signIn();
+      if (account == null) {
+        Log.breadcrumb('auth', 'user cancelled picker');
+        return;
+      }
+      Log.breadcrumb('auth', 'google account selected', data: {
+        'email': account.email,
+      });
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      final accessToken = auth.accessToken;
+      if (idToken == null) {
+        throw const AuthException(
+          'Google did not return an ID token. Check Web Client ID config.',
+        );
+      }
+      await Supabase.instance.client.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+      Log.breadcrumb('auth', 'supabase signInWithIdToken ok');
       await Analytics.login('google');
     } on AuthException catch (e) {
+      Log.e('SignIn', 'AuthException: ${e.message}', error: e);
       if (mounted) {
         setState(() => _error = e.message);
         _shake.forward(from: 0);
       }
-    } catch (e) {
+    } catch (e, st) {
+      Log.e('SignIn', 'native sign-in error', error: e, stack: st);
       if (mounted) {
         setState(() => _error = e.toString());
         _shake.forward(from: 0);
@@ -175,10 +198,7 @@ class _SignInScreenState extends State<SignInScreen>
                                     mainAxisAlignment:
                                         MainAxisAlignment.center,
                                     children: [
-                                      _GoogleMark(
-                                        shimmer: _shimmer,
-                                        reduced: reduced,
-                                      ),
+                                      const _GoogleMark(),
                                       const SizedBox(width: 10),
                                       Text(
                                         l10n.authWelcomeContinue,
@@ -253,38 +273,14 @@ class _SignInScreenState extends State<SignInScreen>
 }
 
 class _GoogleMark extends StatelessWidget {
-  const _GoogleMark({required this.shimmer, required this.reduced});
-
-  final AnimationController shimmer;
-  final bool reduced;
-
-  static const _colors = [
-    Color(0xFFEA4335),
-    Color(0xFF4285F4),
-    Color(0xFF34A853),
-    Color(0xFFFBBC05),
-  ];
+  const _GoogleMark();
 
   @override
   Widget build(BuildContext context) {
-    if (reduced) return _mark(0);
-    return AnimatedBuilder(
-      animation: shimmer,
-      builder: (_, __) => _mark(shimmer.value),
-    );
-  }
-
-  Widget _mark(double t) {
-    final angle = t * math.pi * 2;
-    final begin = Alignment(math.cos(angle), math.sin(angle));
-    final end = Alignment(-math.cos(angle), -math.sin(angle));
-    return Container(
+    return SvgPicture.asset(
+      'assets/icons/google-logo.svg',
       width: 20,
       height: 20,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(begin: begin, end: end, colors: _colors),
-        borderRadius: BorderRadius.circular(4),
-      ),
     );
   }
 }

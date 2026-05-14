@@ -1118,5 +1118,12 @@
     }
   },
 
-  "tierActive": "ACTIVE"
+  "tierActive": "ACTIVE",
+
+  "roomsIntroTitle": "Welcome to Rooms",
+  "roomsIntroSubtitle": "Track shared spending together. A few ways people use Rooms:",
+  "roomsIntroUseCase1": "Shared business budget — track team expenses with co-founders or staff.",
+  "roomsIntroUseCase2": "Trip expenses with friends — split a holiday and settle up later.",
+  "roomsIntroUseCase3": "Family monthly expense tracking — keep household spending in one place.",
+  "roomsIntroCta": "Got it"
 }

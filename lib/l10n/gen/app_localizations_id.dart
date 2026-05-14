@@ -2194,4 +2194,26 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get tierActive => 'AKTIF';
+
+  @override
+  String get roomsIntroTitle => 'Selamat datang di Room';
+
+  @override
+  String get roomsIntroSubtitle =>
+      'Lacak pengeluaran bersama dalam satu tempat. Beberapa contoh penggunaan Room:';
+
+  @override
+  String get roomsIntroUseCase1 =>
+      'Budget bisnis bersama — pantau pengeluaran tim dengan co-founder atau karyawan.';
+
+  @override
+  String get roomsIntroUseCase2 =>
+      'Biaya perjalanan dengan teman — bagi pengeluaran liburan dan lunasi belakangan.';
+
+  @override
+  String get roomsIntroUseCase3 =>
+      'Pelacakan pengeluaran keluarga bulanan — satukan pengeluaran rumah tangga.';
+
+  @override
+  String get roomsIntroCta => 'Mengerti';
 }

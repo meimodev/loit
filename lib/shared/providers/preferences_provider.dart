@@ -25,8 +25,8 @@ class AppPreferences {
   final bool notifProductUpdates;
 
   const AppPreferences({
-    this.themeMode = ThemeMode.system,
-    this.language = 'system',
+    this.themeMode = ThemeMode.light,
+    this.language = 'id',
     this.region = 'ID',
     this.currency = 'IDR',
     this.biometricLock = false,
@@ -91,12 +91,13 @@ class _Keys {
 
 ThemeMode _decodeThemeMode(String? v) {
   switch (v) {
-    case 'light':
-      return ThemeMode.light;
     case 'dark':
       return ThemeMode.dark;
-    default:
+    case 'system':
       return ThemeMode.system;
+    case 'light':
+    default:
+      return ThemeMode.light;
   }
 }
 
@@ -114,7 +115,7 @@ class PreferencesNotifier extends AsyncNotifier<AppPreferences> {
     _sp = await SharedPreferences.getInstance();
     return AppPreferences(
       themeMode: _decodeThemeMode(_sp.getString(_Keys.themeMode)),
-      language: _sp.getString(_Keys.language) ?? 'system',
+      language: _sp.getString(_Keys.language) ?? 'id',
       region: _sp.getString(_Keys.region) ?? 'ID',
       currency: _sp.getString(_Keys.currency) ?? 'IDR',
       biometricLock: _sp.getBool(_Keys.biometricLock) ?? false,
@@ -270,7 +271,7 @@ final themeModePrefProvider = Provider<ThemeMode>((ref) {
   final async = ref.watch(preferencesProvider);
   return async.maybeWhen(
     data: (p) => p.themeMode,
-    orElse: () => ThemeMode.system,
+    orElse: () => ThemeMode.light,
   );
 });
 
@@ -278,7 +279,7 @@ final themeModePrefProvider = Provider<ThemeMode>((ref) {
 final localePrefProvider = Provider<Locale?>((ref) {
   final lang = ref.watch(preferencesProvider).maybeWhen(
         data: (p) => p.language,
-        orElse: () => 'system',
+        orElse: () => 'id',
       );
   return switch (lang) {
     'en' => const Locale('en'),

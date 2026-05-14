@@ -2186,4 +2186,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tierActive => 'ACTIVE';
+
+  @override
+  String get roomsIntroTitle => 'Welcome to Rooms';
+
+  @override
+  String get roomsIntroSubtitle =>
+      'Track shared spending together. A few ways people use Rooms:';
+
+  @override
+  String get roomsIntroUseCase1 =>
+      'Shared business budget — track team expenses with co-founders or staff.';
+
+  @override
+  String get roomsIntroUseCase2 =>
+      'Trip expenses with friends — split a holiday and settle up later.';
+
+  @override
+  String get roomsIntroUseCase3 =>
+      'Family monthly expense tracking — keep household spending in one place.';
+
+  @override
+  String get roomsIntroCta => 'Got it';
 }

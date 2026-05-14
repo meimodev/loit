@@ -85,7 +85,18 @@ class RevenueCatPaymentService implements PaymentService {
     if (!_initialized) return;
     _emittedEntitlementKeys.clear();
     _emittedTxIds.clear();
-    await Purchases.logOut();
+    // RC throws PlatformException code 22 when logOut is called on an
+    // anonymous customer (cold boot before any identify). Skip the call.
+    if (await Purchases.isAnonymous) return;
+    try {
+      await Purchases.logOut();
+    } on PlatformException catch (e) {
+      if (e.code == '22') {
+        Log.d(_tag, 'logOut skipped: anonymous customer');
+        return;
+      }
+      rethrow;
+    }
   }
 
   @override

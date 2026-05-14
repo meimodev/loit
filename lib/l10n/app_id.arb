@@ -1112,5 +1112,12 @@
     }
   },
 
-  "tierActive": "AKTIF"
+  "tierActive": "AKTIF",
+
+  "roomsIntroTitle": "Selamat datang di Room",
+  "roomsIntroSubtitle": "Lacak pengeluaran bersama dalam satu tempat. Beberapa contoh penggunaan Room:",
+  "roomsIntroUseCase1": "Budget bisnis bersama — pantau pengeluaran tim dengan co-founder atau karyawan.",
+  "roomsIntroUseCase2": "Biaya perjalanan dengan teman — bagi pengeluaran liburan dan lunasi belakangan.",
+  "roomsIntroUseCase3": "Pelacakan pengeluaran keluarga bulanan — satukan pengeluaran rumah tangga.",
+  "roomsIntroCta": "Mengerti"
 }

@@ -68,6 +68,8 @@ class Analytics {
       _capture('topup_purchased', {'type': type});
 
   // ---- ROOMS (Phase 2) ----
+  static Future<void> roomsIntroSeen() => _capture('rooms_intro_seen');
+
   static Future<void> roomCreated() => _capture('room_created');
 
   static Future<void> roomJoined() => _capture('room_joined');

@@ -14,6 +14,7 @@ import 'core/services/deep_link_service.dart';
 import 'core/services/log_service.dart';
 import 'core/services/push_service.dart';
 import 'core/services/revenuecat_payment_service.dart';
+import 'features/rooms/rooms_intro_dialog.dart';
 import 'features/system/lock_screen.dart';
 import 'l10n/gen/app_localizations.dart';
 import 'l10n/l10n_x.dart';
@@ -42,6 +43,7 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
   StreamSubscription<RemoteMessage>? _foregroundPushSub;
   RealtimeChannel? _userRowChannel;
   DateTime? _pausedAt;
+  bool _roomsIntroShown = false;
   static const _lockBackgroundThreshold = Duration(seconds: 15);
 
   @override
@@ -155,9 +157,20 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     // Identify/reset PostHog + init push on auth transitions
     ref.listen<AsyncValue<AuthState>>(authStateProvider, (_, next) {
+      final event = next.value?.event;
       final session = next.value?.session;
+      Log.breadcrumb('auth', 'authStateProvider emit', data: {
+        'event': event?.name,
+        'hasSession': session != null,
+      });
       if (session != null) {
         Log.i('App', 'User signed in: ${session.user.id}');
+        Log.setUser(id: session.user.id, email: session.user.email);
+        Log.event('Auth', 'signed in', data: {
+          'event': event?.name,
+          'uid': session.user.id,
+          'provider': session.user.appMetadata['provider'],
+        });
         Analytics.identify(session.user.id, email: session.user.email);
         _subscribeUserRow(session.user.id);
         // Bind RevenueCat customer to Supabase user so webhook events carry
@@ -185,6 +198,9 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
         });
       } else {
         Log.i('App', 'User signed out');
+        _roomsIntroShown = false;
+        Log.event('Auth', 'signed out', data: {'event': event?.name});
+        Log.setUser(id: null);
         Analytics.reset();
         _userRowChannel?.unsubscribe();
         _userRowChannel = null;
@@ -219,11 +235,33 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
           Log.w('App', 'language local sync failed', error: e);
         },
       );
-      notifier.syncThemeFromDb(profile.theme).catchError(
+      final themeSync = notifier.syncThemeFromDb(profile.theme).catchError(
         (Object e, StackTrace st) {
           Log.w('App', 'theme local sync failed', error: e);
         },
       );
+
+      // Sign-in: surface the Rooms intro once per sign-in event.
+      // Chained off the language sync so MaterialApp.locale reflects the DB
+      // value before the sheet mounts — otherwise the previous session's
+      // locale renders for a frame.
+      if (!_roomsIntroShown) {
+        _roomsIntroShown = true;
+        themeSync.whenComplete(() async {
+          await notifier.syncLanguageFromDb(profile.language).catchError(
+            (Object _) {},
+          );
+          if (!mounted) return;
+          // Two frames: first lets Riverpod propagate the locale change to
+          // MaterialApp, second lets the Localizations widget rebuild.
+          await WidgetsBinding.instance.endOfFrame;
+          await WidgetsBinding.instance.endOfFrame;
+          if (!mounted) return;
+          final router = ref.read(appRouterProvider);
+          final ctx = router.routerDelegate.navigatorKey.currentContext;
+          if (ctx != null) showRoomsIntroDialog(ctx);
+        });
+      }
     });
 
     // Deep link → navigate to joined room
@@ -285,11 +323,11 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       localeResolutionCallback: (device, supported) {
-        if (device == null) return const Locale('en');
+        if (device == null) return const Locale('id');
         for (final s in supported) {
           if (s.languageCode == device.languageCode) return s;
         }
-        return const Locale('en');
+        return const Locale('id');
       },
       routerConfig: router,
     );

@@ -216,7 +216,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               ),
             ),
             const SizedBox(height: LoitSpacing.s5),
-            _StaggeredEntrance(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: LoitSpacing.s5),
+              child: _StaggeredEntrance(
               controller: _entrance,
               start: 0.45,
               end: 0.95,
@@ -253,6 +255,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   ),
                 ),
               ),
+            ),
             ),
             const SizedBox(height: LoitSpacing.s5),
           ],

@@ -4012,6 +4012,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'ACTIVE'**
   String get tierActive;
+
+  /// No description provided for @roomsIntroTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Rooms'**
+  String get roomsIntroTitle;
+
+  /// No description provided for @roomsIntroSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Track shared spending together. A few ways people use Rooms:'**
+  String get roomsIntroSubtitle;
+
+  /// No description provided for @roomsIntroUseCase1.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared business budget — track team expenses with co-founders or staff.'**
+  String get roomsIntroUseCase1;
+
+  /// No description provided for @roomsIntroUseCase2.
+  ///
+  /// In en, this message translates to:
+  /// **'Trip expenses with friends — split a holiday and settle up later.'**
+  String get roomsIntroUseCase2;
+
+  /// No description provided for @roomsIntroUseCase3.
+  ///
+  /// In en, this message translates to:
+  /// **'Family monthly expense tracking — keep household spending in one place.'**
+  String get roomsIntroUseCase3;
+
+  /// No description provided for @roomsIntroCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get roomsIntroCta;
 }
 
 class _AppLocalizationsDelegate

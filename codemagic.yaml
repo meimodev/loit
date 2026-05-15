@@ -1,0 +1,70 @@
+workflows:
+  android-closed-testing:
+    name: Android Closed Testing
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      java: 17
+      groups:
+        - loit_signing       # CM_KEYSTORE, CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, CM_KEY_PASSWORD
+        - loit_env_prod      # ENV_PRODUCTION_JSON (base64)
+        - loit_google        # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS, GOOGLE_SERVICES_JSON (base64)
+        - loit_sentry        # SENTRY_AUTH_TOKEN
+      vars:
+        PACKAGE_NAME: id.activid.loit
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'v*'
+          include: true
+    scripts:
+      - name: Decode keystore
+        script: |
+          echo "$CM_KEYSTORE" | base64 --decode > $CM_BUILD_DIR/android/app/loit-release.keystore
+      - name: Write key.properties
+        script: |
+          cat > $CM_BUILD_DIR/android/key.properties <<EOF
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyPassword=$CM_KEY_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          storeFile=loit-release.keystore
+          EOF
+      - name: Restore env.production.json
+        script: |
+          echo "$ENV_PRODUCTION_JSON" | base64 --decode > $CM_BUILD_DIR/env.production.json
+      - name: Restore google-services.json
+        script: |
+          echo "$GOOGLE_SERVICES_JSON" | base64 --decode > $CM_BUILD_DIR/android/app/google-services.json
+      - name: Flutter pub get
+        script: flutter pub get
+      - name: Build runner codegen
+        script: dart run build_runner build --delete-conflicting-outputs
+      - name: Flutter analyze
+        script: flutter analyze
+      - name: Flutter test
+        script: flutter test
+        ignore_failure: false
+      - name: Build AAB
+        script: |
+          POSTHOG_API_KEY=$(grep -o '"POSTHOG_API_KEY"[^,]*' env.production.json | cut -d'"' -f4)
+          flutter build appbundle --release \
+            --dart-define-from-file=env.production.json \
+            -Pposthog.api.key=$POSTHOG_API_KEY \
+            --build-number=$(($(date +%s) / 60))
+    artifacts:
+      - build/**/outputs/bundle/**/*.aab
+      - build/**/outputs/mapping/**/mapping.txt
+      - flutter_drive.log
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal          # change to "alpha" for closed testing once track exists
+        submit_as_draft: false
+      email:
+        recipients:
+          - edotanod@gmail.com
+        notify:
+          success: true
+          failure: true

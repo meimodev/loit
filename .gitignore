@@ -47,10 +47,11 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Environment variables
+# Environment variables (root-level secret files only — keep lib/core/config/env.dart tracked)
 *.env
 .env
-env.*
+/env.json
+/env.*.json
 
 # Loit specific
 firepit-log.txt

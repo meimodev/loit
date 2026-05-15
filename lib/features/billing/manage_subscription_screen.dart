@@ -102,9 +102,7 @@ class _ManageSubscriptionScreenState
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  isPaid
-                      ? 'All Pro features unlocked.'
-                      : 'Limited features. Upgrade for more.',
+                  isPaid ? l10n.billingPaidBody : l10n.billingFreeBody,
                   style: LoitTypography.bodyM.copyWith(
                     color: isPaid
                         ? Colors.white.withValues(alpha: 0.9)
@@ -114,7 +112,11 @@ class _ManageSubscriptionScreenState
                 if (profile?.nextReceiptExpiryAt != null) ...[
                   const SizedBox(height: 12),
                   Text(
-                    'Next renewal · ${profile!.nextReceiptExpiryAt!.toLocal().toString().split(' ').first}',
+                    l10n.billingNextRenewal(profile!.nextReceiptExpiryAt!
+                        .toLocal()
+                        .toString()
+                        .split(' ')
+                        .first),
                     style: LoitTypography.bodyS.copyWith(
                       color: isPaid
                           ? Colors.white.withValues(alpha: 0.85)
@@ -135,16 +137,16 @@ class _ManageSubscriptionScreenState
                 onPressed: () => context.push('/paywall', extra: 'manage'),
               ),
             ),
-          SettingsGroup(label: 'Billing', children: [
+          SettingsGroup(label: l10n.billingGroupBilling, children: [
             SettingsRow(
               label: l10n.restorePurchases,
               onTap: _busy ? null : _restore,
             ),
           ]),
           if (isPaid)
-            SettingsGroup(label: 'Manage in Google Play', children: [
+            SettingsGroup(label: l10n.billingGroupManagePlay, children: [
               SettingsRow(
-                label: 'Change plan',
+                label: l10n.billingChangePlan,
                 onTap: _openPlay,
               ),
               SettingsRow(
@@ -157,7 +159,7 @@ class _ManageSubscriptionScreenState
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Text(
-              'Cancellations and plan changes are handled by Google Play. Your current period stays active until renewal.',
+              l10n.billingPlayFootnote,
               style: LoitTypography.bodyS
                   .copyWith(color: c.contentTertiary),
             ),

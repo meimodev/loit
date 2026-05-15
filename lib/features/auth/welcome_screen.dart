@@ -24,6 +24,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   late final AnimationController _entrance;
   late final AnimationController _bob;
   late final AnimationController _heroSwap;
+  late final AnimationController _idle;
   int _idx = 0;
   bool _pressed = false;
 
@@ -61,6 +62,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       duration: LoitMotion.emphasized,
       value: 1,
     );
+    _idle = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 6),
+    )..repeat();
   }
 
   @override
@@ -69,6 +74,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     _entrance.dispose();
     _bob.dispose();
     _heroSwap.dispose();
+    _idle.dispose();
     super.dispose();
   }
 
@@ -131,16 +137,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           start: 0.05,
                           end: 0.60,
                           reduced: reduced,
-                          child: Container(
-                            width: 88,
-                            height: 88,
-                            decoration: BoxDecoration(
-                              color: LoitPalette.teal100,
-                              borderRadius: LoitRadius.brL,
-                            ),
-                            alignment: Alignment.center,
-                            child: Icon(icon,
-                                size: 40, color: LoitPalette.teal700),
+                          child: _AnimatedHero(
+                            index: i,
+                            icon: icon,
+                            idle: _idle,
+                            reduced: reduced,
                           ),
                         ),
                       ),
@@ -263,6 +264,247 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       ),
     );
   }
+}
+
+class _AnimatedHero extends StatelessWidget {
+  const _AnimatedHero({
+    required this.index,
+    required this.icon,
+    required this.idle,
+    required this.reduced,
+  });
+
+  final int index;
+  final IconData icon;
+  final Animation<double> idle;
+  final bool reduced;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = Container(
+      width: 88,
+      height: 88,
+      decoration: BoxDecoration(
+        color: LoitPalette.teal100,
+        borderRadius: LoitRadius.brL,
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, size: 40, color: LoitPalette.teal700),
+    );
+    if (reduced) return base;
+    return SizedBox(
+      width: 88,
+      height: 88,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(child: _decor()),
+          base,
+          if (index == 0) Positioned.fill(child: _CameraGlint(idle: idle)),
+        ],
+      ),
+    );
+  }
+
+  Widget _decor() {
+    switch (index) {
+      case 0:
+        return _CameraRings(idle: idle);
+      case 1:
+        return _OrbitDots(idle: idle);
+      case 2:
+      default:
+        return _CheckSparkles(idle: idle);
+    }
+  }
+}
+
+class _CameraRings extends StatelessWidget {
+  const _CameraRings({required this.idle});
+  final Animation<double> idle;
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: idle,
+        builder: (_, __) => CustomPaint(
+          painter: _CameraRingsPainter(phase: idle.value),
+        ),
+      ),
+    );
+  }
+}
+
+class _CameraRingsPainter extends CustomPainter {
+  _CameraRingsPainter({required this.phase});
+  final double phase;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    for (var i = 0; i < 3; i++) {
+      final t = (phase + i / 3) % 1.0;
+      final half = 44.0 + t * 24.0;
+      final opacity = ((1 - t).clamp(0.0, 1.0)) * 0.42;
+      if (opacity <= 0) continue;
+      final paint = Paint()
+        ..color = LoitPalette.teal400.withValues(alpha: opacity)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+              center: center, width: half * 2, height: half * 2),
+          Radius.circular(18 + t * 10),
+        ),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CameraRingsPainter old) => old.phase != phase;
+}
+
+class _CameraGlint extends StatelessWidget {
+  const _CameraGlint({required this.idle});
+  final Animation<double> idle;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: idle,
+        builder: (_, __) {
+          final t = (math.sin(idle.value * math.pi * 2) * 0.5 + 0.5);
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                right: 6,
+                top: 6,
+                child: Opacity(
+                  opacity: 0.35 + t * 0.55,
+                  child: Transform.scale(
+                    scale: 0.6 + t * 0.6,
+                    child: Icon(
+                      Icons.auto_awesome,
+                      size: 16,
+                      color: LoitPalette.ochre400,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _OrbitDots extends StatelessWidget {
+  const _OrbitDots({required this.idle});
+  final Animation<double> idle;
+
+  @override
+  Widget build(BuildContext context) {
+    const radius = 52.0;
+    const colors = [
+      LoitPalette.teal500,
+      LoitPalette.ochre400,
+      LoitPalette.teal300,
+    ];
+    return AnimatedBuilder(
+      animation: idle,
+      builder: (_, __) {
+        final base = idle.value * 2 * math.pi;
+        return Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: List.generate(3, (i) {
+            final a = base + i * (2 * math.pi / 3);
+            final dx = math.cos(a) * radius;
+            final dy = math.sin(a) * radius;
+            final depth = (math.sin(a) + 1) / 2;
+            final scale = 0.75 + depth * 0.5;
+            return Transform.translate(
+              offset: Offset(dx, dy),
+              child: Transform.scale(
+                scale: scale,
+                child: Container(
+                  width: 11,
+                  height: 11,
+                  decoration: BoxDecoration(
+                    color: colors[i],
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors[i].withValues(alpha: 0.35),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+}
+
+class _CheckSparkles extends StatelessWidget {
+  const _CheckSparkles({required this.idle});
+  final Animation<double> idle;
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: idle,
+        builder: (_, __) => CustomPaint(
+          painter: _CheckSparklesPainter(phase: idle.value),
+        ),
+      ),
+    );
+  }
+}
+
+class _CheckSparklesPainter extends CustomPainter {
+  _CheckSparklesPainter({required this.phase});
+  final double phase;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final halo = (math.sin(phase * math.pi * 2) * 0.5 + 0.5);
+    canvas.drawCircle(
+      center,
+      50 + halo * 8,
+      Paint()
+        ..color = LoitPalette.teal400.withValues(alpha: 0.08 + halo * 0.10),
+    );
+    const count = 6;
+    for (var i = 0; i < count; i++) {
+      final t = (phase + i / count) % 1.0;
+      final a = i * (2 * math.pi / count) - math.pi / 2;
+      final dist = 38 + t * 30;
+      final pos =
+          center + Offset(math.cos(a) * dist, math.sin(a) * dist);
+      final fade = (1 - t).clamp(0.0, 1.0);
+      final color = (i.isEven ? LoitPalette.ochre400 : LoitPalette.teal500)
+          .withValues(alpha: fade * 0.75);
+      canvas.drawCircle(pos, 2.4 + (1 - fade) * 1.2,
+          Paint()..color = color);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CheckSparklesPainter old) => old.phase != phase;
 }
 
 class _StaggeredEntrance extends StatelessWidget {

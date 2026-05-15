@@ -78,15 +78,15 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       final result = await pay.purchaseSubscription(sku);
       if (!mounted) return;
       if (result.status == PurchaseStatus.cancelled) {
-        _showSnack('Purchase cancelled.');
+        _showSnack(context.l10n.paywallPurchaseCancelled);
       } else if (result.status == PurchaseStatus.failed) {
-        _showSnack(result.message ?? 'Purchase failed.');
+        _showSnack(result.message ?? context.l10n.paywallPurchaseFailed);
       } else if (result.isTerminalSuccess) {
         ref.invalidate(userProfileProvider);
       }
     } catch (e) {
       if (!mounted) return;
-      _showSnack('Could not start purchase: $e');
+      _showSnack(context.l10n.paywallPurchaseStartError(e.toString()));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -105,12 +105,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
   void _onPurchaseUpdate(PurchaseUpdate u) {
     if (!mounted) return;
+    final l10n = context.l10n;
     final msg = switch (u.status) {
-      PurchaseStatus.purchased => 'Purchase complete. Unlocking…',
-      PurchaseStatus.restored => 'Purchase restored.',
-      PurchaseStatus.pending => 'Purchase pending. Waiting for confirmation…',
-      PurchaseStatus.cancelled => 'Purchase cancelled.',
-      PurchaseStatus.failed => u.message ?? 'Purchase failed.',
+      PurchaseStatus.purchased => l10n.paywallPurchaseComplete,
+      PurchaseStatus.restored => l10n.paywallPurchaseRestored,
+      PurchaseStatus.pending => l10n.paywallPurchasePending,
+      PurchaseStatus.cancelled => l10n.paywallPurchaseCancelled,
+      PurchaseStatus.failed => u.message ?? l10n.paywallPurchaseFailed,
     };
     InteractionLog.info(
       action: 'payment_purchase_update',
@@ -165,13 +166,16 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   String _ctaLabel() {
+    final l10n = context.l10n;
     switch (_selected) {
       case _Plan.free:
-        return 'Continue on Free';
+        return l10n.paywallCtaFree;
       case _Plan.proAnnual:
-        return 'Start Pro · ${_formatIdr(PricingConstants.proAnnualIdr)}/yr';
+        return l10n.paywallCtaProAnnual(
+            _formatIdr(PricingConstants.proAnnualIdr));
       case _Plan.proMonthly:
-        return 'Start Pro · ${_formatIdr(PricingConstants.proMonthlyIdr)}/mo';
+        return l10n.paywallCtaProMonthly(
+            _formatIdr(PricingConstants.proMonthlyIdr));
     }
   }
 
@@ -234,9 +238,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  isPro
-                      ? 'You\'re on Pro.\nEverything\nunlocked.'
-                      : 'Unlimited budgets.\nUnlimited currencies.\nPro.',
+                  isPro ? l10n.paywallHeroPro : l10n.paywallHero,
                   style: LoitTypography.titleL.copyWith(
                     color: c.contentPrimary,
                     fontWeight: FontWeight.w600,
@@ -258,27 +260,26 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       title: l10n.paywallFree,
                       price: 'Rp 0',
                       period: '/mo',
-                      features:
-                          '3 budgets · 8 scans · 3 months reports',
+                      features: l10n.paywallFreeFeatures,
                       selected: _selected == _Plan.free,
                       onTap: () => setState(() => _selected = _Plan.free),
                     ),
                     _PlanCard(
-                      title: '${l10n.paywallPro} · Yearly',
+                      title: '${l10n.paywallPro} · ${l10n.paywallPlanYearly}',
                       price: _formatIdr(PricingConstants.proAnnualIdr),
                       period: '/yr',
-                      features:
-                          'Save 4 months · Unlimited everything · Export',
+                      features: l10n.paywallProAnnualFeatures,
                       selected: _selected == _Plan.proAnnual,
                       recommended: true,
+                      bestValueLabel: l10n.paywallBestValue,
                       onTap: () =>
                           setState(() => _selected = _Plan.proAnnual),
                     ),
                     _PlanCard(
-                      title: '${l10n.paywallPro} · Monthly',
+                      title: '${l10n.paywallPro} · ${l10n.paywallPlanMonthly}',
                       price: _formatIdr(PricingConstants.proMonthlyIdr),
                       period: '/mo',
-                      features: 'Cancel anytime',
+                      features: l10n.paywallProMonthlyFeatures,
                       selected: _selected == _Plan.proMonthly,
                       onTap: () =>
                           setState(() => _selected = _Plan.proMonthly),
@@ -309,7 +310,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               child: Column(
                 children: [
                   LoitButton.primary(
-                    label: isPro ? 'You\'re all set' : _ctaLabel(),
+                    label: isPro ? l10n.paywallCtaAllSet : _ctaLabel(),
                     size: LoitButtonSize.l,
                     fullWidth: true,
                     loading: _busy,
@@ -341,6 +342,7 @@ class _PlanCard extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.recommended = false,
+    this.bestValueLabel,
   });
 
   final String title;
@@ -349,6 +351,7 @@ class _PlanCard extends StatelessWidget {
   final String features;
   final bool selected;
   final bool recommended;
+  final String? bestValueLabel;
   final VoidCallback onTap;
 
   @override
@@ -427,7 +430,7 @@ class _PlanCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  'BEST VALUE',
+                  bestValueLabel ?? 'BEST VALUE',
                   style: LoitTypography.labelS.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -450,6 +453,7 @@ class _ProActiveCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final tier = profile?.tier.toUpperCase() ?? 'PRO';
     return Container(
       margin: const EdgeInsets.only(top: 4),
       padding: const EdgeInsets.all(16),
@@ -464,7 +468,7 @@ class _ProActiveCard extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Your ${profile?.tier.toUpperCase() ?? 'PRO'} subscription is active.',
+              context.l10n.paywallTierActive(tier),
               style: LoitTypography.bodyM.copyWith(
                 color: c.contentPrimary,
                 fontWeight: FontWeight.w500,

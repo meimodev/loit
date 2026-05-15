@@ -69,6 +69,7 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       // authStateProvider emits its first event. Subscribe immediately if so.
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
+        _syncAvatarFromAuth(user);
         _subscribeUserRow(user.id);
         _maybeLockOnColdStart();
       }
@@ -130,6 +131,28 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  Future<void> _syncAvatarFromAuth(User user) async {
+    final meta = user.userMetadata ?? const <String, dynamic>{};
+    final url = (meta['avatar_url'] as String?) ?? (meta['picture'] as String?);
+    if (url == null || url.isEmpty) return;
+    try {
+      final row = await Supabase.instance.client
+          .from('users')
+          .select('avatar_url')
+          .eq('id', user.id)
+          .maybeSingle();
+      if (row == null) return;
+      final current = row['avatar_url'] as String?;
+      if (current == url) return;
+      await Supabase.instance.client
+          .from('users')
+          .update({'avatar_url': url}).eq('id', user.id);
+      ref.invalidate(userProfileProvider);
+    } catch (e) {
+      Log.w('App', 'avatar sync failed', error: e);
+    }
+  }
+
   void _subscribeUserRow(String userId) {
     _userRowChannel?.unsubscribe();
     // Realtime UPDATE on the user's own public.users row. Catches any
@@ -172,6 +195,7 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
           'provider': session.user.appMetadata['provider'],
         });
         Analytics.identify(session.user.id, email: session.user.email);
+        _syncAvatarFromAuth(session.user);
         _subscribeUserRow(session.user.id);
         // Bind RevenueCat customer to Supabase user so webhook events carry
         // the correct app_user_id. Without this, purchases land on whichever

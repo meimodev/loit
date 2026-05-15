@@ -236,15 +236,18 @@ class SettingsAvatar extends StatelessWidget {
     required this.initials,
     required this.color,
     this.size = 48,
+    this.imageUrl,
   });
 
   final String initials;
   final Color color;
   final double size;
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
     final reduce = MediaQuery.of(context).disableAnimations;
+    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
     final avatar = AnimatedContainer(
       duration: LoitMotion.base,
       curve: LoitMotion.easeOutQuart,
@@ -254,6 +257,12 @@ class SettingsAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
+        image: hasImage
+            ? DecorationImage(
+                image: NetworkImage(imageUrl!),
+                fit: BoxFit.cover,
+              )
+            : null,
         boxShadow: [
           BoxShadow(
             color: color.withValues(alpha: 0.35),
@@ -263,23 +272,25 @@ class SettingsAvatar extends StatelessWidget {
           ),
         ],
       ),
-      child: AnimatedSwitcher(
-        duration: LoitMotion.base,
-        switchInCurve: LoitMotion.easeOutQuart,
-        transitionBuilder: (child, anim) => ScaleTransition(
-          scale: anim,
-          child: FadeTransition(opacity: anim, child: child),
-        ),
-        child: Text(
-          initials,
-          key: ValueKey(initials),
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: size * 0.4,
-          ),
-        ),
-      ),
+      child: hasImage
+          ? null
+          : AnimatedSwitcher(
+              duration: LoitMotion.base,
+              switchInCurve: LoitMotion.easeOutQuart,
+              transitionBuilder: (child, anim) => ScaleTransition(
+                scale: anim,
+                child: FadeTransition(opacity: anim, child: child),
+              ),
+              child: Text(
+                initials,
+                key: ValueKey(initials),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: size * 0.4,
+                ),
+              ),
+            ),
     );
 
     if (reduce) return avatar;

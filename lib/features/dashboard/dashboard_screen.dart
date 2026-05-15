@@ -103,13 +103,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             padding: const EdgeInsets.only(right: LoitSpacing.s4),
             child: _PressScale(
               onTap: () => context.push('/settings/profile'),
-              child: CircleAvatar(
-                radius: 16,
-                backgroundColor: c.brand,
-                child: Text(
-                  _avatarInitial(profile),
-                  style: LoitTypography.labelS.copyWith(color: Colors.white),
-                ),
+              child: _DashboardAvatar(
+                imageUrl: profile?.avatarUrl,
+                initial: _avatarInitial(profile),
+                color: c.brand,
               ),
             ),
           ),
@@ -1049,6 +1046,44 @@ class _FadeUp extends StatelessWidget {
 /// Tap-down scale feedback. Drops to 0.94 on press, springs back via
 /// easeOutQuart. Used for circular avatars and small targets where
 /// InkWell ripple is too heavy.
+class _DashboardAvatar extends StatelessWidget {
+  const _DashboardAvatar({
+    required this.imageUrl,
+    required this.initial,
+    required this.color,
+  });
+
+  final String? imageUrl;
+  final String initial;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        image: hasImage
+            ? DecorationImage(
+                image: NetworkImage(imageUrl!),
+                fit: BoxFit.cover,
+              )
+            : null,
+      ),
+      alignment: Alignment.center,
+      child: hasImage
+          ? null
+          : Text(
+              initial,
+              style: LoitTypography.labelS.copyWith(color: Colors.white),
+            ),
+    );
+  }
+}
+
 class _PressScale extends StatefulWidget {
   const _PressScale({required this.child, required this.onTap});
 

@@ -2208,4 +2208,95 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get roomsIntroCta => 'Got it';
+
+  @override
+  String get paywallHeroPro => 'You\'re on Pro.\nEverything\nunlocked.';
+
+  @override
+  String get paywallHero => 'Unlimited budgets.\nUnlimited currencies.\nPro.';
+
+  @override
+  String get paywallPlanYearly => 'Yearly';
+
+  @override
+  String get paywallPlanMonthly => 'Monthly';
+
+  @override
+  String get paywallFreeFeatures => '3 budgets · 8 scans · 3 months reports';
+
+  @override
+  String get paywallProAnnualFeatures =>
+      'Save 4 months · Unlimited everything · Export';
+
+  @override
+  String get paywallProMonthlyFeatures => 'Cancel anytime';
+
+  @override
+  String get paywallBestValue => 'BEST VALUE';
+
+  @override
+  String get paywallCtaFree => 'Continue on Free';
+
+  @override
+  String paywallCtaProAnnual(String price) {
+    return 'Start Pro · $price/yr';
+  }
+
+  @override
+  String paywallCtaProMonthly(String price) {
+    return 'Start Pro · $price/mo';
+  }
+
+  @override
+  String get paywallCtaAllSet => 'You\'re all set';
+
+  @override
+  String paywallTierActive(String tier) {
+    return 'Your $tier subscription is active.';
+  }
+
+  @override
+  String get paywallPurchaseCancelled => 'Purchase cancelled.';
+
+  @override
+  String get paywallPurchaseFailed => 'Purchase failed.';
+
+  @override
+  String paywallPurchaseStartError(String error) {
+    return 'Could not start purchase: $error';
+  }
+
+  @override
+  String get paywallPurchaseComplete => 'Purchase complete. Unlocking…';
+
+  @override
+  String get paywallPurchaseRestored => 'Purchase restored.';
+
+  @override
+  String get paywallPurchasePending =>
+      'Purchase pending. Waiting for confirmation…';
+
+  @override
+  String get billingPaidBody => 'All Pro features unlocked.';
+
+  @override
+  String get billingFreeBody => 'Limited features. Upgrade for more.';
+
+  @override
+  String billingNextRenewal(String date) {
+    return 'Next renewal · $date';
+  }
+
+  @override
+  String get billingGroupBilling => 'Billing';
+
+  @override
+  String get billingGroupManagePlay => 'Manage in Google Play';
+
+  @override
+  String get billingChangePlan => 'Change plan';
+
+  @override
+  String get billingPlayFootnote =>
+      'Cancellations and plan changes are handled by Google Play. Your current period stays active until renewal.';
 }

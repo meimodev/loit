@@ -94,33 +94,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 Center(
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      SettingsAvatar(
-                        initials:
-                            (profile?.name.isNotEmpty ?? false)
-                                ? profile!.name[0].toUpperCase()
-                                : '?',
-                        color: c.brand,
-                        size: 88,
-                      ),
-                      Positioned(
-                        right: -4,
-                        bottom: -4,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: c.brand,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: c.canvas, width: 3),
-                          ),
-                          child: const Icon(Icons.camera_alt,
-                              size: 16, color: Colors.white),
-                        ),
-                      ),
-                    ],
+                  child: SettingsAvatar(
+                    initials: (profile?.name.isNotEmpty ?? false)
+                        ? profile!.name[0].toUpperCase()
+                        : '?',
+                    color: c.brand,
+                    size: 88,
+                    imageUrl: profile?.avatarUrl,
                   ),
                 ),
                 const SizedBox(height: 24),

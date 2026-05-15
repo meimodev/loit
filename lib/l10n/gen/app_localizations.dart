@@ -4048,6 +4048,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Got it'**
   String get roomsIntroCta;
+
+  /// No description provided for @paywallHeroPro.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re on Pro.\nEverything\nunlocked.'**
+  String get paywallHeroPro;
+
+  /// No description provided for @paywallHero.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited budgets.\nUnlimited currencies.\nPro.'**
+  String get paywallHero;
+
+  /// No description provided for @paywallPlanYearly.
+  ///
+  /// In en, this message translates to:
+  /// **'Yearly'**
+  String get paywallPlanYearly;
+
+  /// No description provided for @paywallPlanMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly'**
+  String get paywallPlanMonthly;
+
+  /// No description provided for @paywallFreeFeatures.
+  ///
+  /// In en, this message translates to:
+  /// **'3 budgets · 8 scans · 3 months reports'**
+  String get paywallFreeFeatures;
+
+  /// No description provided for @paywallProAnnualFeatures.
+  ///
+  /// In en, this message translates to:
+  /// **'Save 4 months · Unlimited everything · Export'**
+  String get paywallProAnnualFeatures;
+
+  /// No description provided for @paywallProMonthlyFeatures.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel anytime'**
+  String get paywallProMonthlyFeatures;
+
+  /// No description provided for @paywallBestValue.
+  ///
+  /// In en, this message translates to:
+  /// **'BEST VALUE'**
+  String get paywallBestValue;
+
+  /// No description provided for @paywallCtaFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue on Free'**
+  String get paywallCtaFree;
+
+  /// No description provided for @paywallCtaProAnnual.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Pro · {price}/yr'**
+  String paywallCtaProAnnual(String price);
+
+  /// No description provided for @paywallCtaProMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Pro · {price}/mo'**
+  String paywallCtaProMonthly(String price);
+
+  /// No description provided for @paywallCtaAllSet.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re all set'**
+  String get paywallCtaAllSet;
+
+  /// No description provided for @paywallTierActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Your {tier} subscription is active.'**
+  String paywallTierActive(String tier);
+
+  /// No description provided for @paywallPurchaseCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase cancelled.'**
+  String get paywallPurchaseCancelled;
+
+  /// No description provided for @paywallPurchaseFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase failed.'**
+  String get paywallPurchaseFailed;
+
+  /// No description provided for @paywallPurchaseStartError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not start purchase: {error}'**
+  String paywallPurchaseStartError(String error);
+
+  /// No description provided for @paywallPurchaseComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase complete. Unlocking…'**
+  String get paywallPurchaseComplete;
+
+  /// No description provided for @paywallPurchaseRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase restored.'**
+  String get paywallPurchaseRestored;
+
+  /// No description provided for @paywallPurchasePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase pending. Waiting for confirmation…'**
+  String get paywallPurchasePending;
+
+  /// No description provided for @billingPaidBody.
+  ///
+  /// In en, this message translates to:
+  /// **'All Pro features unlocked.'**
+  String get billingPaidBody;
+
+  /// No description provided for @billingFreeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Limited features. Upgrade for more.'**
+  String get billingFreeBody;
+
+  /// No description provided for @billingNextRenewal.
+  ///
+  /// In en, this message translates to:
+  /// **'Next renewal · {date}'**
+  String billingNextRenewal(String date);
+
+  /// No description provided for @billingGroupBilling.
+  ///
+  /// In en, this message translates to:
+  /// **'Billing'**
+  String get billingGroupBilling;
+
+  /// No description provided for @billingGroupManagePlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage in Google Play'**
+  String get billingGroupManagePlay;
+
+  /// No description provided for @billingChangePlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Change plan'**
+  String get billingChangePlan;
+
+  /// No description provided for @billingPlayFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellations and plan changes are handled by Google Play. Your current period stays active until renewal.'**
+  String get billingPlayFootnote;
 }
 
 class _AppLocalizationsDelegate

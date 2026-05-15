@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/loit_colors.dart';
@@ -8,9 +9,6 @@ import '_widgets.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
-
-  static const _appVersion = '1.0.0';
-  static const _build = '1';
 
   Future<void> _open(String url) async {
     final uri = Uri.parse(url);
@@ -80,10 +78,20 @@ class AboutScreen extends StatelessWidget {
             ),
           ]),
           SettingsGroup(label: l.aboutBuild, children: [
-            SettingsRow(
-                label: l.settingsVersion,
-                value: '$_appVersion ($_build)',
-                showChevron: false),
+            FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (context, snap) {
+                final info = snap.data;
+                final value = info == null
+                    ? '…'
+                    : '${info.version} (${info.buildNumber})';
+                return SettingsRow(
+                  label: l.settingsVersion,
+                  value: value,
+                  showChevron: false,
+                );
+              },
+            ),
           ]),
         ],
       ),

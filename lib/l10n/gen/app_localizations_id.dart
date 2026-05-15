@@ -2216,4 +2216,96 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get roomsIntroCta => 'Mengerti';
+
+  @override
+  String get paywallHeroPro => 'Anda di Pro.\nSemua\nterbuka.';
+
+  @override
+  String get paywallHero => 'Budget tanpa batas.\nMata uang tanpa batas.\nPro.';
+
+  @override
+  String get paywallPlanYearly => 'Tahunan';
+
+  @override
+  String get paywallPlanMonthly => 'Bulanan';
+
+  @override
+  String get paywallFreeFeatures => '3 budget · 8 pindai · laporan 3 bulan';
+
+  @override
+  String get paywallProAnnualFeatures =>
+      'Hemat 4 bulan · Semua tanpa batas · Ekspor';
+
+  @override
+  String get paywallProMonthlyFeatures => 'Batalkan kapan saja';
+
+  @override
+  String get paywallBestValue => 'PALING HEMAT';
+
+  @override
+  String get paywallCtaFree => 'Lanjutkan dengan Gratis';
+
+  @override
+  String paywallCtaProAnnual(String price) {
+    return 'Mulai Pro · $price/thn';
+  }
+
+  @override
+  String paywallCtaProMonthly(String price) {
+    return 'Mulai Pro · $price/bln';
+  }
+
+  @override
+  String get paywallCtaAllSet => 'Sudah aktif';
+
+  @override
+  String paywallTierActive(String tier) {
+    return 'Langganan $tier Anda aktif.';
+  }
+
+  @override
+  String get paywallPurchaseCancelled => 'Pembelian dibatalkan.';
+
+  @override
+  String get paywallPurchaseFailed => 'Pembelian gagal.';
+
+  @override
+  String paywallPurchaseStartError(String error) {
+    return 'Tidak dapat memulai pembelian: $error';
+  }
+
+  @override
+  String get paywallPurchaseComplete => 'Pembelian selesai. Membuka…';
+
+  @override
+  String get paywallPurchaseRestored => 'Pembelian dipulihkan.';
+
+  @override
+  String get paywallPurchasePending =>
+      'Pembelian tertunda. Menunggu konfirmasi…';
+
+  @override
+  String get billingPaidBody => 'Semua fitur Pro terbuka.';
+
+  @override
+  String get billingFreeBody =>
+      'Fitur terbatas. Tingkatkan untuk lebih banyak.';
+
+  @override
+  String billingNextRenewal(String date) {
+    return 'Perpanjangan berikutnya · $date';
+  }
+
+  @override
+  String get billingGroupBilling => 'Tagihan';
+
+  @override
+  String get billingGroupManagePlay => 'Kelola di Google Play';
+
+  @override
+  String get billingChangePlan => 'Ubah paket';
+
+  @override
+  String get billingPlayFootnote =>
+      'Pembatalan dan perubahan paket dikelola oleh Google Play. Periode saat ini tetap aktif sampai perpanjangan.';
 }

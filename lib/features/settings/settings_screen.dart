@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -84,6 +86,7 @@ class SettingsScreen extends ConsumerWidget {
                         SettingsAvatar(
                           initials: _initials(profile.name, profile.email),
                           color: c.brand,
+                          imageUrl: profile.avatarUrl,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -247,22 +250,33 @@ class SettingsScreen extends ConsumerWidget {
                   label: l.settingsHelpSupport,
                   onTap: () => context.push('/settings/about'),
                 ),
-                SettingsRow(
-                  label: l.settingsVersion,
-                  value: '1.0.0',
-                  showChevron: false,
+                FutureBuilder<PackageInfo>(
+                  future: PackageInfo.fromPlatform(),
+                  builder: (context, snap) {
+                    final info = snap.data;
+                    final value = info == null
+                        ? '…'
+                        : '${info.version} (${info.buildNumber})';
+                    return SettingsRow(
+                      label: l.settingsVersion,
+                      value: value,
+                      showChevron: false,
+                    );
+                  },
                 ),
               ]),
           ),
 
-          const SizedBox(height: 24),
-          LoitFadeSlideIn(
-            delay: const Duration(milliseconds: 520),
-            offset: 10,
-            child: SettingsGroup(label: l.settingsDebug, children: [
-              _OfflineToggle(),
-            ]),
-          ),
+          if (kDebugMode) ...[
+            const SizedBox(height: 24),
+            LoitFadeSlideIn(
+              delay: const Duration(milliseconds: 520),
+              offset: 10,
+              child: SettingsGroup(label: l.settingsDebug, children: [
+                _OfflineToggle(),
+              ]),
+            ),
+          ],
           LoitFadeSlideIn(
             delay: const Duration(milliseconds: 600),
             offset: 12,

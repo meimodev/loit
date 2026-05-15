@@ -108,6 +108,9 @@ dependencies:
   # Persisted user preferences (theme, locale, toggles)
   shared_preferences: ^2.3.2
 
+  # Reads version + build from native bundle (pubspec `version: x.y.z+build`)
+  package_info_plus: ^9.0.1
+
   # Export
   csv: ^6.0.0
   pdf: ^3.11.1

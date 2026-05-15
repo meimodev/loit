@@ -139,7 +139,9 @@ class RevenueCatPaymentService implements PaymentService {
       // RC v8+ returns its own `PurchaseResult` (hidden in our import) wrapping
       // `customerInfo`. We unwrap it and pass `CustomerInfo` to our helpers
       // so the entitlement-check logic stays the same as the listener path.
-      final rcResult = await Purchases.purchaseStoreProduct(products.first);
+      final rcResult = await Purchases.purchase(
+        PurchaseParams.storeProduct(products.first),
+      );
       var info = (rcResult as dynamic).customerInfo as CustomerInfo;
 
       // RC's local CustomerInfo lags the webhook-driven entitlement state by

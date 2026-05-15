@@ -1,3 +1,6 @@
+// ignore_for_file: non_constant_identifier_names
+// Function names mirror `DateFormat` static skeleton constructors
+// (MMMd, MMM, MMMEd, Hm) so call sites read naturally.
 import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 

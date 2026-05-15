@@ -107,6 +107,9 @@ class _ReceiptsScreenState extends ConsumerState<ReceiptsScreen> {
     if (_progress.containsKey(id)) return;
     setState(() => _progress[id] = 0.0);
     final l = context.l10n;
+    final shareSubject = l.receiptsShareSubject(
+      yMMMd(context).format(item.createdAt.toLocal()),
+    );
     try {
       final file = await _fetchToTemp(item, onProgress: (received, total) {
         if (!mounted) return;
@@ -118,7 +121,7 @@ class _ReceiptsScreenState extends ConsumerState<ReceiptsScreen> {
       });
       await Share.shareXFiles(
         [XFile(file.path, mimeType: 'image/jpeg')],
-        subject: context.l10n.receiptsShareSubject(yMMMd(context).format(item.createdAt.toLocal())),
+        subject: shareSubject,
       );
     } catch (e, st) {
       Log.e(_tag, 'download failed', error: e, stack: st);

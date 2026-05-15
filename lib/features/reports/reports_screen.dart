@@ -597,7 +597,7 @@ class _MetricCell extends StatelessWidget {
 }
 
 class _StackedBar extends ConsumerWidget {
-  const _StackedBar({super.key, required this.parts, required this.total});
+  const _StackedBar({required this.parts, required this.total});
   final List<MapEntry<String, double>> parts;
   final double total;
 
@@ -632,7 +632,6 @@ class _StackedBar extends ConsumerWidget {
 
 class _CategoryLine extends ConsumerWidget {
   const _CategoryLine({
-    super.key,
     required this.entry,
     required this.total,
     required this.fmt,

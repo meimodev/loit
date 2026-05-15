@@ -115,7 +115,7 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       // while the app was backgrounded. The CustomerInfo listener will then
       // fire entitlementChanged, which invalidates userProfileProvider.
       Purchases.invalidateCustomerInfoCache().catchError((Object _) {});
-      Purchases.getCustomerInfo().catchError((Object _) {});
+      Purchases.getCustomerInfo().then((_) {}, onError: (Object _) {});
       // Also refresh profile directly in case the webhook already landed.
       ref.invalidate(userProfileProvider);
     }
@@ -283,6 +283,7 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
           if (!mounted) return;
           final router = ref.read(appRouterProvider);
           final ctx = router.routerDelegate.navigatorKey.currentContext;
+          // ignore: use_build_context_synchronously
           if (ctx != null) showRoomsIntroDialog(ctx);
         });
       }

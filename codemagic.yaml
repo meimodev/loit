@@ -60,7 +60,9 @@ workflows:
     publishing:
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal          # change to "alpha" for closed testing once track exists
+        # Play Console closed-testing track display name "2",
+        # API identifier 4698923623304983953.
+        track: "4698923623304983953"
         submit_as_draft: false
       email:
         recipients:

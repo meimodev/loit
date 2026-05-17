@@ -35,21 +35,31 @@ const supabase = createClient(
 const SHARED_AUTH = Deno.env.get('REVENUECAT_WEBHOOK_AUTH')!;
 
 const SUBSCRIPTION_SKUS = new Set([
+  'loit_lite_monthly',
+  'loit_lite_annual',
   'loit_pro_monthly_1',
   'loit_pro_annual_1',
-  'loit_team_monthly_1',
-  'loit_team_annual_1',
 ]);
+// v2 scan top-up: loit_scan_topup_15 (Rp 9,000 / 15 scans). The legacy
+// loit_scan_topup_10 SKU is kept here so historical receipts (already-purchased
+// 10-scan packs) can still be honored when RC re-sends. New paywall flows
+// must only surface the _15 SKU.
 const ONE_TIME_SKUS = new Set([
+  'loit_scan_topup_15',
   'loit_scan_topup_10',
   'loit_storage_ext_6mo',
 ]);
 
-const SKU_TO_TIER: Record<string, 'pro' | 'team'> = {
+const SKU_TO_TIER: Record<string, 'pro' | 'lite'> = {
+  loit_lite_monthly: 'lite',
+  loit_lite_annual: 'lite',
   loit_pro_monthly_1: 'pro',
   loit_pro_annual_1: 'pro',
-  loit_team_monthly_1: 'team',
-  loit_team_annual_1: 'team',
+};
+
+const TOPUP_AMOUNT: Record<string, number> = {
+  loit_scan_topup_15: 15,
+  loit_scan_topup_10: 10,
 };
 
 // Event types we act on. Anything else (TRANSFER, SUBSCRIBER_ALIAS, TEST,
@@ -132,8 +142,9 @@ async function revokeSubscription(userId: string) {
     .eq('id', userId);
 }
 
-async function grantScanTopUp(userId: string) {
-  await supabase.rpc('add_scan_topup', { p_user_id: userId, p_amount: 10 });
+async function grantScanTopUp(userId: string, sku: string) {
+  const amount = TOPUP_AMOUNT[sku] ?? 15;
+  await supabase.rpc('add_scan_topup', { p_user_id: userId, p_amount: amount });
 }
 
 async function grantStorageExtension(userId: string) {
@@ -205,8 +216,8 @@ serve(async (req) => {
         await grantSubscription(userId, sku, ev.expiration_at_ms);
         granted = true;
       } else if (ONE_TIME_SKUS.has(sku)) {
-        if (sku === 'loit_scan_topup_10') {
-          await grantScanTopUp(userId);
+        if (sku === 'loit_scan_topup_15' || sku === 'loit_scan_topup_10') {
+          await grantScanTopUp(userId, sku);
           granted = true;
         } else if (sku === 'loit_storage_ext_6mo') {
           await grantStorageExtension(userId);

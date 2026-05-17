@@ -4,7 +4,6 @@ import { createClient } from "npm:@supabase/supabase-js@2.46.1";
 
 const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! });
 
-// Service-role client — bypasses RLS for quota RPCs and demo-scan flag writes.
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -17,48 +16,10 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Mirrors the seed rows in 20260505000000_user_categories.sql.
-// Used as fallback when the client sends no categories payload.
-const DEFAULT_EXPENSE_CATS: Array<{ key: string; name: string }> = [
-  { key: "dining", name: "Dining" },
-  { key: "groceries", name: "Groceries" },
-  { key: "transport", name: "Transport" },
-  { key: "shopping", name: "Shopping" },
-  { key: "entertainment", name: "Entertainment" },
-  { key: "utilities", name: "Utilities" },
-  { key: "health", name: "Health" },
-  { key: "travel", name: "Travel" },
-  { key: "other", name: "Other" },
-];
-
-const DEFAULT_INCOME_CATS: Array<{ key: string; name: string }> = [
-  { key: "income_salary", name: "Salary" },
-  { key: "income_bonus", name: "Bonus" },
-  { key: "income_freelance", name: "Freelance" },
-  { key: "income_investment", name: "Investment" },
-  { key: "income_gift", name: "Gift" },
-  { key: "income_refund", name: "Refund" },
-  { key: "income_other", name: "Other Income" },
-];
-
 type Category = { key: string; name: string; kind: string };
+type AccountRef = { name: string };
 
-function buildPrompt(categories?: Category[]): string {
-  const expenseCats =
-    categories
-      ?.filter((c) => c.kind === "expense")
-      .map((c) => ({ key: c.key, name: c.name })) ?? DEFAULT_EXPENSE_CATS;
-
-  const incomeCats =
-    categories
-      ?.filter((c) => c.kind === "income")
-      .map((c) => ({ key: c.key, name: c.name })) ?? DEFAULT_INCOME_CATS;
-
-  const expenseList = expenseCats.map((c) => `${c.key} (${c.name})`).join(", ");
-  const incomeList = incomeCats.map((c) => `${c.key} (${c.name})`).join(", ");
-  const validKeys = [...expenseCats, ...incomeCats].map((c) => c.key).join("|");
-
-  return `You are a financial document parser. Analyze the image and return ONLY valid JSON — no explanation, no markdown.
+const STATIC_PROMPT = `You are a financial document parser. Analyze the image and return ONLY valid JSON — no explanation, no markdown.
 
 STEP 1 — Validity check.
 Set "is_transaction" = true only if the image clearly shows ONE of:
@@ -82,12 +43,16 @@ Use "other" when is_transaction is true but none of the named kinds fit. Use nul
 If is_transaction is false, return ONLY:
 { "is_transaction": false, "transaction_kind": null, "reason": "short human-readable reason" }
 
-STEP 2 — When is_transaction is true, also classify type:
+STEP 2 — When is_transaction is true, classify type:
 EXPENSE (merchant receipt, invoice, bank transfer-out, ATM withdrawal) or INCOME (payslip, bank transfer-in, refund slip, deposit confirmation).
 
-Available categories — choose the single best match:
-EXPENSE: ${expenseList}
-INCOME:  ${incomeList}
+STEP 3 — Select category and account.
+You will be given two lists in the user message: available categories (with keys) and available accounts (with names).
+- "category" MUST be an exact key from the categories list.
+- "account" MUST be an exact name from the accounts list. Pick the account that most plausibly funded (expense) or received (income) the transaction. If the document names a specific bank, card, or wallet that matches an account name, prefer that. If no signal, pick the user's primary/default-looking account.
+
+STEP 4 — Confidence.
+Return a single "confidence" scalar between 0.0 and 1.0 reflecting overall certainty about the extraction (legibility, amount clarity, category fit, account fit). Use 0.90+ only when every field is clearly readable and unambiguous.
 
 Return this exact shape (when is_transaction is true):
 {
@@ -98,22 +63,70 @@ Return this exact shape (when is_transaction is true):
   "currency": "ISO 4217 code or null",
   "items": [{ "name": "string", "qty": 1, "unit_price": 0.00, "total_price": 0.00 }],
   "total": 0.00,
-  "category": "${validKeys}"
+  "category": "exact key from categories list",
+  "account": "exact name from accounts list",
+  "confidence": 0.00
 }
 
 Rules:
 - "total" must be a positive number; "type" conveys the sign.
-- "category" must be exactly one key from the lists above; use EXPENSE keys for expense, INCOME keys for income.
+- "category" must be exactly one key from the lists provided in the user message.
+- "account" must be exactly one name from the accounts list in the user message.
 - Calculate "total" from individual items "total_price" if the "total" is not present or clearly incorrect.
 - Default "type" to "expense" when the document is ambiguous.
-- Use null for any other field that cannot be read from the document.`;
+- Use null for any non-required field that cannot be read from the document.`;
+
+// Fallback only used when client sends no categories payload (e.g. signed-out demo).
+const DEFAULT_EXPENSE_CATS: Array<{ key: string; name: string }> = [
+  { key: "dining", name: "Dining" },
+  { key: "groceries", name: "Groceries" },
+  { key: "transport", name: "Transport" },
+  { key: "shopping", name: "Shopping" },
+  { key: "entertainment", name: "Entertainment" },
+  { key: "utilities", name: "Utilities" },
+  { key: "health", name: "Health" },
+  { key: "travel", name: "Travel" },
+  { key: "other", name: "Other" },
+];
+
+const DEFAULT_INCOME_CATS: Array<{ key: string; name: string }> = [
+  { key: "income_salary", name: "Salary" },
+  { key: "income_bonus", name: "Bonus" },
+  { key: "income_freelance", name: "Freelance" },
+  { key: "income_investment", name: "Investment" },
+  { key: "income_gift", name: "Gift" },
+  { key: "income_refund", name: "Refund" },
+  { key: "income_other", name: "Other Income" },
+];
+
+function buildDynamicContext(
+  categories: Category[] | undefined,
+  accounts: AccountRef[] | undefined,
+): string {
+  const expenseCats =
+    categories
+      ?.filter((c) => c.kind === "expense")
+      .map((c) => ({ key: c.key, name: c.name })) ?? DEFAULT_EXPENSE_CATS;
+
+  const incomeCats =
+    categories
+      ?.filter((c) => c.kind === "income")
+      .map((c) => ({ key: c.key, name: c.name })) ?? DEFAULT_INCOME_CATS;
+
+  const expenseList = expenseCats.map((c) => `${c.key} (${c.name})`).join(", ");
+  const incomeList = incomeCats.map((c) => `${c.key} (${c.name})`).join(", ");
+  const accountList =
+    accounts && accounts.length > 0
+      ? accounts.map((a) => a.name).join(", ")
+      : "Cash";
+
+  return `Available EXPENSE categories: ${expenseList}
+Available INCOME categories: ${incomeList}
+Available accounts: ${accountList}`;
 }
 
-// Extracts whatever fields are parseable from a malformed AI response.
-// Runs server-side so Flutter always receives a typed object, not raw text.
 function extractPartialFields(rawText: string): Record<string, unknown> {
   const partial: Record<string, unknown> = {};
-
   const patterns: [string, RegExp][] = [
     ["type", /"type"\s*:\s*"(expense|income)"/],
     ["merchant", /"merchant"\s*:\s*"([^"]+)"/],
@@ -121,66 +134,29 @@ function extractPartialFields(rawText: string): Record<string, unknown> {
     ["total", /"total"\s*:\s*([\d.]+)/],
     ["currency", /"currency"\s*:\s*"([A-Z]{3})"/],
     ["category", /"category"\s*:\s*"([^"]+)"/],
+    ["account", /"account"\s*:\s*"([^"]+)"/],
+    ["confidence", /"confidence"\s*:\s*([\d.]+)/],
   ];
-
   for (const [key, regex] of patterns) {
     const match = rawText.match(regex);
     if (match) partial[key] = match[1];
   }
-
   const itemsMatch = rawText.match(/"items"\s*:\s*(\[[\s\S]*?\])/);
   if (itemsMatch) {
     try {
       partial["items"] = JSON.parse(itemsMatch[1]);
-    } catch {
-      /* malformed — skip */
-    }
+    } catch { /* skip */ }
   }
-
   return partial;
 }
 
-async function getUserFromJWT(
-  req: Request,
-): Promise<{ id: string; tier: string; has_used_demo_scan: boolean } | null> {
+async function authUser(req: Request): Promise<string | null> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return null;
-
   const token = authHeader.replace("Bearer ", "");
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(token);
+  const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) return null;
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("tier, has_used_demo_scan")
-    .eq("id", user.id)
-    .single();
-
-  return {
-    id: user.id,
-    tier: profile?.tier ?? "free",
-    has_used_demo_scan: profile?.has_used_demo_scan ?? false,
-  };
-}
-
-async function incrementQuotaIfAllowed(
-  userId: string,
-  tier: string,
-): Promise<boolean> {
-  // Pro and Team are unlimited — skip quota entirely.
-  if (tier === "pro" || tier === "team") return true;
-
-  await supabase.rpc("reset_scan_quota_if_new_month", { p_user_id: userId });
-
-  const { data, error } = await supabase.rpc("increment_scan_quota", {
-    p_user_id: userId,
-    p_limit: 8,
-  });
-
-  return !!data && !error;
+  return user.id;
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -200,41 +176,44 @@ serve(async (req) => {
     });
   }
 
-  const user = await getUserFromJWT(req);
-  if (!user) return jsonResponse({ error: "Unauthorized" }, 401);
+  const userId = await authUser(req);
+  if (!userId) return jsonResponse({ error: "Unauthorized" }, 401);
 
-  let body: { image?: string; is_demo?: boolean; categories?: Category[] };
+  let body: {
+    image?: string;
+    categories?: Category[];
+    accounts?: AccountRef[];
+    strict_retry?: boolean;
+  };
   try {
     body = await req.json();
   } catch {
     return jsonResponse({ error: "Invalid JSON body" }, 400);
   }
 
-  const { image, is_demo, categories } = body;
+  const { image, categories, accounts, strict_retry } = body;
   if (!image) return jsonResponse({ error: "Missing image" }, 400);
-
-  // Flutter compresses to <500 KB; >8 MB base64 is a bug or abuse.
   if (image.length > 8 * 1024 * 1024) {
     return jsonResponse({ error: "Image too large" }, 413);
   }
 
-  const isDemoScan = is_demo === true && !user.has_used_demo_scan;
-
-  if (!isDemoScan) {
-    const allowed = await incrementQuotaIfAllowed(user.id, user.tier);
-    if (!allowed) return jsonResponse({ error: "Quota exceeded" }, 402);
-  } else {
-    await supabase
-      .from("users")
-      .update({ has_used_demo_scan: true })
-      .eq("id", user.id);
-  }
+  const dynamicContext = buildDynamicContext(categories, accounts);
+  const strictSuffix = strict_retry
+    ? "\n\nReturn ONLY the JSON object. No prose, no markdown fences."
+    : "";
 
   try {
     const result = await anthropic.messages.create({
-      // model: 'claude-sonnet-4-6',
       model: "claude-haiku-4-5-20251001",
       max_tokens: 1024,
+      system: [
+        {
+          type: "text",
+          text: STATIC_PROMPT,
+          // deno-lint-ignore no-explicit-any
+          cache_control: { type: "ephemeral" } as any,
+        },
+      ],
       messages: [
         {
           role: "user",
@@ -243,7 +222,7 @@ serve(async (req) => {
               type: "image",
               source: { type: "base64", media_type: "image/jpeg", data: image },
             },
-            { type: "text", text: buildPrompt(categories) },
+            { type: "text", text: dynamicContext + strictSuffix },
           ],
         },
       ],
@@ -251,8 +230,6 @@ serve(async (req) => {
 
     const text =
       result.content[0]?.type === "text" ? result.content[0].text : "";
-
-    // Strip ```json ... ``` or ``` ... ``` fences if Claude wrapped output.
     const stripped = text
       .trim()
       .replace(/^```(?:json)?\s*/i, "")
@@ -261,20 +238,16 @@ serve(async (req) => {
 
     try {
       const parsed = JSON.parse(stripped);
-      // Image isn't a transaction document — surface as 422 with marker so the
-      // client can show a dedicated error instead of opening a manual form.
       if (parsed && parsed.is_transaction === false) {
         return jsonResponse(
           {
             not_a_transaction: true,
             transaction_kind: parsed.transaction_kind ?? null,
-            reason:
-              typeof parsed.reason === "string" ? parsed.reason : null,
+            reason: typeof parsed.reason === "string" ? parsed.reason : null,
           },
           422,
         );
       }
-      // Ensure total is always a positive number when items are present.
       if (
         !(parsed.total > 0) &&
         Array.isArray(parsed.items) &&
@@ -294,21 +267,32 @@ serve(async (req) => {
           0,
         );
       }
+      // Clamp confidence into [0,1]; default to 0.5 if absent.
+      if (typeof parsed.confidence !== "number") {
+        parsed.confidence = 0.5;
+      } else {
+        parsed.confidence = Math.max(0, Math.min(1, parsed.confidence));
+      }
       return jsonResponse(parsed, 200);
     } catch {
-      // AI returned unparseable JSON — salvage what we can server-side.
       const partialFields = extractPartialFields(stripped);
       const hasUsableTotal =
         typeof partialFields.total === "string" &&
         parseFloat(partialFields.total) > 0;
       const hasUsableItems =
         Array.isArray(partialFields.items) && partialFields.items.length > 0;
-      // Raise the bar: only flag manual-fallback when nothing useful recovered.
-      // If we have a total or items, return as a best-effort success.
       if (hasUsableTotal || hasUsableItems) {
         const coerced: Record<string, unknown> = { ...partialFields };
         if (typeof coerced.total === "string") {
           coerced.total = parseFloat(coerced.total as string);
+        }
+        if (typeof coerced.confidence === "string") {
+          const c = parseFloat(coerced.confidence as string);
+          coerced.confidence = Number.isFinite(c)
+            ? Math.max(0, Math.min(1, c))
+            : 0.4;
+        } else {
+          coerced.confidence = 0.4;
         }
         return jsonResponse(coerced, 200);
       }

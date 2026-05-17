@@ -9,6 +9,8 @@ class FeatureFlags {
   final bool receiptStorage;
   final bool fullHistory;
   /// `null` = unlimited scans. Otherwise the per-month cap.
+  /// Free 5, Lite 30, Pro 150. Team tier dropped — any legacy `team` row is
+  /// migrated to `pro` by the drop_team migration.
   final int? scanLimitPerMonth;
   final int budgetCategoryLimit;
 
@@ -32,16 +34,27 @@ class FeatureFlags {
   bool get hasUnlimitedRooms => roomLimit == null;
 
   factory FeatureFlags.forTier(String tier) => switch (tier) {
-        'pro' || 'team' => const FeatureFlags(
+        'pro' => const FeatureFlags(
             unlimitedBudgets: true,
             customCategories: true,
             csvExport: true,
             pdfExport: true,
             receiptStorage: true,
             fullHistory: true,
-            scanLimitPerMonth: null, // Pro and Team — unlimited scans
+            scanLimitPerMonth: 150,
             budgetCategoryLimit: 1 << 30,
-            roomLimit: null, // Pro and Team — unlimited rooms
+            roomLimit: null,
+          ),
+        'lite' => const FeatureFlags(
+            unlimitedBudgets: true,
+            customCategories: true,
+            csvExport: true,
+            pdfExport: false,
+            receiptStorage: true,
+            fullHistory: true,
+            scanLimitPerMonth: 30,
+            budgetCategoryLimit: 1 << 30,
+            roomLimit: 3,
           ),
         _ => const FeatureFlags(
             unlimitedBudgets: false,
@@ -50,7 +63,7 @@ class FeatureFlags {
             pdfExport: false,
             receiptStorage: false,
             fullHistory: false,
-            scanLimitPerMonth: 8,
+            scanLimitPerMonth: 5,
             budgetCategoryLimit: 3,
             roomLimit: 1,
           ),

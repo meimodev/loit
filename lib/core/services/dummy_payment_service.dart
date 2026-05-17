@@ -190,8 +190,8 @@ class DummyPaymentService implements PaymentService {
   int? _priceFor(String productId) => switch (productId) {
         PricingConstants.skuProMonthly => PricingConstants.proMonthlyIdr,
         PricingConstants.skuProAnnual => PricingConstants.proAnnualIdr,
-        PricingConstants.skuTeamMonthly => PricingConstants.teamMonthlyIdr,
-        PricingConstants.skuTeamAnnual => PricingConstants.teamAnnualIdr,
+        PricingConstants.skuLiteMonthly => PricingConstants.liteMonthlyIdr,
+        PricingConstants.skuLiteAnnual => PricingConstants.liteAnnualIdr,
         PricingConstants.skuScanTopUp => PricingConstants.scanTopUpIdr,
         PricingConstants.skuStorageExt => PricingConstants.storageExtensionIdr,
         _ => null,
@@ -200,9 +200,9 @@ class DummyPaymentService implements PaymentService {
   String _titleFor(String productId) => switch (productId) {
         PricingConstants.skuProMonthly => 'Pro · Monthly',
         PricingConstants.skuProAnnual => 'Pro · Annual',
-        PricingConstants.skuTeamMonthly => 'Team · Monthly',
-        PricingConstants.skuTeamAnnual => 'Team · Annual',
-        PricingConstants.skuScanTopUp => '10 scan top-up',
+        PricingConstants.skuLiteMonthly => 'Lite · Monthly',
+        PricingConstants.skuLiteAnnual => 'Lite · Annual',
+        PricingConstants.skuScanTopUp => '15 scan top-up',
         PricingConstants.skuStorageExt => '6-month storage extension',
         _ => productId,
       };

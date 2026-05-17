@@ -21,8 +21,10 @@ class UserProfile {
   final String homeCurrency;
   final String tier;
   final int scansUsedThisMonth;
+  final int scanTopupBonusThisMonth;
   final bool hasUsedDemoScan;
   final DateTime? nextReceiptExpiryAt;
+  final DateTime? tierExpiresAt;
   final bool hideAmounts;
   final String language;
   final String theme; // 'system' | 'light' | 'dark'
@@ -36,8 +38,10 @@ class UserProfile {
     required this.homeCurrency,
     required this.tier,
     required this.scansUsedThisMonth,
+    required this.scanTopupBonusThisMonth,
     required this.hasUsedDemoScan,
     this.nextReceiptExpiryAt,
+    this.tierExpiresAt,
     this.hideAmounts = false,
     this.language = 'id',
     this.theme = 'system',
@@ -52,26 +56,43 @@ class UserProfile {
     homeCurrency: (r['home_currency'] as String?) ?? 'IDR',
     tier: (r['tier'] as String?) ?? 'free',
     scansUsedThisMonth: (r['scans_used_this_month'] as int?) ?? 0,
+    scanTopupBonusThisMonth:
+        (r['scan_topup_bonus_this_month'] as int?) ?? 0,
     hasUsedDemoScan: (r['has_used_demo_scan'] as bool?) ?? false,
     nextReceiptExpiryAt: r['next_receipt_expiry_at'] == null
         ? null
         : DateTime.parse(r['next_receipt_expiry_at'] as String).toLocal(),
+    tierExpiresAt: r['tier_expires_at'] == null
+        ? null
+        : DateTime.parse(r['tier_expires_at'] as String).toLocal(),
     hideAmounts: (r['hide_amounts'] as bool?) ?? false,
     language: (r['language'] as String?) ?? 'id',
     theme: (r['theme'] as String?) ?? 'system',
     hasSeenRoomsIntro: (r['has_seen_rooms_intro'] as bool?) ?? false,
   );
 
-  /// `null` = unlimited (Pro / Team). Otherwise the monthly scan cap.
-  int? get scanQuota => switch (tier) {
-    'pro' || 'team' => null,
-    _ => 8,
+  /// Tier base cap. Free 5 / Lite 30 / Pro 150 scans/month.
+  int? get baseScanQuota => switch (tier) {
+    'pro' => 150,
+    'lite' => 30,
+    _ => 5,
   };
 
+  /// Effective monthly cap = tier base + accumulated top-up bonus. `null`
+  /// reserved for future unlimited tier.
+  int? get scanQuota {
+    final base = baseScanQuota;
+    if (base == null) return null;
+    return base + scanTopupBonusThisMonth;
+  }
+
   bool get hasUnlimitedScans => scanQuota == null;
-  bool get canPurchaseScanTopUp => tier == 'free';
+
+  /// Scan top-up is a consumable (`loit_scan_topup_15` — 15 scans for Rp 9k).
+  /// All tiers may purchase it. v2 scheme retired the previous Free-only gate.
+  bool get canPurchaseScanTopUp => true;
   int get budgetLimit => switch (tier) {
-    'pro' || 'team' => 999,
+    'pro' || 'lite' => 999,
     _ => 3,
   };
 }

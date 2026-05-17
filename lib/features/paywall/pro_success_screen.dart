@@ -17,7 +17,7 @@ class ProSuccessScreen extends ConsumerWidget {
     final c = context.loitColors;
     final l10n = context.l10n;
     final profile = ref.watch(userProfileProvider).value;
-    final renewal = profile?.tier == 'team' || profile?.tier == 'pro'
+    final renewal = profile?.tier == 'pro' || profile?.tier == 'lite'
         ? _renewalLabel()
         : null;
 

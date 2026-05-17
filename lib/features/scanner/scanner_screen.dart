@@ -10,8 +10,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/config/pricing_constants.dart';
 import '../../core/services/analytics_service.dart';
-import '../../core/services/currency_service.dart';
-import '../../shared/providers/supported_currencies_provider.dart';
 import '../../core/services/dummy_payment_service.dart';
 import '../../core/services/interaction_log_service.dart';
 import '../../core/services/log_service.dart';
@@ -24,15 +22,14 @@ import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/services_providers.dart';
-import '../../shared/providers/transactions_provider.dart';
+import '../../shared/providers/preferences_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
+import 'scan_review_screen.dart';
 import '../../shared/utils/invite_token.dart';
 import '../../shared/widgets/loit_banner.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_sheet.dart';
-import '../paywall/feature_gate.dart';
 import '../paywall/paywall_screen.dart';
-import '../transactions/notes_breakdown.dart';
 import '../../l10n/l10n_x.dart';
 
 /// LOIT scanner flow.
@@ -307,12 +304,53 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     Log.i(_tag, 'Scan started: ${file.path}');
     await Analytics.scanStarted();
 
-    final profile = ref.read(userProfileProvider).value;
-    final isDemo = profile != null && !profile.hasUsedDemoScan;
+    // Step 2 — preprocess (1600px JPEG q85 grayscale).
+    final preprocessor = ref.read(scanPreprocessorProvider);
+    final pp = await preprocessor.process(file);
+    await Analytics.scanPreprocessed(
+      durationMs: pp.durationMs,
+      origBytes: pp.origBytes,
+      processedBytes: pp.bytes.length,
+    );
 
+    // Step 3 — quality gate (blur / brightness / aspect).
+    final gate = ref.read(scanQualityGateProvider);
+    final q = await gate.check(pp.bytes);
+    if (!q.ok) {
+      if (!mounted) return;
+      await Analytics.scanQualityGateFailed(q.reasonKey);
+      setState(() {
+        _errorKind = 'quality_${q.reasonKey}';
+        _phase = _ScanPhase.error;
+      });
+      return;
+    }
+
+    // Step 4 — rate limit (10/60s) + client-side quota check.
+    final limiter = ref.read(scanRateLimiterProvider);
+    if (!await limiter.tryConsume()) {
+      if (!mounted) return;
+      await Analytics.scanFailed('rate_limited');
+      setState(() {
+        _errorKind = 'rate_limited';
+        _phase = _ScanPhase.error;
+      });
+      return;
+    }
+    final profile = ref.read(userProfileProvider).value;
+    final quota = profile?.scanQuota;
+    final used = profile?.scansUsedThisMonth ?? 0;
+    if (quota != null && used >= quota) {
+      if (!mounted) return;
+      await Analytics.scanFailed('quota_exceeded');
+      await Analytics.scanTopupPromptShown();
+      setState(() => _phase = _ScanPhase.capture);
+      await _showQuotaSheet();
+      return;
+    }
+
+    final compressed = pp.file;
     final scanner = ref.read(scannerServiceProvider);
-    final compressed = await scanner.compressToFile(file);
-    Log.d(_tag, 'Compressed to ${compressed.path}');
     final userCats = ref.read(userCategoriesProvider).value ?? [];
     // Scope categories strictly to the active context: room scan → only that
     // room's categories; personal scan → personal only. Cross-context cats
@@ -323,15 +361,35 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     final catList = scopedCats
         .map((c) => {'key': c.key, 'name': c.name, 'kind': c.kind})
         .toList();
+    final activeAccounts = (ref.read(accountsProvider).value ?? const [])
+        .where((a) => a.archivedAt == null)
+        .map((a) => a.name)
+        .toList(growable: false);
     Log.d(_tag,
-        'Sending to scan-receipt (isDemo=$isDemo, cats=${catList.length}, roomScoped=${widget.roomId != null})');
+        'Sending to scan-receipt (cats=${catList.length}, accts=${activeAccounts.length}, roomScoped=${widget.roomId != null})');
+    // Rough token estimate: image vision tokens scale ~ pixels/750; static
+    // prompt + dynamic ~ 700 tokens. Good enough for PostHog histograms.
+    await Analytics.scanApiCalled(
+      imageBytes: pp.bytes.length,
+      promptTokensEst: 700 + (1600 * 1600 ~/ 750),
+    );
     final result = await scanner.scanReceipt(
       compressed,
-      isDemo: isDemo,
       categories: catList.isNotEmpty ? catList : null,
+      accountNames: activeAccounts.isNotEmpty ? activeAccounts : null,
     );
 
     if (!mounted) return;
+
+    final bucket = bucketFor(result.confidence).name;
+    await Analytics.scanApiReturned(
+      isTransaction: result.errorType != ScanErrorType.notATransaction,
+      transactionKind: result.parsedData?['transaction_kind'] as String?,
+      confidenceBucket: bucket,
+    );
+    if (result.reconciliationWarning) {
+      await Analytics.scanReconciliationWarning();
+    }
 
     // Resolve room target. When scanner is locked to a room (opened from
     // RoomDetail), use that id directly — skip picker. Otherwise prompt.
@@ -350,18 +408,23 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     switch (result.errorType) {
       case null:
         final data = Map<String, dynamic>.from(result.parsedData ?? {});
-        data['_ai_parsed'] = true;
-        data['_image_path'] = compressed.path;
-        if (roomId != null) data['_room_id'] = roomId;
-        // Auto-save when we have enough to skip the form: full scan, total > 0,
-        // and at least one active account. Otherwise fall through to manual review.
-        if (await _autoSaveScan(data, compressed.path, roomId: roomId)) {
-          Log.i(_tag, 'Scan success → auto-saved');
-        } else {
-          Log.i(_tag, 'Scan success → /transactions/new (review)');
-          if (!mounted) return;
-          context.pushReplacement('/transactions/new', extra: data);
-        }
+        if (!mounted) return;
+        Log.i(_tag, 'Scan success → ScanReviewScreen');
+        final prefs = ref.read(preferencesProvider).value;
+        final reviewData = ScanReviewData(
+          parsed: data,
+          imagePath: compressed.path,
+          confidence: result.confidence,
+          roomId: roomId,
+          reconciliationWarning: result.reconciliationWarning,
+          totalComputed: result.totalComputed,
+          autoConfirmEnabled: prefs?.scanAutoConfirm ?? true,
+        );
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ScanReviewScreen(scan: reviewData),
+          ),
+        );
         break;
       case ScanErrorType.aiFailure:
         final data = Map<String, dynamic>.from(result.partialFields ?? {});
@@ -420,141 +483,22 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           _phase = _ScanPhase.error;
         });
         break;
-    }
-  }
-
-  /// Try to commit the scan result without showing the review form.
-  /// Returns true on save (UI navigated away), false to fall back to form.
-  Future<bool> _autoSaveScan(
-    Map<String, dynamic> data,
-    String imagePath, {
-    String? roomId,
-  }) async {
-    try {
-      final totalRaw = data['total'];
-      final totalNum = totalRaw is num
-          ? totalRaw.toDouble()
-          : double.tryParse('${totalRaw ?? ''}');
-      if (totalNum == null || totalNum <= 0) return false;
-
-      final type = (data['type'] as String?) == 'income' ? 'income' : 'expense';
-      final accounts = ref.read(activeAccountsProvider);
-      if (accounts.isEmpty) return false;
-      final accountId = accounts.first.id;
-
-      final profile = ref.read(userProfileProvider).value;
-      final home = profile?.homeCurrency ?? 'IDR';
-      final currency = (data['currency'] as String?) ?? home;
-
-      // FX snapshot — covers all supported currencies. If rates unavailable,
-      // bail to manual review rather than silently saving with bad data.
-      final svc = ref.read(currencyServiceProvider);
-      Map<String, double> rates;
-      try {
-        rates = await svc.loadUsdBaseRates();
-      } catch (_) {
-        return false;
-      }
-      final supported = ref.read(supportedCurrenciesProvider).value;
-      final codes = supported?.codes ?? rates.keys.toList(growable: false);
-      Map<String, double> fxSnapshot;
-      try {
-        fxSnapshot = CurrencyService.buildSnapshot(
-          from: currency,
-          rates: rates,
-          supported: codes,
-        );
-      } catch (_) {
-        return false;
-      }
-
-      // Date/time = phone clock at save time (AI no longer extracts date/time).
-      final date = DateTime.now();
-      final amount = type == 'expense' ? -totalNum : totalNum;
-
-      final notes = _buildNotesFromScan(data);
-      final category = (data['category'] as String?) ??
-          (type == 'income' ? 'income_other' : 'other');
-
-      final payload = <String, dynamic>{
-        'amount': amount,
-        'currency': currency,
-        'fx_snapshot': fxSnapshot,
-        'type': type,
-        'account_id': accountId,
-        'category': category,
-        'notes': notes,
-        'ai_parsed': true,
-        'is_manual_fallback': false,
-        'created_at': date.toUtc().toIso8601String(),
-        if (roomId != null) 'room_id': roomId,
-      };
-
-      final insertedId = await ref
-          .read(transactionsProvider.notifier)
-          .addTransaction(payload);
-
-      if (insertedId != null) {
-        final tier = profile?.tier ?? 'free';
-        final canStore = FeatureFlags.forTier(tier).receiptStorage;
-        if (canStore) {
-          try {
-            final bytes = await File(imagePath).readAsBytes();
-            final user = ref.read(currentUserProvider);
-            if (user != null) {
-              await ref.read(receiptServiceProvider).uploadReceipt(
-                    userId: user.id,
-                    transactionId: insertedId,
-                    imageBytes: bytes,
-                  );
-            }
-          } catch (e) {
-            InteractionLog.error(
-              action: 'receipt_upload',
-              screen: 'scanner_autosave',
-              message: '$e',
-              metadata: {'txn_id': insertedId},
-            );
-          }
-        }
-      }
-
-      await Analytics.scanCompleted(aiSuccess: true);
-      await Analytics.transactionAdded(method: 'scan', category: category);
-
-      InteractionLog.success(
-        action: 'transaction_added',
-        screen: 'scanner_autosave',
-        message: 'scan / $category',
-        metadata: {
-          'method': 'scan_auto',
-          'category': category,
-          'amount': amount,
-          'currency': currency,
-        },
-      );
-
-      if (!mounted) return true;
-      final l = context.l10n;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.scanSaved)),
-      );
-      // Land on detail first; back returns to the list (highlighted).
-      if (roomId != null) {
-        context.go('/rooms/$roomId?highlight=$insertedId');
-        if (insertedId != null) {
-          context.push('/rooms/$roomId/transactions/$insertedId');
-        }
-      } else {
-        context.go('/transactions?highlight=$insertedId');
-        if (insertedId != null) {
-          context.push('/transactions/$insertedId');
-        }
-      }
-      return true;
-    } catch (e, st) {
-      Log.e(_tag, 'Auto-save failed, falling back to form', error: e, stack: st);
-      return false;
+      case ScanErrorType.rateLimited:
+        Log.w(_tag, 'Rate-limited');
+        await Analytics.scanFailed('rate_limited');
+        setState(() {
+          _errorKind = 'rate_limited';
+          _phase = _ScanPhase.error;
+        });
+        break;
+      case ScanErrorType.qualityGate:
+        Log.w(_tag, 'Quality gate failed: ${result.notATransactionReason}');
+        await Analytics.scanFailed('quality_gate');
+        setState(() {
+          _errorKind = 'quality_${result.notATransactionReason ?? 'unknown'}';
+          _phase = _ScanPhase.error;
+        });
+        break;
     }
   }
 
@@ -593,36 +537,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         ),
       ),
     );
-  }
-
-  String? _buildNotesFromScan(Map<String, dynamic> data) {
-    final merchant = (data['merchant'] as String?)?.trim() ?? '';
-    final rawItems = data['items'];
-    final items = <NotesBreakdownItem>[];
-    if (rawItems is List) {
-      for (final raw in rawItems) {
-        if (raw is! Map) continue;
-        final m = Map<String, dynamic>.from(raw);
-        double? toD(Object? v) {
-          if (v is num) return v.toDouble();
-          if (v is String) return double.tryParse(v);
-          return null;
-        }
-        items.add(NotesBreakdownItem(
-          name: (m['name'] as String?)?.trim() ?? '',
-          qty: toD(m['qty']),
-          unitPrice: toD(m['unit_price']),
-          totalPrice: toD(m['total_price']),
-        ));
-      }
-    }
-    if (merchant.isEmpty && items.isEmpty) return null;
-    final formatted = formatBreakdown(NotesBreakdown(
-      merchant: merchant,
-      items: inferMissingItemMath(items),
-      total: null,
-    )).trim();
-    return formatted.isEmpty ? null : formatted;
   }
 
   Future<void> _showQuotaSheet() async {

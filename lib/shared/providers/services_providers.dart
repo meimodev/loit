@@ -9,9 +9,16 @@ import '../../core/services/offline_database.dart';
 import '../../core/services/payment_service.dart';
 import '../../core/services/revenuecat_payment_service.dart';
 import '../../core/services/receipt_service.dart';
+import '../../core/services/scan_preprocessor.dart';
+import '../../core/services/scan_quality_gate.dart';
+import '../../core/services/scan_rate_limiter.dart';
+import '../../core/services/reachability_service.dart';
 import '../../core/services/scanner_service.dart';
 import '../../core/services/sync_service.dart';
 import '../widgets/connectivity_banner.dart';
+
+export '../../core/services/reachability_service.dart'
+    show reachabilityProvider, reachabilityServiceProvider;
 
 final offlineDbProvider = Provider<OfflineDatabase>((ref) {
   final db = OfflineDatabase();
@@ -21,8 +28,10 @@ final offlineDbProvider = Provider<OfflineDatabase>((ref) {
 
 final syncServiceProvider = Provider<SyncService>((ref) {
   final db = ref.watch(offlineDbProvider);
+  final reachability = ref.watch(reachabilityServiceProvider);
   final svc = SyncService(
     db,
+    reachability: reachability,
     isDebugOffline: () => ref.read(offlineDebugOverrideProvider) == true,
   );
   ref.onDispose(svc.dispose);
@@ -31,6 +40,17 @@ final syncServiceProvider = Provider<SyncService>((ref) {
 
 final scannerServiceProvider =
     Provider<ScannerService>((ref) => ScannerService());
+
+final scanPreprocessorProvider =
+    Provider<ScanPreprocessor>((ref) => ScanPreprocessor());
+
+final scanQualityGateProvider =
+    Provider<ScanQualityGate>((ref) => ScanQualityGate());
+
+final scanRateLimiterProvider = Provider<ScanRateLimiter>((ref) {
+  final db = ref.watch(offlineDbProvider);
+  return ScanRateLimiter(db);
+});
 
 final currencyServiceProvider =
     Provider<CurrencyService>((ref) => CurrencyService());

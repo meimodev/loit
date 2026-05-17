@@ -1299,23 +1299,23 @@ class AppLocalizationsId extends AppLocalizations {
   String get accountFormRecentTransactions => 'Transaksi terbaru';
 
   @override
-  String get scanReceiptTitle => 'Pindai struk';
+  String get scanReceiptTitle => 'Pindai dokumen';
 
   @override
-  String get scanReceipt => 'STRUK';
+  String get scanReceipt => 'DOKUMEN';
 
   @override
-  String get scanAlignHint => 'Sejajarkan struk dalam bingkai';
+  String get scanAlignHint => 'Posisikan dokumen dalam bingkai';
 
   @override
-  String get scanReadingTitle => 'Membaca struk';
+  String get scanReadingTitle => 'Membaca dokumen';
 
   @override
-  String get scanReadingBody => 'Membaca struk Anda…';
+  String get scanReadingBody => 'Membaca dokumen Anda…';
 
   @override
   String get scanReadingSubtitle =>
-      'Biasanya sekitar 2 detik. Kami mengekstrak toko, total, dan item.';
+      'Biasanya sekitar 2 detik. Mengekstrak toko, total, akun, dan item.';
 
   @override
   String get scanPersonal => 'Pribadi';
@@ -1327,17 +1327,155 @@ class AppLocalizationsId extends AppLocalizations {
   String get scanRoom => 'Ruangan';
 
   @override
-  String get scanSaved => 'Struk disimpan';
+  String get scanSaved => 'Tersimpan';
 
   @override
   String get scanNoRooms =>
       'Belum ada ruangan — buat ruangan sebelum memindai ke ruangan.';
 
   @override
-  String get scanSendToRoom => 'Kirim struk ke ruangan';
+  String get scanSendToRoom => 'Kirim ke ruangan';
 
   @override
   String get scanLimitReached => 'Batas pemindaian tercapai';
+
+  @override
+  String get scanReviewTitle => 'Tinjau pindaian';
+
+  @override
+  String get scanConfidenceHigh => 'Terlihat oke';
+
+  @override
+  String get scanConfidenceLow => 'Beberapa detail mungkin perlu dikoreksi';
+
+  @override
+  String get scanReconcileMismatch =>
+      'Jumlah item tidak cocok dengan total tercetak — menggunakan total tercetak.';
+
+  @override
+  String get scanTotalComputed => 'Total dihitung dari item.';
+
+  @override
+  String get scanFieldAccount => 'Akun';
+
+  @override
+  String get scanFieldCategory => 'Kategori';
+
+  @override
+  String scanItemsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get scanSaveNow => 'Simpan';
+
+  @override
+  String scanAutoConfirmIn(int seconds) {
+    return 'Menyimpan dalam ${seconds}d — ketuk untuk simpan sekarang';
+  }
+
+  @override
+  String get scanCancelAutoSave => 'Batalkan simpan otomatis';
+
+  @override
+  String get scanEditDetails => 'Ubah detail';
+
+  @override
+  String get scanSaveFailed => 'Gagal menyimpan — coba lagi.';
+
+  @override
+  String get scanUnknownMerchant => 'Toko tidak diketahui';
+
+  @override
+  String get scanNoAccount => 'Tidak ada akun dipilih — membuka form edit.';
+
+  @override
+  String get scanQualityBlurry =>
+      'Terlihat buram — pegang kamera lebih stabil.';
+
+  @override
+  String get scanQualityTooDark =>
+      'Terlalu gelap — cari pencahayaan lebih baik.';
+
+  @override
+  String get scanQualityBadAspect =>
+      'Bingkai tidak pas — foto ulang seluruh dokumen.';
+
+  @override
+  String get scanRateLimited =>
+      'Terlalu banyak pemindaian dalam waktu singkat. Coba lagi dalam satu menit.';
+
+  @override
+  String get scanProCapReached =>
+      'Anda mencapai batas pemindaian Pro bulan ini.';
+
+  @override
+  String get scanLiteCapReached =>
+      'Anda mencapai batas pemindaian Lite bulan ini.';
+
+  @override
+  String get scanSettingsAutoConfirm =>
+      'Simpan otomatis pindaian berkepercayaan tinggi setelah 3 detik';
+
+  @override
+  String get scanSettingsSection => 'Pemindaian';
+
+  @override
+  String get scanInfoPlanSection => 'Paket Anda';
+
+  @override
+  String get scanInfoUsageSection => 'Bulan ini';
+
+  @override
+  String get scanInfoTopUpSection => 'Butuh lebih?';
+
+  @override
+  String get scanInfoPrefsSection => 'Preferensi';
+
+  @override
+  String scanInfoUsage(int used, int total) {
+    return '$used / $total pindai terpakai';
+  }
+
+  @override
+  String get scanInfoUsageUnlimited => 'Pindai tanpa batas';
+
+  @override
+  String scanInfoResetsOn(String date) {
+    return 'Direset pada $date';
+  }
+
+  @override
+  String scanInfoTierBenefit(int scans) {
+    return '$scans pindai per bulan';
+  }
+
+  @override
+  String get scanInfoRecentLink => 'Pindaian terbaru';
+
+  @override
+  String scanInfoTopUpCta(String price) {
+    return 'Top up 15 pindai · $price';
+  }
+
+  @override
+  String scanInfoBonusBreakdown(int bonus) {
+    return 'Termasuk +$bonus pindai top-up';
+  }
+
+  @override
+  String get scanInfoTopUpHelper => 'Tambah 15 pindai untuk bulan ini';
+
+  @override
+  String get scanInfoTopUpSuccess => '15 pindai ditambahkan bulan ini';
+
+  @override
+  String get scanInfoUpgradeCta => 'Ubah paket';
 
   @override
   String scanUsedAllScans(String quota, String tier) {
@@ -1349,10 +1487,10 @@ class AppLocalizationsId extends AppLocalizations {
       'Anda telah menggunakan kuota pemindaian bulanan Anda.';
 
   @override
-  String get scanTopUp => 'Isi ulang · 10 pemindaian seharga Rp19.000';
+  String get scanTopUp => 'Isi ulang · 15 pemindaian seharga Rp9.000';
 
   @override
-  String get scanUpgrade => 'Upgrade ke Pro — pemindaian tanpa batas';
+  String get scanUpgrade => 'Upgrade ke Pro — 150 pemindaian/bulan';
 
   @override
   String get scanNotNow => 'Nanti saja';
@@ -2221,7 +2359,11 @@ class AppLocalizationsId extends AppLocalizations {
   String get paywallHeroPro => 'Anda di Pro.\nSemua\nterbuka.';
 
   @override
-  String get paywallHero => 'Budget tanpa batas.\nMata uang tanpa batas.\nPro.';
+  String get paywallHero =>
+      'Pindai lebih cerdas.\nBatas lebih adil.\nUpgrade Pro.';
+
+  @override
+  String get paywallLite => 'Lite';
 
   @override
   String get paywallPlanYearly => 'Tahunan';
@@ -2230,20 +2372,39 @@ class AppLocalizationsId extends AppLocalizations {
   String get paywallPlanMonthly => 'Bulanan';
 
   @override
-  String get paywallFreeFeatures => '3 budget · 8 pindai · laporan 3 bulan';
+  String get paywallFreeFeatures => '5 pindai/bln · 3 budget · laporan 3 bulan';
+
+  @override
+  String get paywallLiteAnnualFeatures =>
+      'Hemat 4 bulan · 30 pindai/bln · Budget tanpa batas';
+
+  @override
+  String get paywallLiteMonthlyFeatures =>
+      '30 pindai/bln · Budget tanpa batas · Batalkan kapan saja';
 
   @override
   String get paywallProAnnualFeatures =>
-      'Hemat 4 bulan · Semua tanpa batas · Ekspor';
+      'Hemat 4 bulan · 150 pindai/bln · Budget tanpa batas · Ekspor';
 
   @override
-  String get paywallProMonthlyFeatures => 'Batalkan kapan saja';
+  String get paywallProMonthlyFeatures =>
+      '150 pindai/bln · Budget tanpa batas · Batalkan kapan saja';
 
   @override
   String get paywallBestValue => 'PALING HEMAT';
 
   @override
   String get paywallCtaFree => 'Lanjutkan dengan Gratis';
+
+  @override
+  String paywallCtaLiteAnnual(String price) {
+    return 'Mulai Lite · $price/thn';
+  }
+
+  @override
+  String paywallCtaLiteMonthly(String price) {
+    return 'Mulai Lite · $price/bln';
+  }
 
   @override
   String paywallCtaProAnnual(String price) {
@@ -2292,9 +2453,51 @@ class AppLocalizationsId extends AppLocalizations {
       'Fitur terbatas. Tingkatkan untuk lebih banyak.';
 
   @override
+  String get billingLiteBody => 'Paket Lite aktif.';
+
+  @override
   String billingNextRenewal(String date) {
     return 'Perpanjangan berikutnya · $date';
   }
+
+  @override
+  String billingPlanEndsOn(String date) {
+    return 'Paket berakhir pada $date';
+  }
+
+  @override
+  String get billingUpgradeCta => 'Tingkatkan';
+
+  @override
+  String get billingPlanBenefits => 'Yang Anda dapatkan';
+
+  @override
+  String get billingFreeBenefit1 => '5 pemindaian dokumen / bulan';
+
+  @override
+  String get billingFreeBenefit2 => '3 kategori anggaran';
+
+  @override
+  String get billingFreeBenefit3 => '1 ruangan bersama';
+
+  @override
+  String get billingLiteBenefit1 => '30 pemindaian dokumen / bulan';
+
+  @override
+  String get billingLiteBenefit2 => 'Anggaran tanpa batas + kategori kustom';
+
+  @override
+  String get billingLiteBenefit3 => '3 ruangan bersama';
+
+  @override
+  String get billingProBenefit1 => '150 pemindaian dokumen / bulan';
+
+  @override
+  String get billingProBenefit2 =>
+      'Anggaran, ekspor, penyimpanan struk tanpa batas';
+
+  @override
+  String get billingProBenefit3 => 'Ruangan tanpa batas + riwayat lengkap';
 
   @override
   String get billingGroupBilling => 'Tagihan';

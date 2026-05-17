@@ -58,6 +58,9 @@ dependencies:
   # Image handling — scanner compression + receipt uploads
   image_picker: ^1.1.2
   flutter_image_compress: ^2.3.0
+  # Pure Dart image processing — used by ScanPreprocessor for grayscale,
+  # contrast normalization, deskew, and quality-gate Laplacian variance.
+  image: ^4.3.0
 
   # Charts — budget/spending reports
   fl_chart: ^0.69.2
@@ -87,8 +90,15 @@ dependencies:
   # Secure token storage (used for Supabase session persistence fallback + biometric gate)
   flutter_secure_storage: ^9.2.2
 
-  # Connectivity detection — drives offline UI and triggers sync-on-reconnect
+  # Connectivity detection — drives offline UI and triggers sync-on-reconnect.
+  # `connectivity_plus` reports interface state only (wifi/mobile/none); we
+  # combine it with `internet_connection_checker_plus` for an actual
+  # reachability probe (HEAD to Supabase + fallback hosts). Interface-up but
+  # no real internet (captive portals, hotspot with no upstream) was
+  # previously mis-classified as online, causing transactions to fail-then-
+  # queue instead of being routed straight to the offline queue.
   connectivity_plus: ^6.1.0
+  internet_connection_checker_plus: ^2.5.2
 
   # Scanner hardware + QR
   camera: ^0.11.0+2

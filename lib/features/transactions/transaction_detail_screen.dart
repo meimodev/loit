@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/theme/loit_categories.dart';
 import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
@@ -17,6 +18,7 @@ import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/utils/locale_date_format.dart';
 import '../../shared/widgets/loit_amount_text.dart';
+import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_banner.dart';
 import '../../shared/widgets/loit_category_avatar.dart';
 import '../../shared/widgets/loit_group_label.dart';
@@ -128,74 +130,121 @@ class TransactionDetailScreen extends ConsumerWidget {
       ),
       children: [
         if (isUnsynced) ...[
-          LoitBanner(
-            kind: LoitBannerKind.warning,
-            title: l.txDetailNotSynced,
-            body: l.txDetailNotSyncedBody,
+          LoitFadeSlideIn(
+            child: LoitBanner(
+              kind: LoitBannerKind.warning,
+              title: l.txDetailNotSynced,
+              body: l.txDetailNotSyncedBody,
+            ),
           ),
           const SizedBox(height: LoitSpacing.s4),
         ],
-        _heroCard(context, t, catStyle, catLabel, homeCurrency),
+        LoitFadeSlideIn(
+          delay: const Duration(milliseconds: 40),
+          offset: 16,
+          child: _heroCard(context, t, catStyle, catLabel, homeCurrency),
+        ),
         const SizedBox(height: LoitSpacing.s5),
-        LoitGroupLabel(label: l.txDetailDetails),
-        _row(context, l.txDetailDate,
-            yMMMMEEEEd(context).add_jm().format(t.createdAt.toLocal())),
-        _row(context, l.txDetailType, _typeName(l, t.type)),
-        if (fromAccount != null)
-          _row(context, l.txDetailAccount, fromAccount.name),
-        if (toAccount != null)
-          _row(context, l.txDetailToAccount, toAccount.name),
-        if (!t.isTransfer)
-          _row(context, l.txDetailCategory, catLabel),
-        _row(context, l.txDetailCurrency, t.currency),
-        if (t.currency != homeCurrency && t.fxSnapshot.containsKey(homeCurrency))
-          _row(
-            context,
-            l.txDetailFxRate,
-            t.fxSnapshot[homeCurrency]!.toStringAsFixed(4),
-          ),
-        if (t.currency != homeCurrency && t.fxSnapshot.containsKey(homeCurrency))
-          _row(
-            context,
-            l.txDetailHomeAmount,
-            formatMoney(t.amountIn(homeCurrency), homeCurrency),
-          ),
-        if (t.aiParsed)
-          _row(context, l.txDetailSource, l.txDetailAiScanned),
-        if (t.isManualFallback)
-          _row(context, l.txDetailSource, l.txDetailManualFallback),
-        if (t.notes != null && t.notes!.isNotEmpty) ...[
-          const SizedBox(height: LoitSpacing.s4),
-          LoitGroupLabel(label: l.txDetailNotes),
-          Builder(builder: (_) {
-            final parsed = parseBreakdown(t.notes);
-            if (parsed == null) {
-              return Container(
-                padding: const EdgeInsets.all(LoitSpacing.s4),
-                decoration: BoxDecoration(
-                  color: c.surface,
-                  borderRadius: LoitRadius.brM,
-                  border: Border.all(color: c.borderSubtle),
+        LoitFadeSlideIn(
+          delay: const Duration(milliseconds: 140),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              LoitGroupLabel(label: l.txDetailDetails),
+              _row(context, l.txDetailDate,
+                  yMMMMEEEEd(context).add_jm().format(t.createdAt.toLocal())),
+              _row(context, l.txDetailType, _typeName(l, t.type)),
+              if (fromAccount != null)
+                _row(context, l.txDetailAccount, fromAccount.name),
+              if (toAccount != null)
+                _row(context, l.txDetailToAccount, toAccount.name),
+              if (!t.isTransfer)
+                _row(context, l.txDetailCategory, catLabel),
+              _row(context, l.txDetailCurrency, t.currency),
+              if (t.currency != homeCurrency &&
+                  t.fxSnapshot.containsKey(homeCurrency))
+                _row(
+                  context,
+                  l.txDetailFxRate,
+                  t.fxSnapshot[homeCurrency]!.toStringAsFixed(4),
                 ),
-                child: Text(t.notes!,
-                    style: LoitTypography.bodyM
-                        .copyWith(color: c.contentPrimary)),
-              );
-            }
-            return _BreakdownView(parsed: parsed);
-          }),
+              if (t.currency != homeCurrency &&
+                  t.fxSnapshot.containsKey(homeCurrency))
+                _row(
+                  context,
+                  l.txDetailHomeAmount,
+                  formatMoney(t.amountIn(homeCurrency), homeCurrency),
+                ),
+              if (t.aiParsed)
+                _row(context, l.txDetailSource, l.txDetailAiScanned),
+              if (t.isManualFallback)
+                _row(context, l.txDetailSource, l.txDetailManualFallback),
+            ],
+          ),
+        ),
+        if ((t.notes != null && t.notes!.isNotEmpty) ||
+            (t.aiParsed && t.id != null && !isUnsynced)) ...[
+          const SizedBox(height: LoitSpacing.s4),
+          LoitFadeSlideIn(
+            delay: const Duration(milliseconds: 220),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                LoitGroupLabel(label: l.txDetailNotes),
+                Builder(builder: (_) {
+                  final parsed = parseBreakdown(t.notes);
+                  if (t.aiParsed && t.id != null && !isUnsynced) {
+                    return _ScanPreviewEditor(
+                      txn: t,
+                      parsed: parsed ??
+                          NotesBreakdown(
+                            merchant:
+                                (t.notes ?? '').trim().split('\n').first,
+                            items: const [],
+                            total: t.absAmount,
+                          ),
+                    );
+                  }
+                  if (parsed == null) {
+                    return Container(
+                      padding: const EdgeInsets.all(LoitSpacing.s4),
+                      decoration: BoxDecoration(
+                        color: c.surface,
+                        borderRadius: LoitRadius.brM,
+                        border: Border.all(color: c.borderSubtle),
+                      ),
+                      child: Text(t.notes!,
+                          style: LoitTypography.bodyM
+                              .copyWith(color: c.contentPrimary)),
+                    );
+                  }
+                  return _BreakdownView(parsed: parsed);
+                }),
+              ],
+            ),
+          ),
         ],
         if (t.receiptUrl != null) ...[
           const SizedBox(height: LoitSpacing.s4),
-          LoitGroupLabel(label: l.txDetailReceipt),
-          ClipRRect(
-            borderRadius: LoitRadius.brM,
-            child: LoitReceiptImage(path: t.receiptUrl!),
+          LoitFadeSlideIn(
+            delay: const Duration(milliseconds: 300),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                LoitGroupLabel(label: l.txDetailReceipt),
+                ClipRRect(
+                  borderRadius: LoitRadius.brM,
+                  child: LoitReceiptImage(path: t.receiptUrl!),
+                ),
+              ],
+            ),
           ),
         ],
         if (!isUnsynced) ...[
           const SizedBox(height: LoitSpacing.s6),
-          OutlinedButton.icon(
+          LoitFadeSlideIn(
+            delay: const Duration(milliseconds: 380),
+            child: OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               foregroundColor: c.danger,
               side: BorderSide(color: c.danger.withValues(alpha: 0.4)),
@@ -228,6 +277,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                 if (context.mounted) context.pop();
               }
             },
+          ),
           ),
         ],
       ],
@@ -299,20 +349,28 @@ class TransactionDetailScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: LoitSpacing.s5),
-          LoitAmountText.money(
-            amount: t.isTransfer ? t.absAmount : t.amount,
-            currency: t.currency,
-            variant: LoitAmountVariant.hero,
-            convertedAmount: (!t.isTransfer &&
-                    t.currency != homeCurrency &&
-                    t.fxSnapshot.containsKey(homeCurrency))
-                ? t.amountIn(homeCurrency)
-                : null,
-            convertedCurrency: (!t.isTransfer &&
-                    t.currency != homeCurrency &&
-                    t.fxSnapshot.containsKey(homeCurrency))
-                ? homeCurrency
-                : null,
+          Align(
+            alignment: Alignment.centerLeft,
+            child: LoitScaleIn(
+              from: 0.9,
+              duration: LoitMotion.emphasized,
+              delay: const Duration(milliseconds: 120),
+              child: LoitAmountText.money(
+                amount: t.isTransfer ? t.absAmount : t.amount,
+                currency: t.currency,
+                variant: LoitAmountVariant.hero,
+                convertedAmount: (!t.isTransfer &&
+                        t.currency != homeCurrency &&
+                        t.fxSnapshot.containsKey(homeCurrency))
+                    ? t.amountIn(homeCurrency)
+                    : null,
+                convertedCurrency: (!t.isTransfer &&
+                        t.currency != homeCurrency &&
+                        t.fxSnapshot.containsKey(homeCurrency))
+                    ? homeCurrency
+                    : null,
+              ),
+            ),
           ),
         ],
       ),
@@ -342,6 +400,499 @@ class TransactionDetailScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+class _ScanPreviewEditor extends ConsumerStatefulWidget {
+  const _ScanPreviewEditor({required this.txn, required this.parsed});
+
+  final Txn txn;
+  final NotesBreakdown parsed;
+
+  @override
+  ConsumerState<_ScanPreviewEditor> createState() => _ScanPreviewEditorState();
+}
+
+class _ScanPreviewEditorState extends ConsumerState<_ScanPreviewEditor> {
+  bool _editing = false;
+  bool _saving = false;
+  late TextEditingController _merchantCtl;
+  late TextEditingController _totalCtl;
+  late DateTime _date;
+  late List<_ItemDraft> _items;
+
+  @override
+  void initState() {
+    super.initState();
+    _hydrate();
+  }
+
+  void _hydrate() {
+    final p = widget.parsed;
+    _merchantCtl = TextEditingController(text: p.merchant);
+    final total = p.total ?? widget.txn.absAmount;
+    _totalCtl = TextEditingController(text: _fmt(total));
+    _date = widget.txn.createdAt.toLocal();
+    _items = [
+      for (final it in p.items)
+        _ItemDraft(
+          name: TextEditingController(text: it.name),
+          qty: TextEditingController(
+              text: it.qty != null ? _fmt(it.qty!) : ''),
+          unit: TextEditingController(
+              text: it.unitPrice != null ? _fmt(it.unitPrice!) : ''),
+          total: TextEditingController(
+              text: it.totalPrice != null ? _fmt(it.totalPrice!) : ''),
+        ),
+    ];
+  }
+
+  static final NumberFormat _f = NumberFormat('#,##0.##', 'id_ID');
+  String _fmt(double v) => _f.format(v);
+
+  double? _parseNum(String s) {
+    final t = s.trim();
+    if (t.isEmpty) return null;
+    final cleaned = t.replaceAll(RegExp(r'[^\d.,-]'), '');
+    if (cleaned.isEmpty) return null;
+    final lastSep = cleaned.lastIndexOf(RegExp(r'[.,]'));
+    if (lastSep == -1) return double.tryParse(cleaned);
+    final tail = cleaned.substring(lastSep + 1);
+    if (tail.isNotEmpty &&
+        tail.length <= 2 &&
+        !tail.contains(RegExp(r'[.,]'))) {
+      final head =
+          cleaned.substring(0, lastSep).replaceAll(RegExp(r'[.,]'), '');
+      return double.tryParse('${head.isEmpty ? '0' : head}.$tail');
+    }
+    return double.tryParse(cleaned.replaceAll(RegExp(r'[.,]'), ''));
+  }
+
+  @override
+  void dispose() {
+    _merchantCtl.dispose();
+    _totalCtl.dispose();
+    for (final i in _items) {
+      i.dispose();
+    }
+    super.dispose();
+  }
+
+  void _toggleEdit(bool on) {
+    setState(() {
+      _merchantCtl.dispose();
+      _totalCtl.dispose();
+      for (final i in _items) {
+        i.dispose();
+      }
+      _hydrate();
+      _editing = on;
+    });
+  }
+
+  void _addItem() {
+    setState(() => _items.add(_ItemDraft.empty()));
+  }
+
+  void _removeItem(int i) {
+    setState(() {
+      _items[i].dispose();
+      _items.removeAt(i);
+    });
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+    );
+    if (picked == null) return;
+    if (!mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_date),
+    );
+    if (!mounted) return;
+    setState(() {
+      _date = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        time?.hour ?? _date.hour,
+        time?.minute ?? _date.minute,
+      );
+    });
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    final l = context.l10n;
+    try {
+      final items = <NotesBreakdownItem>[
+        for (final d in _items)
+          NotesBreakdownItem(
+            name: d.name.text.trim(),
+            qty: _parseNum(d.qty.text),
+            unitPrice: _parseNum(d.unit.text),
+            totalPrice: _parseNum(d.total.text),
+          ),
+      ];
+      final totalParsed = _parseNum(_totalCtl.text);
+      final breakdown = NotesBreakdown(
+        merchant: _merchantCtl.text.trim(),
+        items: items,
+        total: totalParsed,
+      );
+      final notes = formatBreakdown(breakdown);
+
+      final itemsPayload = [
+        for (final it in items)
+          if (it.name.isNotEmpty ||
+              it.qty != null ||
+              it.unitPrice != null ||
+              it.totalPrice != null)
+            {
+              'name': it.name,
+              if (it.qty != null) 'qty': it.qty,
+              if (it.unitPrice != null) 'unit_price': it.unitPrice,
+              if (it.totalPrice != null) 'total_price': it.totalPrice,
+            },
+      ];
+      final payload = <String, dynamic>{
+        'notes': notes,
+        'created_at': _date.toUtc().toIso8601String(),
+        'items': itemsPayload,
+      };
+      if (totalParsed != null) {
+        final signed = widget.txn.type == 'expense'
+            ? -totalParsed.abs()
+            : totalParsed.abs();
+        payload['amount'] = signed;
+      }
+      await ref
+          .read(transactionsProvider.notifier)
+          .updateTransaction(widget.txn.id!, payload);
+      if (!mounted) return;
+      setState(() {
+        _editing = false;
+        _saving = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.txFormSaveFailed(e.toString()))),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    final l = context.l10n;
+    return Container(
+      padding: const EdgeInsets.all(LoitSpacing.s4),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: LoitRadius.brM,
+        border: Border.all(color: c.borderSubtle),
+      ),
+      child: AnimatedSize(
+        duration: LoitMotion.emphasized,
+        curve: LoitMotion.easeOutQuart,
+        alignment: Alignment.topCenter,
+        child: AnimatedSwitcher(
+          duration: LoitMotion.short,
+          switchInCurve: LoitMotion.easeOutQuart,
+          switchOutCurve: LoitMotion.easeOutQuart,
+          transitionBuilder: (child, anim) => FadeTransition(
+            opacity: anim,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.04),
+                end: Offset.zero,
+              ).animate(anim),
+              child: child,
+            ),
+          ),
+          child: KeyedSubtree(
+            key: ValueKey(_editing ? 'edit' : 'view'),
+            child:
+                _editing ? _buildEdit(context, c, l) : _buildView(context, c, l),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildView(BuildContext context, LoitColors c, AppLocalizations l) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                widget.parsed.merchant.isEmpty ? '—' : widget.parsed.merchant,
+                style: LoitTypography.bodyL.copyWith(
+                  color: c.contentPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => _toggleEdit(true),
+              icon: const Icon(Icons.edit_outlined, size: 16),
+              label: Text(l.txDetailEdit),
+            ),
+          ],
+        ),
+        const SizedBox(height: LoitSpacing.s3),
+        for (var i = 0; i < widget.parsed.items.length; i++) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: LoitSpacing.s2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.parsed.items[i].name.isEmpty
+                        ? '—'
+                        : widget.parsed.items[i].name,
+                    style: LoitTypography.bodyM
+                        .copyWith(color: c.contentPrimary),
+                  ),
+                ),
+                const SizedBox(width: LoitSpacing.s3),
+                Text(_itemRight(widget.parsed.items[i]),
+                    style: LoitTypography.bodyS
+                        .copyWith(color: c.contentSecondary)),
+              ],
+            ),
+          ),
+          if (i != widget.parsed.items.length - 1)
+            Divider(height: 1, color: c.borderSubtle),
+        ],
+        if (widget.parsed.total != null) ...[
+          const SizedBox(height: LoitSpacing.s3),
+          Divider(height: 1, color: c.borderSubtle),
+          Padding(
+            padding: const EdgeInsets.only(top: LoitSpacing.s3),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(l.txDetailTotal,
+                      style: LoitTypography.bodyM.copyWith(
+                        color: c.contentPrimary,
+                        fontWeight: FontWeight.w600,
+                      )),
+                ),
+                Text(_fmt(widget.parsed.total!),
+                    style: LoitTypography.bodyM.copyWith(
+                      color: c.contentPrimary,
+                      fontWeight: FontWeight.w600,
+                    )),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _itemRight(NotesBreakdownItem it) {
+    final parts = <String>[];
+    if (it.qty != null && it.unitPrice != null) {
+      parts.add('${_fmt(it.qty!)} × ${_fmt(it.unitPrice!)}');
+    } else if (it.qty != null) {
+      parts.add('${_fmt(it.qty!)} ×');
+    } else if (it.unitPrice != null) {
+      parts.add('× ${_fmt(it.unitPrice!)}');
+    }
+    if (it.totalPrice != null) {
+      parts.add('= ${_fmt(it.totalPrice!)}');
+    }
+    return parts.join(' ');
+  }
+
+  Widget _buildEdit(BuildContext context, LoitColors c, AppLocalizations l) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _merchantCtl,
+          decoration: InputDecoration(
+            labelText: l.txFormMerchant,
+            isDense: true,
+          ),
+        ),
+        const SizedBox(height: LoitSpacing.s3),
+        InkWell(
+          onTap: _pickDate,
+          child: InputDecorator(
+            decoration: InputDecoration(
+              labelText: l.txFormDate,
+              isDense: true,
+            ),
+            child: Text(
+              yMMMd(context).add_jm().format(_date),
+              style: LoitTypography.bodyM.copyWith(color: c.contentPrimary),
+            ),
+          ),
+        ),
+        const SizedBox(height: LoitSpacing.s4),
+        Text(l.txFormItemBreakdown,
+            style:
+                LoitTypography.labelL.copyWith(color: c.contentSecondary)),
+        const SizedBox(height: LoitSpacing.s2),
+        for (var i = 0; i < _items.length; i++) ...[
+          _itemEditor(i, c, l),
+          if (i != _items.length - 1)
+            Divider(height: LoitSpacing.s4, color: c.borderSubtle),
+        ],
+        const SizedBox(height: LoitSpacing.s3),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _addItem,
+            icon: const Icon(Icons.add, size: 16),
+            label: Text(l.txFormAddItem),
+          ),
+        ),
+        const SizedBox(height: LoitSpacing.s3),
+        TextField(
+          controller: _totalCtl,
+          keyboardType:
+              const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: l.txFormTotal,
+            isDense: true,
+          ),
+        ),
+        const SizedBox(height: LoitSpacing.s4),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _saving ? null : () => _toggleEdit(false),
+                child: Text(l.txDetailCancel),
+              ),
+            ),
+            const SizedBox(width: LoitSpacing.s3),
+            Expanded(
+              child: FilledButton(
+                onPressed: _saving ? null : _save,
+                child: _saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(l.txFormSave),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _itemEditor(int i, LoitColors c, AppLocalizations l) {
+    final d = _items[i];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: d.name,
+                decoration: InputDecoration(
+                  labelText: l.txFormItemName,
+                  isDense: true,
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: l.txFormRemove,
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: () => _removeItem(i),
+            ),
+          ],
+        ),
+        const SizedBox(height: LoitSpacing.s2),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: d.qty,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: l.txFormQty,
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: LoitSpacing.s2),
+            Expanded(
+              child: TextField(
+                controller: d.unit,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: l.txFormUnitPrice,
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: LoitSpacing.s2),
+            Expanded(
+              child: TextField(
+                controller: d.total,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: l.txFormTotal,
+                  isDense: true,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ItemDraft {
+  _ItemDraft({
+    required this.name,
+    required this.qty,
+    required this.unit,
+    required this.total,
+  });
+
+  factory _ItemDraft.empty() => _ItemDraft(
+        name: TextEditingController(),
+        qty: TextEditingController(),
+        unit: TextEditingController(),
+        total: TextEditingController(),
+      );
+
+  final TextEditingController name;
+  final TextEditingController qty;
+  final TextEditingController unit;
+  final TextEditingController total;
+
+  void dispose() {
+    name.dispose();
+    qty.dispose();
+    unit.dispose();
+    total.dispose();
   }
 }
 

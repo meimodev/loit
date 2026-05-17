@@ -2462,37 +2462,37 @@ abstract class AppLocalizations {
   /// No description provided for @scanReceiptTitle.
   ///
   /// In en, this message translates to:
-  /// **'Scan receipt'**
+  /// **'Scan document'**
   String get scanReceiptTitle;
 
   /// No description provided for @scanReceipt.
   ///
   /// In en, this message translates to:
-  /// **'RECEIPT'**
+  /// **'DOCUMENT'**
   String get scanReceipt;
 
   /// No description provided for @scanAlignHint.
   ///
   /// In en, this message translates to:
-  /// **'Align receipt within frame'**
+  /// **'Position document within frame'**
   String get scanAlignHint;
 
   /// No description provided for @scanReadingTitle.
   ///
   /// In en, this message translates to:
-  /// **'Reading receipt'**
+  /// **'Reading document'**
   String get scanReadingTitle;
 
   /// No description provided for @scanReadingBody.
   ///
   /// In en, this message translates to:
-  /// **'Reading your receipt…'**
+  /// **'Reading your document…'**
   String get scanReadingBody;
 
   /// No description provided for @scanReadingSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Usually takes about 2 seconds. We\'re extracting merchant, total, and items.'**
+  /// **'Usually takes about 2 seconds. Extracting merchant, total, account, and items.'**
   String get scanReadingSubtitle;
 
   /// No description provided for @scanPersonal.
@@ -2516,7 +2516,7 @@ abstract class AppLocalizations {
   /// No description provided for @scanSaved.
   ///
   /// In en, this message translates to:
-  /// **'Receipt saved'**
+  /// **'Saved'**
   String get scanSaved;
 
   /// No description provided for @scanNoRooms.
@@ -2528,7 +2528,7 @@ abstract class AppLocalizations {
   /// No description provided for @scanSendToRoom.
   ///
   /// In en, this message translates to:
-  /// **'Send receipt to room'**
+  /// **'Send to room'**
   String get scanSendToRoom;
 
   /// No description provided for @scanLimitReached.
@@ -2536,6 +2536,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scan limit reached'**
   String get scanLimitReached;
+
+  /// No description provided for @scanReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review scan'**
+  String get scanReviewTitle;
+
+  /// No description provided for @scanConfidenceHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'Looks good'**
+  String get scanConfidenceHigh;
+
+  /// No description provided for @scanConfidenceLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Some details may need correction'**
+  String get scanConfidenceLow;
+
+  /// No description provided for @scanReconcileMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Line items don\'t add up to the printed total — using the printed total.'**
+  String get scanReconcileMismatch;
+
+  /// No description provided for @scanTotalComputed.
+  ///
+  /// In en, this message translates to:
+  /// **'Total computed from line items.'**
+  String get scanTotalComputed;
+
+  /// No description provided for @scanFieldAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get scanFieldAccount;
+
+  /// No description provided for @scanFieldCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get scanFieldCategory;
+
+  /// No description provided for @scanItemsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 item} other{{count} items}}'**
+  String scanItemsCount(int count);
+
+  /// No description provided for @scanSaveNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get scanSaveNow;
+
+  /// No description provided for @scanAutoConfirmIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving in {seconds}s — tap to save now'**
+  String scanAutoConfirmIn(int seconds);
+
+  /// No description provided for @scanCancelAutoSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel auto-save'**
+  String get scanCancelAutoSave;
+
+  /// No description provided for @scanEditDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit details'**
+  String get scanEditDetails;
+
+  /// No description provided for @scanSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save — try again.'**
+  String get scanSaveFailed;
+
+  /// No description provided for @scanUnknownMerchant.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown merchant'**
+  String get scanUnknownMerchant;
+
+  /// No description provided for @scanNoAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'No account selected — opening edit form.'**
+  String get scanNoAccount;
+
+  /// No description provided for @scanQualityBlurry.
+  ///
+  /// In en, this message translates to:
+  /// **'Looks blurry — hold the camera steady.'**
+  String get scanQualityBlurry;
+
+  /// No description provided for @scanQualityTooDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Too dark — find better light.'**
+  String get scanQualityTooDark;
+
+  /// No description provided for @scanQualityBadAspect.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop looks off — recapture the full document.'**
+  String get scanQualityBadAspect;
+
+  /// No description provided for @scanRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many scans in a short time. Try again in a minute.'**
+  String get scanRateLimited;
+
+  /// No description provided for @scanProCapReached.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve hit your monthly Pro scan limit.'**
+  String get scanProCapReached;
+
+  /// No description provided for @scanLiteCapReached.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve hit your monthly Lite scan limit.'**
+  String get scanLiteCapReached;
+
+  /// No description provided for @scanSettingsAutoConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-save high-confidence scans after 3 seconds'**
+  String get scanSettingsAutoConfirm;
+
+  /// No description provided for @scanSettingsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning'**
+  String get scanSettingsSection;
+
+  /// No description provided for @scanInfoPlanSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Your plan'**
+  String get scanInfoPlanSection;
+
+  /// No description provided for @scanInfoUsageSection.
+  ///
+  /// In en, this message translates to:
+  /// **'This month'**
+  String get scanInfoUsageSection;
+
+  /// No description provided for @scanInfoTopUpSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Need more?'**
+  String get scanInfoTopUpSection;
+
+  /// No description provided for @scanInfoPrefsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferences'**
+  String get scanInfoPrefsSection;
+
+  /// No description provided for @scanInfoUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} / {total} scans used'**
+  String scanInfoUsage(int used, int total);
+
+  /// No description provided for @scanInfoUsageUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited scanning'**
+  String get scanInfoUsageUnlimited;
+
+  /// No description provided for @scanInfoResetsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Resets on {date}'**
+  String scanInfoResetsOn(String date);
+
+  /// No description provided for @scanInfoTierBenefit.
+  ///
+  /// In en, this message translates to:
+  /// **'{scans} scans per month'**
+  String scanInfoTierBenefit(int scans);
+
+  /// No description provided for @scanInfoRecentLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent scans'**
+  String get scanInfoRecentLink;
+
+  /// No description provided for @scanInfoTopUpCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Top up 15 scans · {price}'**
+  String scanInfoTopUpCta(String price);
+
+  /// No description provided for @scanInfoBonusBreakdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes +{bonus} top-up scans'**
+  String scanInfoBonusBreakdown(int bonus);
+
+  /// No description provided for @scanInfoTopUpHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds 15 scans to this month\'s allowance'**
+  String get scanInfoTopUpHelper;
+
+  /// No description provided for @scanInfoTopUpSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'15 scans added to this month'**
+  String get scanInfoTopUpSuccess;
+
+  /// No description provided for @scanInfoUpgradeCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Change plan'**
+  String get scanInfoUpgradeCta;
 
   /// Quota exceeded message showing used scans
   ///
@@ -2552,13 +2774,13 @@ abstract class AppLocalizations {
   /// No description provided for @scanTopUp.
   ///
   /// In en, this message translates to:
-  /// **'Top up · 10 scans for Rp19,000'**
+  /// **'Top up · 15 scans for Rp9,000'**
   String get scanTopUp;
 
   /// No description provided for @scanUpgrade.
   ///
   /// In en, this message translates to:
-  /// **'Upgrade to Pro — unlimited scans'**
+  /// **'Upgrade to Pro — 150 scans/month'**
   String get scanUpgrade;
 
   /// No description provided for @scanNotNow.
@@ -4058,8 +4280,14 @@ abstract class AppLocalizations {
   /// No description provided for @paywallHero.
   ///
   /// In en, this message translates to:
-  /// **'Unlimited budgets.\nUnlimited currencies.\nPro.'**
+  /// **'Smarter scans.\nFairer caps.\nGo Pro.'**
   String get paywallHero;
+
+  /// No description provided for @paywallLite.
+  ///
+  /// In en, this message translates to:
+  /// **'Lite'**
+  String get paywallLite;
 
   /// No description provided for @paywallPlanYearly.
   ///
@@ -4076,19 +4304,31 @@ abstract class AppLocalizations {
   /// No description provided for @paywallFreeFeatures.
   ///
   /// In en, this message translates to:
-  /// **'3 budgets · 8 scans · 3 months reports'**
+  /// **'5 scans/mo · 3 budgets · 3 months reports'**
   String get paywallFreeFeatures;
+
+  /// No description provided for @paywallLiteAnnualFeatures.
+  ///
+  /// In en, this message translates to:
+  /// **'Save 4 months · 30 scans/mo · Unlimited budgets'**
+  String get paywallLiteAnnualFeatures;
+
+  /// No description provided for @paywallLiteMonthlyFeatures.
+  ///
+  /// In en, this message translates to:
+  /// **'30 scans/mo · Unlimited budgets · Cancel anytime'**
+  String get paywallLiteMonthlyFeatures;
 
   /// No description provided for @paywallProAnnualFeatures.
   ///
   /// In en, this message translates to:
-  /// **'Save 4 months · Unlimited everything · Export'**
+  /// **'Save 4 months · 150 scans/mo · Unlimited budgets · Export'**
   String get paywallProAnnualFeatures;
 
   /// No description provided for @paywallProMonthlyFeatures.
   ///
   /// In en, this message translates to:
-  /// **'Cancel anytime'**
+  /// **'150 scans/mo · Unlimited budgets · Cancel anytime'**
   String get paywallProMonthlyFeatures;
 
   /// No description provided for @paywallBestValue.
@@ -4102,6 +4342,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Continue on Free'**
   String get paywallCtaFree;
+
+  /// No description provided for @paywallCtaLiteAnnual.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Lite · {price}/yr'**
+  String paywallCtaLiteAnnual(String price);
+
+  /// No description provided for @paywallCtaLiteMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Lite · {price}/mo'**
+  String paywallCtaLiteMonthly(String price);
 
   /// No description provided for @paywallCtaProAnnual.
   ///
@@ -4175,11 +4427,89 @@ abstract class AppLocalizations {
   /// **'Limited features. Upgrade for more.'**
   String get billingFreeBody;
 
+  /// No description provided for @billingLiteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Lite plan active.'**
+  String get billingLiteBody;
+
   /// No description provided for @billingNextRenewal.
   ///
   /// In en, this message translates to:
   /// **'Next renewal · {date}'**
   String billingNextRenewal(String date);
+
+  /// No description provided for @billingPlanEndsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan ends on {date}'**
+  String billingPlanEndsOn(String date);
+
+  /// No description provided for @billingUpgradeCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade'**
+  String get billingUpgradeCta;
+
+  /// No description provided for @billingPlanBenefits.
+  ///
+  /// In en, this message translates to:
+  /// **'What you get'**
+  String get billingPlanBenefits;
+
+  /// No description provided for @billingFreeBenefit1.
+  ///
+  /// In en, this message translates to:
+  /// **'5 document scans / month'**
+  String get billingFreeBenefit1;
+
+  /// No description provided for @billingFreeBenefit2.
+  ///
+  /// In en, this message translates to:
+  /// **'3 budget categories'**
+  String get billingFreeBenefit2;
+
+  /// No description provided for @billingFreeBenefit3.
+  ///
+  /// In en, this message translates to:
+  /// **'1 shared room'**
+  String get billingFreeBenefit3;
+
+  /// No description provided for @billingLiteBenefit1.
+  ///
+  /// In en, this message translates to:
+  /// **'30 document scans / month'**
+  String get billingLiteBenefit1;
+
+  /// No description provided for @billingLiteBenefit2.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited budgets + custom categories'**
+  String get billingLiteBenefit2;
+
+  /// No description provided for @billingLiteBenefit3.
+  ///
+  /// In en, this message translates to:
+  /// **'3 shared rooms'**
+  String get billingLiteBenefit3;
+
+  /// No description provided for @billingProBenefit1.
+  ///
+  /// In en, this message translates to:
+  /// **'150 document scans / month'**
+  String get billingProBenefit1;
+
+  /// No description provided for @billingProBenefit2.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited budgets, exports, receipt storage'**
+  String get billingProBenefit2;
+
+  /// No description provided for @billingProBenefit3.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited rooms + full history'**
+  String get billingProBenefit3;
 
   /// No description provided for @billingGroupBilling.
   ///

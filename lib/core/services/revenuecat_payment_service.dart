@@ -102,7 +102,20 @@ class RevenueCatPaymentService implements PaymentService {
   @override
   Future<PaymentProductDetails?> getProductDetails(String productId) async {
     await initialize();
-    final products = await Purchases.getProducts([productId]);
+    // RC's `getProducts` defaults to ProductCategory.subscription. Consumables
+    // (e.g. `loit_scan_topup_15`) are non-subscription products and would
+    // return empty under the default filter. Try subscription first, then
+    // fall back to non-subscription so a single entry point works for both.
+    var products = await Purchases.getProducts(
+      [productId],
+      productCategory: ProductCategory.subscription,
+    );
+    if (products.isEmpty) {
+      products = await Purchases.getProducts(
+        [productId],
+        productCategory: ProductCategory.nonSubscription,
+      );
+    }
     if (products.isEmpty) return null;
     final p = products.first;
     return PaymentProductDetails(
@@ -117,18 +130,22 @@ class RevenueCatPaymentService implements PaymentService {
 
   @override
   Future<PurchaseResult> purchaseSubscription(String productId) {
-    return _purchase(productId);
+    return _purchase(productId, ProductCategory.subscription);
   }
 
   @override
   Future<PurchaseResult> purchaseOneTime(String productId) {
-    return _purchase(productId);
+    return _purchase(productId, ProductCategory.nonSubscription);
   }
 
-  Future<PurchaseResult> _purchase(String productId) async {
+  Future<PurchaseResult> _purchase(
+      String productId, ProductCategory category) async {
     await initialize();
     try {
-      final products = await Purchases.getProducts([productId]);
+      final products = await Purchases.getProducts(
+        [productId],
+        productCategory: category,
+      );
       if (products.isEmpty) {
         return PurchaseResult(
           productId: productId,

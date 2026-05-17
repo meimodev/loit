@@ -327,6 +327,117 @@ class _LoitTapScaleState extends State<LoitTapScale> {
   }
 }
 
+/// Fade + scale entrance. Use for hero icons, large amounts, success marks.
+/// Scales from [from] → 1.0 while fading from 0 → 1. Anchored at the
+/// widget's center.
+class LoitScaleIn extends StatefulWidget {
+  const LoitScaleIn({
+    super.key,
+    required this.child,
+    this.delay = Duration.zero,
+    this.duration = LoitMotion.entrance,
+    this.from = 0.85,
+    this.curve = LoitMotion.easeOutQuint,
+  });
+
+  final Widget child;
+  final Duration delay;
+  final Duration duration;
+  final double from;
+  final Curve curve;
+
+  @override
+  State<LoitScaleIn> createState() => _LoitScaleInState();
+}
+
+class _LoitScaleInState extends State<LoitScaleIn>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.delay == Duration.zero) {
+      _ctrl.forward();
+    } else {
+      Future.delayed(widget.delay, () {
+        if (mounted) _ctrl.forward();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_reduceMotion(context)) return widget.child;
+    final curved = CurvedAnimation(parent: _ctrl, curve: widget.curve);
+    return AnimatedBuilder(
+      animation: curved,
+      builder: (_, child) {
+        final t = curved.value;
+        final s = widget.from + (1 - widget.from) * t;
+        return Opacity(
+          opacity: t,
+          child: Transform.scale(scale: s, child: child),
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+/// Gentle looped scale pulse for static decorative chips/badges.
+/// Transform-only — safe on mid-range Android.
+class LoitGentlePulse extends StatefulWidget {
+  const LoitGentlePulse({
+    super.key,
+    required this.child,
+    this.period = const Duration(milliseconds: 2200),
+    this.maxScale = 1.04,
+  });
+
+  final Widget child;
+  final Duration period;
+  final double maxScale;
+
+  @override
+  State<LoitGentlePulse> createState() => _LoitGentlePulseState();
+}
+
+class _LoitGentlePulseState extends State<LoitGentlePulse>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl =
+      AnimationController(vsync: this, duration: widget.period)..repeat();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_reduceMotion(context)) return widget.child;
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, child) {
+        final t = (math.sin(_ctrl.value * 2 * math.pi) + 1) / 2;
+        final s = 1 + (widget.maxScale - 1) * t;
+        return Transform.scale(scale: s, child: child);
+      },
+      child: widget.child,
+    );
+  }
+}
+
 class LoitAnimatedReveal extends StatelessWidget {
   const LoitAnimatedReveal({
     super.key,

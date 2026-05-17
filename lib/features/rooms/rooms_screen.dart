@@ -313,12 +313,12 @@ class _MembershipCard extends ConsumerWidget {
     final atLimit = limit != null && roomCount >= limit;
     final tierLabel = switch (tier) {
       'pro' => 'Pro',
-      'team' => 'Team',
+      'lite' => 'Lite',
       _ => 'Free',
     };
     final tierColor = switch (tier) {
       'pro' => c.brand,
-      'team' => c.info,
+      'lite' => c.info,
       _ => c.contentSecondary,
     };
     final progress = unlimited

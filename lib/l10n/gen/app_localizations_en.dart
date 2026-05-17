@@ -1293,23 +1293,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountFormRecentTransactions => 'Recent transactions';
 
   @override
-  String get scanReceiptTitle => 'Scan receipt';
+  String get scanReceiptTitle => 'Scan document';
 
   @override
-  String get scanReceipt => 'RECEIPT';
+  String get scanReceipt => 'DOCUMENT';
 
   @override
-  String get scanAlignHint => 'Align receipt within frame';
+  String get scanAlignHint => 'Position document within frame';
 
   @override
-  String get scanReadingTitle => 'Reading receipt';
+  String get scanReadingTitle => 'Reading document';
 
   @override
-  String get scanReadingBody => 'Reading your receipt…';
+  String get scanReadingBody => 'Reading your document…';
 
   @override
   String get scanReadingSubtitle =>
-      'Usually takes about 2 seconds. We\'re extracting merchant, total, and items.';
+      'Usually takes about 2 seconds. Extracting merchant, total, account, and items.';
 
   @override
   String get scanPersonal => 'Personal';
@@ -1321,17 +1321,152 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanRoom => 'Room';
 
   @override
-  String get scanSaved => 'Receipt saved';
+  String get scanSaved => 'Saved';
 
   @override
   String get scanNoRooms =>
       'No rooms yet — create one before scanning to a room.';
 
   @override
-  String get scanSendToRoom => 'Send receipt to room';
+  String get scanSendToRoom => 'Send to room';
 
   @override
   String get scanLimitReached => 'Scan limit reached';
+
+  @override
+  String get scanReviewTitle => 'Review scan';
+
+  @override
+  String get scanConfidenceHigh => 'Looks good';
+
+  @override
+  String get scanConfidenceLow => 'Some details may need correction';
+
+  @override
+  String get scanReconcileMismatch =>
+      'Line items don\'t add up to the printed total — using the printed total.';
+
+  @override
+  String get scanTotalComputed => 'Total computed from line items.';
+
+  @override
+  String get scanFieldAccount => 'Account';
+
+  @override
+  String get scanFieldCategory => 'Category';
+
+  @override
+  String scanItemsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get scanSaveNow => 'Save';
+
+  @override
+  String scanAutoConfirmIn(int seconds) {
+    return 'Saving in ${seconds}s — tap to save now';
+  }
+
+  @override
+  String get scanCancelAutoSave => 'Cancel auto-save';
+
+  @override
+  String get scanEditDetails => 'Edit details';
+
+  @override
+  String get scanSaveFailed => 'Couldn\'t save — try again.';
+
+  @override
+  String get scanUnknownMerchant => 'Unknown merchant';
+
+  @override
+  String get scanNoAccount => 'No account selected — opening edit form.';
+
+  @override
+  String get scanQualityBlurry => 'Looks blurry — hold the camera steady.';
+
+  @override
+  String get scanQualityTooDark => 'Too dark — find better light.';
+
+  @override
+  String get scanQualityBadAspect =>
+      'Crop looks off — recapture the full document.';
+
+  @override
+  String get scanRateLimited =>
+      'Too many scans in a short time. Try again in a minute.';
+
+  @override
+  String get scanProCapReached => 'You\'ve hit your monthly Pro scan limit.';
+
+  @override
+  String get scanLiteCapReached => 'You\'ve hit your monthly Lite scan limit.';
+
+  @override
+  String get scanSettingsAutoConfirm =>
+      'Auto-save high-confidence scans after 3 seconds';
+
+  @override
+  String get scanSettingsSection => 'Scanning';
+
+  @override
+  String get scanInfoPlanSection => 'Your plan';
+
+  @override
+  String get scanInfoUsageSection => 'This month';
+
+  @override
+  String get scanInfoTopUpSection => 'Need more?';
+
+  @override
+  String get scanInfoPrefsSection => 'Preferences';
+
+  @override
+  String scanInfoUsage(int used, int total) {
+    return '$used / $total scans used';
+  }
+
+  @override
+  String get scanInfoUsageUnlimited => 'Unlimited scanning';
+
+  @override
+  String scanInfoResetsOn(String date) {
+    return 'Resets on $date';
+  }
+
+  @override
+  String scanInfoTierBenefit(int scans) {
+    return '$scans scans per month';
+  }
+
+  @override
+  String get scanInfoRecentLink => 'Recent scans';
+
+  @override
+  String scanInfoTopUpCta(String price) {
+    return 'Top up 15 scans · $price';
+  }
+
+  @override
+  String scanInfoBonusBreakdown(int bonus) {
+    return 'Includes +$bonus top-up scans';
+  }
+
+  @override
+  String get scanInfoTopUpHelper => 'Adds 15 scans to this month\'s allowance';
+
+  @override
+  String get scanInfoTopUpSuccess => '15 scans added to this month';
+
+  @override
+  String get scanInfoUpgradeCta => 'Change plan';
 
   @override
   String scanUsedAllScans(String quota, String tier) {
@@ -1342,10 +1477,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanQuotaDefault => 'You have used your monthly scan quota.';
 
   @override
-  String get scanTopUp => 'Top up · 10 scans for Rp19,000';
+  String get scanTopUp => 'Top up · 15 scans for Rp9,000';
 
   @override
-  String get scanUpgrade => 'Upgrade to Pro — unlimited scans';
+  String get scanUpgrade => 'Upgrade to Pro — 150 scans/month';
 
   @override
   String get scanNotNow => 'Not now';
@@ -2213,7 +2348,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywallHeroPro => 'You\'re on Pro.\nEverything\nunlocked.';
 
   @override
-  String get paywallHero => 'Unlimited budgets.\nUnlimited currencies.\nPro.';
+  String get paywallHero => 'Smarter scans.\nFairer caps.\nGo Pro.';
+
+  @override
+  String get paywallLite => 'Lite';
 
   @override
   String get paywallPlanYearly => 'Yearly';
@@ -2222,20 +2360,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywallPlanMonthly => 'Monthly';
 
   @override
-  String get paywallFreeFeatures => '3 budgets · 8 scans · 3 months reports';
+  String get paywallFreeFeatures => '5 scans/mo · 3 budgets · 3 months reports';
+
+  @override
+  String get paywallLiteAnnualFeatures =>
+      'Save 4 months · 30 scans/mo · Unlimited budgets';
+
+  @override
+  String get paywallLiteMonthlyFeatures =>
+      '30 scans/mo · Unlimited budgets · Cancel anytime';
 
   @override
   String get paywallProAnnualFeatures =>
-      'Save 4 months · Unlimited everything · Export';
+      'Save 4 months · 150 scans/mo · Unlimited budgets · Export';
 
   @override
-  String get paywallProMonthlyFeatures => 'Cancel anytime';
+  String get paywallProMonthlyFeatures =>
+      '150 scans/mo · Unlimited budgets · Cancel anytime';
 
   @override
   String get paywallBestValue => 'BEST VALUE';
 
   @override
   String get paywallCtaFree => 'Continue on Free';
+
+  @override
+  String paywallCtaLiteAnnual(String price) {
+    return 'Start Lite · $price/yr';
+  }
+
+  @override
+  String paywallCtaLiteMonthly(String price) {
+    return 'Start Lite · $price/mo';
+  }
 
   @override
   String paywallCtaProAnnual(String price) {
@@ -2283,9 +2440,51 @@ class AppLocalizationsEn extends AppLocalizations {
   String get billingFreeBody => 'Limited features. Upgrade for more.';
 
   @override
+  String get billingLiteBody => 'Lite plan active.';
+
+  @override
   String billingNextRenewal(String date) {
     return 'Next renewal · $date';
   }
+
+  @override
+  String billingPlanEndsOn(String date) {
+    return 'Plan ends on $date';
+  }
+
+  @override
+  String get billingUpgradeCta => 'Upgrade';
+
+  @override
+  String get billingPlanBenefits => 'What you get';
+
+  @override
+  String get billingFreeBenefit1 => '5 document scans / month';
+
+  @override
+  String get billingFreeBenefit2 => '3 budget categories';
+
+  @override
+  String get billingFreeBenefit3 => '1 shared room';
+
+  @override
+  String get billingLiteBenefit1 => '30 document scans / month';
+
+  @override
+  String get billingLiteBenefit2 => 'Unlimited budgets + custom categories';
+
+  @override
+  String get billingLiteBenefit3 => '3 shared rooms';
+
+  @override
+  String get billingProBenefit1 => '150 document scans / month';
+
+  @override
+  String get billingProBenefit2 =>
+      'Unlimited budgets, exports, receipt storage';
+
+  @override
+  String get billingProBenefit3 => 'Unlimited rooms + full history';
 
   @override
   String get billingGroupBilling => 'Billing';

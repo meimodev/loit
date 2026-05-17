@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/services/reachability_service.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_elevation.dart';
 import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_spacing.dart';
-import 'connectivity_banner.dart';
 import 'loit_banner.dart';
 
 class PersistentConnectivityBanner extends ConsumerStatefulWidget {
@@ -43,10 +43,12 @@ class _PersistentConnectivityBannerState
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(connectivityProvider, (prev, next) {
+    ref.listen(reachabilityProvider, (prev, next) {
       final wasOffline =
-          prev?.maybeWhen(data: isOffline, orElse: () => false) ?? false;
-      final isOfflineNow = next.maybeWhen(data: isOffline, orElse: () => false);
+          prev?.maybeWhen(data: (online) => !online, orElse: () => false) ??
+              false;
+      final isOfflineNow =
+          next.maybeWhen(data: (online) => !online, orElse: () => false);
       if (isOfflineNow && !wasOffline) {
         _minimized = false;
         _startAutoMinimizeTimer();
@@ -56,9 +58,9 @@ class _PersistentConnectivityBannerState
       }
     });
 
-    final async = ref.watch(connectivityProvider);
+    final async = ref.watch(reachabilityProvider);
     final bool offline =
-        async.maybeWhen(data: isOffline, orElse: () => false);
+        async.maybeWhen(data: (online) => !online, orElse: () => false);
 
     final bottomOffset =
         64 + MediaQuery.of(context).padding.bottom + LoitSpacing.s2;

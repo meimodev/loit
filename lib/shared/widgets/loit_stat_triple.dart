@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import 'loit_animations.dart';
 
 /// Three-up summary band: Income / Expenses / Total.
 /// Sits directly under the month app bar on Home and Reports.
@@ -25,7 +27,12 @@ class LoitStatTriple extends StatelessWidget {
       child: Row(
         children: [
           for (var i = 0; i < stats.length; i++) ...[
-            Expanded(child: _StatCell(stat: stats[i])),
+            Expanded(
+              child: LoitFadeSlideIn(
+                delay: LoitMotion.staggerStep * i,
+                child: _StatCell(stat: stats[i]),
+              ),
+            ),
             if (i < stats.length - 1)
               Container(
                 width: 1,
@@ -54,6 +61,7 @@ class _StatCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final color = stat.color ?? c.contentPrimary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -65,10 +73,29 @@ class _StatCell extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
-          stat.amount,
-          style: LoitTypography.amountDefault.copyWith(
-            color: stat.color ?? c.contentPrimary,
+        AnimatedDefaultTextStyle(
+          duration: LoitMotion.emphasized,
+          curve: LoitMotion.easeOutQuart,
+          style: LoitTypography.amountDefault.copyWith(color: color),
+          child: AnimatedSwitcher(
+            duration: LoitMotion.base,
+            switchInCurve: LoitMotion.easeOutQuart,
+            switchOutCurve: LoitMotion.easeOutQuart,
+            transitionBuilder: (child, anim) {
+              final offset = Tween<Offset>(
+                begin: const Offset(0, 0.25),
+                end: Offset.zero,
+              ).animate(anim);
+              return FadeTransition(
+                opacity: anim,
+                child: SlideTransition(position: offset, child: child),
+              );
+            },
+            layoutBuilder: (current, previous) => Stack(
+              alignment: Alignment.center,
+              children: [...previous, if (current != null) current],
+            ),
+            child: Text(stat.amount, key: ValueKey(stat.amount)),
           ),
         ),
       ],

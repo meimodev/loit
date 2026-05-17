@@ -42,6 +42,54 @@ class Analytics {
   static Future<void> scanTopupPromptShown() =>
       _capture('scan_topup_prompt_shown');
 
+  // ---- SCANNER PIPELINE v2 ----
+  static Future<void> scanPreprocessed({
+    required int durationMs,
+    required int origBytes,
+    required int processedBytes,
+  }) =>
+      _capture('scan_preprocessed', {
+        'duration_ms': durationMs,
+        'orig_bytes': origBytes,
+        'processed_bytes': processedBytes,
+      });
+
+  static Future<void> scanQualityGateFailed(String reason) =>
+      _capture('scan_quality_gate_failed', {'reason': reason});
+
+  static Future<void> scanApiCalled({
+    required int imageBytes,
+    required int promptTokensEst,
+  }) =>
+      _capture('scan_api_called', {
+        'image_bytes': imageBytes,
+        'prompt_tokens_est': promptTokensEst,
+      });
+
+  static Future<void> scanApiReturned({
+    required bool isTransaction,
+    String? transactionKind,
+    required String confidenceBucket, // 'high' | 'medium' | 'low'
+  }) =>
+      _capture('scan_api_returned', {
+        'is_transaction': isTransaction,
+        if (transactionKind != null) 'transaction_kind': transactionKind,
+        'confidence_bucket': confidenceBucket,
+      });
+
+  static Future<void> scanReconciliationWarning() =>
+      _capture('scan_reconciliation_warning');
+
+  static Future<void> scanUserEditedField(String field) =>
+      _capture('scan_user_edited_field', {'field': field});
+
+  static Future<void> scanSaved() => _capture('scan_saved');
+
+  static Future<void> scanCancelled() => _capture('scan_cancelled');
+
+  static Future<void> scanQuotaRefunded(String reason) =>
+      _capture('scan_quota_refunded', {'reason': reason});
+
   // ---- TRANSACTIONS ----
   static Future<void> transactionAdded({
     required String method,

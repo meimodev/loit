@@ -4,24 +4,16 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
-import '../../shared/providers/services_providers.dart';
+import '../../shared/utils/locale_date_format.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../settings/_widgets.dart';
 
-class ManageSubscriptionScreen extends ConsumerStatefulWidget {
+class ManageSubscriptionScreen extends ConsumerWidget {
   const ManageSubscriptionScreen({super.key});
-
-  @override
-  ConsumerState<ManageSubscriptionScreen> createState() =>
-      _ManageSubscriptionScreenState();
-}
-
-class _ManageSubscriptionScreenState
-    extends ConsumerState<ManageSubscriptionScreen> {
-  bool _busy = false;
 
   Future<void> _openPlay() async {
     final uri = Uri.parse(
@@ -29,27 +21,43 @@ class _ManageSubscriptionScreenState
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  Future<void> _restore() async {
-    setState(() => _busy = true);
-    try {
-      await ref.read(paymentServiceProvider).restorePurchases();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.paywallRestoring)),
-      );
-      ref.invalidate(userProfileProvider);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+  String _planLabel(String tier) => switch (tier) {
+        'pro' => 'PRO',
+        'lite' => 'LITE',
+        _ => 'FREE',
+      };
+
+  String _planBody(BuildContext context, String tier) {
+    final l = context.l10n;
+    return switch (tier) {
+      'pro' => l.billingPaidBody,
+      'lite' => l.billingLiteBody,
+      _ => l.billingFreeBody,
+    };
+  }
+
+  List<String> _benefits(BuildContext context, String tier) {
+    final l = context.l10n;
+    return switch (tier) {
+      'pro' => [l.billingProBenefit1, l.billingProBenefit2, l.billingProBenefit3],
+      'lite' => [
+          l.billingLiteBenefit1,
+          l.billingLiteBenefit2,
+          l.billingLiteBenefit3,
+        ],
+      _ => [l.billingFreeBenefit1, l.billingFreeBenefit2, l.billingFreeBenefit3],
+    };
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
     final l10n = context.l10n;
     final profile = ref.watch(userProfileProvider).value;
     final tier = profile?.tier ?? 'free';
-    final isPaid = tier == 'pro' || tier == 'team';
+    final isPaid = tier == 'pro' || tier == 'lite';
+    final isPro = tier == 'pro';
+    final benefits = _benefits(context, tier);
 
     return Scaffold(
       backgroundColor: c.canvas,
@@ -92,7 +100,7 @@ class _ManageSubscriptionScreenState
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  tier.toUpperCase(),
+                  _planLabel(tier),
                   style: LoitTypography.titleL.copyWith(
                     color: isPaid ? Colors.white : c.contentPrimary,
                     fontWeight: FontWeight.w700,
@@ -102,47 +110,78 @@ class _ManageSubscriptionScreenState
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  isPaid ? l10n.billingPaidBody : l10n.billingFreeBody,
+                  _planBody(context, tier),
                   style: LoitTypography.bodyM.copyWith(
                     color: isPaid
                         ? Colors.white.withValues(alpha: 0.9)
                         : c.contentSecondary,
                   ),
                 ),
-                if (profile?.nextReceiptExpiryAt != null) ...[
+                if (isPaid && profile?.tierExpiresAt != null) ...[
                   const SizedBox(height: 12),
                   Text(
-                    l10n.billingNextRenewal(profile!.nextReceiptExpiryAt!
-                        .toLocal()
-                        .toString()
-                        .split(' ')
-                        .first),
+                    l10n.billingPlanEndsOn(
+                      yMMMd(context).format(profile!.tierExpiresAt!),
+                    ),
                     style: LoitTypography.bodyS.copyWith(
-                      color: isPaid
-                          ? Colors.white.withValues(alpha: 0.85)
-                          : c.contentSecondary,
+                      color: Colors.white.withValues(alpha: 0.85),
                     ),
                   ),
                 ],
               ],
             ),
           ),
-          if (!isPaid)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+            child: Text(
+              l10n.billingPlanBenefits,
+              style: LoitTypography.labelS.copyWith(
+                color: c.contentSecondary,
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(
+              horizontal: LoitSpacing.s4,
+              vertical: LoitSpacing.s3,
+            ),
+            decoration: BoxDecoration(
+              color: c.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: c.borderSubtle),
+            ),
+            child: Column(
+              children: [
+                for (final b in benefits)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.check, size: 18, color: c.success),
+                        const SizedBox(width: LoitSpacing.s3),
+                        Expanded(
+                          child: Text(b, style: LoitTypography.bodyM),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (!isPro)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: LoitButton.primary(
-                label: l10n.paywallTitle,
+                label: l10n.billingUpgradeCta,
                 size: LoitButtonSize.l,
                 fullWidth: true,
                 onPressed: () => context.push('/paywall', extra: 'manage'),
               ),
             ),
-          SettingsGroup(label: l10n.billingGroupBilling, children: [
-            SettingsRow(
-              label: l10n.restorePurchases,
-              onTap: _busy ? null : _restore,
-            ),
-          ]),
           if (isPaid)
             SettingsGroup(label: l10n.billingGroupManagePlay, children: [
               SettingsRow(

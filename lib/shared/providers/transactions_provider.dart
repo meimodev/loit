@@ -1,9 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/services/currency_service.dart';
+import '../../core/services/log_service.dart';
+import '../../core/services/reachability_service.dart';
 import '../widgets/connectivity_banner.dart';
 import 'auth_providers.dart';
 import 'services_providers.dart';
+import 'supported_currencies_provider.dart';
 
 /// Transaction row shape used by UI. Kept as a typed view over Map.
 ///
@@ -127,6 +131,46 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
     final user = ref.read(currentUserProvider);
     if (user == null) throw StateError('Not signed in');
 
+    // Drop caller-side meta keys (e.g. `_image_path` from scan review) so they
+    // never reach Supabase — unknown columns would 400 the insert and trap the
+    // row in the offline queue forever.
+    payload.removeWhere((k, _) => k.startsWith('_'));
+
+    // Legacy alias: some callers (older scan review code path, scanner OCR
+    // output) emit `date` instead of `created_at`. The schema has no `date`
+    // column, so the insert 400s and the row queues forever. Normalize here
+    // so future callers can't reintroduce the bug silently.
+    if (payload.containsKey('date') && !payload.containsKey('created_at')) {
+      payload['created_at'] = payload.remove('date');
+    } else if (payload.containsKey('date')) {
+      payload.remove('date');
+    }
+
+    // `fx_snapshot` is NOT NULL on `transactions`. Scan review didn't build
+    // one, so the insert would 400 and the row would queue forever. Compute
+    // on the fly here as a safety net for any caller that forgot.
+    if (payload['fx_snapshot'] == null) {
+      final currency = (payload['currency'] as String?) ?? 'IDR';
+      Map<String, double> snapshot;
+      try {
+        final rates =
+            await ref.read(currencyServiceProvider).loadUsdBaseRates();
+        final supported = ref.read(supportedCurrenciesProvider).value;
+        final codes =
+            supported?.codes ?? rates.keys.toList(growable: false);
+        snapshot = CurrencyService.buildSnapshot(
+          from: currency,
+          rates: rates,
+          supported: codes,
+        );
+      } catch (_) {
+        // Offline + no cache: self-rate only. Display falls back to raw
+        // amount when target currency is missing from the snapshot.
+        snapshot = {currency: 1.0};
+      }
+      payload['fx_snapshot'] = snapshot;
+    }
+
     payload['user_id'] = user.id;
     payload['client_updated_at'] = DateTime.now().toUtc().toIso8601String();
 
@@ -151,16 +195,24 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
       } catch (_) {}
     }
 
-    // Optimistic local add
-    final optimistic = Txn.fromRow({
-      ...payload,
-      'created_at': DateTime.now().toUtc().toIso8601String(),
-    });
-    state = AsyncData([optimistic, ...(state.value ?? const [])]);
+    // Items are written to `transaction_items` after the parent insert.
+    final items = _coerceItems(payload.remove('items'));
 
-    if (ref.read(offlineDebugOverrideProvider) == true) {
+    // No optimistic add: the row only appears in UI after the write path
+    // resolves (online insert success OR offline enqueue confirmation). This
+    // way the UI reflects the real outcome instead of always looking
+    // "offline-saved" before the network call completes.
+    if (await _isOffline()) {
       final db = ref.read(offlineDbProvider);
+      // Re-attach items so the queued row can replay items on sync.
+      if (items.isNotEmpty) payload['items'] = items;
       await db.enqueue(payload);
+      // Surface the queued row locally so the user sees their entry.
+      final queued = Txn.fromRow({
+        ...payload,
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+      });
+      state = AsyncData([queued, ...(state.value ?? const [])]);
       return null;
     }
 
@@ -170,28 +222,67 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
           .insert(payload)
           .select('*, rooms(id, name)')
           .single();
-      // Replace the optimistic head with the canonical row.
+      final newId = inserted['id'] as String?;
+      if (newId != null && items.isNotEmpty) {
+        try {
+          await Supabase.instance.client
+              .from('transaction_items')
+              .insert([
+            for (final it in items)
+              {
+                'transaction_id': newId,
+                'name': it['name'] ?? '',
+                if (it['qty'] != null) 'qty': it['qty'],
+                if (it['unit_price'] != null) 'unit_price': it['unit_price'],
+                if (it['total_price'] != null)
+                  'total_price': it['total_price'],
+              },
+          ]);
+        } catch (_) {/* best-effort */}
+      }
+      // Prepend the canonical row now that the insert has resolved.
       final current = state.value ?? const [];
-      final replaced = [Txn.fromRow(inserted), ...current.skip(1)];
-      state = AsyncData(replaced);
-      return inserted['id'] as String?;
-    } catch (_) {
-      // Enqueue for later sync.
+      state = AsyncData([Txn.fromRow(inserted), ...current]);
+      return newId;
+    } catch (e) {
+      Log.w('TransactionsProvider', 'Online insert failed, enqueuing', error: e);
+      if (items.isNotEmpty) payload['items'] = items;
       final db = ref.read(offlineDbProvider);
       await db.enqueue(payload);
+      // Mirror the queued row into local state so the user sees their entry.
+      final queued = Txn.fromRow({
+        ...payload,
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+      });
+      state = AsyncData([queued, ...(state.value ?? const [])]);
       return null;
     }
+  }
+
+  List<Map<String, dynamic>> _coerceItems(Object? raw) {
+    if (raw is! List) return const [];
+    final out = <Map<String, dynamic>>[];
+    for (final r in raw) {
+      if (r is Map) out.add(Map<String, dynamic>.from(r));
+    }
+    return out;
   }
 
   Future<void> updateTransaction(
     String id,
     Map<String, dynamic> payload,
   ) async {
+    payload.removeWhere((k, _) => k.startsWith('_'));
     payload['client_updated_at'] = DateTime.now().toUtc().toIso8601String();
     payload['id'] = id;
 
-    if (ref.read(offlineDebugOverrideProvider) == true) {
-      await ref.read(offlineDbProvider).enqueue({...payload});
+    final hasItemsKey = payload.containsKey('items');
+    final items = _coerceItems(payload.remove('items'));
+
+    if (await _isOffline()) {
+      final queued = {...payload};
+      if (hasItemsKey) queued['items'] = items;
+      await ref.read(offlineDbProvider).enqueue(queued);
       ref.invalidateSelf();
       return;
     }
@@ -201,29 +292,68 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
           .from('transactions')
           .update(payload)
           .eq('id', id);
-    } catch (_) {
-      await ref.read(offlineDbProvider).enqueue({...payload});
+      if (hasItemsKey) {
+        try {
+          await Supabase.instance.client
+              .from('transaction_items')
+              .delete()
+              .eq('transaction_id', id);
+          if (items.isNotEmpty) {
+            await Supabase.instance.client
+                .from('transaction_items')
+                .insert([
+              for (final it in items)
+                {
+                  'transaction_id': id,
+                  'name': it['name'] ?? '',
+                  if (it['qty'] != null) 'qty': it['qty'],
+                  if (it['unit_price'] != null) 'unit_price': it['unit_price'],
+                  if (it['total_price'] != null)
+                    'total_price': it['total_price'],
+                },
+            ]);
+          }
+        } catch (_) {/* best-effort */}
+      }
+    } catch (e) {
+      Log.w('TransactionsProvider', 'Online update failed, enqueuing', error: e);
+      final queued = {...payload};
+      if (hasItemsKey) queued['items'] = items;
+      await ref.read(offlineDbProvider).enqueue(queued);
     }
     ref.invalidateSelf();
   }
 
   Future<void> deleteTransaction(String id) async {
-    final cur = state.value ?? const [];
-    state = AsyncData(cur.where((t) => t.id != id).toList());
-
-    if (ref.read(offlineDebugOverrideProvider) == true) {
+    if (await _isOffline()) {
       await ref.read(offlineDbProvider).enqueue({'_op': 'delete', 'id': id});
+      final cur = state.value ?? const [];
+      state = AsyncData(cur.where((t) => t.id != id).toList());
       return;
     }
 
     try {
       await Supabase.instance.client.from('transactions').delete().eq('id', id);
+      final cur = state.value ?? const [];
+      state = AsyncData(cur.where((t) => t.id != id).toList());
     } catch (_) {
       await ref.read(offlineDbProvider).enqueue({'_op': 'delete', 'id': id});
+      final cur = state.value ?? const [];
+      state = AsyncData(cur.where((t) => t.id != id).toList());
     }
   }
 
   Future<void> refresh() => ref.refresh(transactionsProvider.future);
+
+  /// Resolves the offline gate via [ReachabilityService] — combines network
+  /// interface state with an active HEAD probe. Replaces the prior
+  /// interface-only check which mis-classified captive-portal / hotspot-
+  /// without-upstream networks as online. Honors the dev debug override.
+  Future<bool> _isOffline() async {
+    if (ref.read(offlineDebugOverrideProvider) == true) return true;
+    final reach = ref.read(reachabilityServiceProvider);
+    return !(await reach.isReachable());
+  }
 }
 
 final transactionsProvider =

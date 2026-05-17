@@ -649,19 +649,88 @@
   "accountFormLiabilityInfo": "For loans, create a Transfer from this liability account to an asset account.",
   "accountFormRecentTransactions": "Recent transactions",
 
-  "scanReceiptTitle": "Scan receipt",
-  "scanReceipt": "RECEIPT",
-  "scanAlignHint": "Align receipt within frame",
-  "scanReadingTitle": "Reading receipt",
-  "scanReadingBody": "Reading your receipt…",
-  "scanReadingSubtitle": "Usually takes about 2 seconds. We're extracting merchant, total, and items.",
+  "scanReceiptTitle": "Scan document",
+  "scanReceipt": "DOCUMENT",
+  "scanAlignHint": "Position document within frame",
+  "scanReadingTitle": "Reading document",
+  "scanReadingBody": "Reading your document…",
+  "scanReadingSubtitle": "Usually takes about 2 seconds. Extracting merchant, total, account, and items.",
   "scanPersonal": "Personal",
   "scanRooms": "Rooms",
   "scanRoom": "Room",
-  "scanSaved": "Receipt saved",
+  "scanSaved": "Saved",
   "scanNoRooms": "No rooms yet — create one before scanning to a room.",
-  "scanSendToRoom": "Send receipt to room",
+  "scanSendToRoom": "Send to room",
   "scanLimitReached": "Scan limit reached",
+  "scanReviewTitle": "Review scan",
+  "scanConfidenceHigh": "Looks good",
+  "scanConfidenceLow": "Some details may need correction",
+  "scanReconcileMismatch": "Line items don't add up to the printed total — using the printed total.",
+  "scanTotalComputed": "Total computed from line items.",
+  "scanFieldAccount": "Account",
+  "scanFieldCategory": "Category",
+  "scanItemsCount": "{count, plural, one{1 item} other{{count} items}}",
+  "@scanItemsCount": {
+    "placeholders": { "count": {"type": "int"} }
+  },
+  "scanSaveNow": "Save",
+  "scanAutoConfirmIn": "Saving in {seconds}s — tap to save now",
+  "@scanAutoConfirmIn": {
+    "placeholders": { "seconds": {"type": "int"} }
+  },
+  "scanCancelAutoSave": "Cancel auto-save",
+  "scanEditDetails": "Edit details",
+  "scanSaveFailed": "Couldn't save — try again.",
+  "scanUnknownMerchant": "Unknown merchant",
+  "scanNoAccount": "No account selected — opening edit form.",
+  "scanQualityBlurry": "Looks blurry — hold the camera steady.",
+  "scanQualityTooDark": "Too dark — find better light.",
+  "scanQualityBadAspect": "Crop looks off — recapture the full document.",
+  "scanRateLimited": "Too many scans in a short time. Try again in a minute.",
+  "scanProCapReached": "You've hit your monthly Pro scan limit.",
+  "scanLiteCapReached": "You've hit your monthly Lite scan limit.",
+  "scanSettingsAutoConfirm": "Auto-save high-confidence scans after 3 seconds",
+  "scanSettingsSection": "Scanning",
+  "scanInfoPlanSection": "Your plan",
+  "scanInfoUsageSection": "This month",
+  "scanInfoTopUpSection": "Need more?",
+  "scanInfoPrefsSection": "Preferences",
+  "scanInfoUsage": "{used} / {total} scans used",
+  "@scanInfoUsage": {
+    "placeholders": {
+      "used": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "scanInfoUsageUnlimited": "Unlimited scanning",
+  "scanInfoResetsOn": "Resets on {date}",
+  "@scanInfoResetsOn": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "scanInfoTierBenefit": "{scans} scans per month",
+  "@scanInfoTierBenefit": {
+    "placeholders": {
+      "scans": {"type": "int"}
+    }
+  },
+  "scanInfoRecentLink": "Recent scans",
+  "scanInfoTopUpCta": "Top up 15 scans · {price}",
+  "@scanInfoTopUpCta": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "scanInfoBonusBreakdown": "Includes +{bonus} top-up scans",
+  "@scanInfoBonusBreakdown": {
+    "placeholders": {
+      "bonus": {"type": "int"}
+    }
+  },
+  "scanInfoTopUpHelper": "Adds 15 scans to this month's allowance",
+  "scanInfoTopUpSuccess": "15 scans added to this month",
+  "scanInfoUpgradeCta": "Change plan",
   "scanUsedAllScans": "Used all {quota} scans on {tier} this month.",
   "@scanUsedAllScans": {
     "description": "Quota exceeded message showing used scans",
@@ -671,8 +740,8 @@
     }
   },
   "scanQuotaDefault": "You have used your monthly scan quota.",
-  "scanTopUp": "Top up · 10 scans for Rp19,000",
-  "scanUpgrade": "Upgrade to Pro — unlimited scans",
+  "scanTopUp": "Top up · 15 scans for Rp9,000",
+  "scanUpgrade": "Upgrade to Pro — 150 scans/month",
   "scanNotNow": "Not now",
   "scanTakeAnother": "Take another photo",
   "scanRetry": "Retry",
@@ -1128,14 +1197,21 @@
   "roomsIntroCta": "Got it",
 
   "paywallHeroPro": "You're on Pro.\nEverything\nunlocked.",
-  "paywallHero": "Unlimited budgets.\nUnlimited currencies.\nPro.",
+  "paywallHero": "Smarter scans.\nFairer caps.\nGo Pro.",
+  "paywallLite": "Lite",
   "paywallPlanYearly": "Yearly",
   "paywallPlanMonthly": "Monthly",
-  "paywallFreeFeatures": "3 budgets · 8 scans · 3 months reports",
-  "paywallProAnnualFeatures": "Save 4 months · Unlimited everything · Export",
-  "paywallProMonthlyFeatures": "Cancel anytime",
+  "paywallFreeFeatures": "5 scans/mo · 3 budgets · 3 months reports",
+  "paywallLiteAnnualFeatures": "Save 4 months · 30 scans/mo · Unlimited budgets",
+  "paywallLiteMonthlyFeatures": "30 scans/mo · Unlimited budgets · Cancel anytime",
+  "paywallProAnnualFeatures": "Save 4 months · 150 scans/mo · Unlimited budgets · Export",
+  "paywallProMonthlyFeatures": "150 scans/mo · Unlimited budgets · Cancel anytime",
   "paywallBestValue": "BEST VALUE",
   "paywallCtaFree": "Continue on Free",
+  "paywallCtaLiteAnnual": "Start Lite · {price}/yr",
+  "@paywallCtaLiteAnnual": {"placeholders": {"price": {"type": "String"}}},
+  "paywallCtaLiteMonthly": "Start Lite · {price}/mo",
+  "@paywallCtaLiteMonthly": {"placeholders": {"price": {"type": "String"}}},
   "paywallCtaProAnnual": "Start Pro · {price}/yr",
   "@paywallCtaProAnnual": {"placeholders": {"price": {"type": "String"}}},
   "paywallCtaProMonthly": "Start Pro · {price}/mo",
@@ -1153,8 +1229,22 @@
 
   "billingPaidBody": "All Pro features unlocked.",
   "billingFreeBody": "Limited features. Upgrade for more.",
+  "billingLiteBody": "Lite plan active.",
   "billingNextRenewal": "Next renewal · {date}",
   "@billingNextRenewal": {"placeholders": {"date": {"type": "String"}}},
+  "billingPlanEndsOn": "Plan ends on {date}",
+  "@billingPlanEndsOn": {"placeholders": {"date": {"type": "String"}}},
+  "billingUpgradeCta": "Upgrade",
+  "billingPlanBenefits": "What you get",
+  "billingFreeBenefit1": "5 document scans / month",
+  "billingFreeBenefit2": "3 budget categories",
+  "billingFreeBenefit3": "1 shared room",
+  "billingLiteBenefit1": "30 document scans / month",
+  "billingLiteBenefit2": "Unlimited budgets + custom categories",
+  "billingLiteBenefit3": "3 shared rooms",
+  "billingProBenefit1": "150 document scans / month",
+  "billingProBenefit2": "Unlimited budgets, exports, receipt storage",
+  "billingProBenefit3": "Unlimited rooms + full history",
   "billingGroupBilling": "Billing",
   "billingGroupManagePlay": "Manage in Google Play",
   "billingChangePlan": "Change plan",

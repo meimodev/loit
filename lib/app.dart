@@ -44,6 +44,7 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
   RealtimeChannel? _userRowChannel;
   DateTime? _pausedAt;
   bool _roomsIntroShown = false;
+  bool _introOnNextProfile = false;
   static const _lockBackgroundThreshold = Duration(seconds: 15);
 
   @override
@@ -187,6 +188,9 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
         'hasSession': session != null,
       });
       if (session != null) {
+        if (event == AuthChangeEvent.signedIn) {
+          _introOnNextProfile = true;
+        }
         Log.i('App', 'User signed in: ${session.user.id}');
         Log.setUser(id: session.user.id, email: session.user.email);
         Log.event('Auth', 'signed in', data: {
@@ -223,6 +227,7 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       } else {
         Log.i('App', 'User signed out');
         _roomsIntroShown = false;
+        _introOnNextProfile = false;
         Log.event('Auth', 'signed out', data: {'event': event?.name});
         Log.setUser(id: null);
         Analytics.reset();
@@ -269,7 +274,8 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       // Chained off the language sync so MaterialApp.locale reflects the DB
       // value before the sheet mounts — otherwise the previous session's
       // locale renders for a frame.
-      if (!_roomsIntroShown) {
+      if (_introOnNextProfile && !_roomsIntroShown) {
+        _introOnNextProfile = false;
         _roomsIntroShown = true;
         themeSync.whenComplete(() async {
           await notifier.syncLanguageFromDb(profile.language).catchError(

@@ -39,6 +39,7 @@ import '../../features/scanner/scanner_screen.dart';
 import '../../features/settings/about_screen.dart';
 import '../../features/settings/notifications_screen.dart';
 import '../../features/settings/preferences_screen.dart';
+import '../../features/settings/scanning_screen.dart';
 import '../../features/settings/profile_screen.dart';
 import '../../features/settings/security_screen.dart';
 import '../../features/settings/settings_screen.dart';
@@ -175,6 +176,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings/notifications',
         builder: (_, __) => const NotificationSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/scanning',
+        builder: (_, __) => const ScanningScreen(),
       ),
       GoRoute(
         path: '/settings/about',

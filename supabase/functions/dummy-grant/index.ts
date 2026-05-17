@@ -27,16 +27,22 @@ const supabase = createClient(
 
 const STUB_MODE = (Deno.env.get('STUB_MODE') ?? 'false').toLowerCase() === 'true';
 
-const SUBSCRIPTION_SKUS: Record<string, { tier: 'pro' | 'team'; days: number }> = {
+const SUBSCRIPTION_SKUS: Record<string, { tier: 'pro' | 'lite'; days: number }> = {
   loit_pro_monthly_1: { tier: 'pro', days: 30 },
   loit_pro_annual_1: { tier: 'pro', days: 365 },
-  loit_team_monthly_1: { tier: 'team', days: 30 },
-  loit_team_annual_1: { tier: 'team', days: 365 },
+  loit_lite_monthly: { tier: 'lite', days: 30 },
+  loit_lite_annual: { tier: 'lite', days: 365 },
 };
 const ONE_TIME_SKUS = new Set([
-  'loit_scan_topup_10',
+  'loit_scan_topup_15',
+  'loit_scan_topup_10', // legacy, accepted for historical receipts only
   'loit_storage_ext_6mo',
 ]);
+
+const TOPUP_AMOUNT: Record<string, number> = {
+  loit_scan_topup_15: 15,
+  loit_scan_topup_10: 10,
+};
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -117,10 +123,10 @@ serve(async (req) => {
     }
 
     if (ONE_TIME_SKUS.has(productId)) {
-      if (productId === 'loit_scan_topup_10') {
+      if (productId in TOPUP_AMOUNT) {
         await supabase.rpc('add_scan_topup', {
           p_user_id: userId,
-          p_amount: 10,
+          p_amount: TOPUP_AMOUNT[productId],
         });
       } else if (productId === 'loit_storage_ext_6mo') {
         await supabase.rpc('extend_receipt_expiry', { p_user_id: userId });

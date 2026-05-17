@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_typography.dart';
 
 /// Compact sparkline of daily values. Used by Dashboard insights preview and
@@ -38,9 +39,12 @@ class LoitMiniLineChart extends StatelessWidget {
       for (var i = 0; i < values.length; i++) FlSpot(i.toDouble(), values[i]),
     ];
     final maxY = values.fold<double>(0, (s, v) => v > s ? v : s) * 1.15 + 1;
+    final reduce = MediaQuery.of(context).disableAnimations;
     return SizedBox(
       height: height,
       child: LineChart(
+        duration: reduce ? Duration.zero : LoitMotion.entrance,
+        curve: LoitMotion.easeOutQuart,
         LineChartData(
           minY: 0,
           maxY: maxY,

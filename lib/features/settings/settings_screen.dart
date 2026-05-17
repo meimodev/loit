@@ -194,8 +194,7 @@ class SettingsScreen extends ConsumerWidget {
                     : profile.hasUnlimitedScans
                         ? l.settingsUnlimited
                         : '${profile.scansUsedThisMonth} / ${profile.scanQuota}',
-                showChevron: false,
-                onTap: null,
+                onTap: () => context.push('/settings/scanning'),
               ),
             ]),
           ),
@@ -227,6 +226,10 @@ class SettingsScreen extends ConsumerWidget {
               SettingsRow(
                 label: l.settingsNotifications,
                 onTap: () => context.push('/settings/notifications'),
+              ),
+              SettingsRow(
+                label: l.scanSettingsSection,
+                onTap: () => context.push('/settings/scanning'),
               ),
               SettingsRow(
                 label: l.settingsExportData,

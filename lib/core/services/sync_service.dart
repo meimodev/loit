@@ -1,30 +1,39 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'log_service.dart';
 import 'offline_database.dart';
+import 'reachability_service.dart';
 
 class SyncService {
   static const _tag = 'SyncService';
 
   final OfflineDatabase _db;
+  final ReachabilityService _reachability;
   final _supabase = Supabase.instance.client;
-  final _connectivity = Connectivity();
   final bool Function() _isDebugOffline;
-  StreamSubscription<List<ConnectivityResult>>? _sub;
+  StreamSubscription<bool>? _sub;
   bool _syncing = false;
+  bool? _lastOnline;
 
-  SyncService(this._db, {bool Function()? isDebugOffline})
-      : _isDebugOffline = isDebugOffline ?? (() => false);
+  SyncService(
+    this._db, {
+    required ReachabilityService reachability,
+    bool Function()? isDebugOffline,
+  })  : _reachability = reachability,
+        _isDebugOffline = isDebugOffline ?? (() => false);
 
   void startAutoSync() {
     Log.i(_tag, 'Auto-sync started');
-    _sub = _connectivity.onConnectivityChanged.listen((results) {
+    // Drain whenever reachability flips from offline → online. A simple
+    // "is online now" listener would re-drain on every periodic probe; we
+    // care about the transition.
+    _sub = _reachability.onStatusChange.listen((online) {
       if (_isDebugOffline()) return;
-      final online = results.any((r) => r != ConnectivityResult.none);
-      if (online) {
-        Log.d(_tag, 'Connectivity restored, draining queue');
+      final wasOnline = _lastOnline == true;
+      _lastOnline = online;
+      if (online && !wasOnline) {
+        Log.d(_tag, 'Reachability restored, draining queue');
         unawaited(syncPending());
       }
     });
@@ -40,6 +49,12 @@ class SyncService {
     if (_syncing) return;
     if (_supabase.auth.currentSession == null) return;
     if (_isDebugOffline()) return;
+    // Gate on actual reachability — if the probe fails, skip the round-trip
+    // so we don't waste a request only to land the row back in the queue.
+    if (!await _reachability.isReachable()) {
+      Log.d(_tag, 'Skip drain: reachability probe failed');
+      return;
+    }
     _syncing = true;
     try {
       final pending = await _db.getPending();
@@ -59,6 +74,28 @@ class SyncService {
             await _db.markSynced(item.id);
             Log.d(_tag, 'Synced delete for item ${item.id}');
             continue;
+          }
+
+          // Strip caller-side meta keys (e.g. `_image_path` from scan review).
+          // Historical rows queued before the provider-side strip landed are
+          // self-healed here so upsert no longer 400s on unknown columns.
+          tx.removeWhere((k, _) => k.startsWith('_'));
+
+          // Self-heal rows queued with the legacy `date` field (scan review
+          // bug — no `date` column on `transactions`). Map to `created_at`
+          // so previously-trapped rows finally sync on the next drain.
+          if (tx.containsKey('date') && !tx.containsKey('created_at')) {
+            tx['created_at'] = tx.remove('date');
+          } else if (tx.containsKey('date')) {
+            tx.remove('date');
+          }
+
+          // Self-heal rows queued without `fx_snapshot` (scan review prior
+          // to the addTransaction safety net). Insert minimal self-rate so
+          // the NOT NULL constraint passes; display falls back gracefully.
+          if (tx['fx_snapshot'] == null) {
+            final currency = (tx['currency'] as String?) ?? 'IDR';
+            tx['fx_snapshot'] = {currency: 1.0};
           }
 
           tx['client_updated_at'] = item.clientUpdatedAt.toIso8601String();
@@ -94,7 +131,39 @@ class SyncService {
             continue;
           }
 
-          await _supabase.from('transactions').upsert(tx, onConflict: 'id');
+          final hasItemsKey = tx.containsKey('items');
+          final rawItems = tx.remove('items');
+          final upserted = await _supabase
+              .from('transactions')
+              .upsert(tx, onConflict: 'id')
+              .select('id')
+              .single();
+          final txnId = (upserted['id'] as String?) ?? tx['id'] as String?;
+          if (hasItemsKey && txnId != null) {
+            try {
+              await _supabase
+                  .from('transaction_items')
+                  .delete()
+                  .eq('transaction_id', txnId);
+              if (rawItems is List && rawItems.isNotEmpty) {
+                await _supabase.from('transaction_items').insert([
+                  for (final r in rawItems)
+                    if (r is Map)
+                      {
+                        'transaction_id': txnId,
+                        'name': r['name'] ?? '',
+                        if (r['qty'] != null) 'qty': r['qty'],
+                        if (r['unit_price'] != null)
+                          'unit_price': r['unit_price'],
+                        if (r['total_price'] != null)
+                          'total_price': r['total_price'],
+                      },
+                ]);
+              }
+            } catch (e) {
+              Log.w(_tag, 'Items replay failed for ${item.id}: $e');
+            }
+          }
           await _db.markSynced(item.id);
           Log.d(_tag, 'Synced item ${item.id}');
         } catch (e, st) {

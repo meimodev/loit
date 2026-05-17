@@ -11,13 +11,15 @@ import '../../core/services/dummy_payment_service.dart';
 import '../../core/services/interaction_log_service.dart';
 import '../../core/services/payment_service.dart';
 import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/services_providers.dart';
+import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_button.dart';
 
-enum _Plan { free, proAnnual, proMonthly }
+enum _Plan { free, liteMonthly, liteAnnual, proMonthly, proAnnual }
 
 class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({super.key, required this.feature});
@@ -33,13 +35,38 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   bool _analyticsTracked = false;
   _Plan _selected = _Plan.proAnnual;
   StreamSubscription<PurchaseUpdate>? _purchaseSub;
+  final Map<String, PaymentProductDetails> _details = {};
 
   @override
   void initState() {
     super.initState();
     final pay = ref.read(paymentServiceProvider);
     _purchaseSub = pay.purchaseUpdates.listen(_onPurchaseUpdate);
+    _loadProductDetails();
   }
+
+  Future<void> _loadProductDetails() async {
+    final pay = ref.read(paymentServiceProvider);
+    const skus = [
+      PricingConstants.skuLiteMonthly,
+      PricingConstants.skuLiteAnnual,
+      PricingConstants.skuProMonthly,
+      PricingConstants.skuProAnnual,
+    ];
+    final results = await Future.wait(
+      skus.map((s) => pay.getProductDetails(s).catchError((_) => null)),
+    );
+    if (!mounted) return;
+    setState(() {
+      for (var i = 0; i < skus.length; i++) {
+        final d = results[i];
+        if (d != null) _details[skus[i]] = d;
+      }
+    });
+  }
+
+  String _priceFor(String sku, int fallbackIdr) =>
+      _details[sku]?.priceString ?? _formatIdr(fallbackIdr);
 
   @override
   void didChangeDependencies() {
@@ -63,6 +90,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   String? get _selectedSku => switch (_selected) {
         _Plan.proAnnual => PricingConstants.skuProAnnual,
         _Plan.proMonthly => PricingConstants.skuProMonthly,
+        _Plan.liteAnnual => PricingConstants.skuLiteAnnual,
+        _Plan.liteMonthly => PricingConstants.skuLiteMonthly,
         _Plan.free => null,
       };
 
@@ -155,8 +184,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   String _inferTier(String sku) {
-    if (sku.contains('team')) return 'team';
     if (sku.contains('pro')) return 'pro';
+    if (sku.contains('lite')) return 'lite';
     return 'free';
   }
 
@@ -171,11 +200,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       case _Plan.free:
         return l10n.paywallCtaFree;
       case _Plan.proAnnual:
-        return l10n.paywallCtaProAnnual(
-            _formatIdr(PricingConstants.proAnnualIdr));
+        return l10n.paywallCtaProAnnual(_priceFor(
+            PricingConstants.skuProAnnual, PricingConstants.proAnnualIdr));
       case _Plan.proMonthly:
-        return l10n.paywallCtaProMonthly(
-            _formatIdr(PricingConstants.proMonthlyIdr));
+        return l10n.paywallCtaProMonthly(_priceFor(
+            PricingConstants.skuProMonthly, PricingConstants.proMonthlyIdr));
+      case _Plan.liteAnnual:
+        return l10n.paywallCtaLiteAnnual(_priceFor(
+            PricingConstants.skuLiteAnnual, PricingConstants.liteAnnualIdr));
+      case _Plan.liteMonthly:
+        return l10n.paywallCtaLiteMonthly(_priceFor(
+            PricingConstants.skuLiteMonthly, PricingConstants.liteMonthlyIdr));
     }
   }
 
@@ -184,7 +219,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final c = context.loitColors;
     final l10n = context.l10n;
     final profile = ref.watch(userProfileProvider).value;
-    final isPro = profile?.tier == 'pro' || profile?.tier == 'team';
+    final isPro = profile?.tier == 'pro';
 
     return Scaffold(
       backgroundColor: c.canvas,
@@ -216,19 +251,22 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [c.brand, c.accent],
+                  LoitScaleIn(
+                    from: 0.6,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [c.brand, c.accent],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      borderRadius: BorderRadius.circular(12),
+                      child: const Icon(Icons.workspace_premium,
+                          size: 24, color: Colors.white),
                     ),
-                    child: const Icon(Icons.workspace_premium,
-                        size: 24, color: Colors.white),
                   ),
                 ],
               ),
@@ -237,14 +275,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  isPro ? l10n.paywallHeroPro : l10n.paywallHero,
-                  style: LoitTypography.titleL.copyWith(
-                    color: c.contentPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 24,
-                    height: 30 / 24,
-                    letterSpacing: -0.2,
+                child: LoitFadeSlideIn(
+                  delay: const Duration(milliseconds: 80),
+                  child: Text(
+                    isPro ? l10n.paywallHeroPro : l10n.paywallHero,
+                    style: LoitTypography.titleL.copyWith(
+                      color: c.contentPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 24,
+                      height: 30 / 24,
+                      letterSpacing: -0.2,
+                    ),
                   ),
                 ),
               ),
@@ -257,6 +298,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     _ProActiveCard(profile: profile)
                   else ...[
                     _PlanCard(
+                      entranceIndex: 0,
                       title: l10n.paywallFree,
                       price: 'Rp 0',
                       period: '/mo',
@@ -265,8 +307,45 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       onTap: () => setState(() => _selected = _Plan.free),
                     ),
                     _PlanCard(
+                      entranceIndex: 1,
+                      title:
+                          '${l10n.paywallLite} · ${l10n.paywallPlanMonthly}',
+                      price: _priceFor(PricingConstants.skuLiteMonthly,
+                          PricingConstants.liteMonthlyIdr),
+                      period: '/mo',
+                      features: l10n.paywallLiteMonthlyFeatures,
+                      selected: _selected == _Plan.liteMonthly,
+                      onTap: () =>
+                          setState(() => _selected = _Plan.liteMonthly),
+                    ),
+                    _PlanCard(
+                      entranceIndex: 2,
+                      title:
+                          '${l10n.paywallLite} · ${l10n.paywallPlanYearly}',
+                      price: _priceFor(PricingConstants.skuLiteAnnual,
+                          PricingConstants.liteAnnualIdr),
+                      period: '/yr',
+                      features: l10n.paywallLiteAnnualFeatures,
+                      selected: _selected == _Plan.liteAnnual,
+                      onTap: () =>
+                          setState(() => _selected = _Plan.liteAnnual),
+                    ),
+                    _PlanCard(
+                      entranceIndex: 3,
+                      title: '${l10n.paywallPro} · ${l10n.paywallPlanMonthly}',
+                      price: _priceFor(PricingConstants.skuProMonthly,
+                          PricingConstants.proMonthlyIdr),
+                      period: '/mo',
+                      features: l10n.paywallProMonthlyFeatures,
+                      selected: _selected == _Plan.proMonthly,
+                      onTap: () =>
+                          setState(() => _selected = _Plan.proMonthly),
+                    ),
+                    _PlanCard(
+                      entranceIndex: 4,
                       title: '${l10n.paywallPro} · ${l10n.paywallPlanYearly}',
-                      price: _formatIdr(PricingConstants.proAnnualIdr),
+                      price: _priceFor(PricingConstants.skuProAnnual,
+                          PricingConstants.proAnnualIdr),
                       period: '/yr',
                       features: l10n.paywallProAnnualFeatures,
                       selected: _selected == _Plan.proAnnual,
@@ -274,15 +353,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       bestValueLabel: l10n.paywallBestValue,
                       onTap: () =>
                           setState(() => _selected = _Plan.proAnnual),
-                    ),
-                    _PlanCard(
-                      title: '${l10n.paywallPro} · ${l10n.paywallPlanMonthly}',
-                      price: _formatIdr(PricingConstants.proMonthlyIdr),
-                      period: '/mo',
-                      features: l10n.paywallProMonthlyFeatures,
-                      selected: _selected == _Plan.proMonthly,
-                      onTap: () =>
-                          setState(() => _selected = _Plan.proMonthly),
                     ),
                   ],
                   const SizedBox(height: 8),
@@ -309,12 +379,30 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               ),
               child: Column(
                 children: [
-                  LoitButton.primary(
-                    label: isPro ? l10n.paywallCtaAllSet : _ctaLabel(),
-                    size: LoitButtonSize.l,
-                    fullWidth: true,
-                    loading: _busy,
-                    onPressed: _busy || isPro ? null : _continue,
+                  AnimatedSwitcher(
+                    duration: LoitMotion.short,
+                    switchInCurve: LoitMotion.easeOutQuart,
+                    switchOutCurve: LoitMotion.easeOutQuart,
+                    transitionBuilder: (child, anim) => FadeTransition(
+                      opacity: anim,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.15),
+                          end: Offset.zero,
+                        ).animate(anim),
+                        child: child,
+                      ),
+                    ),
+                    child: LoitButton.primary(
+                      key: ValueKey(isPro
+                          ? 'cta-pro-all-set'
+                          : 'cta-${_selected.name}'),
+                      label: isPro ? l10n.paywallCtaAllSet : _ctaLabel(),
+                      size: LoitButtonSize.l,
+                      fullWidth: true,
+                      loading: _busy,
+                      onPressed: _busy || isPro ? null : _continue,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -343,6 +431,7 @@ class _PlanCard extends StatelessWidget {
     required this.onTap,
     this.recommended = false,
     this.bestValueLabel,
+    this.entranceIndex = 0,
   });
 
   final String title;
@@ -353,68 +442,79 @@ class _PlanCard extends StatelessWidget {
   final bool recommended;
   final String? bestValueLabel;
   final VoidCallback onTap;
+  final int entranceIndex;
 
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
     final borderColor = selected ? c.brand : c.borderSubtle;
     final borderWidth = selected ? 2.0 : 1.0;
-    return Padding(
+    final card = Padding(
       padding: const EdgeInsets.only(top: 10),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: c.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: borderColor, width: borderWidth),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+          LoitTapScale(
+            scale: 0.985,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(12),
+              child: AnimatedScale(
+                scale: selected ? 1.012 : 1.0,
+                duration: LoitMotion.short,
+                curve: LoitMotion.easeOutQuart,
+                child: AnimatedContainer(
+                  duration: LoitMotion.short,
+                  curve: LoitMotion.easeOutQuart,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: c.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: borderColor, width: borderWidth),
+                  ),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(title,
-                            style: LoitTypography.titleM.copyWith(
-                              color: c.contentPrimary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                            )),
-                      ),
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(price,
-                              style: LoitTypography.titleL.copyWith(
-                                color: c.contentPrimary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 18,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures()
-                                ],
-                              )),
-                          Text(period,
-                              style: LoitTypography.bodyS
-                                  .copyWith(color: c.contentSecondary)),
+                          Expanded(
+                            child: Text(title,
+                                style: LoitTypography.titleM.copyWith(
+                                  color: c.contentPrimary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                )),
+                          ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(price,
+                                  style: LoitTypography.titleL.copyWith(
+                                    color: c.contentPrimary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 18,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures()
+                                    ],
+                                  )),
+                              Text(period,
+                                  style: LoitTypography.bodyS
+                                      .copyWith(color: c.contentSecondary)),
+                            ],
+                          ),
                         ],
                       ),
+                      const SizedBox(height: 6),
+                      Text(features,
+                          style: LoitTypography.bodyS.copyWith(
+                            color: c.contentSecondary,
+                            height: 17 / 12,
+                          )),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  Text(features,
-                      style: LoitTypography.bodyS.copyWith(
-                        color: c.contentSecondary,
-                        height: 17 / 12,
-                      )),
-                ],
+                ),
               ),
             ),
           ),
@@ -422,26 +522,33 @@ class _PlanCard extends StatelessWidget {
             Positioned(
               top: -10,
               left: 14,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: c.brand,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  bestValueLabel ?? 'BEST VALUE',
-                  style: LoitTypography.labelS.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 10,
-                    letterSpacing: 0.5,
+              child: LoitGentlePulse(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: c.brand,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    bestValueLabel ?? 'BEST VALUE',
+                    style: LoitTypography.labelS.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
               ),
             ),
         ],
       ),
+    );
+    return LoitFadeSlideIn(
+      delay: LoitMotion.staggerStep * entranceIndex +
+          const Duration(milliseconds: 140),
+      child: card,
     );
   }
 }
@@ -464,14 +571,21 @@ class _ProActiveCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.check_circle, color: c.brand, size: 22),
+          LoitScaleIn(
+            from: 0.4,
+            duration: LoitMotion.emphasized,
+            child: Icon(Icons.check_circle, color: c.brand, size: 22),
+          ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              context.l10n.paywallTierActive(tier),
-              style: LoitTypography.bodyM.copyWith(
-                color: c.contentPrimary,
-                fontWeight: FontWeight.w500,
+            child: LoitFadeSlideIn(
+              delay: const Duration(milliseconds: 120),
+              child: Text(
+                context.l10n.paywallTierActive(tier),
+                style: LoitTypography.bodyM.copyWith(
+                  color: c.contentPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),

@@ -24,6 +24,10 @@ class AppPreferences {
   final bool notifMonthlyDigest;
   final bool notifProductUpdates;
 
+  // Scanner pipeline v2 — auto-confirm high-confidence scans after 3s.
+  // Default on; user toggle in Settings → Scanning.
+  final bool scanAutoConfirm;
+
   const AppPreferences({
     this.themeMode = ThemeMode.light,
     this.language = 'id',
@@ -38,6 +42,7 @@ class AppPreferences {
     this.notifReceiptExpiry = true,
     this.notifMonthlyDigest = false,
     this.notifProductUpdates = false,
+    this.scanAutoConfirm = true,
   });
 
   AppPreferences copyWith({
@@ -54,6 +59,7 @@ class AppPreferences {
     bool? notifReceiptExpiry,
     bool? notifMonthlyDigest,
     bool? notifProductUpdates,
+    bool? scanAutoConfirm,
   }) =>
       AppPreferences(
         themeMode: themeMode ?? this.themeMode,
@@ -70,6 +76,7 @@ class AppPreferences {
         notifReceiptExpiry: notifReceiptExpiry ?? this.notifReceiptExpiry,
         notifMonthlyDigest: notifMonthlyDigest ?? this.notifMonthlyDigest,
         notifProductUpdates: notifProductUpdates ?? this.notifProductUpdates,
+        scanAutoConfirm: scanAutoConfirm ?? this.scanAutoConfirm,
       );
 }
 
@@ -87,6 +94,7 @@ class _Keys {
   static const notifReceiptExpiry = 'pref.notif.receiptExpiry';
   static const notifMonthlyDigest = 'pref.notif.monthlyDigest';
   static const notifProductUpdates = 'pref.notif.productUpdates';
+  static const scanAutoConfirm = 'pref.scan.autoConfirm';
 }
 
 ThemeMode _decodeThemeMode(String? v) {
@@ -128,6 +136,7 @@ class PreferencesNotifier extends AsyncNotifier<AppPreferences> {
       notifReceiptExpiry: _sp.getBool(_Keys.notifReceiptExpiry) ?? true,
       notifMonthlyDigest: _sp.getBool(_Keys.notifMonthlyDigest) ?? false,
       notifProductUpdates: _sp.getBool(_Keys.notifProductUpdates) ?? false,
+      scanAutoConfirm: _sp.getBool(_Keys.scanAutoConfirm) ?? true,
     );
   }
 
@@ -242,6 +251,7 @@ class PreferencesNotifier extends AsyncNotifier<AppPreferences> {
       _Keys.notifReceiptExpiry => cur.copyWith(notifReceiptExpiry: value),
       _Keys.notifMonthlyDigest => cur.copyWith(notifMonthlyDigest: value),
       _Keys.notifProductUpdates => cur.copyWith(notifProductUpdates: value),
+      _Keys.scanAutoConfirm => cur.copyWith(scanAutoConfirm: value),
       _ => cur,
     };
     await _update(next);
@@ -299,4 +309,5 @@ class PrefKeys {
   static const notifReceiptExpiry = _Keys.notifReceiptExpiry;
   static const notifMonthlyDigest = _Keys.notifMonthlyDigest;
   static const notifProductUpdates = _Keys.notifProductUpdates;
+  static const scanAutoConfirm = _Keys.scanAutoConfirm;
 }

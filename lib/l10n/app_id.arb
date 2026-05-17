@@ -649,19 +649,88 @@
   "accountFormLiabilityInfo": "Untuk pinjaman, buat Transfer dari akun liabilitas ini ke akun aset.",
   "accountFormRecentTransactions": "Transaksi terbaru",
 
-  "scanReceiptTitle": "Pindai struk",
-  "scanReceipt": "STRUK",
-  "scanAlignHint": "Sejajarkan struk dalam bingkai",
-  "scanReadingTitle": "Membaca struk",
-  "scanReadingBody": "Membaca struk Anda…",
-  "scanReadingSubtitle": "Biasanya sekitar 2 detik. Kami mengekstrak toko, total, dan item.",
+  "scanReceiptTitle": "Pindai dokumen",
+  "scanReceipt": "DOKUMEN",
+  "scanAlignHint": "Posisikan dokumen dalam bingkai",
+  "scanReadingTitle": "Membaca dokumen",
+  "scanReadingBody": "Membaca dokumen Anda…",
+  "scanReadingSubtitle": "Biasanya sekitar 2 detik. Mengekstrak toko, total, akun, dan item.",
   "scanPersonal": "Pribadi",
   "scanRooms": "Ruangan",
   "scanRoom": "Ruangan",
-  "scanSaved": "Struk disimpan",
+  "scanSaved": "Tersimpan",
   "scanNoRooms": "Belum ada ruangan — buat ruangan sebelum memindai ke ruangan.",
-  "scanSendToRoom": "Kirim struk ke ruangan",
+  "scanSendToRoom": "Kirim ke ruangan",
   "scanLimitReached": "Batas pemindaian tercapai",
+  "scanReviewTitle": "Tinjau pindaian",
+  "scanConfidenceHigh": "Terlihat oke",
+  "scanConfidenceLow": "Beberapa detail mungkin perlu dikoreksi",
+  "scanReconcileMismatch": "Jumlah item tidak cocok dengan total tercetak — menggunakan total tercetak.",
+  "scanTotalComputed": "Total dihitung dari item.",
+  "scanFieldAccount": "Akun",
+  "scanFieldCategory": "Kategori",
+  "scanItemsCount": "{count, plural, other{{count} item}}",
+  "@scanItemsCount": {
+    "placeholders": { "count": {"type": "int"} }
+  },
+  "scanSaveNow": "Simpan",
+  "scanAutoConfirmIn": "Menyimpan dalam {seconds}d — ketuk untuk simpan sekarang",
+  "@scanAutoConfirmIn": {
+    "placeholders": { "seconds": {"type": "int"} }
+  },
+  "scanCancelAutoSave": "Batalkan simpan otomatis",
+  "scanEditDetails": "Ubah detail",
+  "scanSaveFailed": "Gagal menyimpan — coba lagi.",
+  "scanUnknownMerchant": "Toko tidak diketahui",
+  "scanNoAccount": "Tidak ada akun dipilih — membuka form edit.",
+  "scanQualityBlurry": "Terlihat buram — pegang kamera lebih stabil.",
+  "scanQualityTooDark": "Terlalu gelap — cari pencahayaan lebih baik.",
+  "scanQualityBadAspect": "Bingkai tidak pas — foto ulang seluruh dokumen.",
+  "scanRateLimited": "Terlalu banyak pemindaian dalam waktu singkat. Coba lagi dalam satu menit.",
+  "scanProCapReached": "Anda mencapai batas pemindaian Pro bulan ini.",
+  "scanLiteCapReached": "Anda mencapai batas pemindaian Lite bulan ini.",
+  "scanSettingsAutoConfirm": "Simpan otomatis pindaian berkepercayaan tinggi setelah 3 detik",
+  "scanSettingsSection": "Pemindaian",
+  "scanInfoPlanSection": "Paket Anda",
+  "scanInfoUsageSection": "Bulan ini",
+  "scanInfoTopUpSection": "Butuh lebih?",
+  "scanInfoPrefsSection": "Preferensi",
+  "scanInfoUsage": "{used} / {total} pindai terpakai",
+  "@scanInfoUsage": {
+    "placeholders": {
+      "used": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "scanInfoUsageUnlimited": "Pindai tanpa batas",
+  "scanInfoResetsOn": "Direset pada {date}",
+  "@scanInfoResetsOn": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "scanInfoTierBenefit": "{scans} pindai per bulan",
+  "@scanInfoTierBenefit": {
+    "placeholders": {
+      "scans": {"type": "int"}
+    }
+  },
+  "scanInfoRecentLink": "Pindaian terbaru",
+  "scanInfoTopUpCta": "Top up 15 pindai · {price}",
+  "@scanInfoTopUpCta": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "scanInfoBonusBreakdown": "Termasuk +{bonus} pindai top-up",
+  "@scanInfoBonusBreakdown": {
+    "placeholders": {
+      "bonus": {"type": "int"}
+    }
+  },
+  "scanInfoTopUpHelper": "Tambah 15 pindai untuk bulan ini",
+  "scanInfoTopUpSuccess": "15 pindai ditambahkan bulan ini",
+  "scanInfoUpgradeCta": "Ubah paket",
   "scanUsedAllScans": "Menggunakan semua {quota} pemindaian di {tier} bulan ini.",
   "@scanUsedAllScans": {
     "description": "Quota exceeded message showing used scans",
@@ -671,8 +740,8 @@
     }
   },
   "scanQuotaDefault": "Anda telah menggunakan kuota pemindaian bulanan Anda.",
-  "scanTopUp": "Isi ulang · 10 pemindaian seharga Rp19.000",
-  "scanUpgrade": "Upgrade ke Pro — pemindaian tanpa batas",
+  "scanTopUp": "Isi ulang · 15 pemindaian seharga Rp9.000",
+  "scanUpgrade": "Upgrade ke Pro — 150 pemindaian/bulan",
   "scanNotNow": "Nanti saja",
   "scanTakeAnother": "Ambil foto lain",
   "scanRetry": "Coba lagi",
@@ -1122,14 +1191,21 @@
   "roomsIntroCta": "Mengerti",
 
   "paywallHeroPro": "Anda di Pro.\nSemua\nterbuka.",
-  "paywallHero": "Budget tanpa batas.\nMata uang tanpa batas.\nPro.",
+  "paywallHero": "Pindai lebih cerdas.\nBatas lebih adil.\nUpgrade Pro.",
+  "paywallLite": "Lite",
   "paywallPlanYearly": "Tahunan",
   "paywallPlanMonthly": "Bulanan",
-  "paywallFreeFeatures": "3 budget · 8 pindai · laporan 3 bulan",
-  "paywallProAnnualFeatures": "Hemat 4 bulan · Semua tanpa batas · Ekspor",
-  "paywallProMonthlyFeatures": "Batalkan kapan saja",
+  "paywallFreeFeatures": "5 pindai/bln · 3 budget · laporan 3 bulan",
+  "paywallLiteAnnualFeatures": "Hemat 4 bulan · 30 pindai/bln · Budget tanpa batas",
+  "paywallLiteMonthlyFeatures": "30 pindai/bln · Budget tanpa batas · Batalkan kapan saja",
+  "paywallProAnnualFeatures": "Hemat 4 bulan · 150 pindai/bln · Budget tanpa batas · Ekspor",
+  "paywallProMonthlyFeatures": "150 pindai/bln · Budget tanpa batas · Batalkan kapan saja",
   "paywallBestValue": "PALING HEMAT",
   "paywallCtaFree": "Lanjutkan dengan Gratis",
+  "paywallCtaLiteAnnual": "Mulai Lite · {price}/thn",
+  "@paywallCtaLiteAnnual": {"placeholders": {"price": {"type": "String"}}},
+  "paywallCtaLiteMonthly": "Mulai Lite · {price}/bln",
+  "@paywallCtaLiteMonthly": {"placeholders": {"price": {"type": "String"}}},
   "paywallCtaProAnnual": "Mulai Pro · {price}/thn",
   "@paywallCtaProAnnual": {"placeholders": {"price": {"type": "String"}}},
   "paywallCtaProMonthly": "Mulai Pro · {price}/bln",
@@ -1147,8 +1223,22 @@
 
   "billingPaidBody": "Semua fitur Pro terbuka.",
   "billingFreeBody": "Fitur terbatas. Tingkatkan untuk lebih banyak.",
+  "billingLiteBody": "Paket Lite aktif.",
   "billingNextRenewal": "Perpanjangan berikutnya · {date}",
   "@billingNextRenewal": {"placeholders": {"date": {"type": "String"}}},
+  "billingPlanEndsOn": "Paket berakhir pada {date}",
+  "@billingPlanEndsOn": {"placeholders": {"date": {"type": "String"}}},
+  "billingUpgradeCta": "Tingkatkan",
+  "billingPlanBenefits": "Yang Anda dapatkan",
+  "billingFreeBenefit1": "5 pemindaian dokumen / bulan",
+  "billingFreeBenefit2": "3 kategori anggaran",
+  "billingFreeBenefit3": "1 ruangan bersama",
+  "billingLiteBenefit1": "30 pemindaian dokumen / bulan",
+  "billingLiteBenefit2": "Anggaran tanpa batas + kategori kustom",
+  "billingLiteBenefit3": "3 ruangan bersama",
+  "billingProBenefit1": "150 pemindaian dokumen / bulan",
+  "billingProBenefit2": "Anggaran, ekspor, penyimpanan struk tanpa batas",
+  "billingProBenefit3": "Ruangan tanpa batas + riwayat lengkap",
   "billingGroupBilling": "Tagihan",
   "billingGroupManagePlay": "Kelola di Google Play",
   "billingChangePlan": "Ubah paket",

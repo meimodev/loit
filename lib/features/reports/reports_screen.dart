@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../shared/utils/locale_date_format.dart';
 
 import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
@@ -13,6 +14,7 @@ import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
+import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_app_bar_month.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import '../../shared/widgets/loit_mini_line_chart.dart';
@@ -229,42 +231,47 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     return [
       const SliverToBoxAdapter(child: LoitGroupLabel(label: 'Trend · this month')),
       SliverToBoxAdapter(
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(
-              LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4),
-          decoration: BoxDecoration(
-              color: c.surface,
-              border: Border(bottom: BorderSide(color: c.borderSubtle))),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _MetricCell(
-                      label: 'AVG/DAY', value: fmt(avgDay), align: TextAlign.left),
-                  _MetricCell(
-                      label: 'DAYS',
-                      value: '${byDay.where((v) => v > 0).length} / ${byDay.length}',
-                      align: TextAlign.right),
-                ],
-              ),
-              const SizedBox(height: LoitSpacing.s3),
-              LoitMiniLineChart(
-                values: byDay,
-                formatValue: (v) => fmt(v),
-              ),
-            ],
+        child: LoitFadeSlideIn(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(
+                LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4),
+            decoration: BoxDecoration(
+                color: c.surface,
+                border: Border(bottom: BorderSide(color: c.borderSubtle))),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _MetricCell(
+                        label: 'AVG/DAY', value: fmt(avgDay), align: TextAlign.left),
+                    _MetricCell(
+                        label: 'DAYS',
+                        value: '${byDay.where((v) => v > 0).length} / ${byDay.length}',
+                        align: TextAlign.right),
+                  ],
+                ),
+                const SizedBox(height: LoitSpacing.s3),
+                LoitMiniLineChart(
+                  values: byDay,
+                  formatValue: (v) => fmt(v),
+                ),
+              ],
+            ),
           ),
         ),
       ),
       const SliverToBoxAdapter(child: LoitGroupLabel(label: 'By category')),
       SliverToBoxAdapter(
-        child: Container(
-          color: c.surface,
-          padding: const EdgeInsets.fromLTRB(
-              LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, LoitSpacing.s2),
-          child: _StackedBar(parts: cats, total: totalCats),
+        child: LoitFadeSlideIn(
+          delay: LoitMotion.staggerStep,
+          child: Container(
+            color: c.surface,
+            padding: const EdgeInsets.fromLTRB(
+                LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, LoitSpacing.s2),
+            child: _StackedBar(parts: cats, total: totalCats),
+          ),
         ),
       ),
       if (cats.isEmpty)
@@ -328,7 +335,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     return [
       const SliverToBoxAdapter(child: LoitGroupLabel(label: 'Last 6 months')),
       SliverToBoxAdapter(
-        child: Container(
+        child: LoitFadeSlideIn(
+          child: Container(
           padding: const EdgeInsets.fromLTRB(
               LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4),
           decoration: BoxDecoration(
@@ -382,8 +390,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                     ]),
                 ],
               ),
+              duration: MediaQuery.of(context).disableAnimations
+                  ? Duration.zero
+                  : LoitMotion.entrance,
+              curve: LoitMotion.easeOutQuart,
             ),
           ),
+        ),
         ),
       ),
       const SliverToBoxAdapter(child: LoitGroupLabel(label: 'Totals')),
@@ -488,28 +501,31 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     }
     return [
       SliverToBoxAdapter(
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(LoitSpacing.s4,
-              LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4),
-          decoration: BoxDecoration(
-            color: c.surface,
-            border: Border(bottom: BorderSide(color: c.borderSubtle)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(l10n.reportsThisMonth,
-                  style: LoitTypography.labelS.copyWith(
-                      color: c.contentSecondary, letterSpacing: 0.4)),
-              const SizedBox(height: 4),
-              Text(
-                cards.length >= 3
-                    ? "You're spending evenly across categories — your most balanced month yet."
-                    : "Your spend pattern is forming — keep going.",
-                style: LoitTypography.titleM.copyWith(
-                    color: c.contentPrimary, fontWeight: FontWeight.w600),
-              ),
-            ],
+        child: LoitScaleIn(
+          from: 0.94,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(LoitSpacing.s4,
+                LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4),
+            decoration: BoxDecoration(
+              color: c.surface,
+              border: Border(bottom: BorderSide(color: c.borderSubtle)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l10n.reportsThisMonth,
+                    style: LoitTypography.labelS.copyWith(
+                        color: c.contentSecondary, letterSpacing: 0.4)),
+                const SizedBox(height: 4),
+                Text(
+                  cards.length >= 3
+                      ? "You're spending evenly across categories — your most balanced month yet."
+                      : "Your spend pattern is forming — keep going.",
+                  style: LoitTypography.titleM.copyWith(
+                      color: c.contentPrimary, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -521,7 +537,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       ),
       SliverList.builder(
         itemCount: cards.length,
-        itemBuilder: (_, i) => cards[i],
+        itemBuilder: (_, i) => LoitFadeSlideIn(
+          delay: LoitMotion.staggerStep * (i + 1),
+          offset: 16,
+          child: cards[i],
+        ),
       ),
     ];
   }
@@ -611,19 +631,29 @@ class _StackedBar extends ConsumerWidget {
             color: c.muted, borderRadius: BorderRadius.circular(6)),
       );
     }
+    final reduce = MediaQuery.of(context).disableAnimations;
     return ClipRRect(
       borderRadius: BorderRadius.circular(6),
       child: SizedBox(
         height: 14,
-        child: Row(
-          children: [
-            for (final e in parts)
-              Expanded(
-                flex: ((e.value / total) * 1000).round().clamp(1, 1000),
-                child:
-                    Container(color: ref.watch(categoryStyleProvider(e.key)).tint),
-              ),
-          ],
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: reduce ? 1 : 0, end: 1),
+          duration: LoitMotion.entrance,
+          curve: LoitMotion.easeOutQuart,
+          builder: (_, t, child) => Align(
+            alignment: Alignment.centerLeft,
+            child: FractionallySizedBox(widthFactor: t, child: child),
+          ),
+          child: Row(
+            children: [
+              for (final e in parts)
+                Expanded(
+                  flex: ((e.value / total) * 1000).round().clamp(1, 1000),
+                  child: Container(
+                      color: ref.watch(categoryStyleProvider(e.key)).tint),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -763,15 +793,18 @@ class _BetaChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE6F4F0),
-        borderRadius: BorderRadius.circular(4),
+    return LoitGentlePulse(
+      maxScale: 1.06,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE6F4F0),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(context.l10n.reportsBeta,
+            style: LoitTypography.labelS.copyWith(
+                color: c.brand, letterSpacing: 0.4, fontWeight: FontWeight.w700)),
       ),
-      child: Text(context.l10n.reportsBeta,
-          style: LoitTypography.labelS.copyWith(
-              color: c.brand, letterSpacing: 0.4, fontWeight: FontWeight.w700)),
     );
   }
 }

@@ -431,18 +431,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
                     ),
                   ),
                 ...daySlivers,
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(LoitSpacing.s5),
-                    child: Text(
-                      '${l.txListFooter(filtered.length, items.length)} · ${_fmt(_sum(filtered, currency), currency)}',
-                      style: LoitTypography.bodyS.copyWith(
-                        color: c.contentTertiary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
                 const SliverToBoxAdapter(child: SizedBox(height: 120)),
               ],
             );
@@ -544,9 +532,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
   }
 
   int _overBudgetCount(List<Txn> _) => 0;
-
-  double _sum(List<Txn> items, String home) =>
-      items.fold(0.0, (s, t) => s + t.amountIn(home));
 
   String _dayLabel(AppLocalizations l, DateTime d) {
     final now = DateTime.now();

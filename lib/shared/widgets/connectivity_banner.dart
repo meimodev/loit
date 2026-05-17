@@ -1,7 +1,7 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/services/reachability_service.dart';
 import 'loit_banner.dart';
 
 /// Debug override for testing offline behavior.
@@ -17,23 +17,9 @@ class OfflineDebugOverride extends Notifier<bool?> {
   void set(bool? v) => state = v;
 }
 
-/// Streams [ConnectivityResult] list. When [offlineDebugOverrideProvider] is
-/// non-null the platform stream is replaced with a simulated value so every
-/// downstream watcher (banner, SyncService, etc.) sees the simulated state.
-final connectivityProvider = StreamProvider<List<ConnectivityResult>>((ref) {
-  final override = ref.watch(offlineDebugOverrideProvider);
-  if (override != null) {
-    final result = override ? ConnectivityResult.none : ConnectivityResult.wifi;
-    return Stream.value([result]);
-  }
-  final c = Connectivity();
-  return c.onConnectivityChanged;
-});
-
-bool isOffline(List<ConnectivityResult> rs) =>
-    rs.isEmpty || rs.every((r) => r == ConnectivityResult.none);
-
-/// Inline offline banner. Renders nothing when online.
+/// Inline offline banner. Renders nothing when online. Backed by
+/// [reachabilityProvider] (interface + active probe) so it agrees with the
+/// write-path gate in `transactions_provider`.
 class ConnectivityBanner extends ConsumerWidget {
   const ConnectivityBanner({super.key, this.padding});
 
@@ -41,9 +27,9 @@ class ConnectivityBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(connectivityProvider);
+    final async = ref.watch(reachabilityProvider);
     final offline = async.maybeWhen(
-      data: isOffline,
+      data: (online) => !online,
       orElse: () => false,
     );
     if (!offline) return const SizedBox.shrink();

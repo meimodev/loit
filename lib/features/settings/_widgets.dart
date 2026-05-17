@@ -312,14 +312,14 @@ class SettingsAvatar extends StatelessWidget {
 class SettingsTierChip extends StatelessWidget {
   const SettingsTierChip({super.key, required this.tier});
 
-  final String tier; // free|pro|team
+  final String tier; // free|lite|pro
 
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
     final l = context.l10n;
     final upper = tier.toUpperCase();
-    final isPaid = tier == 'pro' || tier == 'team';
+    final isPaid = tier == 'pro' || tier == 'lite';
     final reduce = MediaQuery.of(context).disableAnimations;
 
     final chip = AnimatedContainer(

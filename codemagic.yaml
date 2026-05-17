@@ -60,9 +60,9 @@ workflows:
     publishing:
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        # Play Console closed-testing track display name "2",
-        # API identifier 4698923623304983953.
-        track: "4698923623304983953"
+        # Play Console closed-testing track "Closed testing - 2".
+        # API track id is the display suffix "2".
+        track: "2"
         submit_as_draft: false
       email:
         recipients:

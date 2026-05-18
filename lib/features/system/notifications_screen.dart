@@ -50,29 +50,52 @@ class SystemNotificationsScreen extends ConsumerWidget {
             ),
         ],
       ),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(notificationsProvider);
+          await ref.read(notificationsProvider.future);
+        },
+        child: async.when(
+        loading: () => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(
+              height: 400,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ],
+        ),
+        error: (e, _) => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: 400,
+              child: Center(child: Text('Error: $e')),
+            ),
+          ],
+        ),
         data: (items) {
           if (items.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: LoitEmptyState(
-                  icon: Icons.notifications_none_rounded,
-                  title: "You're all caught up",
-                  body:
-                      'New activity in your rooms, budgets, and receipts will land here.',
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: LoitEmptyState(
+                    icon: Icons.notifications_none_rounded,
+                    title: "You're all caught up",
+                    body:
+                        'New activity in your rooms, budgets, and receipts will land here.',
+                  ),
                 ),
-              ),
+              ],
             );
           }
           final unread = items.where((n) => n.isUnread).toList();
           final earlier = items.where((n) => !n.isUnread).toList();
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(notificationsProvider),
-            child: ListView(
+          return ListView(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 32),
+              physics: const AlwaysScrollableScrollPhysics(),
               children: [
                 if (unread.isNotEmpty) ...[
                   _SectionLabel('New · ${unread.length}'),
@@ -84,9 +107,9 @@ class SystemNotificationsScreen extends ConsumerWidget {
                   _NotifGroup(items: earlier, formatWhen: _formatWhen),
                 ],
               ],
-            ),
-          );
+            );
         },
+      ),
       ),
     );
   }

@@ -34,7 +34,13 @@ class AccountsScreen extends ConsumerWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
-      body: accountsAsync.when(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(accountsProvider);
+          ref.invalidate(transactionsProvider);
+          await ref.read(accountsProvider.future);
+        },
+        child: accountsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (accounts) {
@@ -44,10 +50,14 @@ class AccountsScreen extends ConsumerWidget {
               accounts.where((a) => a.kind == AccountKind.liability).toList();
 
           if (accounts.isEmpty) {
-            return _EmptyAccountsState(currency: currency);
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [_EmptyAccountsState(currency: currency)],
+            );
           }
 
           return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             children: [
               if (assets.isNotEmpty) ...[
                 LoitGroupLabel(label: l.accountsScreenAssets),
@@ -195,6 +205,7 @@ class AccountsScreen extends ConsumerWidget {
             ],
           );
         },
+      ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/accounts/new'),

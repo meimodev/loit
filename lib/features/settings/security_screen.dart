@@ -57,8 +57,15 @@ class SecurityScreen extends ConsumerWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(preferencesProvider);
+          ref.invalidate(_biometricSupportedProvider);
+          await ref.read(_biometricSupportedProvider.future);
+        },
+        child: ListView(
         padding: const EdgeInsets.only(bottom: 32),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SettingsGroup(label: l.securityLock, children: [
             SettingsToggleRow(
@@ -86,6 +93,7 @@ class SecurityScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

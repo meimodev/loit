@@ -121,13 +121,18 @@ class TransactionDetailScreen extends ConsumerWidget {
           orElse: () => 'IDR',
         );
 
-    return ListView(
+    return RefreshIndicator(
+      onRefresh: () async {
+        await ref.read(transactionsProvider.notifier).refresh();
+      },
+      child: ListView(
       padding: const EdgeInsets.fromLTRB(
         LoitSpacing.s5,
         LoitSpacing.s5,
         LoitSpacing.s5,
         LoitSpacing.s8,
       ),
+      physics: const AlwaysScrollableScrollPhysics(),
       children: [
         if (isUnsynced) ...[
           LoitFadeSlideIn(
@@ -202,6 +207,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                                 (t.notes ?? '').trim().split('\n').first,
                             items: const [],
                             total: t.absAmount,
+                            currency: t.currency,
                           ),
                     );
                   }
@@ -218,7 +224,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                               .copyWith(color: c.contentPrimary)),
                     );
                   }
-                  return _BreakdownView(parsed: parsed);
+                  return _BreakdownView(parsed: parsed, currency: t.currency);
                 }),
               ],
             ),
@@ -281,6 +287,7 @@ class TransactionDetailScreen extends ConsumerWidget {
           ),
         ],
       ],
+    ),
     );
   }
 
@@ -545,6 +552,7 @@ class _ScanPreviewEditorState extends ConsumerState<_ScanPreviewEditor> {
         merchant: _merchantCtl.text.trim(),
         items: items,
         total: totalParsed,
+        currency: widget.txn.currency,
       );
       final notes = formatBreakdown(breakdown);
 
@@ -690,7 +698,7 @@ class _ScanPreviewEditorState extends ConsumerState<_ScanPreviewEditor> {
                         fontWeight: FontWeight.w600,
                       )),
                 ),
-                Text(_fmt(widget.parsed.total!),
+                Text(_money(widget.parsed.total!),
                     style: LoitTypography.bodyM.copyWith(
                       color: c.contentPrimary,
                       fontWeight: FontWeight.w600,
@@ -703,17 +711,19 @@ class _ScanPreviewEditorState extends ConsumerState<_ScanPreviewEditor> {
     );
   }
 
+  String _money(double v) => formatMoney(v, widget.txn.currency);
+
   String _itemRight(NotesBreakdownItem it) {
     final parts = <String>[];
     if (it.qty != null && it.unitPrice != null) {
-      parts.add('${_fmt(it.qty!)} × ${_fmt(it.unitPrice!)}');
+      parts.add('${_fmt(it.qty!)} × ${_money(it.unitPrice!)}');
     } else if (it.qty != null) {
       parts.add('${_fmt(it.qty!)} ×');
     } else if (it.unitPrice != null) {
-      parts.add('× ${_fmt(it.unitPrice!)}');
+      parts.add('× ${_money(it.unitPrice!)}');
     }
     if (it.totalPrice != null) {
-      parts.add('= ${_fmt(it.totalPrice!)}');
+      parts.add('= ${_money(it.totalPrice!)}');
     }
     return parts.join(' ');
   }
@@ -897,22 +907,25 @@ class _ItemDraft {
 }
 
 class _BreakdownView extends StatelessWidget {
-  const _BreakdownView({required this.parsed});
+  const _BreakdownView({required this.parsed, required this.currency});
   final NotesBreakdown parsed;
+  final String currency;
 
   static final NumberFormat _f = NumberFormat('#,##0.##', 'id_ID');
+
+  String _money(double v) => formatMoney(v, currency);
 
   String _itemRight(NotesBreakdownItem it) {
     final parts = <String>[];
     if (it.qty != null && it.unitPrice != null) {
-      parts.add('${_f.format(it.qty)} × ${_f.format(it.unitPrice)}');
+      parts.add('${_f.format(it.qty)} × ${_money(it.unitPrice!)}');
     } else if (it.qty != null) {
       parts.add('${_f.format(it.qty)} ×');
     } else if (it.unitPrice != null) {
-      parts.add('× ${_f.format(it.unitPrice)}');
+      parts.add('× ${_money(it.unitPrice!)}');
     }
     if (it.totalPrice != null) {
-      parts.add('= ${_f.format(it.totalPrice)}');
+      parts.add('= ${_money(it.totalPrice!)}');
     }
     return parts.join(' ');
   }
@@ -978,7 +991,7 @@ class _BreakdownView extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         )),
                   ),
-                  Text(_f.format(parsed.total),
+                  Text(_money(parsed.total!),
                       style: LoitTypography.bodyM.copyWith(
                         color: c.contentPrimary,
                         fontWeight: FontWeight.w600,

@@ -183,24 +183,51 @@ class _ReceiptsScreenState extends ConsumerState<ReceiptsScreen> {
         scrolledUnderElevation: 0,
         title: Text(l.receiptsTitle),
       ),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(LoitSpacing.s5),
-            child: Text(
-              l.receiptsFailed(e.toString()),
-              style:
-                  LoitTypography.bodyM.copyWith(color: c.contentSecondary),
-              textAlign: TextAlign.center,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(receiptsProvider);
+          await ref.read(receiptsProvider.future);
+        },
+        child: async.when(
+        loading: () => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(
+              height: 400,
+              child: Center(child: CircularProgressIndicator()),
             ),
-          ),
+          ],
+        ),
+        error: (e, _) => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: 400,
+              child: Padding(
+                padding: const EdgeInsets.all(LoitSpacing.s5),
+                child: Center(
+                  child: Text(
+                    l.receiptsFailed(e.toString()),
+                    style: LoitTypography.bodyM
+                        .copyWith(color: c.contentSecondary),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
         data: (items) {
-          if (items.isEmpty) return const _EmptyState();
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(receiptsProvider),
-            child: GridView.builder(
+          if (items.isEmpty) {
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: const [
+                SizedBox(height: 400, child: _EmptyState()),
+              ],
+            );
+          }
+          return GridView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(LoitSpacing.s4),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
@@ -221,9 +248,9 @@ class _ReceiptsScreenState extends ConsumerState<ReceiptsScreen> {
                   onDownload: isDownloading ? null : () => _downloadOne(item),
                 );
               },
-            ),
-          );
+            );
         },
+      ),
       ),
     );
   }

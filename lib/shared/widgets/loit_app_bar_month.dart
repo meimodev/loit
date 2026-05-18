@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 
@@ -14,6 +15,7 @@ class LoitAppBarMonth extends StatelessWidget implements PreferredSizeWidget {
     this.onNext,
     this.actions = const [],
     this.leading,
+    this.direction = 0,
   });
 
   final String label;
@@ -21,6 +23,9 @@ class LoitAppBarMonth extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onNext;
   final List<Widget> actions;
   final Widget? leading;
+
+  /// +1 forward (next), -1 back (prev), 0 fade-only (initial / jump).
+  final int direction;
 
   @override
   Size get preferredSize => const Size.fromHeight(56);
@@ -47,12 +52,10 @@ class LoitAppBarMonth extends StatelessWidget implements PreferredSizeWidget {
           ),
           Expanded(
             child: Center(
-              child: Text(
-                label,
-                style: LoitTypography.titleM.copyWith(
-                  color: c.contentPrimary,
-                  letterSpacing: -0.1,
-                ),
+              child: _AnimatedMonthLabel(
+                label: label,
+                direction: direction,
+                color: c.contentPrimary,
               ),
             ),
           ),
@@ -64,6 +67,59 @@ class LoitAppBarMonth extends StatelessWidget implements PreferredSizeWidget {
           ...actions,
         ],
       ),
+    );
+  }
+}
+
+class _AnimatedMonthLabel extends StatelessWidget {
+  const _AnimatedMonthLabel({
+    required this.label,
+    required this.direction,
+    required this.color,
+  });
+
+  final String label;
+  final int direction;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final style = LoitTypography.titleM.copyWith(
+      color: color,
+      letterSpacing: -0.1,
+    );
+    if (reduce || direction == 0) {
+      return AnimatedSwitcher(
+        duration: reduce ? Duration.zero : LoitMotion.short,
+        switchInCurve: LoitMotion.easeOutExpo,
+        child: Text(label, key: ValueKey(label), style: style),
+      );
+    }
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 260),
+      reverseDuration: const Duration(milliseconds: 180),
+      switchInCurve: LoitMotion.easeOutExpo,
+      switchOutCurve: LoitMotion.easeOutExpo,
+      layoutBuilder: (current, prev) => Stack(
+        alignment: Alignment.center,
+        children: [...prev, if (current != null) current],
+      ),
+      transitionBuilder: (child, anim) {
+        final key = child.key;
+        final isIncoming = key is ValueKey<String> && key.value == label;
+        final dx = isIncoming ? direction * 0.35 : -direction * 0.35;
+        return ClipRect(
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: Offset(dx, 0),
+              end: Offset.zero,
+            ).animate(anim),
+            child: child,
+          ),
+        );
+      },
+      child: Text(label, key: ValueKey<String>(label), style: style),
     );
   }
 }

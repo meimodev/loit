@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+import '../../shared/utils/amount_input.dart';
+
 class NotesBreakdownItem {
   const NotesBreakdownItem({
     required this.name,
@@ -19,16 +21,28 @@ class NotesBreakdown {
     required this.merchant,
     required this.items,
     this.total,
+    this.currency,
   });
 
   final String merchant;
   final List<NotesBreakdownItem> items;
   final double? total;
+
+  /// ISO-4217 code for prices in this breakdown. When set, `formatBreakdown`
+  /// prefixes price tokens with the currency symbol (e.g. `Rp`, `$`). Qty
+  /// stays unprefixed. Null preserves legacy plain-number formatting.
+  final String? currency;
 }
 
 final NumberFormat _kThousand = NumberFormat('#,##0.##', 'id_ID');
 
 String _fmtNum(double v) => _kThousand.format(v);
+
+String _fmtMoney(double v, String? currency) {
+  final n = _fmtNum(v);
+  if (currency == null || currency.isEmpty) return n;
+  return '${currencySymbol(currency)} $n';
+}
 
 double? _parseLooseNumber(String s) {
   if (s.trim().isEmpty) return null;
@@ -76,6 +90,7 @@ List<NotesBreakdownItem> inferMissingItemMath(List<NotesBreakdownItem> items) {
 }
 
 String formatBreakdown(NotesBreakdown b) {
+  final cur = b.currency;
   final lines = <String>[];
   if (b.merchant.trim().isNotEmpty) lines.add(b.merchant.trim());
   for (final it in b.items) {
@@ -88,14 +103,14 @@ String formatBreakdown(NotesBreakdown b) {
     buf.write(name);
     final right = <String>[];
     if (hasQty && hasUnit) {
-      right.add('${_fmtNum(it.qty!)} × ${_fmtNum(it.unitPrice!)}');
+      right.add('${_fmtNum(it.qty!)} × ${_fmtMoney(it.unitPrice!, cur)}');
     } else if (hasQty) {
       right.add('${_fmtNum(it.qty!)} ×');
     } else if (hasUnit) {
-      right.add('× ${_fmtNum(it.unitPrice!)}');
+      right.add('× ${_fmtMoney(it.unitPrice!, cur)}');
     }
     if (hasTotal) {
-      right.add('= ${_fmtNum(it.totalPrice!)}');
+      right.add('= ${_fmtMoney(it.totalPrice!, cur)}');
     }
     if (right.isNotEmpty) {
       buf.write(name.isEmpty ? '' : ' : ');
@@ -103,7 +118,7 @@ String formatBreakdown(NotesBreakdown b) {
     }
     lines.add(buf.toString());
   }
-  if (b.total != null) lines.add('Total: ${_fmtNum(b.total!)}');
+  if (b.total != null) lines.add('Total: ${_fmtMoney(b.total!, cur)}');
   return lines.join('\n');
 }
 
@@ -133,6 +148,9 @@ NotesBreakdownItem? _parseItemLine(String body) {
       total = _parseLooseNumber(rest.substring(eqIdx + 1));
       left = rest.substring(0, eqIdx).trim();
     }
+    // Strip currency letters/symbols so `Rp 1.000 × Rp 2.000` reduces to
+    // `1.000 × 2.000` before the qty/unit regex runs.
+    left = left.replaceAll(RegExp(r'[^\d.,xX×\s-]'), ' ').trim();
     if (left.isNotEmpty) {
       // qty × unit, qty x unit, or single number.
       final m =

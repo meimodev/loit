@@ -88,8 +88,21 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           onPressed: () => context.pop(),
         ),
       ),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          final rid = widget.roomId;
+          if (rid != null) {
+            ref.invalidate(roomTransactionsProvider(rid));
+            ref.invalidate(roomDetailProvider(rid));
+            await ref.read(roomTransactionsProvider(rid).future);
+          } else {
+            await ref.read(transactionsProvider.notifier).refresh();
+          }
+          ref.invalidate(accountsProvider);
+        },
+        child: ListView(
         padding: const EdgeInsets.only(bottom: 120),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           LoitGroupLabel(label: l10n.exportScreenDateRange),
           _LineRow(
@@ -156,6 +169,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
             ),
           ),
         ],
+      ),
       ),
       bottomNavigationBar: SafeArea(
         child: Container(

@@ -55,6 +55,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
   final Set<String> _flashIds = {};
   Timer? _flashTimer;
 
+  DateTime? _prevMonth;
+  int _monthDir = 0;
+
   @override
   void initState() {
     super.initState();
@@ -157,7 +160,16 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
     final txns = ref.watch(transactionsProvider);
     final profile = ref.watch(userProfileProvider).value;
     final currency = profile?.homeCurrency ?? 'IDR';
+    ref.listen<DateTime>(selectedMonthProvider, (prev, next) {
+      if (prev != null && prev != next && mounted) {
+        setState(() {
+          _monthDir = next.isAfter(prev) ? 1 : -1;
+        });
+      }
+    });
     final month = ref.watch(selectedMonthProvider);
+    _prevMonth ??= month;
+    final monthKey = '${month.year}-${month.month.toString().padLeft(2, '0')}';
     final allAccounts = ref.watch(accountsProvider).value ?? const [];
     final accountMap = {for (final a in allAccounts) a.id: a};
     final myRooms = ref.watch(myRoomsProvider).value ?? const [];
@@ -180,11 +192,27 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => ref.read(transactionsProvider.notifier).refresh(),
-        child: txns.when(
+        onRefresh: () async {
+          ref.invalidate(accountsProvider);
+          ref.invalidate(userProfileProvider);
+          await ref.read(transactionsProvider.notifier).refresh();
+        },
+        child: _MonthBodySwitcher(
+          monthKey: monthKey,
+          direction: _monthDir,
+          reduceMotion: _reduceMotion,
+          child: txns.when(
           skipLoadingOnReload: true,
           loading: () => _SkeletonList(c: c),
-          error: (e, _) => Center(child: Text('Error: $e')),
+          error: (e, _) => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              SizedBox(
+                height: 400,
+                child: Center(child: Text('Error: $e')),
+              ),
+            ],
+          ),
           data: (items) {
             _maybeScrollToHighlight();
             _trackArrivals(items);
@@ -231,6 +259,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
             if (filtered.isEmpty) {
               final isFiltered = _sourceFilter != _SourceFilter.all;
               return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 children: [
                   summaryTriple,
                   const SizedBox(height: 24),
@@ -409,6 +438,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
             }
 
             return CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(child: summaryTriple),
                 if (_overBudgetCount(filtered) > 0)
@@ -435,6 +465,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
               ],
             );
           },
+        ),
         ),
       ),
       floatingActionButton: LoitFabStack(
@@ -1148,6 +1179,53 @@ class _Bone extends StatelessWidget {
         color: c.borderSubtle.withValues(alpha: alpha),
         borderRadius: radius,
       ),
+    );
+  }
+}
+
+class _MonthBodySwitcher extends StatelessWidget {
+  const _MonthBodySwitcher({
+    required this.monthKey,
+    required this.direction,
+    required this.reduceMotion,
+    required this.child,
+  });
+
+  final String monthKey;
+  final int direction;
+  final bool reduceMotion;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (reduceMotion || direction == 0) {
+      return KeyedSubtree(key: ValueKey(monthKey), child: child);
+    }
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 320),
+      reverseDuration: const Duration(milliseconds: 220),
+      switchInCurve: LoitMotion.easeOutExpo,
+      switchOutCurve: LoitMotion.easeOutExpo,
+      layoutBuilder: (current, prev) => Stack(
+        alignment: Alignment.topCenter,
+        children: [...prev, if (current != null) current],
+      ),
+      transitionBuilder: (child, anim) {
+        final key = child.key;
+        final isIncoming =
+            key is ValueKey<String> && key.value == monthKey;
+        final dx = isIncoming ? direction * 0.22 : -direction * 0.22;
+        return ClipRect(
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: Offset(dx, 0),
+              end: Offset.zero,
+            ).animate(anim),
+            child: child,
+          ),
+        );
+      },
+      child: KeyedSubtree(key: ValueKey<String>(monthKey), child: child),
     );
   }
 }

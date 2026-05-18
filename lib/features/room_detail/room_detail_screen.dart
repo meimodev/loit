@@ -17,6 +17,7 @@ import '../../shared/providers/presence_provider.dart';
 import '../../shared/providers/room_aggregations_provider.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/selected_month_provider.dart';
+import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_animations.dart';
@@ -152,7 +153,10 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                       ref.invalidate(roomFeedProvider(widget.roomId));
                       ref.invalidate(roomDetailProvider(widget.roomId));
                       ref.invalidate(roomBudgetsProvider(widget.roomId));
+                      ref.invalidate(roomTransactionsProvider(widget.roomId));
                       ref.invalidate(userCategoriesProvider);
+                      await ref.read(
+                          roomDetailProvider(widget.roomId).future);
                     },
                     child: AnimatedSwitcher(
                       duration: LoitMotion.base,
@@ -881,6 +885,7 @@ class _FeedTab extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(
                 LoitSpacing.s4, 0, LoitSpacing.s4, 100),
+            physics: const AlwaysScrollableScrollPhysics(),
             children: [
               summaryCard,
               monthBar,
@@ -903,6 +908,7 @@ class _FeedTab extends ConsumerWidget {
         return ListView(
           padding: const EdgeInsets.fromLTRB(
               LoitSpacing.s4, 0, LoitSpacing.s4, 100),
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
             summaryCard,
             monthBar,
@@ -1664,6 +1670,7 @@ class _BudgetTab extends ConsumerWidget {
         if (list.isEmpty) {
           return ListView(
             padding: const EdgeInsets.symmetric(vertical: LoitSpacing.s7),
+            physics: const AlwaysScrollableScrollPhysics(),
             children: [
               LoitEmptyState(
                 icon: Icons.savings_outlined,
@@ -1689,6 +1696,7 @@ class _BudgetTab extends ConsumerWidget {
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(
               LoitSpacing.s4, LoitSpacing.s2, LoitSpacing.s4, 100),
+          physics: const AlwaysScrollableScrollPhysics(),
           itemCount: list.length,
           itemBuilder: (_, i) {
             final b = list[i];
@@ -1895,6 +1903,7 @@ class _CategoriesTab extends ConsumerWidget {
         if (roomCats.isEmpty) {
           return ListView(
             padding: const EdgeInsets.symmetric(vertical: LoitSpacing.s7),
+            physics: const AlwaysScrollableScrollPhysics(),
             children: [
               LoitEmptyState(
                 icon: Icons.category_outlined,
@@ -1919,6 +1928,7 @@ class _CategoriesTab extends ConsumerWidget {
         return ListView(
           padding: const EdgeInsets.fromLTRB(
               LoitSpacing.s4, LoitSpacing.s2, LoitSpacing.s4, 100),
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
             if (expense.isNotEmpty) ...[
               _SectionLabel(label: l.roomSectionExpenseLabel, count: expense.length),

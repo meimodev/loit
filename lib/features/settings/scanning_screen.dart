@@ -131,8 +131,17 @@ class _ScanningScreenState extends ConsumerState<ScanningScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(userProfileProvider);
+          ref.invalidate(featureGateProvider);
+          ref.invalidate(preferencesProvider);
+          await _loadTopUpDetails();
+          await ref.read(userProfileProvider.future);
+        },
+        child: ListView(
         padding: const EdgeInsets.only(bottom: 32),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SettingsGroup(label: l.scanInfoPlanSection, children: [
             SettingsRow(
@@ -193,6 +202,7 @@ class _ScanningScreenState extends ConsumerState<ScanningScreen> {
             ),
           ]),
         ],
+      ),
       ),
     );
   }

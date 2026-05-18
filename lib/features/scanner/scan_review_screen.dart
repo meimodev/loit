@@ -16,13 +16,18 @@ import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
 import '../../shared/providers/accounts_provider.dart';
+import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/services_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
+import '../paywall/feature_gate.dart';
+import '../transactions/notes_breakdown.dart';
 import '../../shared/widgets/loit_amount_text.dart';
 import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_confidence_banner.dart';
 import '../../shared/widgets/loit_countdown_button.dart';
+import '../../shared/utils/amount_input.dart';
 import '../../shared/utils/locale_date_format.dart';
 
 /// Step 7+8 — confidence-driven review of a scanner output.
@@ -109,23 +114,69 @@ class _ScanReviewScreenState extends ConsumerState<ScanReviewScreen> {
 
     try {
       // `merchant` column was dropped (migration 20260501000002). Scanner
-      // output is mapped into `notes` per the migration's stated contract.
-      final merchant = (p['merchant'] as String?)?.trim();
-      await ref.read(transactionsProvider.notifier).addTransaction({
+      // output is mapped into `notes` via `formatBreakdown` so the detail
+      // screen can round-trip merchant + items the same way as the manual
+      // form's items-mode notes.
+      final merchant = (p['merchant'] as String?)?.trim() ?? '';
+      final itemsRaw = (p['items'] as List?) ?? const [];
+      final breakdownItems = <NotesBreakdownItem>[
+        for (final it in itemsRaw.whereType<Map>())
+          NotesBreakdownItem(
+            name: (it['name'] as String?) ?? '',
+            qty: (it['qty'] as num?)?.toDouble(),
+            unitPrice: (it['unit_price'] as num?)?.toDouble(),
+            totalPrice: (it['total_price'] as num?)?.toDouble(),
+          ),
+      ];
+      final currency = (p['currency'] as String?) ?? 'IDR';
+      final notesText = (merchant.isEmpty && breakdownItems.isEmpty)
+          ? null
+          : formatBreakdown(NotesBreakdown(
+              merchant: merchant,
+              items: breakdownItems,
+              total: (p['total'] as num?)?.toDouble(),
+              currency: currency,
+            )).trim();
+      final insertedId =
+          await ref.read(transactionsProvider.notifier).addTransaction({
         'type': p['type'] ?? 'expense',
         'amount': p['total'],
         'currency': p['currency'] ?? 'IDR',
-        if (merchant != null && merchant.isNotEmpty) 'notes': merchant,
+        if (notesText != null && notesText.isNotEmpty) 'notes': notesText,
         'category': p['category'] ?? 'other',
         'account_id': accountId,
+        'ai_parsed': true,
         // `transactions` table has no `date` column — use `created_at` to
         // match the manual entry path. Sending `date` 400s the insert and
         // traps the row in the offline queue forever.
         'created_at': DateTime.now().toUtc().toIso8601String(),
         if (widget.scan.roomId != null) 'room_id': widget.scan.roomId,
-        '_image_path': widget.scan.imagePath,
         if (p['items'] != null) 'items': p['items'],
       });
+
+      // Receipt upload: mirror manual form path (transaction_form_screen).
+      // `addTransaction` strips `_*` keys, so the image has to be uploaded
+      // explicitly here after the parent insert resolves. Offline path
+      // returns null id — skip upload, user retains image on device.
+      if (insertedId != null) {
+        final tier = ref.read(userProfileProvider).value?.tier;
+        final canStore = FeatureFlags.forTier(tier ?? 'free').receiptStorage;
+        if (canStore) {
+          try {
+            final bytes = await File(widget.scan.imagePath).readAsBytes();
+            final uid = Supabase.instance.client.auth.currentUser?.id;
+            if (uid != null) {
+              await ref.read(receiptServiceProvider).uploadReceipt(
+                    userId: uid,
+                    transactionId: insertedId,
+                    imageBytes: bytes,
+                  );
+            }
+          } catch (e) {
+            Log.w('ScanReview', 'Receipt upload failed', error: e);
+          }
+        }
+      }
 
       // Step 9 — atomic quota increment. Skip when offline; rate limiter +
       // monthly limit catch abuse. Realtime channel on `users` picks up the
@@ -360,8 +411,7 @@ class _ScanReviewScreenState extends ConsumerState<ScanReviewScreen> {
                                     ),
                                   ),
                                   Text(
-                                    (it['total_price'] as num?)?.toString() ??
-                                        '—',
+                                    _formatItemRight(it, currency),
                                     style: LoitTypography.bodyM,
                                   ),
                                 ],
@@ -431,6 +481,26 @@ class _ScanReviewScreenState extends ConsumerState<ScanReviewScreen> {
       ),
     );
   }
+}
+
+String _formatItemRight(Map it, String currency) {
+  final qty = (it['qty'] as num?)?.toDouble();
+  final unit = (it['unit_price'] as num?)?.toDouble();
+  final total = (it['total_price'] as num?)?.toDouble();
+  final hasQty = qty != null && qty > 0;
+  final hasUnit = unit != null && unit > 0;
+  final hasTotal = total != null && total > 0;
+  final parts = <String>[];
+  if (hasQty && hasUnit) {
+    parts.add('${formatAmountInput(qty)} × ${formatMoney(unit, currency)}');
+  } else if (hasUnit) {
+    parts.add('× ${formatMoney(unit, currency)}');
+  } else if (hasQty) {
+    parts.add('${formatAmountInput(qty)} ×');
+  }
+  if (hasTotal) parts.add('= ${formatMoney(total, currency)}');
+  if (parts.isEmpty) return '—';
+  return parts.join(' ');
 }
 
 /// Wraps a scan image preview shown above the review form. Kept separate so

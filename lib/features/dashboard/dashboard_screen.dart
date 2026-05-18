@@ -113,11 +113,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => ref.read(transactionsProvider.notifier).refresh(),
+        onRefresh: () async {
+          ref.invalidate(accountsProvider);
+          ref.invalidate(userProfileProvider);
+          ref.invalidate(budgetsProvider);
+          ref.invalidate(userCategoriesProvider);
+          await ref.read(transactionsProvider.notifier).refresh();
+        },
         child: txns.when(
           skipLoadingOnReload: true,
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e')),
+          loading: () => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: const [
+              SizedBox(
+                height: 400,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ],
+          ),
+          error: (e, _) => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              SizedBox(
+                height: 400,
+                child: Center(child: Text('Error: $e')),
+              ),
+            ],
+          ),
           data: (items) {
             _maybeStartEntrance();
             final currency = profile?.homeCurrency ?? 'IDR';
@@ -144,6 +166,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             }
 
             return CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 fadeUpSliver(
                   0,

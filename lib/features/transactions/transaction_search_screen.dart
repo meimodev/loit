@@ -244,7 +244,15 @@ class _TransactionSearchScreenState
                                   : l.txSearchNoMatchesQuery(_query),
                             ),
                           )
-                        : ListView.builder(
+                        : RefreshIndicator(
+                          onRefresh: () async {
+                            await ref
+                                .read(transactionsProvider.notifier)
+                                .refresh();
+                            ref.invalidate(myRoomsTransactionsProvider);
+                          },
+                          child: ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
                             itemCount: results.length,
                             itemBuilder: (_, i) {
                               final t = results[i];
@@ -292,6 +300,7 @@ class _TransactionSearchScreenState
                                 },
                               );
                             },
+                          ),
                           ),
               ),
             ],

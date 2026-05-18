@@ -51,8 +51,10 @@ class RoomsScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(myRoomsProvider);
           ref.invalidate(pendingInvitesProvider);
+          await ref.read(myRoomsProvider.future);
         },
         child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(
               child: _MembershipCard(

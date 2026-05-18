@@ -60,8 +60,15 @@ class PreferencesScreen extends ConsumerWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(userProfileProvider);
+          ref.invalidate(preferencesProvider);
+          await ref.read(userProfileProvider.future);
+        },
+        child: ListView(
         padding: const EdgeInsets.only(bottom: 32),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SettingsGroup(label: l.prefsLanguage, children: [
             SettingsRow(
@@ -122,6 +129,7 @@ class PreferencesScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

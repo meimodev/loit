@@ -90,8 +90,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       body: Column(
         children: [
           Expanded(
-            child: ListView(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(userProfileProvider);
+                ref.invalidate(preferencesProvider);
+                _hydrated = false;
+                await ref.read(userProfileProvider.future);
+              },
+              child: ListView(
               padding: const EdgeInsets.all(16),
+              physics: const AlwaysScrollableScrollPhysics(),
               children: [
                 Center(
                   child: SettingsAvatar(
@@ -163,6 +171,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
               ],
+            ),
             ),
           ),
           Container(

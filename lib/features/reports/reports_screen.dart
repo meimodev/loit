@@ -170,12 +170,24 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
   }
 
   Widget _tabScroll(List<Widget> slivers) {
-    return CustomScrollView(
-      key: PageStorageKey(slivers.hashCode),
-      slivers: [
-        ...slivers,
-        const SliverToBoxAdapter(child: SizedBox(height: 80)),
-      ],
+    return RefreshIndicator(
+      onRefresh: () async {
+        final roomId = widget.roomId;
+        if (roomId != null) {
+          ref.invalidate(roomTransactionsProvider(roomId));
+          await ref.read(roomTransactionsProvider(roomId).future);
+        } else {
+          await ref.read(transactionsProvider.notifier).refresh();
+        }
+      },
+      child: CustomScrollView(
+        key: PageStorageKey(slivers.hashCode),
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          ...slivers,
+          const SliverToBoxAdapter(child: SizedBox(height: 80)),
+        ],
+      ),
     );
   }
 

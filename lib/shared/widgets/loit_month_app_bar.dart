@@ -9,7 +9,8 @@ import 'loit_app_bar_month.dart';
 ///
 /// Single widget instance per screen; the underlying month state is shared
 /// across screens (Home, Transactions, ...) so paging on one updates all.
-class LoitMonthAppBar extends ConsumerWidget implements PreferredSizeWidget {
+class LoitMonthAppBar extends ConsumerStatefulWidget
+    implements PreferredSizeWidget {
   const LoitMonthAppBar({super.key, this.actions = const []});
 
   final List<Widget> actions;
@@ -18,14 +19,27 @@ class LoitMonthAppBar extends ConsumerWidget implements PreferredSizeWidget {
   Size get preferredSize => const Size.fromHeight(56);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LoitMonthAppBar> createState() => _LoitMonthAppBarState();
+}
+
+class _LoitMonthAppBarState extends ConsumerState<LoitMonthAppBar> {
+  DateTime? _prevMonth;
+  int _direction = 0;
+
+  @override
+  Widget build(BuildContext context) {
     final month = ref.watch(selectedMonthProvider);
     final notifier = ref.read(selectedMonthProvider.notifier);
+    if (_prevMonth != null && _prevMonth != month) {
+      _direction = month.isAfter(_prevMonth!) ? 1 : -1;
+    }
+    _prevMonth = month;
     return LoitAppBarMonth(
       label: yMMM(context).format(month),
+      direction: _direction,
       onPrev: notifier.prev,
       onNext: notifier.next,
-      actions: actions,
+      actions: widget.actions,
     );
   }
 }

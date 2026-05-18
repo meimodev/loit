@@ -2,9 +2,9 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 /// Auto-inserts thousand separators while typing. Locale-aware via
-/// [localeTag] (defaults to system locale).
+/// [localeTag] (defaults to `id_ID` — app's primary locale).
 class ThousandsInputFormatter extends TextInputFormatter {
-  ThousandsInputFormatter({this.localeTag});
+  ThousandsInputFormatter({this.localeTag = 'id_ID'});
 
   final String? localeTag;
 
@@ -20,15 +20,27 @@ class ThousandsInputFormatter extends TextInputFormatter {
     final text = newValue.text;
     if (text.isEmpty) return newValue;
 
-    final clean = text.replaceAll(RegExp(r'[^\d.,]'), '');
+    final fmt = _intFmt;
+    final groupSep = fmt.symbols.GROUP_SEP;
+    final decSep = fmt.symbols.DECIMAL_SEP;
+
+    // Strip everything except digits + the two separator characters.
+    final allowed = RegExp(
+      '[^0-9${RegExp.escape(groupSep)}${RegExp.escape(decSep)}]',
+    );
+    final clean = text.replaceAll(allowed, '');
+
     String intStr;
     String? decStr;
-    final commaIdx = clean.lastIndexOf(',');
-    if (commaIdx >= 0) {
-      intStr = clean.substring(0, commaIdx).replaceAll(RegExp(r'[.,]'), '');
-      decStr = clean.substring(commaIdx + 1).replaceAll(RegExp(r'[.,]'), '');
+    final decIdx = clean.lastIndexOf(decSep);
+    if (decIdx >= 0) {
+      intStr = clean.substring(0, decIdx).replaceAll(groupSep, '');
+      decStr = clean
+          .substring(decIdx + 1)
+          .replaceAll(groupSep, '')
+          .replaceAll(decSep, '');
     } else {
-      intStr = clean.replaceAll('.', '');
+      intStr = clean.replaceAll(groupSep, '');
     }
 
     if (intStr.isEmpty && (decStr == null || decStr.isEmpty)) {
@@ -36,8 +48,8 @@ class ThousandsInputFormatter extends TextInputFormatter {
     }
 
     final intNum = int.tryParse(intStr.isEmpty ? '0' : intStr) ?? 0;
-    final intFormatted = _intFmt.format(intNum);
-    final out = decStr != null ? '$intFormatted,$decStr' : intFormatted;
+    final intFormatted = fmt.format(intNum);
+    final out = decStr != null ? '$intFormatted$decSep$decStr' : intFormatted;
     return TextEditingValue(
       text: out,
       selection: TextSelection.collapsed(offset: out.length),
@@ -68,7 +80,9 @@ double? parseAmountInput(String s) {
 int currencyDecimals(String? code) => code == 'IDR' ? 0 : 2;
 
 /// Format a numeric value into input text (locale-aware thousand sep, no symbol).
-String formatAmountInput(double v, {String? localeTag}) {
+/// Defaults to `id_ID` to match [ThousandsInputFormatter] so values re-rendered
+/// into a text field round-trip correctly through the formatter.
+String formatAmountInput(double v, {String? localeTag = 'id_ID'}) {
   final l = localeTag;
   if (v == v.truncateToDouble()) {
     return l != null

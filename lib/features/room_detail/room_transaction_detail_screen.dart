@@ -172,13 +172,20 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
     final currentUser = ref.watch(currentUserProvider);
     final isOwner = currentUser != null && t['user_id'] == currentUser.id;
 
-    return ListView(
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(roomTransactionProvider(
+            RoomTxKey(roomId: roomId, txId: transactionId)));
+        ref.invalidate(roomTransactionsProvider(roomId));
+      },
+      child: ListView(
       padding: const EdgeInsets.fromLTRB(
         LoitSpacing.s5,
         LoitSpacing.s5,
         LoitSpacing.s5,
         LoitSpacing.s8,
       ),
+      physics: const AlwaysScrollableScrollPhysics(),
       children: [
         _heroCard(context, t, catStyle, catLabel, fmt, isTransfer),
         const SizedBox(height: LoitSpacing.s5),
@@ -232,7 +239,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
                         .copyWith(color: c.contentPrimary)),
               );
             }
-            return _BreakdownView(parsed: parsed);
+            return _BreakdownView(parsed: parsed, currency: currency);
           }),
         ],
         if (receiptUrl != null && receiptUrl.isNotEmpty) ...[
@@ -244,6 +251,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
           ),
         ],
       ],
+    ),
     );
   }
 
@@ -419,22 +427,25 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
 }
 
 class _BreakdownView extends StatelessWidget {
-  const _BreakdownView({required this.parsed});
+  const _BreakdownView({required this.parsed, required this.currency});
   final NotesBreakdown parsed;
+  final String currency;
 
   static final NumberFormat _f = NumberFormat('#,##0.##', 'id_ID');
+
+  String _money(double v) => formatMoney(v, currency);
 
   String _itemRight(NotesBreakdownItem it) {
     final parts = <String>[];
     if (it.qty != null && it.unitPrice != null) {
-      parts.add('${_f.format(it.qty)} \u00d7 ${_f.format(it.unitPrice)}');
+      parts.add('${_f.format(it.qty)} \u00d7 ${_money(it.unitPrice!)}');
     } else if (it.qty != null) {
       parts.add('${_f.format(it.qty)} \u00d7');
     } else if (it.unitPrice != null) {
-      parts.add('\u00d7 ${_f.format(it.unitPrice)}');
+      parts.add('\u00d7 ${_money(it.unitPrice!)}');
     }
     if (it.totalPrice != null) {
-      parts.add('= ${_f.format(it.totalPrice)}');
+      parts.add('= ${_money(it.totalPrice!)}');
     }
     return parts.join(' ');
   }
@@ -499,7 +510,7 @@ class _BreakdownView extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         )),
                   ),
-                  Text(_f.format(parsed.total),
+                  Text(_money(parsed.total!),
                       style: LoitTypography.bodyM.copyWith(
                         color: c.contentPrimary,
                         fontWeight: FontWeight.w600,

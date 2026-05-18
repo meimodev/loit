@@ -9,6 +9,7 @@ import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/budgets_provider.dart';
+import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_app_bar_month.dart';
@@ -82,11 +83,19 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
           ),
         ],
       ),
-      body: budgets.when(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(budgetsProvider);
+          ref.invalidate(transactionsProvider);
+          ref.invalidate(userProfileProvider);
+          await ref.read(budgetsProvider.future);
+        },
+        child: budgets.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (items) {
           return CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
                 child: _PeriodTabs(
@@ -168,6 +177,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
             ],
           );
         },
+      ),
       ),
       floatingActionButton: LoitFabStack(
         primaryIcon: Icons.add,

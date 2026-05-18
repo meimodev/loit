@@ -270,6 +270,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       merchant: _merchant.text.trim(),
       items: items,
       total: null,
+      currency: _currency,
     );
   }
 

@@ -35,14 +35,24 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
-      body: catsAsync.when(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(userCategoriesProvider);
+          await ref.read(userCategoriesProvider.future);
+        },
+        child: catsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (cats) {
           final visible = cats
               .where((c) => c.isPersonal && !_dismissed.contains(c.id))
               .toList();
-          if (visible.isEmpty) return const _EmptyCategoriesState();
+          if (visible.isEmpty) {
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: const [_EmptyCategoriesState()],
+            );
+          }
 
           final personalExpense =
               visible.where((cat) => cat.isExpense).toList();
@@ -50,6 +60,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
               visible.where((cat) => cat.isIncome).toList();
 
           return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             children: [
               if (personalExpense.isNotEmpty) ...[
                 LoitGroupLabel(
@@ -81,6 +92,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
             ],
           );
         },
+      ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/categories/new'),

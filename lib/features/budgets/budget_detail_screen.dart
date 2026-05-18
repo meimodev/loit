@@ -71,8 +71,15 @@ class BudgetDetailScreen extends ConsumerWidget {
             icon: const Icon(Icons.arrow_back),
             onPressed: () => context.pop()),
       ),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(budgetsProvider);
+          ref.invalidate(transactionsProvider);
+          await ref.read(budgetsProvider.future);
+        },
+        child: ListView(
         padding: EdgeInsets.zero,
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           Container(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
@@ -250,6 +257,7 @@ class BudgetDetailScreen extends ConsumerWidget {
           ),
           const SizedBox(height: LoitSpacing.s10),
         ],
+      ),
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(LoitSpacing.s4),

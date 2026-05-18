@@ -7,7 +7,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/services/analytics_service.dart';
 import '../../core/services/log_service.dart';
-import '../../core/services/reachability_service.dart';
 import '../../core/services/scanner_service.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_motion.dart';

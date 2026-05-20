@@ -4534,6 +4534,222 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancellations and plan changes are handled by Google Play. Your current period stays active until renewal.'**
   String get billingPlayFootnote;
+
+  /// No description provided for @quickActionsGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick actions'**
+  String get quickActionsGroup;
+
+  /// No description provided for @quickActionsSettingsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Show quick actions notification'**
+  String get quickActionsSettingsLabel;
+
+  /// No description provided for @quickActionsSettingsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Keeps today\'s spending and four shortcuts (Scan, Add, Transactions, Rooms) in your notification tray. Some devices may hide ongoing notifications due to battery optimization.'**
+  String get quickActionsSettingsDescription;
+
+  /// No description provided for @quickActionsChannelName.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick actions'**
+  String get quickActionsChannelName;
+
+  /// No description provided for @quickActionsChannelDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Ongoing quick-actions notification with today\'s spending.'**
+  String get quickActionsChannelDescription;
+
+  /// No description provided for @quickActionsNotificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LOIT'**
+  String get quickActionsNotificationTitle;
+
+  /// Body line showing today's expense total.
+  ///
+  /// In en, this message translates to:
+  /// **'Today: {amount}'**
+  String quickActionsBodyTodayExpense(String amount);
+
+  /// No description provided for @quickActionsBodyLauncher.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to access shortcuts'**
+  String get quickActionsBodyLauncher;
+
+  /// No description provided for @quickActionsBodyHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Today: ••••'**
+  String get quickActionsBodyHidden;
+
+  /// No description provided for @quickActionsScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan'**
+  String get quickActionsScan;
+
+  /// No description provided for @quickActionsAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get quickActionsAdd;
+
+  /// No description provided for @quickActionsViewTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Transactions'**
+  String get quickActionsViewTransactions;
+
+  /// No description provided for @quickActionsViewRooms.
+  ///
+  /// In en, this message translates to:
+  /// **'Rooms'**
+  String get quickActionsViewRooms;
+
+  /// No description provided for @quickActionsPermissionPromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable notifications'**
+  String get quickActionsPermissionPromptTitle;
+
+  /// No description provided for @quickActionsPermissionPromptBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on notifications to get the quick-actions tray and room alerts.'**
+  String get quickActionsPermissionPromptBody;
+
+  /// No description provided for @quickActionsOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get quickActionsOpenSettings;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @settingsConnections.
+  ///
+  /// In en, this message translates to:
+  /// **'Connections'**
+  String get settingsConnections;
+
+  /// No description provided for @settingsTelegram.
+  ///
+  /// In en, this message translates to:
+  /// **'Telegram'**
+  String get settingsTelegram;
+
+  /// No description provided for @settingsTelegramConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get settingsTelegramConnected;
+
+  /// No description provided for @settingsTelegramNotConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get settingsTelegramNotConnected;
+
+  /// No description provided for @telegramTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Telegram'**
+  String get telegramTitle;
+
+  /// No description provided for @telegramIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Telegram to log transactions by sending text, voice notes, or receipt photos to LoitAppBot.'**
+  String get telegramIntro;
+
+  /// No description provided for @telegramConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Telegram'**
+  String get telegramConnect;
+
+  /// No description provided for @telegramConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get telegramConnecting;
+
+  /// No description provided for @telegramDisconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect Telegram'**
+  String get telegramDisconnect;
+
+  /// No description provided for @telegramDisclosureLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy notice'**
+  String get telegramDisclosureLabel;
+
+  /// No description provided for @telegramDisclosureBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Before you connect, please read:\n\n• Messages you send to LoitAppBot are stored by Telegram on their servers under Telegram\'s terms — LOIT cannot control or delete that chat history.\n• Message contents (text, photos, voice notes) are processed by Anthropic Claude (and OpenAI Whisper for voice) to create transactions on your behalf.\n• Your Telegram chat ID is stored by LOIT so we can identify you when you message the bot. You can disconnect at any time from Settings.\n• Please do not send account numbers, passwords, ID/KTP numbers, card details, or other sensitive personal data through Telegram.\n• Hide Amounts hides values inside the LOIT app only — it does NOT redact amounts in your Telegram chat history with the bot.\n\nBy connecting, you accept these conditions in line with Indonesia\'s Personal Data Protection Law (UU PDP).'**
+  String get telegramDisclosureBody;
+
+  /// No description provided for @telegramDisclosureAccept.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand and want to connect.'**
+  String get telegramDisclosureAccept;
+
+  /// No description provided for @telegramConnectedSectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected account'**
+  String get telegramConnectedSectionLabel;
+
+  /// No description provided for @telegramConnectedChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat ID'**
+  String get telegramConnectedChat;
+
+  /// No description provided for @telegramDisconnectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect Telegram?'**
+  String get telegramDisconnectTitle;
+
+  /// No description provided for @telegramDisconnectBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Telegram chat will no longer log transactions. Past transactions stay.'**
+  String get telegramDisconnectBody;
+
+  /// No description provided for @telegramDisconnectConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect'**
+  String get telegramDisconnectConfirm;
+
+  /// No description provided for @telegramOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open Telegram.'**
+  String get telegramOpenFailed;
+
+  /// No description provided for @telegramGenerateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t generate link code. Try again.'**
+  String get telegramGenerateFailed;
 }
 
 class _AppLocalizationsDelegate

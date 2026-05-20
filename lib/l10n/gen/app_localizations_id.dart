@@ -2511,4 +2511,121 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get billingPlayFootnote =>
       'Pembatalan dan perubahan paket dikelola oleh Google Play. Periode saat ini tetap aktif sampai perpanjangan.';
+
+  @override
+  String get quickActionsGroup => 'Aksi cepat';
+
+  @override
+  String get quickActionsSettingsLabel => 'Tampilkan notifikasi aksi cepat';
+
+  @override
+  String get quickActionsSettingsDescription =>
+      'Menampilkan pengeluaran hari ini dan empat pintasan (Pindai, Tambah, Transaksi, Ruangan) di baki notifikasi. Beberapa perangkat dapat menyembunyikannya karena pengoptimalan baterai.';
+
+  @override
+  String get quickActionsChannelName => 'Aksi cepat';
+
+  @override
+  String get quickActionsChannelDescription =>
+      'Notifikasi aksi cepat berkelanjutan dengan pengeluaran hari ini.';
+
+  @override
+  String get quickActionsNotificationTitle => 'LOIT';
+
+  @override
+  String quickActionsBodyTodayExpense(String amount) {
+    return 'Hari ini: $amount';
+  }
+
+  @override
+  String get quickActionsBodyLauncher => 'Ketuk untuk akses pintasan';
+
+  @override
+  String get quickActionsBodyHidden => 'Hari ini: ••••';
+
+  @override
+  String get quickActionsScan => 'Pindai';
+
+  @override
+  String get quickActionsAdd => 'Tambah';
+
+  @override
+  String get quickActionsViewTransactions => 'Transaksi';
+
+  @override
+  String get quickActionsViewRooms => 'Ruangan';
+
+  @override
+  String get quickActionsPermissionPromptTitle => 'Aktifkan notifikasi';
+
+  @override
+  String get quickActionsPermissionPromptBody =>
+      'Aktifkan notifikasi untuk mendapatkan baki aksi cepat dan peringatan ruangan.';
+
+  @override
+  String get quickActionsOpenSettings => 'Buka pengaturan';
+
+  @override
+  String get cancel => 'Batal';
+
+  @override
+  String get settingsConnections => 'Koneksi';
+
+  @override
+  String get settingsTelegram => 'Telegram';
+
+  @override
+  String get settingsTelegramConnected => 'Terhubung';
+
+  @override
+  String get settingsTelegramNotConnected => 'Belum terhubung';
+
+  @override
+  String get telegramTitle => 'Telegram';
+
+  @override
+  String get telegramIntro =>
+      'Hubungkan Telegram untuk mencatat transaksi dengan teks, pesan suara, atau foto struk ke LoitAppBot.';
+
+  @override
+  String get telegramConnect => 'Hubungkan Telegram';
+
+  @override
+  String get telegramConnecting => 'Menghubungkan…';
+
+  @override
+  String get telegramDisconnect => 'Putuskan Telegram';
+
+  @override
+  String get telegramDisclosureLabel => 'Pemberitahuan privasi';
+
+  @override
+  String get telegramDisclosureBody =>
+      'Sebelum menghubungkan, mohon baca:\n\n• Pesan yang kamu kirim ke LoitAppBot disimpan oleh Telegram di server mereka sesuai ketentuan Telegram — LOIT tidak dapat mengontrol atau menghapus riwayat chat tersebut.\n• Isi pesan (teks, foto, pesan suara) diproses oleh Anthropic Claude (dan OpenAI Whisper untuk suara) untuk membuat transaksi atas namamu.\n• Chat ID Telegram-mu disimpan oleh LOIT agar kami bisa mengenalimu saat kamu mengirim pesan ke bot. Kamu bisa memutus hubungan kapan saja dari Pengaturan.\n• Jangan kirim nomor rekening, kata sandi, NIK/KTP, detail kartu, atau data pribadi sensitif lain melalui Telegram.\n• Sembunyikan Nominal hanya menyembunyikan nilai di dalam aplikasi LOIT — TIDAK menyamarkan nominal di riwayat chat Telegram-mu dengan bot.\n\nDengan menghubungkan, kamu menerima ketentuan ini sesuai UU Perlindungan Data Pribadi (UU PDP).';
+
+  @override
+  String get telegramDisclosureAccept =>
+      'Saya mengerti dan ingin menghubungkan.';
+
+  @override
+  String get telegramConnectedSectionLabel => 'Akun yang terhubung';
+
+  @override
+  String get telegramConnectedChat => 'Chat ID';
+
+  @override
+  String get telegramDisconnectTitle => 'Putuskan Telegram?';
+
+  @override
+  String get telegramDisconnectBody =>
+      'Chat Telegram kamu tidak akan mencatat transaksi lagi. Transaksi sebelumnya tetap ada.';
+
+  @override
+  String get telegramDisconnectConfirm => 'Putuskan';
+
+  @override
+  String get telegramOpenFailed => 'Tidak bisa membuka Telegram.';
+
+  @override
+  String get telegramGenerateFailed => 'Gagal membuat kode tautan. Coba lagi.';
 }

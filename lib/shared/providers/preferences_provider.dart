@@ -28,6 +28,10 @@ class AppPreferences {
   // Default on; user toggle in Settings → Scanning.
   final bool scanAutoConfirm;
 
+  // Persistent quick-actions notification in system tray.
+  // Default on; user toggle in Settings → Notifications.
+  final bool quickActionsNotifEnabled;
+
   const AppPreferences({
     this.themeMode = ThemeMode.light,
     this.language = 'id',
@@ -43,6 +47,7 @@ class AppPreferences {
     this.notifMonthlyDigest = false,
     this.notifProductUpdates = false,
     this.scanAutoConfirm = true,
+    this.quickActionsNotifEnabled = true,
   });
 
   AppPreferences copyWith({
@@ -60,6 +65,7 @@ class AppPreferences {
     bool? notifMonthlyDigest,
     bool? notifProductUpdates,
     bool? scanAutoConfirm,
+    bool? quickActionsNotifEnabled,
   }) =>
       AppPreferences(
         themeMode: themeMode ?? this.themeMode,
@@ -77,6 +83,8 @@ class AppPreferences {
         notifMonthlyDigest: notifMonthlyDigest ?? this.notifMonthlyDigest,
         notifProductUpdates: notifProductUpdates ?? this.notifProductUpdates,
         scanAutoConfirm: scanAutoConfirm ?? this.scanAutoConfirm,
+        quickActionsNotifEnabled:
+            quickActionsNotifEnabled ?? this.quickActionsNotifEnabled,
       );
 }
 
@@ -95,6 +103,7 @@ class _Keys {
   static const notifMonthlyDigest = 'pref.notif.monthlyDigest';
   static const notifProductUpdates = 'pref.notif.productUpdates';
   static const scanAutoConfirm = 'pref.scan.autoConfirm';
+  static const quickActionsNotifEnabled = 'pref.notif.quickActions';
 }
 
 ThemeMode _decodeThemeMode(String? v) {
@@ -137,6 +146,8 @@ class PreferencesNotifier extends AsyncNotifier<AppPreferences> {
       notifMonthlyDigest: _sp.getBool(_Keys.notifMonthlyDigest) ?? false,
       notifProductUpdates: _sp.getBool(_Keys.notifProductUpdates) ?? false,
       scanAutoConfirm: _sp.getBool(_Keys.scanAutoConfirm) ?? true,
+      quickActionsNotifEnabled:
+          _sp.getBool(_Keys.quickActionsNotifEnabled) ?? true,
     );
   }
 
@@ -252,6 +263,8 @@ class PreferencesNotifier extends AsyncNotifier<AppPreferences> {
       _Keys.notifMonthlyDigest => cur.copyWith(notifMonthlyDigest: value),
       _Keys.notifProductUpdates => cur.copyWith(notifProductUpdates: value),
       _Keys.scanAutoConfirm => cur.copyWith(scanAutoConfirm: value),
+      _Keys.quickActionsNotifEnabled =>
+        cur.copyWith(quickActionsNotifEnabled: value),
       _ => cur,
     };
     await _update(next);
@@ -310,4 +323,5 @@ class PrefKeys {
   static const notifMonthlyDigest = _Keys.notifMonthlyDigest;
   static const notifProductUpdates = _Keys.notifProductUpdates;
   static const scanAutoConfirm = _Keys.scanAutoConfirm;
+  static const quickActionsNotifEnabled = _Keys.quickActionsNotifEnabled;
 }

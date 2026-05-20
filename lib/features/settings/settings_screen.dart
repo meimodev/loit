@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +17,7 @@ import '../../l10n/l10n_x.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/budgets_provider.dart';
+import '../../shared/providers/messaging_link_provider.dart';
 import '../../shared/providers/preferences_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/currency_picker_sheet.dart';
@@ -212,6 +215,14 @@ class SettingsScreen extends ConsumerWidget {
                 label: l.settingsReceipts,
                 onTap: () => context.push('/receipts'),
               ),
+            ]),
+          ),
+
+          LoitFadeSlideIn(
+            delay: const Duration(milliseconds: 320),
+            offset: 10,
+            child: SettingsGroup(label: l.settingsConnections, children: [
+              const _TelegramConnectionRow(),
             ]),
           ),
 
@@ -533,6 +544,57 @@ class _PickerOptionState extends State<_PickerOption> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _TelegramConnectionRow extends ConsumerStatefulWidget {
+  const _TelegramConnectionRow();
+
+  @override
+  ConsumerState<_TelegramConnectionRow> createState() =>
+      _TelegramConnectionRowState();
+}
+
+class _TelegramConnectionRowState extends ConsumerState<_TelegramConnectionRow>
+    with WidgetsBindingObserver {
+  Timer? _refresh;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Catch `/end` sent from Telegram while Settings is visible.
+    _refresh = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) ref.invalidate(telegramLinkStatusProvider);
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _refresh?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(telegramLinkStatusProvider);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final status = ref.watch(telegramLinkStatusProvider).value;
+    final connected = status?.linked ?? false;
+    return SettingsRow(
+      label: l.settingsTelegram,
+      value: connected
+          ? l.settingsTelegramConnected
+          : l.settingsTelegramNotConnected,
+      onTap: () => context.push('/settings/telegram'),
     );
   }
 }

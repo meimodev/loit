@@ -1,3 +1,7 @@
+# Local tooling
+.codegraph/
+.cursor/
+
 # Miscellaneous
 *.class
 *.log

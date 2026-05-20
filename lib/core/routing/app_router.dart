@@ -40,6 +40,7 @@ import '../../features/settings/about_screen.dart';
 import '../../features/settings/notifications_screen.dart';
 import '../../features/settings/preferences_screen.dart';
 import '../../features/settings/scanning_screen.dart';
+import '../../features/settings/telegram_connect_screen.dart';
 import '../../features/settings/profile_screen.dart';
 import '../../features/settings/security_screen.dart';
 import '../../features/settings/settings_screen.dart';
@@ -184,6 +185,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings/about',
         builder: (_, __) => const AboutScreen(),
+      ),
+      GoRoute(
+        path: '/settings/telegram',
+        builder: (_, __) => const TelegramConnectScreen(),
       ),
       GoRoute(path: '/accounts', builder: (_, __) => const AccountsScreen()),
       GoRoute(

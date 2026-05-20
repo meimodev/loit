@@ -24,6 +24,8 @@ const jwt = new JWT({
   scopes: ['https://www.googleapis.com/auth/firebase.messaging'],
 });
 
+const endpoint = `https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`;
+
 type NotifyBody = {
   room_id: string;
   actor_id: string;
@@ -32,6 +34,9 @@ type NotifyBody = {
   currency: string;
   // 'income' | 'expense'. Falls back to amount sign (negative ⇒ income) if absent.
   type?: string | null;
+  // Server-trusted invocation marker — bot/edge callers set this and the
+  // function trusts `actor_id` directly instead of requiring an end-user JWT.
+  service_role?: boolean;
 };
 
 function isIncomePayload(body: NotifyBody): boolean {
@@ -152,14 +157,6 @@ serve(async (req) => {
   }
 
   try {
-    const authenticatedUserId = await getAuthenticatedUserId(req);
-    if (!authenticatedUserId) {
-      return new Response('Unauthorized', {
-        status: 401,
-        headers: corsHeaders,
-      });
-    }
-
     const body = (await req.json()) as NotifyBody;
     if (
       !body.room_id ||
@@ -173,18 +170,37 @@ serve(async (req) => {
       });
     }
 
-    if (body.actor_id !== authenticatedUserId) {
-      return new Response('Forbidden', {
-        status: 403,
-        headers: corsHeaders,
-      });
+    // Trusted service-role path (used by bot/edge functions): caller supplies
+    // a sanitized actor_id. We still verify the actor is a member of the
+    // room to avoid stray writes.
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const isServiceRole =
+      !!body.service_role &&
+      !!serviceRoleKey &&
+      authHeader === `Bearer ${serviceRoleKey}`;
+
+    if (!isServiceRole) {
+      const authenticatedUserId = await getAuthenticatedUserId(req);
+      if (!authenticatedUserId) {
+        return new Response('Unauthorized', {
+          status: 401,
+          headers: corsHeaders,
+        });
+      }
+      if (body.actor_id !== authenticatedUserId) {
+        return new Response('Forbidden', {
+          status: 403,
+          headers: corsHeaders,
+        });
+      }
     }
 
     const { data: memberships, error: membershipError } = await supabase
       .from('room_members')
       .select('user_id')
       .eq('room_id', body.room_id)
-      .eq('user_id', authenticatedUserId)
+      .eq('user_id', body.actor_id)
       .limit(1);
 
     if (membershipError) {

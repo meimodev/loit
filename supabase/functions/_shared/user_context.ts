@@ -1,0 +1,156 @@
+import { serviceClient } from "./supabase.ts";
+
+export interface CategoryRef {
+  key: string;
+  name: string;
+  kind: "expense" | "income";
+  scope: "user" | "room";
+  roomId?: string;
+}
+
+export interface AccountRef {
+  id: string;
+  name: string;
+  currency: string;
+  kind: "asset" | "liability";
+}
+
+export interface RoomRef {
+  id: string;
+  name: string;
+}
+
+export interface UserContext {
+  userId: string;
+  tier: string;
+  language: string;
+  homeCurrency: string;
+  hideAmounts: boolean;
+  scansUsed: number;
+  scanTopupBonus: number;
+  scanResetDate: string | null;
+  accounts: AccountRef[];
+  categories: CategoryRef[];
+  rooms: RoomRef[];
+}
+
+export async function loadUserContext(userId: string): Promise<UserContext | null> {
+  const sb = serviceClient();
+  const { data: u } = await sb
+    .from("users")
+    .select(
+      "id, tier, language, home_currency, hide_amounts, scans_used_this_month, scan_topup_bonus_this_month, scan_reset_date",
+    )
+    .eq("id", userId)
+    .maybeSingle();
+  if (!u) return null;
+
+  const { data: accs } = await sb
+    .from("accounts")
+    .select("id, name, currency, kind, archived_at")
+    .eq("user_id", userId);
+  const accounts: AccountRef[] = (accs ?? [])
+    .filter((a) => !a.archived_at)
+    .map((a) => ({ id: a.id, name: a.name, currency: a.currency, kind: a.kind }));
+
+  const { data: ucats } = await sb
+    .from("user_categories")
+    .select("key, name, kind")
+    .eq("user_id", userId);
+  const userCategories: CategoryRef[] = (ucats ?? []).map((c) => ({
+    key: c.key,
+    name: c.name,
+    kind: c.kind,
+    scope: "user",
+  }));
+
+  // Rooms via room_members membership.
+  const { data: memberships } = await sb
+    .from("room_members")
+    .select("room_id, rooms!inner(id, name)")
+    .eq("user_id", userId);
+  const rooms: RoomRef[] = (memberships ?? []).map((m: any) => ({
+    id: m.rooms.id,
+    name: m.rooms.name,
+  }));
+
+  let roomCategories: CategoryRef[] = [];
+  if (rooms.length > 0) {
+    const roomIds = rooms.map((r) => r.id);
+    const { data: rcats } = await sb
+      .from("room_categories")
+      .select("room_id, key, name, kind")
+      .in("room_id", roomIds);
+    roomCategories = (rcats ?? []).map((c: any) => ({
+      key: c.key,
+      name: c.name,
+      kind: c.kind,
+      scope: "room",
+      roomId: c.room_id,
+    }));
+  }
+
+  return {
+    userId: u.id,
+    tier: u.tier,
+    language: u.language ?? "en",
+    homeCurrency: u.home_currency ?? "IDR",
+    hideAmounts: !!u.hide_amounts,
+    scansUsed: u.scans_used_this_month ?? 0,
+    scanTopupBonus: u.scan_topup_bonus_this_month ?? 0,
+    scanResetDate: u.scan_reset_date ?? null,
+    accounts,
+    categories: [...userCategories, ...roomCategories],
+    rooms,
+  };
+}
+
+// Categories visible for a given destination scope.
+// - roomId null → only user-scoped categories
+// - roomId set  → only categories scoped to that specific room
+export function categoriesForScope(
+  ctx: UserContext,
+  roomId: string | null,
+): CategoryRef[] {
+  if (roomId) {
+    return ctx.categories.filter(
+      (c) => c.scope === "room" && c.roomId === roomId,
+    );
+  }
+  return ctx.categories.filter((c) => c.scope === "user");
+}
+
+// Find a category by key/kind constrained to the destination scope. Returns
+// null if the category doesn't exist in that scope — callers should treat
+// this as a validation failure rather than silently widening scope.
+export function findCategoryInScope(
+  ctx: UserContext,
+  key: string,
+  kind: "expense" | "income",
+  roomId: string | null,
+): CategoryRef | null {
+  return (
+    categoriesForScope(ctx, roomId).find(
+      (c) => c.key === key && c.kind === kind,
+    ) ?? null
+  );
+}
+
+// Best-effort remap of a category key from one scope to another by matching
+// on name + kind. Used when a user re-routes a parsed personal transaction
+// into a room: the personal category key is unlikely to exist in the room's
+// own category set, but the same display name often does.
+export function remapCategoryAcrossScopes(
+  ctx: UserContext,
+  fromKey: string,
+  kind: "expense" | "income",
+  toRoomId: string | null,
+): string | null {
+  const src = ctx.categories.find((c) => c.key === fromKey);
+  if (!src) return null;
+  const target = categoriesForScope(ctx, toRoomId).find(
+    (c) =>
+      c.kind === kind && c.name.toLowerCase() === src.name.toLowerCase(),
+  );
+  return target?.key ?? null;
+}

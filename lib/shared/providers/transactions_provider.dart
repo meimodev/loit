@@ -108,10 +108,43 @@ class Txn {
 }
 
 class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
+  RealtimeChannel? _channel;
+
   @override
   Future<List<Txn>> build() async {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const [];
+
+    // Realtime: any insert/update/delete on this user's rows refetches the
+    // feed. Catches bot-originated writes from the messaging pipeline.
+    _channel?.unsubscribe();
+    final channel = Supabase.instance.client
+        .channel('public:transactions:user=${user.id}');
+    for (final ev in const [
+      PostgresChangeEvent.insert,
+      PostgresChangeEvent.update,
+      PostgresChangeEvent.delete,
+    ]) {
+      channel.onPostgresChanges(
+        event: ev,
+        schema: 'public',
+        table: 'transactions',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: user.id,
+        ),
+        callback: (_) {
+          ref.invalidateSelf();
+        },
+      );
+    }
+    channel.subscribe();
+    _channel = channel;
+    ref.onDispose(() {
+      channel.unsubscribe();
+    });
+
     final rows = await Supabase.instance.client
         .from('transactions')
         .select('*, rooms(id, name)')

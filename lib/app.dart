@@ -12,8 +12,10 @@ import 'core/theme/loit_theme.dart';
 import 'core/services/analytics_service.dart';
 import 'core/services/deep_link_service.dart';
 import 'core/services/log_service.dart';
+import 'core/services/notifications/quick_actions_notification.dart';
 import 'core/services/push_service.dart';
 import 'core/services/revenuecat_payment_service.dart';
+import 'shared/utils/amount_input.dart';
 import 'features/rooms/rooms_intro_dialog.dart';
 import 'features/system/lock_screen.dart';
 import 'l10n/gen/app_localizations.dart';
@@ -24,10 +26,12 @@ import 'shared/providers/app_lock_provider.dart';
 import 'shared/providers/auth_providers.dart';
 import 'shared/providers/export_task_provider.dart';
 import 'shared/providers/notifications_provider.dart';
+import 'shared/providers/home_currency_provider.dart';
 import 'shared/providers/preferences_provider.dart';
 import 'shared/providers/presence_provider.dart';
 import 'shared/providers/room_providers.dart';
 import 'shared/providers/services_providers.dart';
+import 'shared/providers/today_expense_provider.dart';
 
 class LoitApp extends ConsumerStatefulWidget {
   const LoitApp({super.key});
@@ -52,6 +56,15 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Persistent quick-actions notification: install tap handler so taps
+      // both warm and cold-start route through the same `appRouterProvider`.
+      QuickActionsNotification.init(
+        onTap: (path) {
+          if (!mounted) return;
+          ref.read(appRouterProvider).go(path);
+        },
+      );
+
       ref.read(syncServiceProvider).startAutoSync();
       // Listen for any entitlement-state shift surfaced by the payment SDK
       // (purchase, refund, billing issue, expiration). Refunds-with-revoke on
@@ -74,7 +87,72 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
         _subscribeUserRow(user.id);
         _maybeLockOnColdStart();
       }
+
+      // Initial paint of the persistent notification.
+      unawaited(_refreshQuickActions());
     });
+  }
+
+  /// Show / refresh / cancel the persistent quick-actions notification based
+  /// on current auth + prefs + today's expense. Idempotent — safe to invoke
+  /// from any provider listener.
+  Future<void> _refreshQuickActions() async {
+    if (!mounted) return;
+    final user = Supabase.instance.client.auth.currentUser;
+    final prefs = ref.read(preferencesProvider).value;
+    if (user == null || prefs == null || !prefs.quickActionsNotifEnabled) {
+      await QuickActionsNotification.cancel();
+      await QuickActionsNotification.cancelMidnightRollover();
+      return;
+    }
+    if (!await QuickActionsNotification.hasNotificationPermission()) {
+      // Will show once permission is granted via the FCM permission flow.
+      return;
+    }
+
+    final locale = ref.read(localePrefProvider) ?? const Locale('id');
+    final l = await AppLocalizations.delegate.load(locale);
+    final today = ref.read(todayExpenseProvider);
+    final currency = ref.read(homeCurrencyProvider);
+
+    final String body;
+    if (prefs.hideAmounts) {
+      body = l.quickActionsBodyHidden;
+    } else if (today <= 0) {
+      body = l.quickActionsBodyLauncher;
+    } else {
+      body =
+          l.quickActionsBodyTodayExpense(formatMoney(today, currency));
+    }
+
+    try {
+      await QuickActionsNotification.show(
+        title: l.quickActionsNotificationTitle,
+        body: body,
+        channelName: l.quickActionsChannelName,
+        channelDescription: l.quickActionsChannelDescription,
+        scanLabel: l.quickActionsScan,
+        addLabel: l.quickActionsAdd,
+        viewTransactionsLabel: l.quickActionsViewTransactions,
+        viewRoomsLabel: l.quickActionsViewRooms,
+        hideAmounts: prefs.hideAmounts,
+        amountForAnalytics: today,
+      );
+      await mirrorChannelStringsForAlarm(
+        title: l.quickActionsNotificationTitle,
+        launcherBody: l.quickActionsBodyLauncher,
+        channelName: l.quickActionsChannelName,
+        channelDescription: l.quickActionsChannelDescription,
+        scan: l.quickActionsScan,
+        add: l.quickActionsAdd,
+        viewTransactions: l.quickActionsViewTransactions,
+        viewRooms: l.quickActionsViewRooms,
+      );
+      await QuickActionsNotification.scheduleMidnightRollover();
+    } catch (e, st) {
+      Log.e('App', 'quick-actions notif refresh failed',
+          error: e, stack: st);
+    }
   }
 
   Future<void> _maybeLockOnColdStart() async {
@@ -119,6 +197,9 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       Purchases.getCustomerInfo().then((_) {}, onError: (Object _) {});
       // Also refresh profile directly in case the webhook already landed.
       ref.invalidate(userProfileProvider);
+      // Resume refresh — covers aggressive OEMs that suppressed the
+      // midnight alarm while backgrounded.
+      unawaited(_refreshQuickActions());
     }
   }
 
@@ -212,6 +293,9 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
         }
         _pushService.initialize().then((ok) {
           Log.i('App', 'PushService.initialize result: $ok');
+          // Refresh quick-actions notif now that POST_NOTIFICATIONS may
+          // have just been granted by the FCM permission flow.
+          unawaited(_refreshQuickActions());
         }).catchError((Object e, StackTrace st) {
           Log.e('App', 'PushService.initialize failed', error: e, stack: st);
         });
@@ -234,6 +318,9 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
         _userRowChannel?.unsubscribe();
         _userRowChannel = null;
         ref.read(appLockedProvider.notifier).unlock();
+        // Drop the persistent notification — it belongs to the previous user.
+        unawaited(QuickActionsNotification.cancel());
+        unawaited(QuickActionsNotification.cancelMidnightRollover());
         final pay = ref.read(paymentServiceProvider);
         if (pay is RevenueCatPaymentService) {
           pay.logout().catchError((Object e, StackTrace st) {
@@ -303,6 +390,17 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
         final router = ref.read(appRouterProvider);
         router.go('/rooms/$roomId');
       });
+    });
+
+    // Quick-actions notification: refresh on any input change.
+    ref.listen<AsyncValue<AppPreferences>>(preferencesProvider, (_, __) {
+      unawaited(_refreshQuickActions());
+    });
+    ref.listen<double>(todayExpenseProvider, (_, __) {
+      unawaited(_refreshQuickActions());
+    });
+    ref.listen<String>(homeCurrencyProvider, (_, __) {
+      unawaited(_refreshQuickActions());
     });
 
     // Background export task → trigger share sheet from anywhere when ready,
@@ -379,6 +477,12 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
         final router = ref.read(appRouterProvider);
         router.go(deepLink);
       }
+    });
+
+    // Quick-actions notification taps that arrived through the `loit://`
+    // intent — `DeepLinkService` parses and routes them via this bus.
+    QuickActionsDeepLinkBus.instance.stream.listen((path) {
+      if (mounted) ref.read(appRouterProvider).go(path);
     });
   }
 }

@@ -19,10 +19,21 @@ const supabase = createClient(
 );
 
 serve(async (req) => {
-  // Cron caller must present the service role key. Anything else is rejected.
+  // Cron caller must present a service_role JWT. Decode the bearer and check
+  // the role claim instead of string-equality against env, since Supabase may
+  // rotate the injected key independently of the cron config.
   const auth = req.headers.get('Authorization') ?? '';
-  const expected = `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!}`;
-  if (auth !== expected) {
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  let role = '';
+  try {
+    const part = token.split('.')[1] ?? '';
+    const padded = part + '='.repeat((4 - (part.length % 4)) % 4);
+    const json = atob(padded.replace(/-/g, '+').replace(/_/g, '/'));
+    role = JSON.parse(json).role ?? '';
+  } catch {
+    role = '';
+  }
+  if (role !== 'service_role') {
     return new Response('Unauthorized', { status: 401 });
   }
 

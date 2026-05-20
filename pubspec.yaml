@@ -118,6 +118,16 @@ dependencies:
   # Persisted user preferences (theme, locale, toggles)
   shared_preferences: ^2.3.2
 
+  # Persistent quick-actions notification — channel control, action buttons,
+  # ongoing flag. FCM-only stack can't render persistent system-tray
+  # notifications with custom action buttons.
+  flutter_local_notifications: ^17.2.3
+
+  # Exact-alarm scheduling for the midnight rollover that resets the
+  # notification body to the new day. Survives process death; requires
+  # SCHEDULE_EXACT_ALARM on Android 14+.
+  android_alarm_manager_plus: ^4.0.6
+
   # Reads version + build from native bundle (pubspec `version: x.y.z+build`)
   package_info_plus: ^9.0.1
 
@@ -130,8 +140,6 @@ dependencies:
 
 dev_dependencies:
   sentry_dart_plugin: ^3.3.0
-  flutter_test:
-    sdk: flutter
   build_runner: ^2.4.13
   custom_lint: ^0.8.1
   riverpod_generator: ^3.0.0

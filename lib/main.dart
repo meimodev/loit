@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -29,6 +30,11 @@ Future<void> main() async {
     ),
   );
   Log.lifecycle('Supabase ready');
+
+  // AlarmManager: needed by the persistent quick-actions notification's
+  // midnight rollover. Cheap to initialize; no permission prompt.
+  await AndroidAlarmManager.initialize();
+  Log.lifecycle('AlarmManager ready');
 
   // RevenueCat — initialized lazily by `RevenueCatPaymentService` the first
   // time `paymentServiceProvider` is read. RevenueCat wraps Play Billing

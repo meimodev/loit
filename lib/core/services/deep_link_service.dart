@@ -8,6 +8,46 @@ import 'log_service.dart';
 
 const _pendingInviteKey = 'pending_invite_token';
 
+/// Quick-actions notification URIs (`loit://`) routed straight through the
+/// app router. Held as a broadcast stream so multiple listeners (the app
+/// shell, tests) can subscribe.
+final quickActionsDeepLinkProvider = StreamProvider<String>((ref) {
+  final controller = StreamController<String>.broadcast();
+  ref.onDispose(controller.close);
+  return controller.stream;
+});
+
+String? _quickActionsPathFor(Uri uri) {
+  if (uri.scheme != 'loit') return null;
+  // Preserve `?highlight=...` (used by bot deep links).
+  String withQuery(String path) {
+    if (uri.queryParameters.isEmpty) return path;
+    final qp = Uri(queryParameters: uri.queryParameters).query;
+    return qp.isEmpty ? path : '$path?$qp';
+  }
+  switch (uri.host) {
+    case 'scan':
+      return '/scan';
+    case 'transactions':
+      // `loit://transactions/add`            → `/transactions/new`
+      // `loit://transactions/{id}`           → `/transactions/{id}`
+      // `loit://transactions?highlight=...`  → `/transactions?highlight=...`
+      if (uri.pathSegments.isNotEmpty) {
+        final first = uri.pathSegments.first;
+        if (first == 'add') return '/transactions/new';
+        return withQuery('/transactions/$first');
+      }
+      return withQuery('/transactions');
+    case 'rooms':
+      // `loit://rooms`                                              → `/rooms`
+      // `loit://rooms/{roomId}`                                     → `/rooms/{roomId}`
+      // `loit://rooms/{roomId}/transactions/{txnId}`                → `/rooms/{roomId}/transactions/{txnId}`
+      if (uri.pathSegments.isEmpty) return '/rooms';
+      return withQuery('/${(<String>['rooms', ...uri.pathSegments]).join('/')}');
+  }
+  return null;
+}
+
 final deepLinkRoomIdProvider = StreamProvider<String>((ref) {
   final controller = StreamController<String>();
   final appLinks = AppLinks();
@@ -21,6 +61,14 @@ final deepLinkRoomIdProvider = StreamProvider<String>((ref) {
       'path': uri.path,
       'hasCode': uri.queryParameters.containsKey('code'),
     });
+    // Quick-actions deep links: hand off via the dedicated provider's stream
+    // controller. We can't drive `quickActionsDeepLinkProvider` from outside
+    // its closure, so we send via a static singleton instead.
+    final quickPath = _quickActionsPathFor(uri);
+    if (quickPath != null) {
+      QuickActionsDeepLinkBus.instance.emit(quickPath);
+      return null;
+    }
     // Matches https://loit.app/invite/{token} (path starts with /invite/)
     // and id.activid.loit://invite/{token} (host == 'invite').
     final isHttpsInvite = uri.path.startsWith('/invite/');
@@ -65,6 +113,19 @@ final deepLinkRoomIdProvider = StreamProvider<String>((ref) {
 
   return controller.stream;
 });
+
+/// Singleton bus for quick-actions deep links. The router shell subscribes
+/// in `app.dart` and forwards each event to `GoRouter.go`.
+class QuickActionsDeepLinkBus {
+  QuickActionsDeepLinkBus._();
+  static final instance = QuickActionsDeepLinkBus._();
+
+  final _controller = StreamController<String>.broadcast();
+
+  Stream<String> get stream => _controller.stream;
+
+  void emit(String path) => _controller.add(path);
+}
 
 /// Call after login to accept any pending invite stored during cold-start
 /// when user wasn't authenticated.

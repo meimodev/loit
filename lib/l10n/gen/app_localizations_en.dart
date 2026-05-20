@@ -2498,4 +2498,121 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get billingPlayFootnote =>
       'Cancellations and plan changes are handled by Google Play. Your current period stays active until renewal.';
+
+  @override
+  String get quickActionsGroup => 'Quick actions';
+
+  @override
+  String get quickActionsSettingsLabel => 'Show quick actions notification';
+
+  @override
+  String get quickActionsSettingsDescription =>
+      'Keeps today\'s spending and four shortcuts (Scan, Add, Transactions, Rooms) in your notification tray. Some devices may hide ongoing notifications due to battery optimization.';
+
+  @override
+  String get quickActionsChannelName => 'Quick actions';
+
+  @override
+  String get quickActionsChannelDescription =>
+      'Ongoing quick-actions notification with today\'s spending.';
+
+  @override
+  String get quickActionsNotificationTitle => 'LOIT';
+
+  @override
+  String quickActionsBodyTodayExpense(String amount) {
+    return 'Today: $amount';
+  }
+
+  @override
+  String get quickActionsBodyLauncher => 'Tap to access shortcuts';
+
+  @override
+  String get quickActionsBodyHidden => 'Today: ••••';
+
+  @override
+  String get quickActionsScan => 'Scan';
+
+  @override
+  String get quickActionsAdd => 'Add';
+
+  @override
+  String get quickActionsViewTransactions => 'Transactions';
+
+  @override
+  String get quickActionsViewRooms => 'Rooms';
+
+  @override
+  String get quickActionsPermissionPromptTitle => 'Enable notifications';
+
+  @override
+  String get quickActionsPermissionPromptBody =>
+      'Turn on notifications to get the quick-actions tray and room alerts.';
+
+  @override
+  String get quickActionsOpenSettings => 'Open settings';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get settingsConnections => 'Connections';
+
+  @override
+  String get settingsTelegram => 'Telegram';
+
+  @override
+  String get settingsTelegramConnected => 'Connected';
+
+  @override
+  String get settingsTelegramNotConnected => 'Not connected';
+
+  @override
+  String get telegramTitle => 'Telegram';
+
+  @override
+  String get telegramIntro =>
+      'Connect Telegram to log transactions by sending text, voice notes, or receipt photos to LoitAppBot.';
+
+  @override
+  String get telegramConnect => 'Connect Telegram';
+
+  @override
+  String get telegramConnecting => 'Connecting…';
+
+  @override
+  String get telegramDisconnect => 'Disconnect Telegram';
+
+  @override
+  String get telegramDisclosureLabel => 'Privacy notice';
+
+  @override
+  String get telegramDisclosureBody =>
+      'Before you connect, please read:\n\n• Messages you send to LoitAppBot are stored by Telegram on their servers under Telegram\'s terms — LOIT cannot control or delete that chat history.\n• Message contents (text, photos, voice notes) are processed by Anthropic Claude (and OpenAI Whisper for voice) to create transactions on your behalf.\n• Your Telegram chat ID is stored by LOIT so we can identify you when you message the bot. You can disconnect at any time from Settings.\n• Please do not send account numbers, passwords, ID/KTP numbers, card details, or other sensitive personal data through Telegram.\n• Hide Amounts hides values inside the LOIT app only — it does NOT redact amounts in your Telegram chat history with the bot.\n\nBy connecting, you accept these conditions in line with Indonesia\'s Personal Data Protection Law (UU PDP).';
+
+  @override
+  String get telegramDisclosureAccept => 'I understand and want to connect.';
+
+  @override
+  String get telegramConnectedSectionLabel => 'Connected account';
+
+  @override
+  String get telegramConnectedChat => 'Chat ID';
+
+  @override
+  String get telegramDisconnectTitle => 'Disconnect Telegram?';
+
+  @override
+  String get telegramDisconnectBody =>
+      'Your Telegram chat will no longer log transactions. Past transactions stay.';
+
+  @override
+  String get telegramDisconnectConfirm => 'Disconnect';
+
+  @override
+  String get telegramOpenFailed => 'Couldn\'t open Telegram.';
+
+  @override
+  String get telegramGenerateFailed =>
+      'Couldn\'t generate link code. Try again.';
 }

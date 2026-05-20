@@ -125,6 +125,27 @@ class Analytics {
   static Future<void> roomTransactionAdded() =>
       _capture('room_transaction_added');
 
+  // ---- QUICK ACTIONS NOTIFICATION ----
+  static Future<void> quickActionsNotifEnabled() =>
+      _capture('quick_actions_notification_enabled');
+
+  static Future<void> quickActionsNotifDisabled() =>
+      _capture('quick_actions_notification_disabled');
+
+  static Future<void> quickActionsNotifActionTapped(String action) =>
+      _capture('quick_actions_notification_action_tapped',
+          {'action': action});
+
+  static Future<void> quickActionsNotifAmountShown(String amountBucket) =>
+      _capture('quick_actions_notification_amount_shown',
+          {'amount_bucket': amountBucket});
+
+  static Future<void> quickActionsNotifAmountHidden() =>
+      _capture('quick_actions_notification_amount_hidden');
+
+  static Future<void> quickActionsNotifDismissed() =>
+      _capture('quick_actions_notification_dismissed');
+
   /// Central capture with terminal logging. All events route through here.
   static Future<void> _capture(
     String eventName, [

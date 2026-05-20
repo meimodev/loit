@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/services/analytics_service.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
@@ -29,6 +30,21 @@ class NotificationSettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
+          SettingsGroup(label: l.quickActionsGroup, children: [
+            SettingsToggleRow(
+              label: l.quickActionsSettingsLabel,
+              helper: l.quickActionsSettingsDescription,
+              value: prefs.quickActionsNotifEnabled,
+              onChanged: (v) {
+                set(PrefKeys.quickActionsNotifEnabled, v);
+                if (v) {
+                  Analytics.quickActionsNotifEnabled();
+                } else {
+                  Analytics.quickActionsNotifDisabled();
+                }
+              },
+            ),
+          ]),
           SettingsGroup(label: l.notifBudgets, children: [
             SettingsToggleRow(
               label: l.notifApproachingLimit,

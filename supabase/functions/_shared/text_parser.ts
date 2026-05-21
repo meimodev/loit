@@ -9,13 +9,18 @@ const TEXT_STATIC_PROMPT = `You are LOIT's transaction parser for chat messages.
 Decide first: is this message describing exactly one concrete monetary transaction the user wants logged? A single purchase may contain MULTIPLE line items (e.g. "beras 10kg 250000 ayam 12kg 15000" — one shopping trip with two items). Itemised text still counts as one transaction; sum the line totals. Reject only when the message is a greeting, question, balance check, transfer history, or otherwise not a concrete purchase/income event:
 { "is_transaction": false, "reason": "short reason" }
 
+If the message clearly describes a purchase or income event, set is_transaction=true EVEN WHEN wording is sloppy, contains typos ("dagin" → daging), mixes Indonesian/English, or trails with a destination marker. Do not reject just because the message ends with a room name. Words like "untuk", "buat", "ke", "for", "to", "in" followed by a name from the rooms list mark the destination room — they NEVER make the message non-transactional.
+
 When it IS a transaction, classify "type" = "expense" or "income". Spending words = expense; receiving money, salary, refund, deposit, transfer-in = income.
 
 Use the lists in the user message:
-- "destination_room" — if the user clearly names one of the rooms in the list, return its exact name; otherwise null.
+- "destination_room" — if the user clearly names one of the rooms in the list (often after "untuk"/"buat"/"ke"/"for"/"to"/"in"), return its exact name; otherwise null.
 - If "destination_room" is null, "category" MUST be an exact key from the PERSONAL categories list.
 - If "destination_room" is set, "category" MUST be an exact key from THAT ROOM's categories list — never use personal keys for room transactions, and never use one room's keys for a different room.
 - "account" MUST be an exact name from the accounts list. Do not invent accounts. If the accounts list is empty, set "account" to "" — the server will reject the transaction.
+
+Worked example — message "beli daging babi 2kg 237k dari pasar untuk rumah" with rooms list containing "rumah":
+{ "is_transaction": true, "type": "expense", "merchant": "pasar", "total": 237000, "destination_room": "rumah", "category": <expense key from rumah's list>, ... }
 
 Currency defaults to the user's home currency unless the message names a different ISO code or symbol.
 
@@ -67,6 +72,11 @@ export interface TextParseSuccess {
   items: TextParseItem[] | null;
   date: string | null;
   confidence: number;
+  // True when this result came from a deterministic rescue path
+  // (room-targeted fallback) rather than the AI parser. Used for telemetry
+  // and to opt into the low-confidence confirm flow even if confidence is
+  // otherwise high.
+  rescued?: boolean;
 }
 
 export interface TextParseRejected {
@@ -78,6 +88,135 @@ export type TextParseResult =
   | { kind: "ok"; parsed: TextParseSuccess }
   | { kind: "rejected"; reason: string | null }
   | { kind: "ai_failure" };
+
+// Normalize a room-name string for tolerant matching: lowercase, strip
+// surrounding/edge punctuation + quotes, collapse internal whitespace.
+function normalizeRoomName(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/^[\s"'`“”‘’.,;:!?()\[\]{}<>]+|[\s"'`“”‘’.,;:!?()\[\]{}<>]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function findRoomByName(
+  ctx: UserContext,
+  raw: string | null | undefined,
+): { id: string; name: string } | null {
+  if (!raw) return null;
+  const needle = normalizeRoomName(raw);
+  if (!needle) return null;
+  for (const r of ctx.rooms) {
+    if (normalizeRoomName(r.name) === needle) {
+      return { id: r.id, name: r.name };
+    }
+  }
+  return null;
+}
+
+// Indonesian/English destination markers — followed by a room name. Used by
+// the deterministic rescue path when Claude rejects a clearly-roomed message.
+const ROOM_MARKERS = ["untuk", "buat", "ke", "for", "to", "in"];
+
+// Extract the trailing fragment after a destination marker. Returns the raw
+// text (lowercased, normalized) the user appears to have addressed as a room,
+// regardless of whether it matches any actual room in the user's context.
+// Useful to surface "room X not found" replies when the marker is present
+// but ctx.rooms is empty / has no match.
+export function extractIntendedRoomName(message: string): string | null {
+  const lower = ` ${message.toLowerCase().replace(/\s+/g, " ")} `;
+  for (const marker of ROOM_MARKERS) {
+    const needle = ` ${marker} `;
+    const idx = lower.lastIndexOf(needle);
+    if (idx < 0) continue;
+    const tail = lower.slice(idx + needle.length).trim();
+    if (!tail) continue;
+    // Cap to ~4 trailing words so we don't grab full sentences.
+    const words = tail.split(/\s+/).slice(0, 4).join(" ");
+    const cleaned = normalizeRoomName(words);
+    if (cleaned) return cleaned;
+  }
+  return null;
+}
+
+function detectRoomInMessage(
+  message: string,
+  ctx: UserContext,
+): { id: string; name: string } | null {
+  if (ctx.rooms.length === 0) return null;
+  const lower = ` ${message.toLowerCase()} `;
+  // Try marker-anchored match first ("untuk <room>"), then any-position
+  // substring match. Both go through normalizeRoomName to tolerate casing
+  // and trailing punctuation.
+  for (const room of ctx.rooms) {
+    const target = normalizeRoomName(room.name);
+    if (!target) continue;
+    for (const marker of ROOM_MARKERS) {
+      const idx = lower.indexOf(` ${marker} ${target}`);
+      if (idx >= 0) return { id: room.id, name: room.name };
+    }
+  }
+  for (const room of ctx.rooms) {
+    const target = normalizeRoomName(room.name);
+    if (!target) continue;
+    if (lower.includes(` ${target} `) || lower.endsWith(` ${target} `)) {
+      return { id: room.id, name: room.name };
+    }
+  }
+  return null;
+}
+
+// Scan for the most plausible single amount in free text. Picks the
+// LARGEST positive number after k/rb/ribu/jt/juta/m multiplier expansion —
+// usually the total when both qty and price appear (e.g. "2kg 237k" → 237000
+// wins over 2). Returns null when no amount-shaped token is found.
+function extractSingleAmount(message: string): number | null {
+  const re = /(\d[\d.,]*)\s*(rb|ribu|k|jt|juta|m)?\b/giu;
+  let best: number | null = null;
+  for (const m of message.matchAll(re)) {
+    const base = parseAmountToken(m[1] ?? "");
+    if (base == null || base <= 0) continue;
+    const mult = (m[2] ?? "").toLowerCase();
+    const value = base * (UNIT_MULTIPLIERS[mult] ?? 1);
+    if (value <= 0) continue;
+    if (best == null || value > best) best = value;
+  }
+  return best;
+}
+
+function pickFallbackCategoryForRoom(
+  ctx: UserContext,
+  roomId: string,
+  kind: "expense" | "income",
+): string | null {
+  const roomCats = ctx.categories.filter(
+    (c) => c.scope === "room" && c.roomId === roomId && c.kind === kind,
+  );
+  if (roomCats.length === 0) return null;
+  if (kind === "expense") {
+    const foodHints = [
+      "groceries",
+      "grocery",
+      "food",
+      "makanan",
+      "belanja",
+      "dapur",
+    ];
+    for (const hint of foodHints) {
+      const m = roomCats.find(
+        (c) =>
+          c.key.toLowerCase().includes(hint) ||
+          c.name.toLowerCase().includes(hint),
+      );
+      if (m) return m.key;
+    }
+  }
+  const other =
+    roomCats.find((c) => c.key === (kind === "income" ? "income_other" : "other")) ??
+    roomCats.find((c) => c.key.toLowerCase().includes("other")) ??
+    roomCats[0];
+  return other?.key ?? null;
+}
 
 function buildContextBlock(ctx: UserContext): string {
   const personalExpense = ctx.categories
@@ -130,12 +269,13 @@ User message: ${message}`;
     model: "claude-haiku-4-5-20251001",
     max_tokens: 512,
     system: [
-      {
+      // SDK 0.32 doesn't type prompt-caching control yet; runtime accepts it.
+      // deno-lint-ignore no-explicit-any
+      ({
         type: "text",
         text: TEXT_STATIC_PROMPT,
-        // deno-lint-ignore no-explicit-any
-        cache_control: { type: "ephemeral" } as any,
-      },
+        cache_control: { type: "ephemeral" },
+      } as any),
     ],
     messages: [{ role: "user", content: [{ type: "text", text: userBlock }] }],
   });
@@ -153,6 +293,11 @@ User message: ${message}`;
       // AI sometimes misclassifies as non-transactions.
       const fb = tryItemizedFallback(message, ctx);
       if (fb) return { kind: "ok", parsed: fb };
+      // Single-item rescue: Haiku occasionally rejects room-targeted
+      // messages like "beli daging 237k untuk rumah". When an amount and a
+      // known room are both present, route through the confirm flow.
+      const roomRescue = tryRoomTargetedRescue(message, ctx);
+      if (roomRescue) return { kind: "ok", parsed: roomRescue };
       return { kind: "rejected", reason: parsed.reason ?? null };
     }
     if (
@@ -211,10 +356,14 @@ User message: ${message}`;
     // fallback before giving up.
     const fb = tryItemizedFallback(message, ctx);
     if (fb) return { kind: "ok", parsed: fb };
+    const roomRescue = tryRoomTargetedRescue(message, ctx);
+    if (roomRescue) return { kind: "ok", parsed: roomRescue };
     return { kind: "ai_failure" };
   } catch {
     const fb = tryItemizedFallback(message, ctx);
     if (fb) return { kind: "ok", parsed: fb };
+    const roomRescue = tryRoomTargetedRescue(message, ctx);
+    if (roomRescue) return { kind: "ok", parsed: roomRescue };
     return { kind: "ai_failure" };
   }
 }
@@ -373,6 +522,38 @@ export function tryItemizedFallback(
   };
 }
 
+// Rescue path: Claude rejected the message OR returned malformed JSON, but
+// the user clearly named a room and stated an amount. Build a low-confidence
+// TextParseSuccess so the caller routes through the confirm flow with a
+// category picker, rather than replying "I couldn't understand that".
+export function tryRoomTargetedRescue(
+  message: string,
+  ctx: UserContext,
+): TextParseSuccess | null {
+  const room = detectRoomInMessage(message, ctx);
+  if (!room) return null;
+  const amount = extractSingleAmount(message);
+  if (amount == null || amount <= 0) return null;
+  const category = pickFallbackCategoryForRoom(ctx, room.id, "expense");
+  const account = pickFallbackAccount(ctx);
+  if (!category || !account) return null;
+  return {
+    is_transaction: true,
+    type: "expense",
+    merchant: null,
+    currency: ctx.homeCurrency,
+    total: amount,
+    category,
+    account,
+    destination_room: room.name,
+    notes: message.trim() || null,
+    items: null,
+    date: null,
+    confidence: 0.4,
+    rescued: true,
+  };
+}
+
 // Caption-metadata parser for image submissions. Only extracts date hints and
 // destination room — never amount/category/account. Returns null fields when
 // the caption does not explicitly state or imply them. Captions are typically
@@ -409,12 +590,13 @@ Caption: ${caption}`;
       model: "claude-haiku-4-5-20251001",
       max_tokens: 128,
       system: [
-        {
+        // SDK 0.32 doesn't type prompt-caching control yet; runtime accepts it.
+        // deno-lint-ignore no-explicit-any
+        ({
           type: "text",
           text: CAPTION_META_PROMPT,
-          // deno-lint-ignore no-explicit-any
-          cache_control: { type: "ephemeral" } as any,
-        },
+          cache_control: { type: "ephemeral" },
+        } as any),
       ],
       messages: [{ role: "user", content: [{ type: "text", text: userBlock }] }],
     });
@@ -438,10 +620,7 @@ Caption: ${caption}`;
     })();
     const roomRaw =
       typeof parsed?.destination_room === "string" ? parsed.destination_room : null;
-    const destination_room = roomRaw
-      ? ctx.rooms.find((r) => r.name.toLowerCase() === roomRaw.toLowerCase())?.name ??
-        null
-      : null;
+    const destination_room = findRoomByName(ctx, roomRaw)?.name ?? null;
     return { date, destination_room };
   } catch {
     return { date: null, destination_room: null };
@@ -457,7 +636,10 @@ export async function transcribeVoice(
   const apiKey = Deno.env.get("OPENAI_API_KEY");
   if (!apiKey) throw new Error("OPENAI_API_KEY not set");
   const form = new FormData();
-  form.append("file", new Blob([audio]), filename);
+  // Cast: stricter lib.dom types reject Uint8Array<ArrayBufferLike> as BlobPart
+  // even though Deno's Blob accepts it. Safe — Uint8Array is a valid BlobPart
+  // at runtime.
+  form.append("file", new Blob([audio as BlobPart]), filename);
   form.append("model", "whisper-1");
   // Bias toward Indonesian when user language is id, but keep mixed allowed.
   if (language === "id") form.append("language", "id");

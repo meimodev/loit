@@ -16,6 +16,10 @@ const dict: Record<string, Record<string, string>> = {
     botRateLimited:
       "You've hit the rate limit (50 messages/hour). Try again later.",
     botUnknown: "Sorry, I couldn't understand that. Try \"kopi 25k\" or send /help.",
+    botRoomNotFound:
+      "I see you mentioned the room \"{room}\", but it's not in this LOIT account.\n\nYour rooms: {rooms}",
+    botRoomNotFoundNoRooms:
+      "I see you mentioned a room (\"{room}\"), but this LOIT account isn't in any shared rooms yet. Create or join one in LOIT → Rooms.",
     botTransactionSaved: "✅ Saved\n{summary}",
     botIncomeSaved: "✅ Income recorded\n{summary}",
     botPendingConfirm: "⚠️ Please confirm\n{summary}\n\nLooks right?",
@@ -78,6 +82,10 @@ const dict: Record<string, Record<string, string>> = {
     botRateLimited:
       "Kamu sudah mencapai batas (50 pesan/jam). Coba lagi nanti.",
     botUnknown: "Maaf, saya tidak mengerti. Coba \"kopi 25k\" atau /help.",
+    botRoomNotFound:
+      "Pesannya menyebut room \"{room}\", tapi room itu tidak ada di akun LOIT ini.\n\nRoom kamu: {rooms}",
+    botRoomNotFoundNoRooms:
+      "Pesannya menyebut sebuah room (\"{room}\"), tapi akun LOIT ini belum tergabung di room bersama mana pun. Buat atau gabung dari LOIT → Rooms.",
     botTransactionSaved: "✅ Tersimpan\n{summary}",
     botIncomeSaved: "✅ Pemasukan dicatat\n{summary}",
     botPendingConfirm: "⚠️ Mohon konfirmasi\n{summary}\n\nSudah benar?",

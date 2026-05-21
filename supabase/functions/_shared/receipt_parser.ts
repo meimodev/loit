@@ -155,12 +155,13 @@ export async function parseReceiptImage(args: {
     model: "claude-haiku-4-5-20251001",
     max_tokens: 1024,
     system: [
-      {
+      // SDK 0.32 doesn't type prompt-caching control yet; runtime accepts it.
+      // deno-lint-ignore no-explicit-any
+      ({
         type: "text",
         text: STATIC_PROMPT,
-        // deno-lint-ignore no-explicit-any
-        cache_control: { type: "ephemeral" } as any,
-      },
+        cache_control: { type: "ephemeral" },
+      } as any),
     ],
     messages: [
       {

@@ -23,6 +23,8 @@ import {
   type UserContext,
 } from "../_shared/user_context.ts";
 import {
+  extractIntendedRoomName,
+  findRoomByName,
   parseCaptionMetadata,
   parseTransactionText,
   transcribeVoice,
@@ -141,19 +143,6 @@ async function downloadFile(filePath: string): Promise<Uint8Array | null> {
 // -----------------------------------------------------------------
 function todayYmd(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function normalizeTelegramDate(value: string | null | undefined): string {
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const d = new Date(`${value}T00:00:00Z`);
-    // Reject overflowed dates like "2026-02-31" — JS silently normalizes them
-    // to a different calendar day. Round-trip through toISOString to verify
-    // the input names a real Y-M-D.
-    if (!isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value) {
-      return value;
-    }
-  }
-  return todayYmd();
 }
 
 // -----------------------------------------------------------------
@@ -511,7 +500,6 @@ async function commitAndReply(args: {
   roomId: string | null;
   confidence: number | null;
   sourceType: "text" | "voice" | "image";
-  occurredAt?: string | null;
 }): Promise<CommitOutcome> {
   // Best-effort scope correction before save. If a parser produced a personal
   // category for a room transaction (or vice versa), try to remap by name —
@@ -529,9 +517,8 @@ async function commitAndReply(args: {
 
   const canonicalSource =
     args.sourceType === "image" ? "bot_image" : "bot_chat";
-  // Telegram is the source of truth for the transaction date — explicit
-  // parser/caption value when present, otherwise today.
-  const effectiveDate = normalizeTelegramDate(args.occurredAt);
+  // Persisted `created_at` is set by the database (now()); parser/caption
+  // dates are display-only and never override the server timestamp.
   const save = await saveTransaction(
     {
       userId: args.link.userId,
@@ -545,15 +532,12 @@ async function commitAndReply(args: {
       roomId: args.roomId,
       aiParsed: true,
       source: canonicalSource,
-      occurredAt: effectiveDate,
     },
     args.ctx,
   );
   if (!save.ok) {
     if (save.reason === "invalid_category") {
-      // Surface a destination-scoped category picker so the user can fix it
-      // without leaving Telegram.
-      await sendMessage(args.link.externalChatId, t(args.locale, "botInvalidCategory"));
+      await offerInvalidCategoryPicker(args);
     } else {
       await sendMessage(args.link.externalChatId, t(args.locale, "botParseFailed"));
     }
@@ -581,7 +565,7 @@ async function commitAndReply(args: {
     roomId: args.roomId,
     roomName,
     notes: args.notes,
-    date: effectiveDate,
+    date: todayYmd(),
   });
   const savedKey = args.type === "income" ? "botIncomeSaved" : "botTransactionSaved";
   const reply = t(args.locale, savedKey, { summary });
@@ -672,6 +656,77 @@ async function createPending(
       .update({ bot_message_id: String(msg.message_id) })
       .eq("id", data.id);
   }
+}
+
+// Recovery path: save was rejected with `invalid_category`. Park the
+// parsed payload as a pending transaction and send a destination-scoped
+// category keyboard. The existing `pick:<idx>` callback writes the chosen
+// key onto the pending row; the user then taps Confirm to finalize.
+async function offerInvalidCategoryPicker(args: {
+  link: MessagingLink;
+  ctx: UserContext;
+  locale: Locale;
+  type: "expense" | "income";
+  total: number;
+  currency: string;
+  merchant: string | null;
+  category: string;
+  accountName: string;
+  notes: string | null;
+  roomId: string | null;
+  sourceType: "text" | "voice" | "image";
+}): Promise<void> {
+  const sb = serviceClient();
+  const payload: Record<string, unknown> = {
+    type: args.type,
+    total: args.total,
+    currency: args.currency,
+    merchant: args.merchant,
+    // category will be overwritten by the pick callback; keep the rejected
+    // key around for telemetry / debugging.
+    category: args.category,
+    account: args.accountName,
+    notes: args.notes,
+    roomId: args.roomId,
+    sourceType: args.sourceType,
+  };
+  const { data } = await sb
+    .from("bot_pending_transactions")
+    .insert({
+      user_id: args.link.userId,
+      platform: PLATFORM,
+      external_chat_id: args.link.externalChatId,
+      payload,
+      confidence: 0.4,
+    })
+    .select("id")
+    .single();
+  if (!data) {
+    await sendMessage(args.link.externalChatId, t(args.locale, "botInvalidCategory"));
+    return;
+  }
+  const pendingId = data.id as string;
+  await openEditSession(args.link, { type: "p", id: pendingId }, "category");
+  const keyboard = categoryKeyboard(args.ctx, args.roomId, args.type);
+  const msg = await sendMessage(
+    args.link.externalChatId,
+    t(args.locale, "botInvalidCategory"),
+    keyboard,
+    { html: true },
+  );
+  if (msg) {
+    await sb
+      .from("bot_pending_transactions")
+      .update({ bot_message_id: String(msg.message_id) })
+      .eq("id", pendingId);
+  }
+  logBotEvent({
+    event: "bot_invalid_category_picker",
+    platform: PLATFORM,
+    messageType: args.sourceType,
+    scope: args.roomId ? "room" : "personal",
+    userId: args.link.userId,
+  });
 }
 
 // @deprecated 2026-05-21 — destination is now auto-detected from message
@@ -1118,7 +1173,9 @@ async function summarizePendingTransaction(
     roomId,
     roomName: room?.name ?? null,
     notes: typeof p.notes === "string" ? p.notes : null,
-    date: typeof p.date === "string" ? p.date : null,
+    // Pending bot transactions always save with server-current timestamp;
+    // never echo a stored payload date.
+    date: null,
   });
   return { summary, roomId };
 }
@@ -1395,16 +1452,11 @@ async function applyEditFromText(
     } else if (field === "notes") {
       update.notes = text.length > 0 ? text : null;
     } else if (field === "date") {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-        await sendMessage(link.externalChatId, t(locale, "botEditFailed"));
-        return;
-      }
-      const d = new Date(`${text}T00:00:00Z`);
-      if (isNaN(d.getTime())) {
-        await sendMessage(link.externalChatId, t(locale, "botEditFailed"));
-        return;
-      }
-      update.created_at = d.toISOString();
+      // Telegram bot transactions always use server-current timestamp; date
+      // edits are not allowed.
+      await closeEditSession(session.id);
+      await sendMessage(link.externalChatId, t(locale, "botEditFailed"));
+      return;
     } else {
       await sendMessage(link.externalChatId, t(locale, "botEditFailed"));
       return;
@@ -1442,11 +1494,11 @@ async function applyEditFromText(
     } else if (field === "notes") {
       payload.notes = text.length > 0 ? text : null;
     } else if (field === "date") {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-        await sendMessage(link.externalChatId, t(locale, "botEditFailed"));
-        return;
-      }
-      payload.date = text;
+      // Telegram bot pending transactions always save with server-current
+      // timestamp; date edits are not allowed.
+      await closeEditSession(session.id);
+      await sendMessage(link.externalChatId, t(locale, "botEditFailed"));
+      return;
     } else {
       await sendMessage(link.externalChatId, t(locale, "botEditFailed"));
       return;
@@ -1655,12 +1707,39 @@ async function handleTextMessage(
   message: string,
 ): Promise<void> {
   const parsed = await parseTransactionText(message, ctx);
-  if (parsed.kind === "rejected") {
-    await sendMessage(link.externalChatId, t(locale, "botUnknown"));
-    return;
-  }
-  if (parsed.kind === "ai_failure") {
-    await sendMessage(link.externalChatId, t(locale, "botParseFailed"));
+  if (parsed.kind === "rejected" || parsed.kind === "ai_failure") {
+    // Surface a specific reply when the message named a room the user
+    // doesn't actually have access to — far more actionable than a generic
+    // "didn't understand" line. Common cause: Telegram linked to a LOIT
+    // account that isn't a member of the room the user is thinking of.
+    const intended = extractIntendedRoomName(message);
+    if (intended && !findRoomByName(ctx, intended)) {
+      if (ctx.rooms.length === 0) {
+        await sendMessage(
+          link.externalChatId,
+          t(locale, "botRoomNotFoundNoRooms", { room: intended }),
+        );
+      } else {
+        const list = ctx.rooms.map((r) => `"${r.name}"`).join(", ");
+        await sendMessage(
+          link.externalChatId,
+          t(locale, "botRoomNotFound", { room: intended, rooms: list }),
+        );
+      }
+      logBotEvent({
+        event: "bot_room_not_found",
+        platform: PLATFORM,
+        messageType: "text",
+        userId: link.userId,
+        extra: { hasRooms: ctx.rooms.length > 0 },
+      });
+      return;
+    }
+    if (parsed.kind === "rejected") {
+      await sendMessage(link.externalChatId, t(locale, "botUnknown"));
+    } else {
+      await sendMessage(link.externalChatId, t(locale, "botParseFailed"));
+    }
     return;
   }
   return handleParsedText(link, ctx, locale, parsed.parsed);
@@ -1694,14 +1773,22 @@ async function handleParsedText(
   parsedArg: import("../_shared/text_parser.ts").TextParseSuccess,
 ): Promise<void> {
   const p = stampCanonicalNotes(parsedArg);
-  const roomId =
-    p.destination_room
-      ? ctx.rooms.find((r) => r.name.toLowerCase() === p.destination_room!.toLowerCase())?.id ??
-        null
-      : null;
-  const effectiveDate = normalizeTelegramDate(p.date);
+  const roomId = findRoomByName(ctx, p.destination_room)?.id ?? null;
 
-  if (p.confidence >= CONFIDENCE_AUTO_SAVE) {
+  if (p.rescued) {
+    logBotEvent({
+      event: "bot_parse_rescued",
+      platform: PLATFORM,
+      messageType: "text",
+      scope: roomId ? "room" : "personal",
+      userId: link.userId,
+    });
+  }
+
+  // Rescue path always goes through confirm flow even if confidence
+  // happens to clear the autosave bar — the category was picked by
+  // fallback heuristic, not by the model.
+  if (!p.rescued && p.confidence >= CONFIDENCE_AUTO_SAVE) {
     await commitAndReply({
       link,
       ctx,
@@ -1716,7 +1803,6 @@ async function handleParsedText(
       roomId,
       confidence: p.confidence,
       sourceType: "text",
-      occurredAt: effectiveDate,
     });
     return;
   }
@@ -1728,12 +1814,15 @@ async function handleParsedText(
     category: p.category,
     accountName: p.account,
     roomName: roomId ? ctx.rooms.find((r) => r.id === roomId)?.name ?? null : null,
-    date: effectiveDate,
+    date: todayYmd(),
   });
+  // Pending payload omits the parsed date — saves use the server `now()`
+  // when the user confirms, so persisting the parser date here is moot.
+  const { date: _droppedDate, ...withoutDate } = p as { date?: string | null } & typeof p;
   await createPending(
     link,
     locale,
-    { ...p, roomId, date: effectiveDate },
+    { ...withoutDate, roomId },
     p.confidence,
     summary,
     "text",
@@ -1803,14 +1892,19 @@ async function handleVoice(
       return;
     }
     const p = stampCanonicalNotes(parsed.parsed);
-    const roomId =
-      p.destination_room
-        ? ctx.rooms.find((r) => r.name.toLowerCase() === p.destination_room!.toLowerCase())?.id ??
-          null
-        : null;
-    const effectiveDate = normalizeTelegramDate(p.date);
+    const roomId = findRoomByName(ctx, p.destination_room)?.id ?? null;
 
-    if (p.confidence >= CONFIDENCE_AUTO_SAVE) {
+    if (p.rescued) {
+      logBotEvent({
+        event: "bot_parse_rescued",
+        platform: PLATFORM,
+        messageType: "voice",
+        scope: roomId ? "room" : "personal",
+        userId: link.userId,
+      });
+    }
+
+    if (!p.rescued && p.confidence >= CONFIDENCE_AUTO_SAVE) {
       const result = await commitAndReply({
         link,
         ctx,
@@ -1825,7 +1919,6 @@ async function handleVoice(
         roomId,
         confidence: p.confidence,
         sourceType: "voice",
-        occurredAt: effectiveDate,
       });
       if (!result.ok) {
         // No usable transaction was created — refund the scan.
@@ -1844,12 +1937,13 @@ async function handleVoice(
       category: p.category,
       accountName: p.account,
       roomName: roomId ? ctx.rooms.find((r) => r.id === roomId)?.name ?? null : null,
-      date: effectiveDate,
+      date: todayYmd(),
     });
+    const { date: _droppedDate, ...withoutDate } = p as { date?: string | null } & typeof p;
     await createPending(
       link,
       locale,
-      { ...p, roomId, date: effectiveDate },
+      { ...withoutDate, roomId },
       p.confidence,
       summary,
       "voice",
@@ -1877,12 +1971,7 @@ async function detectCaptionMetadata(
   }
   try {
     const meta = await parseCaptionMetadata(caption, ctx);
-    const roomId =
-      meta.destination_room && ctx.rooms.length > 0
-        ? ctx.rooms.find(
-            (r) => r.name.toLowerCase() === meta.destination_room!.toLowerCase(),
-          )?.id ?? null
-        : null;
+    const roomId = findRoomByName(ctx, meta.destination_room)?.id ?? null;
     return { roomId, captionDate: meta.date };
   } catch {
     return { roomId: null, captionDate: null };
@@ -1964,9 +2053,8 @@ async function handlePhoto(
       ? p.currency.toUpperCase()
       : ctx.homeCurrency;
     const confidence = typeof p.confidence === "number" ? p.confidence : 0.5;
-    // Telegram image transactions ignore OCR-derived dates — caption hint
-    // when present, otherwise today. Keeps bot-source dates predictable.
-    const occurredAt = normalizeTelegramDate(captionDate);
+    // Image transactions persist `created_at` from the database default
+    // (`now()`); caption/OCR dates are display-only and never persisted.
     const canonicalNotes = formatBreakdownNotes({
       merchant: typeof p.merchant === "string" ? p.merchant : null,
       items: Array.isArray(p.items) ? p.items : null,
@@ -1989,7 +2077,6 @@ async function handlePhoto(
         roomId: captionRoomId,
         confidence,
         sourceType: "image",
-        occurredAt,
       });
       if (!result.ok) {
         // No usable transaction created — refund the scan.
@@ -2009,7 +2096,7 @@ async function handlePhoto(
       roomName: captionRoomId
         ? ctx.rooms.find((r) => r.id === captionRoomId)?.name ?? null
         : null,
-      date: occurredAt,
+      date: todayYmd(),
     });
     await createPending(
       link,
@@ -2023,7 +2110,6 @@ async function handlePhoto(
         account: p.account,
         roomId: captionRoomId,
         notes: canonicalNotes,
-        date: occurredAt,
       },
       confidence,
       summary,
@@ -2151,7 +2237,6 @@ async function handleCallback(
         confidence:
           typeof row.confidence === "number" ? row.confidence : null,
         sourceType,
-        occurredAt: typeof p.date === "string" ? p.date : null,
       });
       await answerCallback(callbackId);
       return;
@@ -2223,10 +2308,6 @@ async function handleCallback(
           },
         ],
         [
-          {
-            text: t(locale, "btnEditDate"),
-            callback_data: `editfield:${target.type}:${target.id}:date`,
-          },
           {
             text: t(locale, "btnEditNotes"),
             callback_data: `editfield:${target.type}:${target.id}:notes`,
@@ -2520,7 +2601,7 @@ async function handleCallback(
             ? ctx.rooms.find((r) => r.id === roomId)?.name ?? null
             : null,
           notes: typeof p.notes === "string" ? p.notes : null,
-          date: typeof p.date === "string" ? p.date : null,
+          date: todayYmd(),
         });
         const msg = await sendMessage(
           link.externalChatId,
@@ -2559,7 +2640,6 @@ async function handleCallback(
         roomId,
         confidence,
         sourceType,
-        occurredAt: typeof p.date === "string" ? p.date : null,
       });
       await answerCallback(callbackId);
       return;

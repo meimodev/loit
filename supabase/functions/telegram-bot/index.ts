@@ -648,10 +648,12 @@ async function createPending(
   }
 }
 
-// Ask the user where to log a parsed transaction when their account has rooms
-// available and the parser did not pick one. Stores the payload in
-// `bot_pending_transactions` and renders inline buttons for personal + each
-// room.
+// @deprecated 2026-05-21 — destination is now auto-detected from message
+// content (text/voice via destination_room, image via caption). Retained for
+// one TTL cycle so in-flight `bot_pending_transactions` rows with
+// state="awaiting_destination" still resolve via the `dest:` callback. Safe
+// to delete in a follow-up PR after the deprecation window.
+// deno-lint-ignore no-unused-vars
 async function offerDestinationPicker(
   link: MessagingLink,
   ctx: UserContext,
@@ -1661,22 +1663,6 @@ async function handleParsedText(
       : null;
 
   if (p.confidence >= CONFIDENCE_AUTO_SAVE) {
-    // Destination picker — when the parser confidently produced a transaction
-    // but did not pick a room, and the user has rooms available, surface a
-    // picker so shared expenses aren't silently logged to personal.
-    if (!roomId && ctx.rooms.length > 0) {
-      const summary = richSummary(ctx, locale, {
-        type: p.type,
-        total: p.total,
-        currency: p.currency,
-        merchant: p.merchant,
-        category: p.category,
-        accountName: p.account,
-        roomName: null,
-      });
-      await offerDestinationPicker(link, ctx, locale, { ...p }, p.confidence, summary, "text");
-      return;
-    }
     await commitAndReply({
       link,
       ctx,
@@ -1693,21 +1679,6 @@ async function handleParsedText(
       sourceType: "text",
       occurredAt: p.date,
     });
-    return;
-  }
-  // Low-confidence: also route through destination picker when applicable so
-  // shared spend isn't silently confirmed against personal.
-  if (!roomId && ctx.rooms.length > 0) {
-    const summary = richSummary(ctx, locale, {
-      type: p.type,
-      total: p.total,
-      currency: p.currency,
-      merchant: p.merchant,
-      category: p.category,
-      accountName: p.account,
-      roomName: null,
-    });
-    await offerDestinationPicker(link, ctx, locale, { ...p }, p.confidence, summary, "text");
     return;
   }
   const summary = richSummary(ctx, locale, {
@@ -1792,20 +1763,6 @@ async function handleVoice(
         : null;
 
     if (p.confidence >= CONFIDENCE_AUTO_SAVE) {
-      if (!roomId && ctx.rooms.length > 0) {
-        const summary = richSummary(ctx, locale, {
-          type: p.type,
-          total: p.total,
-          currency: p.currency,
-          merchant: p.merchant,
-          category: p.category,
-          accountName: p.account,
-          roomName: null,
-        });
-        // Picker creates a pending row — usable parse exists, keep quota consumed.
-        await offerDestinationPicker(link, ctx, locale, { ...p }, p.confidence, summary, "voice");
-        return;
-      }
       const result = await commitAndReply({
         link,
         ctx,
@@ -1831,19 +1788,6 @@ async function handleVoice(
     // Low confidence — parse succeeded but needs confirmation. Quota stays
     // consumed (a pending row is usable). User confirmation does NOT cost a
     // second scan.
-    if (!roomId && ctx.rooms.length > 0) {
-      const summary = richSummary(ctx, locale, {
-        type: p.type,
-        total: p.total,
-        currency: p.currency,
-        merchant: p.merchant,
-        category: p.category,
-        accountName: p.account,
-        roomName: null,
-      });
-      await offerDestinationPicker(link, ctx, locale, { ...p }, p.confidence, summary, "voice");
-      return;
-    }
     const summary = richSummary(ctx, locale, {
       type: p.type,
       total: p.total,
@@ -1864,11 +1808,35 @@ async function handleVoice(
 // -----------------------------------------------------------------
 // Image flow
 // -----------------------------------------------------------------
+// Run the caption (if any) through the text parser purely to detect a room
+// hint. We ignore amount/category/etc. — the receipt OCR remains authoritative
+// for those. Returns the matched room id or null.
+async function detectRoomFromCaption(
+  caption: string | null,
+  ctx: UserContext,
+): Promise<string | null> {
+  if (!caption || caption.trim().length === 0) return null;
+  if (ctx.rooms.length === 0) return null;
+  try {
+    const parsed = await parseTransactionText(caption, ctx);
+    if (parsed.kind !== "ok") return null;
+    const name = parsed.parsed.destination_room;
+    if (!name) return null;
+    return (
+      ctx.rooms.find((r) => r.name.toLowerCase() === name.toLowerCase())?.id ??
+        null
+    );
+  } catch {
+    return null;
+  }
+}
+
 async function handlePhoto(
   link: MessagingLink,
   ctx: UserContext,
   locale: Locale,
   photoSizes: Array<{ file_id: string; width: number; height: number }>,
+  caption: string | null,
 ): Promise<void> {
   const used = await consumeScanQuota(link.userId, ctx.tier);
   if (used === null) {
@@ -1910,11 +1878,15 @@ async function handlePhoto(
     }
     const b64 = bytesToBase64(processed);
 
-    // Image parsing runs before destination selection — bias to personal
-    // categories. On `dest` callback we remap into the chosen room scope.
+    // Detect a room hint from the caption (if any). Receipts default to
+    // personal unless the user names a room in the caption.
+    const captionRoomId = await detectRoomFromCaption(caption, ctx);
+
+    // Scope the receipt parser's category list to the detected room so it
+    // picks a category that will save without remapping.
     const result = await parseReceiptImage({
       imageBase64: b64,
-      categories: categoriesForScope(ctx, null).map((c) => ({
+      categories: categoriesForScope(ctx, captionRoomId).map((c) => ({
         key: c.key,
         name: c.name,
         kind: c.kind,
@@ -1944,36 +1916,6 @@ async function handlePhoto(
     });
 
     if (confidence >= CONFIDENCE_AUTO_SAVE) {
-      if (ctx.rooms.length > 0) {
-        const summary = richSummary(ctx, locale, {
-          type,
-          total: Number(p.total),
-          currency,
-          merchant: p.merchant,
-          category: p.category,
-          accountName: p.account,
-          roomName: null,
-        });
-        await offerDestinationPicker(
-          link,
-          ctx,
-          locale,
-          {
-            type,
-            total: Number(p.total),
-            currency,
-            merchant: p.merchant ?? null,
-            category: p.category,
-            account: p.account,
-            notes: canonicalNotes,
-            date: occurredAt,
-          },
-          confidence,
-          summary,
-          "image",
-        );
-        return;
-      }
       const result = await commitAndReply({
         link,
         ctx,
@@ -1985,7 +1927,7 @@ async function handlePhoto(
         category: p.category,
         accountName: p.account,
         notes: canonicalNotes,
-        roomId: null,
+        roomId: captionRoomId,
         confidence,
         sourceType: "image",
         occurredAt,
@@ -1998,36 +1940,6 @@ async function handlePhoto(
     }
     // Low confidence — keep quota consumed; user confirmation does not cost
     // a second scan.
-    if (ctx.rooms.length > 0) {
-      const summary = richSummary(ctx, locale, {
-        type,
-        total: Number(p.total),
-        currency,
-        merchant: p.merchant,
-        category: p.category,
-        accountName: p.account,
-        roomName: null,
-      });
-      await offerDestinationPicker(
-        link,
-        ctx,
-        locale,
-        {
-          type,
-          total: Number(p.total),
-          currency,
-          merchant: p.merchant ?? null,
-          category: p.category,
-          account: p.account,
-          notes: canonicalNotes,
-          date: occurredAt,
-        },
-        confidence,
-        summary,
-        "image",
-      );
-      return;
-    }
     const summary = richSummary(ctx, locale, {
       type,
       total: Number(p.total),
@@ -2035,7 +1947,9 @@ async function handlePhoto(
       merchant: p.merchant,
       category: p.category,
       accountName: p.account,
-      roomName: null,
+      roomName: captionRoomId
+        ? ctx.rooms.find((r) => r.id === captionRoomId)?.name ?? null
+        : null,
     });
     await createPending(
       link,
@@ -2047,7 +1961,7 @@ async function handlePhoto(
         merchant: p.merchant,
         category: p.category,
         account: p.account,
-        roomId: null,
+        roomId: captionRoomId,
         notes: canonicalNotes,
         date: occurredAt,
       },
@@ -2473,6 +2387,10 @@ async function handleCallback(
       return;
     }
     case "dest": {
+      // @deprecated 2026-05-21 — destination picker is no longer offered for
+      // new transactions; auto-detection drives it. Kept to drain in-flight
+      // `awaiting_destination` rows. Safe to delete with offerDestinationPicker
+      // after the deprecation window.
       // Destination picker resolution. `arg` = pending id, `arg2` = room id
       // or "personal".
       if (!arg) {
@@ -2719,7 +2637,8 @@ serve(async (req) => {
       return new Response("ok");
     }
     if (msg.photo && Array.isArray(msg.photo) && msg.photo.length > 0) {
-      await handlePhoto(link, ctx, locale, msg.photo);
+      const caption = typeof msg.caption === "string" ? msg.caption : null;
+      await handlePhoto(link, ctx, locale, msg.photo, caption);
       return new Response("ok");
     }
     if (text && text.trim().length > 0) {

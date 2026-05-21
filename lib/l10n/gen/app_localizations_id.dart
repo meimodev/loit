@@ -714,6 +714,18 @@ class AppLocalizationsId extends AppLocalizations {
   String get txDetailManualFallback => 'Manual';
 
   @override
+  String get txDetailSourceManual => 'Manual';
+
+  @override
+  String get txDetailSourceScanned => 'Dipindai';
+
+  @override
+  String get txDetailSourceBotImage => 'Gambar bot';
+
+  @override
+  String get txDetailSourceBotChat => 'Obrolan bot';
+
+  @override
   String get txDetailTotal => 'Total';
 
   @override

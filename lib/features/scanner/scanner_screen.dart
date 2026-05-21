@@ -442,10 +442,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           Log.w(_tag, 'AI partial parse → treat as ai_parsed');
           await Analytics.scanFailed('ai_failure_partial');
           data['_ai_parsed'] = true;
+          data['_source'] = 'scanned';
         } else {
           Log.w(_tag, 'AI parse failure → manual fallback');
           await Analytics.scanFailed('ai_failure');
           data['_manual_fallback'] = true;
+          data['_source'] = 'manual';
         }
         data['_image_path'] = compressed.path;
         if (!mounted) return;

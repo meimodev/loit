@@ -710,6 +710,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get txDetailManualFallback => 'Manual fallback';
 
   @override
+  String get txDetailSourceManual => 'Manual';
+
+  @override
+  String get txDetailSourceScanned => 'Scanned';
+
+  @override
+  String get txDetailSourceBotImage => 'Bot image';
+
+  @override
+  String get txDetailSourceBotChat => 'Bot chat';
+
+  @override
   String get txDetailTotal => 'Total';
 
   @override

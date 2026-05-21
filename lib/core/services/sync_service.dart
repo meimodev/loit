@@ -98,6 +98,13 @@ class SyncService {
             tx['fx_snapshot'] = {currency: 1.0};
           }
 
+          // Self-heal rows queued before `source` existed. Derive from the
+          // legacy `ai_parsed` boolean so the NOT NULL constraint passes
+          // with the same value the migration backfill would have chosen.
+          if (tx['source'] == null) {
+            tx['source'] = (tx['ai_parsed'] == true) ? 'scanned' : 'manual';
+          }
+
           tx['client_updated_at'] = item.clientUpdatedAt.toIso8601String();
 
           // Normalize fields that are required after the accounts migration but

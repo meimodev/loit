@@ -145,6 +145,7 @@ class _ScanReviewScreenState extends ConsumerState<ScanReviewScreen> {
         'category': p['category'] ?? 'other',
         'account_id': accountId,
         'ai_parsed': true,
+        'source': 'scanned',
         // `transactions` table has no `date` column — use `created_at` to
         // match the manual entry path. Sending `date` 400s the insert and
         // traps the row in the offline queue forever.
@@ -227,6 +228,7 @@ class _ScanReviewScreenState extends ConsumerState<ScanReviewScreen> {
   void _editManually() {
     final p = Map<String, dynamic>.from(widget.scan.parsed);
     p['_ai_parsed'] = true;
+    p['_source'] = 'scanned';
     p['_image_path'] = widget.scan.imagePath;
     if (widget.scan.roomId != null) p['_room_id'] = widget.scan.roomId;
     context.pushReplacement('/transactions/new', extra: p);

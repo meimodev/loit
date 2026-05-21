@@ -137,6 +137,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
             'notes': l.accountFormBalanceAdjustment,
             'ai_parsed': false,
             'is_manual_fallback': false,
+            'source': 'manual',
             'created_at': DateTime.now().toUtc().toIso8601String(),
           });
         } else {

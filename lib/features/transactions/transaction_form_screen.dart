@@ -64,6 +64,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
   bool _ratesStale = false;
   String? _roomId;
   String? _imagePath;
+  String _source = 'manual';
   DateTime _date = DateTime.now();
   late ProviderSubscription<List<Account>> _accountsSub;
 
@@ -104,6 +105,17 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       _isManualFallback = (p['_manual_fallback'] as bool?) ?? false;
       _aiParsed = (p['_ai_parsed'] as bool?) ?? false;
       _imagePath = p['_image_path'] as String?;
+      final prefillSource = p['_source'] as String?;
+      if (prefillSource == 'scanned' ||
+          prefillSource == 'manual' ||
+          prefillSource == 'bot_image' ||
+          prefillSource == 'bot_chat') {
+        _source = prefillSource!;
+      } else if (_aiParsed) {
+        _source = 'scanned';
+      } else {
+        _source = 'manual';
+      }
       // Scan AI returns separate date (YYYY-MM-DD) and time (HH:MM) fields.
       final scanDate = p['date'] as String?;
       final scanTime = p['time'] as String?;
@@ -618,6 +630,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
         'notes': notesPayload,
         'ai_parsed': _aiParsed,
         'is_manual_fallback': _isManualFallback,
+        'source': _source,
         'created_at': _date.toUtc().toIso8601String(),
         if (_roomId != null) 'room_id': _roomId,
       };

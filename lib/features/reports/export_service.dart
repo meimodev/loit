@@ -149,6 +149,7 @@ Future<void> _writeCsvIsolate(
         t.notes ?? '',
         t.receiptUrl ?? '',
         t.aiParsed ? 'yes' : 'no',
+        txnSourceToString(t.source),
       ];
     }),
   ];
@@ -201,6 +202,7 @@ class ExportService {
     'Notes',
     'Receipt URL',
     'AI Parsed',
+    'Source',
   ];
 
   Future<File> exportCsv(List<Txn> transactions, ExportScope scope) async {

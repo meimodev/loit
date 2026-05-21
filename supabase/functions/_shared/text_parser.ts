@@ -1,11 +1,12 @@
 import Anthropic from "npm:@anthropic-ai/sdk@0.32.1";
 import type { UserContext } from "./user_context.ts";
+import { formatBreakdownNotes } from "./notes_breakdown.ts";
 
 const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! });
 
 const TEXT_STATIC_PROMPT = `You are LOIT's transaction parser for chat messages. Read the user's message and return ONLY valid JSON — no prose, no markdown fences.
 
-Decide first: is this message describing exactly one concrete monetary transaction the user wants logged? If not (greeting, question, ambiguous, balance check, transfer history etc.), return:
+Decide first: is this message describing exactly one concrete monetary transaction the user wants logged? A single purchase may contain MULTIPLE line items (e.g. "beras 10kg 250000 ayam 12kg 15000" — one shopping trip with two items). Itemised text still counts as one transaction; sum the line totals. Reject only when the message is a greeting, question, balance check, transfer history, or otherwise not a concrete purchase/income event:
 { "is_transaction": false, "reason": "short reason" }
 
 When it IS a transaction, classify "type" = "expense" or "income". Spending words = expense; receiving money, salary, refund, deposit, transfer-in = income.
@@ -33,15 +34,25 @@ Return when is_transaction is true:
   "account": "exact name",
   "destination_room": "exact room name or null",
   "notes": "short, original phrasing if useful, else null",
+  "items": [ { "name": "string", "qty": 0, "unit_price": 0, "total_price": 0 } ],
   "date": "YYYY-MM-DD",
   "confidence": 0.00
 }
+
+"items" is optional. Include it whenever the message lists distinct line items with their own amounts (a grocery list, a multi-product receipt). Each item should carry whichever of qty/unit_price/total_price the message actually states. If only one product is mentioned, omit "items".
 
 Rules:
 - "total" must be positive; sign is conveyed by "type".
 - Always pick a category — never invent keys.
 - Pick the most plausible account if unspecified.
 - "date" must be in YYYY-MM-DD format. Default to today when not stated.`;
+
+export interface TextParseItem {
+  name: string;
+  qty?: number | null;
+  unit_price?: number | null;
+  total_price?: number | null;
+}
 
 export interface TextParseSuccess {
   is_transaction: true;
@@ -53,6 +64,7 @@ export interface TextParseSuccess {
   account: string;
   destination_room: string | null;
   notes: string | null;
+  items: TextParseItem[] | null;
   date: string | null;
   confidence: number;
 }
@@ -137,6 +149,10 @@ User message: ${message}`;
   try {
     const parsed = JSON.parse(stripped);
     if (parsed?.is_transaction === false) {
+      // Deterministic itemised fallback covers multi-item shopping lists the
+      // AI sometimes misclassifies as non-transactions.
+      const fb = tryItemizedFallback(message, ctx);
+      if (fb) return { kind: "ok", parsed: fb };
       return { kind: "rejected", reason: parsed.reason ?? null };
     }
     if (
@@ -154,6 +170,22 @@ User message: ${message}`;
         typeof parsed.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.date)
           ? parsed.date
           : null;
+      const itemsRaw = Array.isArray(parsed.items) ? parsed.items : null;
+      const items: TextParseItem[] | null = itemsRaw
+        ? itemsRaw
+            .map((it: any) => ({
+              name: typeof it?.name === "string" ? it.name.trim() : "",
+              qty: toFiniteOrNull(it?.qty),
+              unit_price: toFiniteOrNull(it?.unit_price),
+              total_price: toFiniteOrNull(it?.total_price),
+            }))
+            .filter(
+              (it: TextParseItem) =>
+                it.name.length > 0 ||
+                it.total_price != null ||
+                it.unit_price != null,
+            )
+        : null;
       return {
         kind: "ok",
         parsed: {
@@ -169,15 +201,176 @@ User message: ${message}`;
           account: parsed.account,
           destination_room: parsed.destination_room ?? null,
           notes: parsed.notes ?? null,
+          items: items && items.length > 0 ? items : null,
           date,
           confidence,
         },
       };
     }
+    // AI couldn't classify or rejected — try a deterministic itemised
+    // fallback before giving up.
+    const fb = tryItemizedFallback(message, ctx);
+    if (fb) return { kind: "ok", parsed: fb };
     return { kind: "ai_failure" };
   } catch {
+    const fb = tryItemizedFallback(message, ctx);
+    if (fb) return { kind: "ok", parsed: fb };
     return { kind: "ai_failure" };
   }
+}
+
+function toFiniteOrNull(x: unknown): number | null {
+  if (typeof x === "number" && Number.isFinite(x)) return x;
+  if (typeof x === "string") {
+    const n = Number(x.replace(/[^\d.\-]/g, ""));
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+// Lightweight number parser that understands Indonesian thousand separators
+// ("250.000", "1.250") AND Western decimals ("12.50"). When the trailing
+// segment is exactly 1-2 digits and the others are 3-digit groups we treat
+// the last separator as decimal; otherwise all separators are thousands.
+function parseAmountToken(raw: string): number | null {
+  const t = raw.trim();
+  if (!t) return null;
+  const cleaned = t.replace(/[^\d.,]/g, "");
+  if (!cleaned) return null;
+  if (!/[.,]/.test(cleaned)) {
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : null;
+  }
+  const lastSep = Math.max(cleaned.lastIndexOf("."), cleaned.lastIndexOf(","));
+  const tail = cleaned.slice(lastSep + 1);
+  if (tail.length === 1 || tail.length === 2) {
+    const head = cleaned.slice(0, lastSep).replace(/[.,]/g, "");
+    const n = Number(`${head || "0"}.${tail}`);
+    return Number.isFinite(n) ? n : null;
+  }
+  const n = Number(cleaned.replace(/[.,]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+function pickFallbackCategory(
+  ctx: UserContext,
+  kind: "expense" | "income",
+): string | null {
+  const personal = ctx.categories.filter(
+    (c) => c.scope === "user" && c.kind === kind,
+  );
+  if (personal.length === 0) return null;
+  if (kind === "expense") {
+    const foodHints = [
+      "groceries",
+      "grocery",
+      "food",
+      "makanan",
+      "belanja",
+      "dapur",
+    ];
+    for (const hint of foodHints) {
+      const m = personal.find(
+        (c) =>
+          c.key.toLowerCase().includes(hint) ||
+          c.name.toLowerCase().includes(hint),
+      );
+      if (m) return m.key;
+    }
+  }
+  const other =
+    personal.find((c) => c.key === (kind === "income" ? "income_other" : "other")) ??
+    personal.find((c) => c.key.toLowerCase().includes("other")) ??
+    personal[0];
+  return other?.key ?? null;
+}
+
+function pickFallbackAccount(ctx: UserContext): string | null {
+  if (ctx.accounts.length === 0) return null;
+  const cash = ctx.accounts.find((a) => a.name.toLowerCase() === "cash");
+  return (cash ?? ctx.accounts[0]).name;
+}
+
+// Match repeated `name [qty unit] amount` blocks. Examples that should
+// trigger this: "beras 10kg 250000 ayam 12kg 15000", "kopi 25rb teh 18rb".
+const ITEMIZED_BLOCK = new RegExp(
+  String.raw`([A-Za-z][A-Za-z\s]*?)\s+(?:(\d+(?:[.,]\d+)?)\s*(kg|g|gr|gram|l|ml|pcs|pc|x|×)?\s+)?(\d[\d.,]*)(?:\s*(rb|ribu|k|jt|juta|m))?`,
+  "giu",
+);
+
+const UNIT_MULTIPLIERS: Record<string, number> = {
+  rb: 1_000,
+  ribu: 1_000,
+  k: 1_000,
+  jt: 1_000_000,
+  juta: 1_000_000,
+  m: 1_000_000,
+};
+
+export function tryItemizedFallback(
+  message: string,
+  ctx: UserContext,
+): TextParseSuccess | null {
+  const cleaned = message.replace(/\s+/g, " ").trim();
+  if (cleaned.length < 4) return null;
+  // Need at least two item-like chunks to bother — single-product messages
+  // are better handled by the AI path on its own.
+  const matches = [...cleaned.matchAll(ITEMIZED_BLOCK)];
+  if (matches.length < 2) return null;
+
+  const items: TextParseItem[] = [];
+  let runningTotal = 0;
+  for (const m of matches) {
+    const name = (m[1] ?? "").trim();
+    const qtyRaw = m[2] ?? "";
+    const amountRaw = m[4] ?? "";
+    const mult = (m[5] ?? "").toLowerCase();
+    if (!name || !amountRaw) continue;
+    const amountBase = parseAmountToken(amountRaw);
+    if (amountBase == null || amountBase <= 0) continue;
+    const totalPrice = amountBase * (UNIT_MULTIPLIERS[mult] ?? 1);
+    const qty = qtyRaw ? parseAmountToken(qtyRaw) : null;
+    items.push({
+      name,
+      qty: qty ?? null,
+      unit_price: null,
+      total_price: totalPrice,
+    });
+    runningTotal += totalPrice;
+  }
+  if (items.length < 2 || runningTotal <= 0) return null;
+
+  const category = pickFallbackCategory(ctx, "expense");
+  const account = pickFallbackAccount(ctx);
+  if (!category || !account) return null;
+
+  const notes = formatBreakdownNotes({
+    merchant: null,
+    items: items.map((it) => ({
+      name: it.name,
+      qty: it.qty,
+      unit_price: it.unit_price,
+      total_price: it.total_price,
+    })),
+    total: runningTotal,
+    currency: ctx.homeCurrency,
+  });
+
+  return {
+    is_transaction: true,
+    type: "expense",
+    merchant: null,
+    currency: ctx.homeCurrency,
+    total: runningTotal,
+    category,
+    account,
+    destination_room: null,
+    notes,
+    items,
+    date: null,
+    // Low confidence so caller routes through pending-confirm flow.
+    confidence: 0.5,
+  };
 }
 
 // Whisper transcription. Returns null when transcription is empty/garbage.

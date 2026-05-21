@@ -2,6 +2,8 @@ import { serviceClient } from "./supabase.ts";
 import { findCategoryInScope, type UserContext } from "./user_context.ts";
 import { looksLikeCanonicalBreakdown } from "./notes_breakdown.ts";
 
+export type TransactionSource = "manual" | "scanned" | "bot_image" | "bot_chat";
+
 export interface SaveTransactionInput {
   userId: string;
   type: "expense" | "income";
@@ -13,6 +15,10 @@ export interface SaveTransactionInput {
   notes?: string | null;
   roomId?: string | null;
   aiParsed?: boolean;
+  // Canonical origin (matches `transactions.source`). Defaults to `bot_chat`
+  // for caller convenience since this saver is used exclusively by the
+  // Telegram pipeline today.
+  source?: TransactionSource;
   // ISO date (YYYY-MM-DD) or full timestamp from parser. When null/omitted,
   // defaults to insert time.
   occurredAt?: string | null;
@@ -149,6 +155,7 @@ export async function saveTransaction(
     category: input.category,
     notes: mergedNotes,
     ai_parsed: input.aiParsed ?? true,
+    source: input.source ?? "bot_chat",
     fx_snapshot: fx,
   };
   if (createdAtIso) insertRow.created_at = createdAtIso;

@@ -529,6 +529,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
               if (t.notes != null) 'notes': t.notes,
               'ai_parsed': t.aiParsed,
               'is_manual_fallback': t.isManualFallback,
+              'source': txnSourceToString(t.source),
               'created_at': t.createdAt.toUtc().toIso8601String(),
               if (t.roomId != null) 'room_id': t.roomId,
             };

@@ -1430,6 +1430,30 @@ abstract class AppLocalizations {
   /// **'Manual fallback'**
   String get txDetailManualFallback;
 
+  /// No description provided for @txDetailSourceManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get txDetailSourceManual;
+
+  /// No description provided for @txDetailSourceScanned.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanned'**
+  String get txDetailSourceScanned;
+
+  /// No description provided for @txDetailSourceBotImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Bot image'**
+  String get txDetailSourceBotImage;
+
+  /// No description provided for @txDetailSourceBotChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Bot chat'**
+  String get txDetailSourceBotChat;
+
   /// No description provided for @txDetailTotal.
   ///
   /// In en, this message translates to:

@@ -148,7 +148,24 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
     }
     final receiptUrl = t['receipt_url'] as String?;
     final aiParsed = t['ai_parsed'] == true;
-    final isManualFallback = t['is_manual_fallback'] == true;
+    final rawSource = t['source'] as String?;
+    final TxnSource sourceEnum;
+    switch (rawSource) {
+      case 'scanned':
+        sourceEnum = TxnSource.scanned;
+        break;
+      case 'bot_image':
+        sourceEnum = TxnSource.botImage;
+        break;
+      case 'bot_chat':
+        sourceEnum = TxnSource.botChat;
+        break;
+      case 'manual':
+        sourceEnum = TxnSource.manual;
+        break;
+      default:
+        sourceEnum = aiParsed ? TxnSource.scanned : TxnSource.manual;
+    }
 
     final user = t['users'] as Map<String, dynamic>?;
     final rawName = (user?['name'] as String?)?.trim();
@@ -213,8 +230,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
           'Amount',
           '${isTransfer ? '' : isIncome ? '+' : ''}${fmt(amount.abs())}',
         ),
-        if (aiParsed) _row(context, l.txDetailSource, l.txDetailAiScanned),
-        if (isManualFallback) _row(context, l.txDetailSource, l.txDetailManualFallback),
+        _row(context, l.txDetailSource, _sourceLabel(l, sourceEnum)),
         if (isOwner)
           _AccountRow(
             roomId: roomId,
@@ -263,6 +279,19 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
         return l.txFormTransfer;
       default:
         return l.txFormExpense;
+    }
+  }
+
+  String _sourceLabel(AppLocalizations l, TxnSource s) {
+    switch (s) {
+      case TxnSource.scanned:
+        return l.txDetailSourceScanned;
+      case TxnSource.botImage:
+        return l.txDetailSourceBotImage;
+      case TxnSource.botChat:
+        return l.txDetailSourceBotChat;
+      case TxnSource.manual:
+        return l.txDetailSourceManual;
     }
   }
 

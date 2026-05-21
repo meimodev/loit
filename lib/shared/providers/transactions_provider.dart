@@ -15,6 +15,38 @@ import 'supported_currencies_provider.dart';
 /// supported currency, computed at create time. Display logic uses [amountIn]
 /// to convert without hitting the network — even when the user changes home
 /// currency or an account's currency.
+/// Canonical origin of a transaction. Mirrors the
+/// `transactions.source` column added in migration
+/// `20260521000001_transactions_source.sql`.
+enum TxnSource { manual, scanned, botImage, botChat }
+
+TxnSource _txnSourceFromString(String? raw, {required bool aiParsed}) {
+  switch (raw) {
+    case 'manual':
+      return TxnSource.manual;
+    case 'scanned':
+      return TxnSource.scanned;
+    case 'bot_image':
+      return TxnSource.botImage;
+    case 'bot_chat':
+      return TxnSource.botChat;
+  }
+  return aiParsed ? TxnSource.scanned : TxnSource.manual;
+}
+
+String txnSourceToString(TxnSource s) {
+  switch (s) {
+    case TxnSource.manual:
+      return 'manual';
+    case TxnSource.scanned:
+      return 'scanned';
+    case TxnSource.botImage:
+      return 'bot_image';
+    case TxnSource.botChat:
+      return 'bot_chat';
+  }
+}
+
 class Txn {
   final String? id;
   final double amount;
@@ -25,6 +57,7 @@ class Txn {
   final String? receiptUrl;
   final bool aiParsed;
   final bool isManualFallback;
+  final TxnSource source;
   final DateTime createdAt;
   final String? roomId;
   final String? roomName;
@@ -43,6 +76,7 @@ class Txn {
     required this.aiParsed,
     required this.isManualFallback,
     required this.createdAt,
+    this.source = TxnSource.manual,
     this.roomId,
     this.roomName,
     this.type = 'expense',
@@ -67,6 +101,7 @@ class Txn {
         if (v is num) snapshot[entry.key as String] = v.toDouble();
       }
     }
+    final aiParsed = (r['ai_parsed'] as bool?) ?? false;
     return Txn(
       id: r['id'] as String?,
       amount: ((r['amount'] as num?) ?? 0).toDouble(),
@@ -75,8 +110,9 @@ class Txn {
       category: r['category'] as String?,
       notes: r['notes'] as String?,
       receiptUrl: r['receipt_url'] as String?,
-      aiParsed: (r['ai_parsed'] as bool?) ?? false,
+      aiParsed: aiParsed,
       isManualFallback: (r['is_manual_fallback'] as bool?) ?? false,
+      source: _txnSourceFromString(r['source'] as String?, aiParsed: aiParsed),
       createdAt: DateTime.parse(
         (r['created_at'] as String?) ?? DateTime.now().toUtc().toIso8601String(),
       ),
@@ -134,12 +170,23 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
           column: 'user_id',
           value: user.id,
         ),
-        callback: (_) {
+        callback: (payload) {
+          Log.i(
+            'TransactionsProvider',
+            'realtime event ${payload.eventType.name} '
+                'id=${(payload.newRecord['id'] ?? payload.oldRecord['id'])} '
+                'source=${payload.newRecord['source']}',
+          );
           ref.invalidateSelf();
         },
       );
     }
-    channel.subscribe();
+    channel.subscribe((status, err) {
+      Log.i(
+        'TransactionsProvider',
+        'realtime subscribe status=$status err=$err',
+      );
+    });
     _channel = channel;
     ref.onDispose(() {
       channel.unsubscribe();
@@ -206,6 +253,10 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
 
     payload['user_id'] = user.id;
     payload['client_updated_at'] = DateTime.now().toUtc().toIso8601String();
+
+    // Canonical origin. Callers that omit `source` are treated as manual; the
+    // dedicated scanner / bot paths set it explicitly.
+    payload['source'] ??= 'manual';
 
     // Defensive defaults: ensure type and account_id are present so offline-queued
     // rows survive the accounts migration constraints when synced later.

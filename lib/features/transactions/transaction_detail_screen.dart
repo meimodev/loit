@@ -59,6 +59,9 @@ class TransactionDetailScreen extends ConsumerWidget {
               if (t == null) return;
               context.push('/transactions/new', extra: {
                 '_edit_id': t.id,
+                '_source': txnSourceToString(t.source),
+                '_ai_parsed': t.aiParsed,
+                '_manual_fallback': t.isManualFallback,
                 'amount': t.absAmount,
                 'currency': t.currency,
                 'type': t.type,
@@ -180,10 +183,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                   l.txDetailHomeAmount,
                   formatMoney(t.amountIn(homeCurrency), homeCurrency),
                 ),
-              if (t.aiParsed)
-                _row(context, l.txDetailSource, l.txDetailAiScanned),
-              if (t.isManualFallback)
-                _row(context, l.txDetailSource, l.txDetailManualFallback),
+              _row(context, l.txDetailSource, _sourceLabel(l, t.source)),
             ],
           ),
         ),
@@ -289,6 +289,19 @@ class TransactionDetailScreen extends ConsumerWidget {
       ],
     ),
     );
+  }
+
+  String _sourceLabel(AppLocalizations l, TxnSource s) {
+    switch (s) {
+      case TxnSource.scanned:
+        return l.txDetailSourceScanned;
+      case TxnSource.botImage:
+        return l.txDetailSourceBotImage;
+      case TxnSource.botChat:
+        return l.txDetailSourceBotChat;
+      case TxnSource.manual:
+        return l.txDetailSourceManual;
+    }
   }
 
   String _typeName(AppLocalizations l, String type) {

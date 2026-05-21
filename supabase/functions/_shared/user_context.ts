@@ -22,6 +22,7 @@ export interface RoomRef {
 
 export interface UserContext {
   userId: string;
+  email: string | null;
   tier: string;
   language: string;
   homeCurrency: string;
@@ -39,7 +40,7 @@ export async function loadUserContext(userId: string): Promise<UserContext | nul
   const { data: u } = await sb
     .from("users")
     .select(
-      "id, tier, language, home_currency, hide_amounts, scans_used_this_month, scan_topup_bonus_this_month, scan_reset_date",
+      "id, email, tier, language, home_currency, hide_amounts, scans_used_this_month, scan_topup_bonus_this_month, scan_reset_date",
     )
     .eq("id", userId)
     .maybeSingle();
@@ -92,6 +93,7 @@ export async function loadUserContext(userId: string): Promise<UserContext | nul
 
   return {
     userId: u.id,
+    email: (u.email as string | null) ?? null,
     tier: u.tier,
     language: u.language ?? "en",
     homeCurrency: u.home_currency ?? "IDR",

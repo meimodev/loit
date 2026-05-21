@@ -18,6 +18,7 @@ import {
   findCategoryInScope,
   loadUserContext,
   remapCategoryAcrossScopes,
+  type AccountRef,
   type CategoryRef,
   type UserContext,
 } from "../_shared/user_context.ts";
@@ -157,6 +158,45 @@ function categoryDisplayName(
   return any?.name ?? key;
 }
 
+// Localized label for account kind. Inline (vs. i18n strings) because the
+// canonical account line composes them with the account name + currency.
+function accountKindLabel(locale: Locale, kind: "asset" | "liability"): string {
+  if (locale === "id") return kind === "asset" ? "Aset" : "Liabilitas";
+  return kind === "asset" ? "Asset" : "Liability";
+}
+
+// Resolve the canonical account display for a transaction summary. Prefers
+// `accountOverride` (used when the account isn't in `ctx.accounts`, e.g.
+// archived), then `accountId`, then case-insensitive `accountName`. Falls back
+// to the provided name (or "?") so the account line is always rendered.
+function resolveAccountDisplay(
+  ctx: UserContext,
+  locale: Locale,
+  args: {
+    accountId?: string | null;
+    accountName?: string | null;
+    accountOverride?: AccountRef | null;
+  },
+): string {
+  let account: AccountRef | undefined;
+  if (args.accountOverride) {
+    account = args.accountOverride;
+  }
+  if (!account && args.accountId) {
+    account = ctx.accounts.find((a) => a.id === args.accountId);
+  }
+  if (!account && args.accountName) {
+    const wanted = args.accountName.toLowerCase();
+    account = ctx.accounts.find((a) => a.name.toLowerCase() === wanted);
+  }
+  if (account) {
+    const kindLabel = accountKindLabel(locale, account.kind);
+    return `${htmlEscape(account.name)} · ${kindLabel} · ${htmlEscape(account.currency)}`;
+  }
+  const fallback = args.accountName?.trim();
+  return htmlEscape(fallback && fallback.length > 0 ? fallback : "?");
+}
+
 // Rich, multi-line HTML summary used by saved/pending/picker replies.
 // All dynamic user-controlled strings (merchant, notes, names) are escaped.
 function richSummary(
@@ -169,9 +209,12 @@ function richSummary(
     merchant?: string | null;
     category: string;
     accountName: string;
+    accountId?: string | null;
+    accountOverride?: AccountRef | null;
     roomId?: string | null;
     roomName?: string | null;
     notes?: string | null;
+    date?: string | null;
   },
 ): string {
   const amountStr = formatMoneyDisplay(args.total, args.currency, {
@@ -183,13 +226,38 @@ function richSummary(
   const labelAmount = locale === "id" ? "Jumlah" : "Amount";
   const labelCategory = locale === "id" ? "Kategori" : "Category";
   const labelAccount = locale === "id" ? "Akun" : "Account";
+  const labelEmail = "Email";
   const labelRoom = locale === "id" ? "Ruang" : "Room";
+  const labelDestination = locale === "id" ? "Tujuan" : "Destination";
+  const labelPersonal = locale === "id" ? "Pribadi" : "Personal";
+  const labelDate = locale === "id" ? "Tanggal" : "Date";
   const labelNotes = locale === "id" ? "Catatan" : "Notes";
   const lines: string[] = [];
   lines.push(`• ${labelAmount}: <b>${sign}${htmlEscape(amountStr)}</b>`);
   lines.push(`• ${labelCategory}: ${htmlEscape(catName)}`);
-  lines.push(`• ${labelAccount}: ${htmlEscape(args.accountName)}`);
-  if (args.roomName) lines.push(`• ${labelRoom}: ${htmlEscape(args.roomName)}`);
+  const accountLine = resolveAccountDisplay(ctx, locale, {
+    accountId: args.accountId ?? null,
+    accountName: args.accountName,
+    accountOverride: args.accountOverride ?? null,
+  });
+  lines.push(`• ${labelAccount}: ${accountLine}`);
+  const emailVal = ctx.email?.trim();
+  if (emailVal && emailVal.length > 0) {
+    lines.push(`• ${labelEmail}: ${htmlEscape(emailVal)}`);
+  }
+  // Destination: render Room when known, Personal when explicitly personal
+  // (roomId === null with no roomName). Skip when destination is still
+  // undetermined (caller passes neither).
+  if (args.roomName) {
+    lines.push(`• ${labelRoom}: ${htmlEscape(args.roomName)}`);
+  } else if (args.roomId === null) {
+    lines.push(`• ${labelDestination}: ${labelPersonal}`);
+  }
+  if (args.date && args.date.length > 0) {
+    // Normalize to YYYY-MM-DD; accept ISO timestamps from saved rows too.
+    const datePart = args.date.length >= 10 ? args.date.slice(0, 10) : args.date;
+    lines.push(`• ${labelDate}: ${htmlEscape(datePart)}`);
+  }
   const noteVal = args.notes && args.notes.trim().length > 0 ? args.notes.trim() : null;
   const merchantVal = args.merchant && args.merchant.trim().length > 0 ? args.merchant.trim() : null;
   // Merchant column was dropped — merchant flows through notes display only
@@ -213,7 +281,7 @@ async function issueUndoToken(args: {
   userId: string;
   transactionId: string;
   externalChatId: string;
-  botMessageId: number;
+  botMessageId: number | null;
   scope: "personal" | "room";
   roomId: string | null;
 }): Promise<string | null> {
@@ -227,7 +295,7 @@ async function issueUndoToken(args: {
       transaction_id: args.transactionId,
       platform: PLATFORM,
       external_chat_id: args.externalChatId,
-      bot_message_id: String(args.botMessageId),
+      bot_message_id: args.botMessageId == null ? null : String(args.botMessageId),
       scope: args.scope,
       room_id: args.roomId,
       expires_at: expires,
@@ -236,6 +304,17 @@ async function issueUndoToken(args: {
     .single();
   if (error || !data) return null;
   return data.id as string;
+}
+
+async function updateUndoTokenMessageId(
+  tokenId: string,
+  botMessageId: number,
+): Promise<void> {
+  const sb = serviceClient();
+  await sb
+    .from("bot_transaction_undo_tokens")
+    .update({ bot_message_id: String(botMessageId) })
+    .eq("id", tokenId);
 }
 
 type UndoLookup =
@@ -266,27 +345,26 @@ async function loadUndoToken(
   };
 }
 
-async function latestUndoToken(link: MessagingLink): Promise<UndoLookup> {
+// Resolve an undo token by the Telegram message that carries the inline
+// button. Used as a fallback for legacy `undo:pending` callback rows minted
+// before commitAndReply switched to mint-then-render.
+async function loadUndoTokenByMessageId(
+  link: MessagingLink,
+  botMessageId: number,
+): Promise<UndoLookup> {
   const sb = serviceClient();
   const { data } = await sb
     .from("bot_transaction_undo_tokens")
-    .select("id, user_id, transaction_id, expires_at, external_chat_id, platform")
+    .select("id, user_id, transaction_id, expires_at, external_chat_id, platform, bot_message_id")
     .eq("platform", PLATFORM)
     .eq("external_chat_id", link.externalChatId)
     .eq("user_id", link.userId)
+    .eq("bot_message_id", String(botMessageId))
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (!data) return { kind: "missing" };
-  if (new Date(data.expires_at).getTime() < Date.now()) {
-    // Sweep stale tokens for this chat to keep state clean.
-    await sb
-      .from("bot_transaction_undo_tokens")
-      .delete()
-      .eq("platform", PLATFORM)
-      .eq("external_chat_id", link.externalChatId)
-      .eq("user_id", link.userId)
-      .lt("expires_at", new Date().toISOString());
+  if (new Date(data.expires_at as string).getTime() < Date.now()) {
     return { kind: "expired" };
   }
   return {
@@ -295,6 +373,59 @@ async function latestUndoToken(link: MessagingLink): Promise<UndoLookup> {
     userId: data.user_id as string,
     transactionId: data.transaction_id as string,
   };
+}
+
+async function latestUndoToken(link: MessagingLink): Promise<UndoLookup> {
+  const sb = serviceClient();
+  const nowIso = new Date().toISOString();
+  // Best-effort sweep of stale tokens for this chat/user — don't await the
+  // outcome before selecting; the select below filters expired rows itself.
+  sb.from("bot_transaction_undo_tokens")
+    .delete()
+    .eq("platform", PLATFORM)
+    .eq("external_chat_id", link.externalChatId)
+    .eq("user_id", link.userId)
+    .lt("expires_at", nowIso)
+    .then(() => {});
+  const { data } = await sb
+    .from("bot_transaction_undo_tokens")
+    .select("id, user_id, transaction_id, expires_at, external_chat_id, platform")
+    .eq("platform", PLATFORM)
+    .eq("external_chat_id", link.externalChatId)
+    .eq("user_id", link.userId)
+    .gt("expires_at", nowIso)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return { kind: "missing" };
+  return {
+    kind: "ok",
+    tokenId: data.id as string,
+    userId: data.user_id as string,
+    transactionId: data.transaction_id as string,
+  };
+}
+
+// Guard for saved-transaction edit callbacks. An edit is only authorized when
+// there's still an unexpired bot_transaction_undo_tokens row tying this chat
+// to the transaction. `/end` and app-side disconnect both delete those rows,
+// so pre-disconnect Edit buttons stop working after a reconnect.
+async function hasSavedTxnAuth(
+  link: MessagingLink,
+  transactionId: string,
+): Promise<boolean> {
+  const sb = serviceClient();
+  const { data } = await sb
+    .from("bot_transaction_undo_tokens")
+    .select("id")
+    .eq("platform", PLATFORM)
+    .eq("external_chat_id", link.externalChatId)
+    .eq("user_id", link.userId)
+    .eq("transaction_id", transactionId)
+    .gt("expires_at", new Date().toISOString())
+    .limit(1)
+    .maybeSingle();
+  return !!data;
 }
 
 type UndoOutcome =
@@ -373,6 +504,8 @@ async function commitAndReply(args: {
     if (remapped) effectiveCategory = remapped;
   }
 
+  const canonicalSource =
+    args.sourceType === "image" ? "bot_image" : "bot_chat";
   const save = await saveTransaction(
     {
       userId: args.link.userId,
@@ -385,6 +518,7 @@ async function commitAndReply(args: {
       notes: args.notes,
       roomId: args.roomId,
       aiParsed: true,
+      source: canonicalSource,
       occurredAt: args.occurredAt ?? null,
     },
     args.ctx,
@@ -417,50 +551,39 @@ async function commitAndReply(args: {
     merchant: args.merchant,
     category: args.category,
     accountName: args.accountName,
+    accountId: save.accountId,
     roomId: args.roomId,
     roomName,
     notes: args.notes,
+    date: args.occurredAt ?? null,
   });
   const savedKey = args.type === "income" ? "botIncomeSaved" : "botTransactionSaved";
   const reply = t(args.locale, savedKey, { summary });
+  // Mint the undo token BEFORE sending so the rendered button carries the
+  // real id. `bot_message_id` is patched in once Telegram returns it.
+  const tokenId = await issueUndoToken({
+    userId: args.link.userId,
+    transactionId: save.transactionId,
+    externalChatId: args.link.externalChatId,
+    botMessageId: null,
+    scope: args.roomId ? "room" : "personal",
+    roomId: args.roomId,
+  });
+  const undoCallback = tokenId ? `undo:${tokenId}` : `undo:pending`;
   const msg = await sendMessage(
     args.link.externalChatId,
     reply,
     [
       [
-        { text: t(args.locale, "btnUndo"), callback_data: `undo:pending` },
+        { text: t(args.locale, "btnUndo"), callback_data: undoCallback },
         { text: t(args.locale, "btnEdit"), callback_data: `edit:t:${save.transactionId}` },
       ],
     ],
     { html: true },
   );
-  let botMessageId: number | null = msg?.message_id ?? null;
-  if (msg) {
-    const tokenId = await issueUndoToken({
-      userId: args.link.userId,
-      transactionId: save.transactionId,
-      externalChatId: args.link.externalChatId,
-      botMessageId: msg.message_id,
-      scope: args.roomId ? "room" : "personal",
-      roomId: args.roomId,
-    });
-    if (tokenId) {
-      await editMessage(
-        args.link.externalChatId,
-        msg.message_id,
-        reply,
-        [
-          [
-            { text: t(args.locale, "btnUndo"), callback_data: `undo:${tokenId}` },
-            {
-              text: t(args.locale, "btnEdit"),
-              callback_data: `edit:t:${save.transactionId}`,
-            },
-          ],
-        ],
-        { html: true },
-      );
-    }
+  const botMessageId: number | null = msg?.message_id ?? null;
+  if (tokenId && botMessageId != null) {
+    await updateUndoTokenMessageId(tokenId, botMessageId);
   }
 
   logBotEvent({
@@ -877,12 +1000,34 @@ async function summarizeSavedTransaction(
   const sb = serviceClient();
   const { data } = await sb
     .from("transactions")
-    .select("amount, currency, category, account_id, room_id, notes, type")
+    .select("amount, currency, category, account_id, room_id, notes, type, created_at")
     .eq("id", transactionId)
     .eq("user_id", link.userId)
     .maybeSingle();
   if (!data) return null;
-  const account = ctx.accounts.find((a) => a.id === data.account_id);
+  const accountId: string | null = (data.account_id as string | null) ?? null;
+  let account = accountId
+    ? ctx.accounts.find((a) => a.id === accountId)
+    : undefined;
+  let accountOverride: AccountRef | null = null;
+  if (!account && accountId) {
+    // Account may be archived (loadUserContext filters those out) — fetch
+    // directly so summaries of older transactions still show current info.
+    const { data: dbAcc } = await sb
+      .from("accounts")
+      .select("id, name, currency, kind")
+      .eq("id", accountId)
+      .eq("user_id", link.userId)
+      .maybeSingle();
+    if (dbAcc) {
+      accountOverride = {
+        id: dbAcc.id as string,
+        name: dbAcc.name as string,
+        currency: dbAcc.currency as string,
+        kind: dbAcc.kind as "asset" | "liability",
+      };
+    }
+  }
   const roomId: string | null = (data.room_id as string | null) ?? null;
   const room = roomId ? ctx.rooms.find((r) => r.id === roomId) ?? null : null;
   const signedAmount = Number(data.amount);
@@ -893,10 +1038,13 @@ async function summarizeSavedTransaction(
     currency: data.currency,
     merchant: null,
     category: data.category,
-    accountName: account?.name ?? "?",
+    accountName: account?.name ?? accountOverride?.name ?? "?",
+    accountId,
+    accountOverride,
     roomId,
     roomName: room?.name ?? null,
     notes: typeof data.notes === "string" ? data.notes : null,
+    date: typeof data.created_at === "string" ? data.created_at : null,
   });
   return { summary, roomId };
 }
@@ -930,6 +1078,7 @@ async function summarizePendingTransaction(
     roomId,
     roomName: room?.name ?? null,
     notes: typeof p.notes === "string" ? p.notes : null,
+    date: typeof p.date === "string" ? p.date : null,
   });
   return { summary, roomId };
 }
@@ -1015,23 +1164,12 @@ async function refreshOriginalMessage(
   // pending
   const found = await findBotMessageIdForPending(link, target.id);
   if (!found) return;
-  const p: any = found.row.payload ?? {};
-  const roomId = typeof p.roomId === "string" ? p.roomId : null;
-  const summary = richSummary(ctx, locale, {
-    type: p.type,
-    total: Number(p.total),
-    currency: p.currency,
-    merchant: p.merchant ?? null,
-    category: p.category,
-    accountName: p.account,
-    roomId,
-    roomName: roomId ? ctx.rooms.find((r) => r.id === roomId)?.name ?? null : null,
-    notes: typeof p.notes === "string" ? p.notes : null,
-  });
+  const summarized = await summarizePendingTransaction(ctx, locale, link, target.id);
+  if (!summarized) return;
   await editMessage(
     link.externalChatId,
     found.messageId,
-    t(locale, "botPendingConfirm", { summary }),
+    t(locale, "botPendingConfirm", { summary: summarized.summary }),
     [
       [
         { text: t(locale, "btnConfirm"), callback_data: `pconfirm:${target.id}` },
@@ -1172,6 +1310,15 @@ async function applyEditFromText(
   const sb = serviceClient();
   const text = rawText.trim();
   const field = session.awaitingField;
+  // Saved-txn edits need a live undo-token row. Without it (e.g. after `/end`
+  // wiped state), drop the session and the message silently.
+  if (
+    session.target.type === "t" &&
+    !(await hasSavedTxnAuth(link, session.target.id))
+  ) {
+    await closeEditSession(session.id);
+    return;
+  }
   // Enforce edit window before applying.
   const win = await checkEditWindow(link, session.target);
   if (win.kind === "not_found" || win.kind === "expired") {
@@ -1475,7 +1622,37 @@ async function handleTextMessage(
     await sendMessage(link.externalChatId, t(locale, "botParseFailed"));
     return;
   }
-  const p = parsed.parsed;
+  return handleParsedText(link, ctx, locale, parsed.parsed);
+}
+
+// Itemised parse: stamp canonical notes once so confirm/picker paths show
+// the breakdown and the eventual save persists it.
+function stampCanonicalNotes(
+  parsedArg: import("../_shared/text_parser.ts").TextParseSuccess,
+): import("../_shared/text_parser.ts").TextParseSuccess {
+  if (!parsedArg.items || parsedArg.items.length === 0) return parsedArg;
+  const canonical = formatBreakdownNotes({
+    merchant: parsedArg.merchant,
+    items: parsedArg.items.map((it) => ({
+      name: it.name,
+      qty: it.qty,
+      unit_price: it.unit_price,
+      total_price: it.total_price,
+    })),
+    total: parsedArg.total,
+    currency: parsedArg.currency,
+  });
+  if (!canonical) return parsedArg;
+  return { ...parsedArg, notes: canonical };
+}
+
+async function handleParsedText(
+  link: MessagingLink,
+  ctx: UserContext,
+  locale: Locale,
+  parsedArg: import("../_shared/text_parser.ts").TextParseSuccess,
+): Promise<void> {
+  const p = stampCanonicalNotes(parsedArg);
   const roomId =
     p.destination_room
       ? ctx.rooms.find((r) => r.name.toLowerCase() === p.destination_room!.toLowerCase())?.id ??
@@ -1606,7 +1783,7 @@ async function handleVoice(
       await sendMessage(link.externalChatId, t(locale, "botParseFailed"));
       return;
     }
-    const p = parsed.parsed;
+    const p = stampCanonicalNotes(parsed.parsed);
     const roomId =
       p.destination_room
         ? ctx.rooms.find((r) => r.name.toLowerCase() === p.destination_room!.toLowerCase())?.id ??
@@ -1904,6 +2081,35 @@ async function handleCallback(
   switch (action) {
     case "undo": {
       if (!arg || arg === "pending") {
+        // Legacy callback — back when commitAndReply rendered a placeholder
+        // before minting the token. Look up the actual token by Telegram
+        // message id (set on token after sendMessage returns); fall back to
+        // the latest unexpired token for this chat.
+        const byMsg = await loadUndoTokenByMessageId(link, messageId);
+        const lookup =
+          byMsg.kind === "ok" ? byMsg : await latestUndoToken(link);
+        if (lookup.kind !== "ok") {
+          const text =
+            lookup.kind === "expired"
+              ? t(locale, "botUndoExpired")
+              : t(locale, "botNothingToUndo");
+          await editMessage(link.externalChatId, messageId, text);
+          await answerCallback(callbackId);
+          return;
+        }
+        const outcome = await performUndo(link, lookup);
+        if (outcome.kind === "done") {
+          await editMessage(link.externalChatId, messageId, t(locale, "botUndoDone"));
+          await answerCallback(callbackId, t(locale, "botUndoDone"));
+          return;
+        }
+        if (outcome.kind === "expired") {
+          await editMessage(link.externalChatId, messageId, t(locale, "botUndoExpired"));
+        } else if (outcome.kind === "missing") {
+          await editMessage(link.externalChatId, messageId, t(locale, "botNothingToUndo"));
+        } else {
+          await sendMessage(link.externalChatId, t(locale, "botUndoFailed"));
+        }
         await answerCallback(callbackId);
         return;
       }
@@ -1990,6 +2196,13 @@ async function handleCallback(
         await answerCallback(callbackId);
         return;
       }
+      // Saved-txn edits require a still-valid undo-token tying this chat to
+      // the transaction. `/end` (and app disconnect) wipes those rows so old
+      // Edit buttons stop mutating data after reconnect.
+      if (target.type === "t" && !(await hasSavedTxnAuth(link, target.id))) {
+        await answerCallback(callbackId);
+        return;
+      }
       // Edit window gate — 24h personal, 1h room. Pending rows use their own
       // 24h TTL via the same helper.
       const win = await checkEditWindow(link, target);
@@ -2062,6 +2275,10 @@ async function handleCallback(
       const target = parseEditTarget(arg, arg2);
       const field = arg3;
       if (!target || !field) {
+        await answerCallback(callbackId);
+        return;
+      }
+      if (target.type === "t" && !(await hasSavedTxnAuth(link, target.id))) {
         await answerCallback(callbackId);
         return;
       }
@@ -2166,6 +2383,14 @@ async function handleCallback(
         await answerCallback(callbackId);
         return;
       }
+      if (
+        session.target.type === "t" &&
+        !(await hasSavedTxnAuth(link, session.target.id))
+      ) {
+        await closeEditSession(session.id);
+        await answerCallback(callbackId);
+        return;
+      }
       const win = await checkEditWindow(link, session.target);
       if (win.kind === "not_found") {
         await closeEditSession(session.id);
@@ -2222,6 +2447,10 @@ async function handleCallback(
       // editapp:<type>:<id>
       const target = parseEditTarget(arg, arg2);
       if (!target) {
+        await answerCallback(callbackId);
+        return;
+      }
+      if (target.type === "t" && !(await hasSavedTxnAuth(link, target.id))) {
         await answerCallback(callbackId);
         return;
       }
@@ -2312,6 +2541,7 @@ async function handleCallback(
             ? ctx.rooms.find((r) => r.id === roomId)?.name ?? null
             : null,
           notes: typeof p.notes === "string" ? p.notes : null,
+          date: typeof p.date === "string" ? p.date : null,
         });
         const msg = await sendMessage(
           link.externalChatId,
@@ -2425,6 +2655,43 @@ serve(async (req) => {
       return new Response("ok");
     }
 
+    // Route low-cost control commands BEFORE the rate limit so a user who's
+    // been flooded out can still cancel pending work, undo, disconnect, or
+    // read help/today. Only transaction-producing flows hit the limiter.
+    if (text && text.startsWith("/")) {
+      const cmd = text.split(/\s+/)[0].toLowerCase();
+      if (
+        cmd === "/help" ||
+        cmd === "/today" ||
+        cmd === "/end" ||
+        cmd === "/unlink" ||
+        cmd === "/cancel" ||
+        cmd === "/undo"
+      ) {
+        const ctx = await loadUserContext(link.userId);
+        const locale = resolveLocale(ctx?.language);
+        switch (cmd) {
+          case "/help":
+            await sendMessage(chatId, t(locale, "botHelp"));
+            return new Response("ok");
+          case "/today":
+            if (!ctx) return new Response("ok");
+            await handleToday(link, ctx, locale);
+            return new Response("ok");
+          case "/end":
+          case "/unlink":
+            await handleDisconnect(link, locale);
+            return new Response("ok");
+          case "/cancel":
+            await handleCancel(link, locale);
+            return new Response("ok");
+          case "/undo":
+            await handleUndo(link, locale);
+            return new Response("ok");
+        }
+      }
+    }
+
     // Rate limit after we know who the user is — limits apply per chat.
     const rl = await checkRateLimit(PLATFORM, chatId, link.userId);
     if (!rl.allowed) {
@@ -2441,28 +2708,9 @@ serve(async (req) => {
     const locale = resolveLocale(ctx.language);
 
     if (text && text.startsWith("/")) {
-      const cmd = text.split(/\s+/)[0].toLowerCase();
-      switch (cmd) {
-        case "/help":
-          await sendMessage(chatId, t(locale, "botHelp"));
-          return new Response("ok");
-        case "/today":
-          await handleToday(link, ctx, locale);
-          return new Response("ok");
-        case "/end":
-        case "/unlink":
-          await handleDisconnect(link, locale);
-          return new Response("ok");
-        case "/cancel":
-          await handleCancel(link, locale);
-          return new Response("ok");
-        case "/undo":
-          await handleUndo(link, locale);
-          return new Response("ok");
-        default:
-          await sendMessage(chatId, t(locale, "botHelp"));
-          return new Response("ok");
-      }
+      // Unknown slash command — fall through to help.
+      await sendMessage(chatId, t(locale, "botHelp"));
+      return new Response("ok");
     }
 
     if (msg.voice) {

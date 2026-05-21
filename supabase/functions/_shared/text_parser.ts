@@ -373,6 +373,81 @@ export function tryItemizedFallback(
   };
 }
 
+// Caption-metadata parser for image submissions. Only extracts date hints and
+// destination room — never amount/category/account. Returns null fields when
+// the caption does not explicitly state or imply them. Captions are typically
+// short ("for May 1", "kemarin", "rumah trip") and may not describe a money
+// transaction at all, so this skips the is_transaction gate that
+// parseTransactionText enforces.
+export interface CaptionMetadata {
+  date: string | null;
+  destination_room: string | null;
+}
+
+const CAPTION_META_PROMPT = `You are LOIT's image-caption metadata parser. The caption accompanies a receipt photo. Extract ONLY two fields and return strict JSON — no prose, no markdown.
+
+Fields:
+- "date": YYYY-MM-DD. Resolve relative wording ("yesterday", "kemarin", "last Friday", "May 1") against the "Today" value in the user message. If the caption does not mention or imply a date, return null. Do NOT guess.
+- "destination_room": exact room name from the rooms list when the caption clearly names one of them. Otherwise null. Do NOT invent room names.
+
+Return:
+{ "date": "YYYY-MM-DD" | null, "destination_room": "exact room name" | null }`;
+
+export async function parseCaptionMetadata(
+  caption: string,
+  ctx: UserContext,
+): Promise<CaptionMetadata> {
+  const today = new Date().toISOString().slice(0, 10);
+  const roomNames = ctx.rooms.map((r) => `"${r.name}"`).join(", ");
+  const userBlock = `Today: ${today}
+Rooms: ${roomNames || "(none)"}
+
+Caption: ${caption}`;
+
+  try {
+    const result = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 128,
+      system: [
+        {
+          type: "text",
+          text: CAPTION_META_PROMPT,
+          // deno-lint-ignore no-explicit-any
+          cache_control: { type: "ephemeral" } as any,
+        },
+      ],
+      messages: [{ role: "user", content: [{ type: "text", text: userBlock }] }],
+    });
+    const raw = result.content[0]?.type === "text" ? result.content[0].text : "";
+    const stripped = raw
+      .trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
+    const parsed = JSON.parse(stripped);
+    const date = (() => {
+      if (typeof parsed?.date !== "string") return null;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(parsed.date)) return null;
+      const d = new Date(`${parsed.date}T00:00:00Z`);
+      // Reject overflowed dates like "2026-02-31" — round-trip through
+      // toISOString to ensure the input names a real calendar day.
+      if (isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== parsed.date) {
+        return null;
+      }
+      return parsed.date;
+    })();
+    const roomRaw =
+      typeof parsed?.destination_room === "string" ? parsed.destination_room : null;
+    const destination_room = roomRaw
+      ? ctx.rooms.find((r) => r.name.toLowerCase() === roomRaw.toLowerCase())?.name ??
+        null
+      : null;
+    return { date, destination_room };
+  } catch {
+    return { date: null, destination_room: null };
+  }
+}
+
 // Whisper transcription. Returns null when transcription is empty/garbage.
 export async function transcribeVoice(
   audio: Uint8Array,

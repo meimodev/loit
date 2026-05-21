@@ -23,6 +23,7 @@ import {
   type UserContext,
 } from "../_shared/user_context.ts";
 import {
+  parseCaptionMetadata,
   parseTransactionText,
   transcribeVoice,
   transcribeWithClaudeFallback,
@@ -131,6 +132,28 @@ async function downloadFile(filePath: string): Promise<Uint8Array | null> {
     logBotError(e, { stage: "tg:downloadFile", platform: PLATFORM });
     return null;
   }
+}
+
+// -----------------------------------------------------------------
+// Telegram-local date defaulting. Bot transactions always carry a concrete
+// YYYY-MM-DD; parsers may return null when the user didn't state a date, in
+// which case we stamp today.
+// -----------------------------------------------------------------
+function todayYmd(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function normalizeTelegramDate(value: string | null | undefined): string {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const d = new Date(`${value}T00:00:00Z`);
+    // Reject overflowed dates like "2026-02-31" — JS silently normalizes them
+    // to a different calendar day. Round-trip through toISOString to verify
+    // the input names a real Y-M-D.
+    if (!isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value) {
+      return value;
+    }
+  }
+  return todayYmd();
 }
 
 // -----------------------------------------------------------------
@@ -506,6 +529,9 @@ async function commitAndReply(args: {
 
   const canonicalSource =
     args.sourceType === "image" ? "bot_image" : "bot_chat";
+  // Telegram is the source of truth for the transaction date — explicit
+  // parser/caption value when present, otherwise today.
+  const effectiveDate = normalizeTelegramDate(args.occurredAt);
   const save = await saveTransaction(
     {
       userId: args.link.userId,
@@ -519,7 +545,7 @@ async function commitAndReply(args: {
       roomId: args.roomId,
       aiParsed: true,
       source: canonicalSource,
-      occurredAt: args.occurredAt ?? null,
+      occurredAt: effectiveDate,
     },
     args.ctx,
   );
@@ -555,7 +581,7 @@ async function commitAndReply(args: {
     roomId: args.roomId,
     roomName,
     notes: args.notes,
-    date: args.occurredAt ?? null,
+    date: effectiveDate,
   });
   const savedKey = args.type === "income" ? "botIncomeSaved" : "botTransactionSaved";
   const reply = t(args.locale, savedKey, { summary });
@@ -854,7 +880,11 @@ async function closeEditSession(sessionId: string): Promise<void> {
 
 // -----------------------------------------------------------------
 // Edit window enforcement
-// 24h personal, 1h room.
+// 24h personal, 1h room. For saved transactions the authoritative clock is
+// the matching bot_transaction_undo_tokens row (issued at save time), NOT
+// transactions.created_at — which now reflects the transaction's occurrence
+// date (today midnight or an explicit backdated YYYY-MM-DD) and would
+// expire the edit window immediately for past dates.
 // -----------------------------------------------------------------
 async function checkEditWindow(
   link: MessagingLink,
@@ -867,20 +897,28 @@ async function checkEditWindow(
 > {
   const sb = serviceClient();
   if (target.type === "t") {
-    const { data } = await sb
+    const { data: txn } = await sb
       .from("transactions")
       .select("created_at, room_id")
       .eq("id", target.id)
       .eq("user_id", link.userId)
       .maybeSingle();
-    if (!data) return { kind: "not_found" };
-    const roomId: string | null = data.room_id ?? null;
-    const hours = roomId ? ROOM_UNDO_HOURS : PERSONAL_UNDO_HOURS;
-    const age = Date.now() - new Date(data.created_at as string).getTime();
-    if (age > hours * 60 * 60 * 1000) {
+    if (!txn) return { kind: "not_found" };
+    const roomId: string | null = txn.room_id ?? null;
+    const { data: token } = await sb
+      .from("bot_transaction_undo_tokens")
+      .select("expires_at, scope")
+      .eq("transaction_id", target.id)
+      .eq("platform", PLATFORM)
+      .eq("external_chat_id", link.externalChatId)
+      .eq("user_id", link.userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!token || new Date(token.expires_at as string).getTime() < Date.now()) {
       return { kind: "expired", roomId };
     }
-    return { kind: "ok_txn", roomId, createdAt: data.created_at as string };
+    return { kind: "ok_txn", roomId, createdAt: txn.created_at as string };
   }
   const { data } = await sb
     .from("bot_pending_transactions")
@@ -1661,6 +1699,7 @@ async function handleParsedText(
       ? ctx.rooms.find((r) => r.name.toLowerCase() === p.destination_room!.toLowerCase())?.id ??
         null
       : null;
+  const effectiveDate = normalizeTelegramDate(p.date);
 
   if (p.confidence >= CONFIDENCE_AUTO_SAVE) {
     await commitAndReply({
@@ -1677,7 +1716,7 @@ async function handleParsedText(
       roomId,
       confidence: p.confidence,
       sourceType: "text",
-      occurredAt: p.date,
+      occurredAt: effectiveDate,
     });
     return;
   }
@@ -1689,8 +1728,16 @@ async function handleParsedText(
     category: p.category,
     accountName: p.account,
     roomName: roomId ? ctx.rooms.find((r) => r.id === roomId)?.name ?? null : null,
+    date: effectiveDate,
   });
-  await createPending(link, locale, { ...p, roomId }, p.confidence, summary, "text");
+  await createPending(
+    link,
+    locale,
+    { ...p, roomId, date: effectiveDate },
+    p.confidence,
+    summary,
+    "text",
+  );
 }
 
 // -----------------------------------------------------------------
@@ -1761,6 +1808,7 @@ async function handleVoice(
         ? ctx.rooms.find((r) => r.name.toLowerCase() === p.destination_room!.toLowerCase())?.id ??
           null
         : null;
+    const effectiveDate = normalizeTelegramDate(p.date);
 
     if (p.confidence >= CONFIDENCE_AUTO_SAVE) {
       const result = await commitAndReply({
@@ -1777,7 +1825,7 @@ async function handleVoice(
         roomId,
         confidence: p.confidence,
         sourceType: "voice",
-        occurredAt: p.date,
+        occurredAt: effectiveDate,
       });
       if (!result.ok) {
         // No usable transaction was created — refund the scan.
@@ -1796,8 +1844,16 @@ async function handleVoice(
       category: p.category,
       accountName: p.account,
       roomName: roomId ? ctx.rooms.find((r) => r.id === roomId)?.name ?? null : null,
+      date: effectiveDate,
     });
-    await createPending(link, locale, { ...p, roomId }, p.confidence, summary, "voice");
+    await createPending(
+      link,
+      locale,
+      { ...p, roomId, date: effectiveDate },
+      p.confidence,
+      summary,
+      "voice",
+    );
   } catch (e) {
     await refundOnce();
     logBotError(e, { stage: "voice_flow", platform: PLATFORM, userId: link.userId });
@@ -1808,26 +1864,28 @@ async function handleVoice(
 // -----------------------------------------------------------------
 // Image flow
 // -----------------------------------------------------------------
-// Run the caption (if any) through the text parser purely to detect a room
-// hint. We ignore amount/category/etc. — the receipt OCR remains authoritative
-// for those. Returns the matched room id or null.
-async function detectRoomFromCaption(
+// Extract caption metadata for image submissions: explicit date hint + room
+// hint. Receipt OCR remains authoritative for amount/category/account; the
+// caption is the only source for the transaction date. Returns nulls when the
+// caption doesn't mention either field.
+async function detectCaptionMetadata(
   caption: string | null,
   ctx: UserContext,
-): Promise<string | null> {
-  if (!caption || caption.trim().length === 0) return null;
-  if (ctx.rooms.length === 0) return null;
+): Promise<{ roomId: string | null; captionDate: string | null }> {
+  if (!caption || caption.trim().length === 0) {
+    return { roomId: null, captionDate: null };
+  }
   try {
-    const parsed = await parseTransactionText(caption, ctx);
-    if (parsed.kind !== "ok") return null;
-    const name = parsed.parsed.destination_room;
-    if (!name) return null;
-    return (
-      ctx.rooms.find((r) => r.name.toLowerCase() === name.toLowerCase())?.id ??
-        null
-    );
+    const meta = await parseCaptionMetadata(caption, ctx);
+    const roomId =
+      meta.destination_room && ctx.rooms.length > 0
+        ? ctx.rooms.find(
+            (r) => r.name.toLowerCase() === meta.destination_room!.toLowerCase(),
+          )?.id ?? null
+        : null;
+    return { roomId, captionDate: meta.date };
   } catch {
-    return null;
+    return { roomId: null, captionDate: null };
   }
 }
 
@@ -1878,9 +1936,11 @@ async function handlePhoto(
     }
     const b64 = bytesToBase64(processed);
 
-    // Detect a room hint from the caption (if any). Receipts default to
-    // personal unless the user names a room in the caption.
-    const captionRoomId = await detectRoomFromCaption(caption, ctx);
+    // Extract caption metadata. Receipts default to personal unless the user
+    // names a room in the caption. The image transaction date comes from the
+    // caption only — OCR `date` is ignored for Telegram image transactions.
+    const { roomId: captionRoomId, captionDate } =
+      await detectCaptionMetadata(caption, ctx);
 
     // Scope the receipt parser's category list to the detected room so it
     // picks a category that will save without remapping.
@@ -1904,10 +1964,9 @@ async function handlePhoto(
       ? p.currency.toUpperCase()
       : ctx.homeCurrency;
     const confidence = typeof p.confidence === "number" ? p.confidence : 0.5;
-    const occurredAt =
-      typeof p.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.date)
-        ? p.date
-        : null;
+    // Telegram image transactions ignore OCR-derived dates — caption hint
+    // when present, otherwise today. Keeps bot-source dates predictable.
+    const occurredAt = normalizeTelegramDate(captionDate);
     const canonicalNotes = formatBreakdownNotes({
       merchant: typeof p.merchant === "string" ? p.merchant : null,
       items: Array.isArray(p.items) ? p.items : null,
@@ -1950,6 +2009,7 @@ async function handlePhoto(
       roomName: captionRoomId
         ? ctx.rooms.find((r) => r.id === captionRoomId)?.name ?? null
         : null,
+      date: occurredAt,
     });
     await createPending(
       link,

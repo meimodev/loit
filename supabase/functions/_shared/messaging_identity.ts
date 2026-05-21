@@ -38,6 +38,12 @@ export async function resolveChat(
 
 // Consume a one-time link code issued by `generate_telegram_link_code`.
 // Returns the user_id if the code matches, else null.
+//
+// Delegates to the `consume_messaging_link_code` Postgres RPC so code
+// validation, previous-owner cleanup, link replacement, and code
+// consumption commit (or roll back) as a single transaction. The old
+// multi-statement path could leave a chat orphaned if the new link
+// upsert failed after the previous owner had already been torn down.
 export async function consumeLinkCode(
   platform: Platform,
   rawCode: string,
@@ -45,49 +51,18 @@ export async function consumeLinkCode(
   metadata: Record<string, unknown>,
 ): Promise<string | null> {
   const sb = serviceClient();
-  // sha256(rawCode) — Web Crypto.
-  const buf = new TextEncoder().encode(rawCode);
-  const hash = await crypto.subtle.digest("SHA-256", buf);
-  const hex = Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  const nowIso = new Date().toISOString();
-
-  const { data: code } = await sb
-    .from("messaging_link_codes")
-    .select("id, user_id, expires_at, consumed_at")
-    .eq("platform", platform)
-    .eq("code_hash", hex)
-    .maybeSingle();
-  if (!code) return null;
-  if (code.consumed_at) return null;
-  if (new Date(code.expires_at).getTime() < Date.now()) return null;
-
-  const userId = code.user_id;
-
-  // Upsert the link, then mark code consumed.
-  const { error: linkErr } = await sb
-    .from("user_messaging_links")
-    .upsert(
-      {
-        user_id: userId,
-        platform,
-        external_chat_id: externalChatId,
-        metadata,
-        linked_at: nowIso,
-        last_used_at: nowIso,
-        disclosure_accepted_at: nowIso,
-      },
-      { onConflict: "platform,external_chat_id" },
-    );
-  if (linkErr) return null;
-
-  await sb
-    .from("messaging_link_codes")
-    .update({ consumed_at: nowIso })
-    .eq("id", code.id);
-
-  return userId;
+  const { data, error } = await sb.rpc("consume_messaging_link_code", {
+    p_platform: platform,
+    p_raw_code: rawCode,
+    p_external_chat_id: externalChatId,
+    p_metadata: metadata ?? {},
+  });
+  if (error) {
+    console.error("consume_messaging_link_code failed", error);
+    return null;
+  }
+  if (!data) return null;
+  return data as string;
 }
 
 // Tear down a chat link plus all bot-side state scoped to that chat/user.
@@ -99,35 +74,65 @@ export async function disconnectChat(
   userId: string,
 ): Promise<void> {
   const sb = serviceClient();
-  await sb
+
+  const { error: pendingErr } = await sb
     .from("bot_pending_transactions")
     .delete()
     .eq("platform", platform)
     .eq("external_chat_id", externalChatId)
     .eq("user_id", userId);
-  await sb
+  if (pendingErr) {
+    throw new Error(
+      `disconnectChat: bot_pending_transactions cleanup failed: ${pendingErr.message}`,
+    );
+  }
+
+  const { error: editErr } = await sb
     .from("bot_edit_sessions")
     .delete()
     .eq("platform", platform)
     .eq("external_chat_id", externalChatId)
     .eq("user_id", userId);
-  await sb
+  if (editErr) {
+    throw new Error(
+      `disconnectChat: bot_edit_sessions cleanup failed: ${editErr.message}`,
+    );
+  }
+
+  const { error: undoErr } = await sb
     .from("bot_transaction_undo_tokens")
     .delete()
     .eq("platform", platform)
     .eq("external_chat_id", externalChatId)
     .eq("user_id", userId);
-  await sb
+  if (undoErr) {
+    throw new Error(
+      `disconnectChat: bot_transaction_undo_tokens cleanup failed: ${undoErr.message}`,
+    );
+  }
+
+  const { error: codeErr } = await sb
     .from("messaging_link_codes")
     .update({ consumed_at: new Date().toISOString() })
     .eq("platform", platform)
     .eq("user_id", userId)
     .is("consumed_at", null);
-  await sb
+  if (codeErr) {
+    throw new Error(
+      `disconnectChat: messaging_link_codes invalidation failed: ${codeErr.message}`,
+    );
+  }
+
+  const { error: linkErr } = await sb
     .from("user_messaging_links")
     .delete()
     .eq("platform", platform)
     .eq("external_chat_id", externalChatId);
+  if (linkErr) {
+    throw new Error(
+      `disconnectChat: user_messaging_links delete failed: ${linkErr.message}`,
+    );
+  }
 }
 
 export async function unlinkChat(

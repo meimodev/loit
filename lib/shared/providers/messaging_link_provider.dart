@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'auth_providers.dart';
+
 class MessagingLinkStatus {
   const MessagingLinkStatus({
     required this.linked,
@@ -25,6 +27,10 @@ class MessagingLinkStatus {
 
 final telegramLinkStatusProvider = FutureProvider.autoDispose<MessagingLinkStatus>(
   (ref) async {
+    final user = ref.watch(currentUserProvider);
+    if (user == null) {
+      return const MessagingLinkStatus(linked: false);
+    }
     final res = await Supabase.instance.client.rpc(
       'check_messaging_link_status',
       params: {'p_platform': 'telegram'},

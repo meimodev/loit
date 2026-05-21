@@ -1486,18 +1486,19 @@ async function handleStart(
   args: string,
   meta: Record<string, unknown>,
 ): Promise<void> {
-  const existing = await resolveChat(PLATFORM, chatId);
-  if (existing) {
-    const userCtx = await loadUserContext(existing.userId);
-    const locale = resolveLocale(userCtx?.language);
-    await sendMessage(chatId, t(locale, "botLinkedOk"));
-    return;
-  }
-  if (!args) {
+  const trimmed = args.trim();
+  if (!trimmed) {
+    const existing = await resolveChat(PLATFORM, chatId);
+    if (existing) {
+      const userCtx = await loadUserContext(existing.userId);
+      const locale = resolveLocale(userCtx?.language);
+      await sendMessage(chatId, t(locale, "botLinkedOk"));
+      return;
+    }
     await sendMessage(chatId, t("en", "botNotLinked"));
     return;
   }
-  const userId = await consumeLinkCode(PLATFORM, args.trim(), chatId, meta);
+  const userId = await consumeLinkCode(PLATFORM, trimmed, chatId, meta);
   if (!userId) {
     await sendMessage(chatId, t("en", "botLinkInvalid"));
     return;

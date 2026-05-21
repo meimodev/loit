@@ -4148,13 +4148,13 @@ abstract class AppLocalizations {
   /// No description provided for @welcomeSlide3Title.
   ///
   /// In en, this message translates to:
-  /// **'Budgets that make sense.'**
+  /// **'Log it your way.'**
   String get welcomeSlide3Title;
 
   /// No description provided for @welcomeSlide3Body.
   ///
   /// In en, this message translates to:
-  /// **'Category limits, gentle alerts, real insight.'**
+  /// **'Chat, photo, or voice note — the bot enters it for you. Telegram ready, WhatsApp coming soon.'**
   String get welcomeSlide3Body;
 
   /// No description provided for @welcomeNext.

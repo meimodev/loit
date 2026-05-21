@@ -40,7 +40,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           l.welcomeSlide2Body,
         ),
         (
-          Icons.check_circle_outline,
+          Icons.auto_awesome,
           l.welcomeSlide3Title,
           l.welcomeSlide3Body,
         ),

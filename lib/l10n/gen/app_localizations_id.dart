@@ -2280,11 +2280,11 @@ class AppLocalizationsId extends AppLocalizations {
       'Buat ruangan untuk liburan atau apartemen. Tidak ada yang melihat sisanya.';
 
   @override
-  String get welcomeSlide3Title => 'Anggaran yang masuk akal.';
+  String get welcomeSlide3Title => 'Catat sesukamu.';
 
   @override
   String get welcomeSlide3Body =>
-      'Batas kategori, peringatan lembut, wawasan nyata.';
+      'Chat, foto, atau pesan suara — bot yang mencatatnya. Telegram siap, WhatsApp segera hadir.';
 
   @override
   String get welcomeNext => 'Lanjut';

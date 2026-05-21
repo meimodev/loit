@@ -2269,11 +2269,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Create a room for trips or the apartment. No one sees the rest.';
 
   @override
-  String get welcomeSlide3Title => 'Budgets that make sense.';
+  String get welcomeSlide3Title => 'Log it your way.';
 
   @override
   String get welcomeSlide3Body =>
-      'Category limits, gentle alerts, real insight.';
+      'Chat, photo, or voice note — the bot enters it for you. Telegram ready, WhatsApp coming soon.';
 
   @override
   String get welcomeNext => 'Next';

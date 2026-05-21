@@ -19,9 +19,6 @@ export interface SaveTransactionInput {
   // for caller convenience since this saver is used exclusively by the
   // Telegram pipeline today.
   source?: TransactionSource;
-  // ISO date (YYYY-MM-DD) or full timestamp from parser. When null/omitted,
-  // defaults to insert time.
-  occurredAt?: string | null;
 }
 
 export interface SaveTransactionResult {
@@ -132,19 +129,9 @@ export async function saveTransaction(
         : merchantTrim
       : notesTrim || null;
 
-  // Convert parsed date to a timestamp. Accept either YYYY-MM-DD (treated as
-  // local-midnight ISO) or a full ISO string. Invalid input falls back to now.
-  let createdAtIso: string | null = null;
-  if (input.occurredAt) {
-    const raw = input.occurredAt.trim();
-    const candidate = /^\d{4}-\d{2}-\d{2}$/.test(raw)
-      ? new Date(`${raw}T00:00:00Z`)
-      : new Date(raw);
-    if (!isNaN(candidate.getTime())) {
-      createdAtIso = candidate.toISOString();
-    }
-  }
-
+  // Persisted timestamp comes from the database default (`now()`). Telegram
+  // never sets `created_at`, so parser/caption dates do not override the
+  // server-current insert time.
   const insertRow: Record<string, unknown> = {
     user_id: input.userId,
     room_id: roomId,
@@ -158,7 +145,6 @@ export async function saveTransaction(
     source: input.source ?? "bot_chat",
     fx_snapshot: fx,
   };
-  if (createdAtIso) insertRow.created_at = createdAtIso;
 
   const { data, error } = await sb
     .from("transactions")

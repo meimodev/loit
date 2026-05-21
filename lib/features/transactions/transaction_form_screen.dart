@@ -177,36 +177,46 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
         // Seed canonical text so saving without further edits writes structured notes.
         _notes.text = formatBreakdown(_collectBreakdown());
       } else {
-        final composed = [
-          if (merchantPrefill != null && merchantPrefill.isNotEmpty)
-            merchantPrefill,
-          if (notesPrefill != null && notesPrefill.isNotEmpty) notesPrefill,
-        ].join('\n');
-        if (composed.isNotEmpty) _notes.text = composed;
-
-        if (_isManualFallback || _aiParsed) {
-          // Scan-origin form with no parsed items: open Items tab so user
-          // can add items manually. Merchant belongs in the items editor header.
+        // Parse stored notes directly first. Telegram canonical notes already
+        // embed merchant + items, so composing them with a separate
+        // `merchantPrefill` would corrupt the breakdown shape that
+        // `parseBreakdown` recognises.
+        final parsedFromNotes = (notesPrefill != null && notesPrefill.isNotEmpty)
+            ? parseBreakdown(notesPrefill)
+            : null;
+        if (parsedFromNotes != null) {
+          _notes.text = notesPrefill!;
           _notesMode = _NotesMode.items;
-          _merchant.text = merchantPrefill ?? '';
+          _hydrateFromBreakdown(parsedFromNotes);
         } else {
-          // Existing edited transaction: auto-detect breakdown so editor opens
-          // in items mode when notes follow the canonical format.
-          final editId = p['_edit_id'] as String?;
-          if (editId != null) {
-            final parsed = parseBreakdown(_notes.text);
-            if (parsed != null) {
-              _notesMode = _NotesMode.items;
-              _merchant.text = parsed.merchant;
-              for (final it in parsed.items) {
-                _addRow(_ItemRowControllers(
-                  name: it.name,
-                  qty: it.qty,
-                  unit: it.unitPrice,
-                  total: it.totalPrice,
-                ));
-              }
-            }
+          final notesHasMerchantHead = notesPrefill != null &&
+              merchantPrefill != null &&
+              merchantPrefill.isNotEmpty &&
+              notesPrefill
+                      .split('\n')
+                      .map((l) => l.trim())
+                      .firstWhere((l) => l.isNotEmpty, orElse: () => '')
+                      .toLowerCase() ==
+                  merchantPrefill.toLowerCase();
+          final composed = [
+            if (merchantPrefill != null &&
+                merchantPrefill.isNotEmpty &&
+                !notesHasMerchantHead)
+              merchantPrefill,
+            if (notesPrefill != null && notesPrefill.isNotEmpty) notesPrefill,
+          ].join('\n');
+          if (composed.isNotEmpty) _notes.text = composed;
+
+          if (_editId != null) {
+            // Plain Telegram chatbot notes stay in the Text tab. Items mode
+            // only kicks in when the stored notes parse as a canonical
+            // breakdown — handled in the branch above.
+          } else if (_isManualFallback || _aiParsed) {
+            // New AI-origin transaction with no parsed items: open Items tab
+            // so user can add items manually. Merchant belongs in the items
+            // editor header.
+            _notesMode = _NotesMode.items;
+            _merchant.text = merchantPrefill ?? '';
           }
         }
       }
@@ -286,6 +296,24 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
     );
   }
 
+  /// Clear current item rows and rebuild from a parsed [NotesBreakdown].
+  /// Shared by edit-mode initState hydration and Text→Items tab toggling.
+  void _hydrateFromBreakdown(NotesBreakdown parsed) {
+    for (final r in _itemRows) {
+      r.dispose();
+    }
+    _itemRows.clear();
+    _merchant.text = parsed.merchant;
+    for (final it in parsed.items) {
+      _addRow(_ItemRowControllers(
+        name: it.name,
+        qty: it.qty,
+        unit: it.unitPrice,
+        total: it.totalPrice,
+      ));
+    }
+  }
+
   void _setNotesMode(_NotesMode next) {
     if (next == _notesMode) return;
     final targetIndex = next == _NotesMode.text ? 0 : 1;
@@ -296,19 +324,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       // Try parse current notes text into editor.
       final parsed = parseBreakdown(_notes.text);
       if (parsed != null) {
-        for (final r in _itemRows) {
-          r.dispose();
-        }
-        _itemRows.clear();
-        _merchant.text = parsed.merchant;
-        for (final it in parsed.items) {
-          _addRow(_ItemRowControllers(
-            name: it.name,
-            qty: it.qty,
-            unit: it.unitPrice,
-            total: it.totalPrice,
-          ));
-        }
+        _hydrateFromBreakdown(parsed);
       } else {
         if (_notes.text.trim().isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(

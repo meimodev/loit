@@ -20,12 +20,27 @@ workflows:
         - pattern: 'v*'
           include: true
     scripts:
+      - name: Sanity check toolchain
+        script: |
+          set -euo pipefail
+          command -v jq >/dev/null 2>&1 || brew install jq
+          : "${CM_KEYSTORE:?missing}"
+          : "${CM_KEYSTORE_PASSWORD:?missing}"
+          : "${CM_KEY_ALIAS:?missing}"
+          : "${CM_KEY_PASSWORD:?missing}"
+          : "${ENV_PRODUCTION_JSON:?missing}"
+          : "${GOOGLE_SERVICES_JSON:?missing}"
       - name: Decode keystore
         script: |
-          echo "$CM_KEYSTORE" | base64 --decode > $CM_BUILD_DIR/android/app/loit-release.keystore
+          set -euo pipefail
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/android/app/loit-release.keystore"
+          test -s "$CM_BUILD_DIR/android/app/loit-release.keystore" || { echo "keystore empty after decode"; exit 1; }
+          file "$CM_BUILD_DIR/android/app/loit-release.keystore" | grep -qiE 'keystore|data' \
+            || { echo "keystore decode produced unexpected file type"; exit 1; }
       - name: Write key.properties
         script: |
-          cat > $CM_BUILD_DIR/android/key.properties <<EOF
+          set -euo pipefail
+          cat > "$CM_BUILD_DIR/android/key.properties" <<EOF
           storePassword=$CM_KEYSTORE_PASSWORD
           keyPassword=$CM_KEY_PASSWORD
           keyAlias=$CM_KEY_ALIAS
@@ -33,10 +48,16 @@ workflows:
           EOF
       - name: Restore env.production.json
         script: |
-          echo "$ENV_PRODUCTION_JSON" | base64 --decode > $CM_BUILD_DIR/env.production.json
+          set -euo pipefail
+          echo "$ENV_PRODUCTION_JSON" | base64 --decode > "$CM_BUILD_DIR/env.production.json"
+          jq empty "$CM_BUILD_DIR/env.production.json" \
+            || { echo "env.production.json is not valid JSON after decode"; exit 1; }
       - name: Restore google-services.json
         script: |
-          echo "$GOOGLE_SERVICES_JSON" | base64 --decode > $CM_BUILD_DIR/android/app/google-services.json
+          set -euo pipefail
+          echo "$GOOGLE_SERVICES_JSON" | base64 --decode > "$CM_BUILD_DIR/android/app/google-services.json"
+          jq empty "$CM_BUILD_DIR/android/app/google-services.json" \
+            || { echo "google-services.json is not valid JSON after decode"; exit 1; }
       - name: Flutter pub get
         script: flutter pub get
       - name: Build runner codegen
@@ -44,14 +65,21 @@ workflows:
       - name: Flutter analyze
         script: flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: Flutter test
-        script: flutter test
+        script: |
+          if [ -d test ] && [ -n "$(find test -name '*_test.dart' -print -quit)" ]; then
+            flutter test
+          else
+            echo "No tests found, skipping."
+          fi
         ignore_failure: false
       - name: Build AAB
         script: |
-          POSTHOG_API_KEY=$(grep -o '"POSTHOG_API_KEY"[^,]*' env.production.json | cut -d'"' -f4)
+          set -euo pipefail
+          POSTHOG_API_KEY=$(jq -r '.POSTHOG_API_KEY // empty' env.production.json)
+          [ -n "$POSTHOG_API_KEY" ] || { echo "POSTHOG_API_KEY missing from env.production.json"; exit 1; }
           flutter build appbundle --release \
             --dart-define-from-file=env.production.json \
-            -Pposthog.api.key=$POSTHOG_API_KEY \
+            -Pposthog.api.key="$POSTHOG_API_KEY" \
             --build-number=$(($(date +%s) / 60))
     artifacts:
       - build/**/outputs/bundle/**/*.aab

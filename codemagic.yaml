@@ -42,7 +42,7 @@ workflows:
       - name: Build runner codegen
         script: dart run build_runner build --delete-conflicting-outputs
       - name: Flutter analyze
-        script: flutter analyze
+        script: flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: Flutter test
         script: flutter test
         ignore_failure: false

@@ -112,10 +112,9 @@ class QuickActionsNotification {
         next,
         _alarmId,
         _midnightCallback,
-        exact: true,
+        exact: false,
         wakeup: true,
         rescheduleOnReboot: true,
-        allowWhileIdle: true,
       );
     } catch (e) {
       Log.w('QuickActions', 'midnight alarm schedule failed', error: e);
@@ -172,10 +171,9 @@ Future<void> _midnightCallback() async {
       next,
       1002,
       _midnightCallback,
-      exact: true,
+      exact: false,
       wakeup: true,
       rescheduleOnReboot: true,
-      allowWhileIdle: true,
     );
   } catch (e) {
     if (kDebugMode) {

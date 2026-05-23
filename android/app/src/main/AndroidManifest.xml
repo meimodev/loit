@@ -8,10 +8,10 @@
 
     <!-- Quick-actions persistent notification: midnight rollover + reboot
          re-show. RECEIVE_BOOT_COMPLETED is also required by
-         android_alarm_manager_plus for `rescheduleOnReboot`. -->
+         android_alarm_manager_plus for `rescheduleOnReboot`. Inexact alarm
+         is fine here — midnight rollover tolerates ~15min slop, and exact
+         alarm permissions would violate Play policy for a finance app. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Persistent quick-actions notification runs as a foreground service so

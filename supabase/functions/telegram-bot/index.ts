@@ -26,10 +26,11 @@ import {
   extractIntendedRoomName,
   findRoomByName,
   parseCaptionMetadata,
+  parseTransactionFromAudio,
   parseTransactionText,
-  transcribeVoice,
-  transcribeWithClaudeFallback,
 } from "../_shared/text_parser.ts";
+// Bot receipt OCR shares the Claude parser with the in-app scanner.
+// See docs/adr/0002-telegram-bot-back-to-claude.md.
 import { parseReceiptImage } from "../_shared/receipt_parser.ts";
 import { formatBreakdownNotes } from "../_shared/notes_breakdown.ts";
 import {
@@ -1869,23 +1870,15 @@ async function handleVoice(
       return;
     }
 
-    let transcript: string | null = null;
-    try {
-      transcript = await transcribeVoice(audio, "voice.ogg", ctx.language);
-    } catch {
-      transcript = null;
-    }
-    if (!transcript) {
-      const b64 = bytesToBase64(audio);
-      transcript = await transcribeWithClaudeFallback(b64, voice.mime_type ?? "audio/ogg");
-    }
-    if (!transcript) {
-      await refundOnce();
-      await sendMessage(link.externalChatId, t(locale, "botParseFailed"));
-      return;
-    }
-
-    const parsed = await parseTransactionText(transcript, ctx);
+    // Two-step: Gemini transcribes the voice note to text, then the Claude
+    // text parser handles the transcript (voice keeps deterministic rescues).
+    // See docs/adr/0002-telegram-bot-back-to-claude.md.
+    const b64 = bytesToBase64(audio);
+    const parsed = await parseTransactionFromAudio(
+      b64,
+      voice.mime_type ?? "audio/ogg",
+      ctx,
+    );
     if (parsed.kind !== "ok") {
       await refundOnce();
       await sendMessage(link.externalChatId, t(locale, "botParseFailed"));

@@ -1,6 +1,7 @@
 import Anthropic from "npm:@anthropic-ai/sdk@0.32.1";
 import type { UserContext } from "./user_context.ts";
 import { formatBreakdownNotes } from "./notes_breakdown.ts";
+import { geminiTranscribe } from "./gemini.ts";
 
 const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! });
 
@@ -627,66 +628,24 @@ Caption: ${caption}`;
   }
 }
 
-// Whisper transcription. Returns null when transcription is empty/garbage.
-export async function transcribeVoice(
-  audio: Uint8Array,
-  filename: string,
-  language: string,
-): Promise<string | null> {
-  const apiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!apiKey) throw new Error("OPENAI_API_KEY not set");
-  const form = new FormData();
-  // Cast: stricter lib.dom types reject Uint8Array<ArrayBufferLike> as BlobPart
-  // even though Deno's Blob accepts it. Safe — Uint8Array is a valid BlobPart
-  // at runtime.
-  form.append("file", new Blob([audio as BlobPart]), filename);
-  form.append("model", "whisper-1");
-  // Bias toward Indonesian when user language is id, but keep mixed allowed.
-  if (language === "id") form.append("language", "id");
-  form.append("response_format", "text");
-
-  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-  });
-  if (!res.ok) throw new Error(`Whisper failed: ${res.status}`);
-  const text = (await res.text()).trim();
-  if (text.length < 2) return null;
-  return text;
-}
-
-// Claude direct-audio fallback. Receives base64-encoded audio and returns a
-// transcript-shaped string, or null on failure.
-export async function transcribeWithClaudeFallback(
+// Voice path. Claude has no audio input, so Gemini transcribes the note to
+// text first; the transcript then flows through the same Claude text parser
+// as a typed message — voice keeps the deterministic rescues. See
+// docs/adr/0002-telegram-bot-back-to-claude.md. A failed/empty transcription
+// returns ai_failure (no second transcriber).
+export async function parseTransactionFromAudio(
   audioBase64: string,
   mimeType: string,
-): Promise<string | null> {
+  ctx: UserContext,
+): Promise<TextParseResult> {
+  let transcript: string | null;
   try {
-    const result = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 400,
-      messages: [
-        {
-          role: "user",
-          content: [
-            // Claude SDK accepts a generic "input_audio" content part for
-            // multimodal audio in recent versions. Cast to any to keep this
-            // file compiling against older SDK typings.
-            // deno-lint-ignore no-explicit-any
-            { type: "input_audio", source: { type: "base64", media_type: mimeType, data: audioBase64 } } as any,
-            {
-              type: "text",
-              text: "Transcribe verbatim. Return only the transcript text, no commentary.",
-            },
-          ],
-        },
-      ],
-    });
-    const text = result.content[0]?.type === "text" ? result.content[0].text : "";
-    const trimmed = text.trim();
-    return trimmed.length >= 2 ? trimmed : null;
+    transcript = await geminiTranscribe(audioBase64, mimeType);
   } catch {
-    return null;
+    return { kind: "ai_failure" };
   }
+  if (!transcript || transcript.trim().length < 2) {
+    return { kind: "ai_failure" };
+  }
+  return parseTransactionText(transcript, ctx);
 }

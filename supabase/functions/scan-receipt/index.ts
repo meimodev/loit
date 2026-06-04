@@ -1,10 +1,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.46.1";
 import {
-  parseReceiptImage,
   type AccountRef,
   type Category,
 } from "../_shared/receipt_parser.ts";
+import { gatedScan } from "../_shared/scan_gate.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -51,7 +51,6 @@ serve(async (req) => {
     image?: string;
     categories?: Category[];
     accounts?: AccountRef[];
-    strict_retry?: boolean;
   };
   try {
     body = await req.json();
@@ -59,20 +58,33 @@ serve(async (req) => {
     return jsonResponse({ error: "Invalid JSON body" }, 400);
   }
 
-  const { image, categories, accounts, strict_retry } = body;
+  const { image, categories, accounts } = body;
   if (!image) return jsonResponse({ error: "Missing image" }, 400);
   if (image.length > 8 * 1024 * 1024) {
     return jsonResponse({ error: "Image too large" }, 413);
   }
 
+  // Server-authoritative quota gate. The client cap check is a UX pre-check
+  // only — gating + charging happens here so a raw request can't bypass it.
+  const { data: profile } = await supabase
+    .from("users")
+    .select("tier")
+    .eq("id", userId)
+    .maybeSingle();
+  const tier = (profile?.tier as string | undefined) ?? "free";
+
   try {
-    const res = await parseReceiptImage({
+    const res = await gatedScan({
+      userId,
+      tier,
       imageBase64: image,
       categories,
       accounts,
-      strictRetry: strict_retry,
     });
     switch (res.kind) {
+      case "quota_reached":
+        // Client maps 402 → ScanResult.quotaExceeded and shows the top-up sheet.
+        return jsonResponse({ error: "Scan quota reached" }, 402);
       case "ok":
         return jsonResponse(res.parsed, 200);
       case "not_a_transaction":
@@ -93,7 +105,7 @@ serve(async (req) => {
         );
     }
   } catch (err) {
-    console.error("Claude API error:", err);
+    console.error("Scan error:", err);
     return jsonResponse({ error: "Scan service unavailable" }, 500);
   }
 });

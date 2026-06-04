@@ -31,7 +31,14 @@ import {
 } from "../_shared/text_parser.ts";
 // Bot receipt OCR shares the Claude parser with the in-app scanner.
 // See docs/adr/0002-telegram-bot-back-to-claude.md.
-import { parseReceiptImage } from "../_shared/receipt_parser.ts";
+import { gatedScan } from "../_shared/scan_gate.ts";
+import {
+  canStoreReceipt,
+  deleteStashedReceipt,
+  promotePendingReceipt,
+  stashPendingReceipt,
+  storeReceiptForTxn,
+} from "../_shared/receipt_storage.ts";
 import { formatBreakdownNotes } from "../_shared/notes_breakdown.ts";
 import {
   saveTransaction,
@@ -619,9 +626,12 @@ async function createPending(
   confidence: number,
   summary: string,
   sourceType: "text" | "voice" | "image",
+  // When present (low-confidence image on a storage-eligible tier), the photo
+  // is stashed and the path recorded on the row so `pconfirm` can promote it.
+  imageBytes?: Uint8Array,
 ): Promise<void> {
   const sb = serviceClient();
-  const stamped = { ...payload, sourceType };
+  const stamped: Record<string, unknown> = { ...payload, sourceType };
   const { data } = await sb
     .from("bot_pending_transactions")
     .insert({
@@ -636,6 +646,20 @@ async function createPending(
   if (!data) {
     await sendMessage(link.externalChatId, t(locale, "botParseFailed"));
     return;
+  }
+  if (imageBytes) {
+    const stash = await stashPendingReceipt(
+      link.userId,
+      data.id as string,
+      imageBytes,
+    );
+    if (stash) {
+      stamped.receiptStash = stash;
+      await sb
+        .from("bot_pending_transactions")
+        .update({ payload: stamped })
+        .eq("id", data.id);
+    }
   }
   const msg = await sendMessage(
     link.externalChatId,
@@ -800,24 +824,29 @@ async function cancelActiveWork(
   opts?: { pendingId?: string },
 ): Promise<{ pendingCancelled: boolean; editCancelled: boolean }> {
   const sb = serviceClient();
-  let pendingRow: { id: string; bot_message_id: string | null } | null = null;
+  let pendingRow:
+    | { id: string; bot_message_id: string | null; stash: string | null }
+    | null = null;
   if (opts?.pendingId) {
     const { data } = await sb
       .from("bot_pending_transactions")
-      .select("id, bot_message_id")
+      .select("id, bot_message_id, payload")
       .eq("id", opts.pendingId)
       .eq("user_id", link.userId)
       .maybeSingle();
     if (data) {
+      const stashPath = (data.payload as Record<string, unknown> | null)
+        ?.receiptStash;
       pendingRow = {
         id: data.id as string,
         bot_message_id: (data.bot_message_id as string | null) ?? null,
+        stash: typeof stashPath === "string" ? stashPath : null,
       };
     }
   } else {
     const { data } = await sb
       .from("bot_pending_transactions")
-      .select("id, bot_message_id")
+      .select("id, bot_message_id, payload")
       .eq("platform", PLATFORM)
       .eq("external_chat_id", link.externalChatId)
       .eq("user_id", link.userId)
@@ -826,14 +855,18 @@ async function cancelActiveWork(
       .limit(1)
       .maybeSingle();
     if (data) {
+      const stashPath = (data.payload as Record<string, unknown> | null)
+        ?.receiptStash;
       pendingRow = {
         id: data.id as string,
         bot_message_id: (data.bot_message_id as string | null) ?? null,
+        stash: typeof stashPath === "string" ? stashPath : null,
       };
     }
   }
   let pendingCancelled = false;
   if (pendingRow) {
+    if (pendingRow.stash) await deleteStashedReceipt(pendingRow.stash);
     await sb.from("bot_pending_transactions").delete().eq("id", pendingRow.id);
     pendingCancelled = true;
     const msgIdRaw = pendingRow.bot_message_id;
@@ -1978,31 +2011,17 @@ async function handlePhoto(
   photoSizes: Array<{ file_id: string; width: number; height: number }>,
   caption: string | null,
 ): Promise<void> {
-  const used = await consumeScanQuota(link.userId, ctx.tier);
-  if (used === null) {
-    await sendMessage(link.externalChatId, t(locale, "botQuotaReached"));
-    return;
-  }
-  let refunded = false;
-  const refundOnce = async () => {
-    if (refunded) return;
-    refunded = true;
-    await refundScanQuota(link.userId);
-  };
-
   try {
     // Largest variant under ~8MB heuristic — Telegram already keeps photos
     // capped, so pick the largest.
     const largest = [...photoSizes].sort((a, b) => b.width * b.height - a.width * a.height)[0];
     const filePath = await getFilePath(largest.file_id);
     if (!filePath) {
-      await refundOnce();
       await sendMessage(link.externalChatId, t(locale, "botParseFailed"));
       return;
     }
     const raw = await downloadFile(filePath);
     if (!raw) {
-      await refundOnce();
       await sendMessage(link.externalChatId, t(locale, "botParseFailed"));
       return;
     }
@@ -2021,12 +2040,14 @@ async function handlePhoto(
     // Extract caption metadata. Receipts default to personal unless the user
     // names a room in the caption. The image transaction date comes from the
     // caption only — OCR `date` is ignored for Telegram image transactions.
-    const { roomId: captionRoomId, captionDate } =
-      await detectCaptionMetadata(caption, ctx);
+    const { roomId: captionRoomId } = await detectCaptionMetadata(caption, ctx);
 
-    // Scope the receipt parser's category list to the detected room so it
-    // picks a category that will save without remapping.
-    const result = await parseReceiptImage({
+    // Single gated pipeline shared with the in-app scanner: consume quota →
+    // parse (with internal strict-retry) → refund only on AI failure. Quota
+    // is charged here regardless of whether the user later confirms.
+    const scan = await gatedScan({
+      userId: link.userId,
+      tier: ctx.tier,
       imageBase64: b64,
       categories: categoriesForScope(ctx, captionRoomId).map((c) => ({
         key: c.key,
@@ -2035,12 +2056,16 @@ async function handlePhoto(
       })),
       accounts: ctx.accounts.map((a) => ({ name: a.name })),
     });
-    if (result.kind !== "ok") {
-      await refundOnce();
+    if (scan.kind === "quota_reached") {
+      await sendMessage(link.externalChatId, t(locale, "botQuotaReached"));
+      return;
+    }
+    // not_a_transaction / ai_failure — gatedScan already refunded the scan.
+    if (scan.kind !== "ok" && scan.kind !== "partial") {
       await sendMessage(link.externalChatId, t(locale, "botParseFailed"));
       return;
     }
-    const p: any = result.parsed;
+    const p: any = scan.kind === "ok" ? scan.parsed : scan.partial;
     const type: "expense" | "income" = p.type === "income" ? "income" : "expense";
     const currency = typeof p.currency === "string" && p.currency.length === 3
       ? p.currency.toUpperCase()
@@ -2055,8 +2080,12 @@ async function handlePhoto(
       currency,
     });
 
-    if (confidence >= CONFIDENCE_AUTO_SAVE) {
-      const result = await commitAndReply({
+    const storeReceipt = canStoreReceipt(ctx.tier);
+
+    // High-confidence + cleanly parsed → auto-save now and store the receipt
+    // image (txn id + bytes both in hand). `partial` never auto-saves.
+    if (scan.kind === "ok" && confidence >= CONFIDENCE_AUTO_SAVE) {
+      const outcome = await commitAndReply({
         link,
         ctx,
         locale,
@@ -2071,14 +2100,15 @@ async function handlePhoto(
         confidence,
         sourceType: "image",
       });
-      if (!result.ok) {
-        // No usable transaction created — refund the scan.
-        await refundOnce();
+      // Save failures are not refunded — the AI call already happened.
+      if (outcome.ok && storeReceipt) {
+        await storeReceiptForTxn(link.userId, outcome.transactionId, processed);
       }
       return;
     }
-    // Low confidence — keep quota consumed; user confirmation does not cost
-    // a second scan.
+    // Low confidence / partial — hold for confirmation. The scan stays
+    // consumed; confirming does not cost a second scan. For non-free tiers the
+    // photo is stashed now and promoted to the transaction on confirm.
     const summary = richSummary(ctx, locale, {
       type,
       total: Number(p.total),
@@ -2107,9 +2137,9 @@ async function handlePhoto(
       confidence,
       summary,
       "image",
+      storeReceipt ? processed : undefined,
     );
   } catch (e) {
-    await refundOnce();
     logBotError(e, { stage: "image_flow", platform: PLATFORM, userId: link.userId });
     await sendMessage(link.externalChatId, t(locale, "botParseFailed"));
   }
@@ -2212,10 +2242,11 @@ async function handleCallback(
       const p: any = row.payload ?? {};
       const sourceType: "text" | "voice" | "image" =
         p.sourceType === "voice" || p.sourceType === "image" ? p.sourceType : "text";
+      const stash = typeof p.receiptStash === "string" ? p.receiptStash : null;
       await sb.from("bot_pending_transactions").delete().eq("id", arg);
       // pconfirm never consumes quota — the initial parse already paid for
       // any voice/image scan.
-      await commitAndReply({
+      const outcome = await commitAndReply({
         link,
         ctx,
         locale,
@@ -2231,6 +2262,15 @@ async function handleCallback(
           typeof row.confidence === "number" ? row.confidence : null,
         sourceType,
       });
+      // Promote the stashed photo onto the saved transaction, or drop it if the
+      // save fell through (e.g. the user gets routed to a category picker).
+      if (stash) {
+        if (outcome.ok) {
+          await promotePendingReceipt(link.userId, stash, outcome.transactionId);
+        } else {
+          await deleteStashedReceipt(stash);
+        }
+      }
       await answerCallback(callbackId);
       return;
     }

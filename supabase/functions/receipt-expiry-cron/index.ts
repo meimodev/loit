@@ -129,10 +129,28 @@ serve(async (req) => {
     await supabase.from('notifications').insert(notifRows);
   }
 
+  // 3. Sweep stashed receipts for expired/unconfirmed Telegram pendings. The
+  //    SQL cleanup cron deliberately skips stash-bearing rows (it can't touch
+  //    storage), so this owns their full lifecycle: delete the blob, then the
+  //    row. Non-stash expired pendings are left for the SQL sweep.
+  let stashSwept = 0;
+  const { data: stalePendings } = await supabase
+    .from('bot_pending_transactions')
+    .select('id, payload')
+    .lte('expires_at', now.toISOString());
+  for (const row of stalePendings ?? []) {
+    const stash = (row.payload as Record<string, unknown> | null)?.receiptStash;
+    if (typeof stash !== 'string') continue;
+    await supabase.storage.from('receipts').remove([stash]);
+    await supabase.from('bot_pending_transactions').delete().eq('id', row.id);
+    stashSwept += 1;
+  }
+
   return new Response(
     JSON.stringify({
       deleted: deletedCount,
       users_with_upcoming: warningUserCount,
+      stash_swept: stashSwept,
     }),
     { status: 200, headers: { 'Content-Type': 'application/json' } },
   );

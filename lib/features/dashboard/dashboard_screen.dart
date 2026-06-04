@@ -17,6 +17,7 @@ import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/budget_alert_banner.dart';
+import '../../shared/widgets/loit_avatar.dart';
 import '../../shared/widgets/loit_budget_row.dart';
 import '../../shared/widgets/loit_category_avatar.dart';
 import '../../shared/widgets/loit_group_label.dart';
@@ -1089,12 +1090,7 @@ class _DashboardAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
-        image: hasImage
-            ? DecorationImage(
-                image: NetworkImage(imageUrl!),
-                fit: BoxFit.cover,
-              )
-            : null,
+        image: loitAvatarImage(imageUrl),
       ),
       alignment: Alignment.center,
       child: hasImage

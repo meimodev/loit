@@ -193,22 +193,30 @@ export async function parseReceiptImage(args: {
         reason: typeof parsed.reason === "string" ? parsed.reason : null,
       };
     }
-    if (
-      !(parsed.total > 0) &&
-      Array.isArray(parsed.items) &&
-      parsed.items.length > 0
-    ) {
-      parsed.total = parsed.items.reduce(
-        (sum: number, item: Record<string, unknown>) => {
-          const tp = typeof item.total_price === "number" ? item.total_price : 0;
-          const qp =
-            typeof item.qty === "number" && typeof item.unit_price === "number"
-              ? item.qty * item.unit_price
-              : 0;
-          return sum + (tp > 0 ? tp : qp);
-        },
-        0,
-      );
+    // Arithmetic reconciliation — mirrors the in-app scanner's `_postProcess`
+    // (tolerance 1.0 per line item) so both surfaces compute the same total
+    // and raise the same mismatch flag.
+    const items: Array<Record<string, unknown>> = Array.isArray(parsed.items)
+      ? parsed.items
+      : [];
+    let itemSum = 0;
+    for (const item of items) {
+      const tp = typeof item.total_price === "number" ? item.total_price : 0;
+      const qp =
+        typeof item.qty === "number" && typeof item.unit_price === "number"
+          ? item.qty * item.unit_price
+          : 0;
+      itemSum += tp > 0 ? tp : qp;
+    }
+    const returnedTotal = typeof parsed.total === "number" ? parsed.total : 0;
+    parsed.total_computed = false;
+    parsed.reconcile_warning = false;
+    if (!(returnedTotal > 0) && itemSum > 0) {
+      parsed.total = itemSum;
+      parsed.total_computed = true;
+    } else if (returnedTotal > 0 && itemSum > 0) {
+      const tol = 1.0 * items.length;
+      if (Math.abs(returnedTotal - itemSum) > tol) parsed.reconcile_warning = true;
     }
     if (typeof parsed.confidence !== "number") {
       parsed.confidence = 0.5;

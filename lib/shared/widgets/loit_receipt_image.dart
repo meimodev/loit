@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -74,10 +75,15 @@ class _LoitReceiptImageState extends State<LoitReceiptImage> {
         if (snap.hasError || snap.data == null || snap.data!.isEmpty) {
           return fallback;
         }
-        return Image.network(
-          snap.data!,
+        // cacheKey is the stable storage path, not the hourly-rotating signed
+        // URL — so cached bytes survive URL rotation. See docs/adr/0003.
+        return CachedNetworkImage(
+          imageUrl: snap.data!,
+          cacheKey: widget.path,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => fallback,
+          fadeInDuration: Duration.zero,
+          fadeOutDuration: Duration.zero,
+          errorWidget: (_, __, ___) => fallback,
         );
       },
     );

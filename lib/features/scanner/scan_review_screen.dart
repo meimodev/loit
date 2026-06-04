@@ -178,35 +178,9 @@ class _ScanReviewScreenState extends ConsumerState<ScanReviewScreen> {
         }
       }
 
-      // Step 9 — atomic quota increment. Skip when offline; rate limiter +
-      // monthly limit catch abuse. Realtime channel on `users` picks up the
-      // new count and invalidates `userProfileProvider`. Use reachability
-      // gate (interface + probe) so we don't waste an RPC on captive-portal
-      // networks the transaction itself just queued for.
-      final reachable =
-          await ref.read(reachabilityServiceProvider).isReachable();
-      if (reachable) {
-        try {
-          final supabase = Supabase.instance.client;
-          final userId = supabase.auth.currentUser?.id;
-          if (userId != null) {
-            await supabase.rpc('reset_scan_quota_if_new_month', params: {
-              'p_user_id': userId,
-            });
-            // 1<<30 = "no enforcement here, just increment". Client already
-            // gated against `scanQuota` before calling Claude — RPC records
-            // use so analytics + realtime tier-flip stay in sync.
-            await supabase.rpc('increment_scan_quota', params: {
-              'p_user_id': userId,
-              'p_limit': 1 << 30,
-            });
-          }
-        } catch (e) {
-          Log.w('ScanReview', 'Quota RPC failed (will retry on sync): $e');
-        }
-      } else {
-        Log.i('ScanReview', 'Offline — skipping quota RPC');
-      }
+      // Quota is charged server-side at scan time (scan-receipt → gatedScan);
+      // see docs/adr/0004. The realtime channel on `users` propagates the new
+      // count into `userProfileProvider`, so there's nothing to record here.
 
       await Analytics.scanCompleted(aiSuccess: true);
       await Analytics.scanSaved();

@@ -21,6 +21,7 @@ import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_animations.dart';
+import '../../shared/widgets/loit_avatar.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 import '../rooms/room_colors.dart';
 
@@ -686,9 +687,7 @@ class _MemberAvatar extends ConsumerWidget {
               color: color,
               shape: BoxShape.circle,
               border: Border.all(color: c.surface, width: 2),
-              image: url != null && url.isNotEmpty
-                  ? DecorationImage(image: NetworkImage(url), fit: BoxFit.cover)
-                  : null,
+              image: loitAvatarImage(url),
             ),
             alignment: Alignment.center,
             child: url == null || url.isEmpty
@@ -1587,9 +1586,7 @@ class _PayerBadge extends ConsumerWidget {
         color: color,
         shape: BoxShape.circle,
         border: Border.all(color: c.surface, width: 2),
-        image: url != null && url.isNotEmpty
-            ? DecorationImage(image: NetworkImage(url), fit: BoxFit.cover)
-            : null,
+        image: loitAvatarImage(url),
       ),
       alignment: Alignment.center,
       child: url == null || url.isEmpty

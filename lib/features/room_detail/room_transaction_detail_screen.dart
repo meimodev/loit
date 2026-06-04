@@ -20,6 +20,7 @@ import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/account_picker_sheet.dart';
+import '../../shared/widgets/loit_avatar.dart';
 import '../../shared/widgets/loit_amount_text.dart';
 import '../../shared/widgets/loit_category_avatar.dart';
 import '../../shared/widgets/loit_group_label.dart';
@@ -392,10 +393,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               color: color,
               shape: BoxShape.circle,
-              image: avatarUrl != null && avatarUrl.isNotEmpty
-                  ? DecorationImage(
-                      image: NetworkImage(avatarUrl), fit: BoxFit.cover)
-                  : null,
+              image: loitAvatarImage(avatarUrl),
             ),
             alignment: Alignment.center,
             child: avatarUrl == null || avatarUrl.isEmpty

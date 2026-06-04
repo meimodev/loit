@@ -5,6 +5,7 @@ import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
 import '../../shared/widgets/loit_animations.dart';
+import '../../shared/widgets/loit_avatar.dart';
 
 class SettingsGroup extends StatelessWidget {
   const SettingsGroup({super.key, required this.label, required this.children});
@@ -257,12 +258,7 @@ class SettingsAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
-        image: hasImage
-            ? DecorationImage(
-                image: NetworkImage(imageUrl!),
-                fit: BoxFit.cover,
-              )
-            : null,
+        image: loitAvatarImage(imageUrl),
         boxShadow: [
           BoxShadow(
             color: color.withValues(alpha: 0.35),

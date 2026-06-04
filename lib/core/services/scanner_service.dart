@@ -140,8 +140,10 @@ class ScannerService {
     return out;
   }
 
-  /// Single Claude API call. Retries ONCE on malformed JSON with strict tail.
-  /// Quota is NOT touched here — caller increments only on successful save.
+  /// One server round-trip per call. The shared gated helper charges quota and
+  /// does any strict-retry on malformed JSON server-side (see docs/adr/0004);
+  /// the client only retries genuine network failures, which never reached the
+  /// server and so never charged a scan.
   Future<ScanResult> scanReceipt(
     File imageFile, {
     List<Map<String, String>>? categories,
@@ -175,23 +177,14 @@ class ScannerService {
       session: session,
       categories: categories,
       accounts: accountsPayload,
-      strictRetry: false,
     );
 
-    // Step 10 retries.
-    // - aiFailure: retry with stricter prompt tail.
-    // - connectionError: one retry with 1s backoff.
-    // notATransaction / quota / serverError → no retry.
-    if (result.errorType == ScanErrorType.aiFailure) {
-      Log.w(_tag, 'Retrying with strict prompt tail');
-      result = await _callApi(
-        base64Image: base64Image,
-        session: session,
-        categories: categories,
-        accounts: accountsPayload,
-        strictRetry: true,
-      );
-    } else if (result.errorType == ScanErrorType.connectionError) {
+    // Strict-retry on malformed AI JSON now happens server-side in the shared
+    // gated helper, so one client call = at most one charged scan. Only retry
+    // genuine network failures here — those never reached the server, so they
+    // never consumed quota. notATransaction / aiFailure / quota / serverError
+    // are terminal.
+    if (result.errorType == ScanErrorType.connectionError) {
       Log.w(_tag, 'Retrying after 1s (network)');
       await Future<void>.delayed(const Duration(seconds: 1));
       result = await _callApi(
@@ -199,7 +192,6 @@ class ScannerService {
         session: session,
         categories: categories,
         accounts: accountsPayload,
-        strictRetry: false,
       );
     }
 
@@ -211,14 +203,12 @@ class ScannerService {
     required Session session,
     List<Map<String, String>>? categories,
     required List<Map<String, String>> accounts,
-    required bool strictRetry,
   }) async {
     try {
       final bodyMap = <String, dynamic>{
         'image': base64Image,
         if (categories != null) 'categories': categories,
         'accounts': accounts,
-        if (strictRetry) 'strict_retry': true,
       };
 
       final response = await http
@@ -252,7 +242,8 @@ class ScannerService {
           return ScanResult.aiFailure(partial);
 
         case 402:
-          Log.w(_tag, 'Quota exceeded (legacy path)');
+          // Server-authoritative gate (scan-receipt → gatedScan, ADR 0004).
+          Log.w(_tag, 'Quota exceeded (server-gated)');
           return ScanResult.quotaExceeded();
 
         default:

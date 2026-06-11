@@ -1829,8 +1829,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authWelcomeTitle => 'Welcome to LOIT';
 
   @override
-  String get authWelcomeSubtitle =>
-      'Personal & shared finance, calm by design.';
+  String get authWelcomeSubtitle => 'Group money, transparent for everyone.';
 
   @override
   String get authWelcomeContinue => 'Continue with Google';
@@ -2252,34 +2251,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomSectionIncomeLabel => 'INCOME';
 
   @override
-  String get splashTagline => 'Split bills, not friendships.';
+  String get splashTagline => 'Group cash, clear to everyone.';
 
   @override
-  String get welcomeSlide1Title => 'Track spending in seconds.';
+  String get welcomeSlide1Title => 'Manage money together, clearly.';
 
   @override
   String get welcomeSlide1Body =>
-      'Snap a receipt or tap in an amount. We do the math.';
+      'Keep your group\'s cash and budget in one transparent place.';
 
   @override
-  String get welcomeSlide2Title => 'Share with friends, privately.';
+  String get welcomeSlide2Title => 'Every member sees the same cash';
 
   @override
   String get welcomeSlide2Body =>
-      'Create a room for trips or the apartment. No one sees the rest.';
+      'No more money mix-ups. Every bit of income and spending is logged and visible to everyone.';
 
   @override
-  String get welcomeSlide3Title => 'Log it your way.';
+  String get welcomeSlide3Title => 'Snap a receipt, get an instant record';
 
   @override
   String get welcomeSlide3Body =>
-      'Chat, photo, or voice note — the bot enters it for you. Telegram ready, WhatsApp coming soon.';
+      'Scan receipts with AI. Tidy proof of spending, automatically — ready for your accountability report.';
+
+  @override
+  String get welcomeSlide4Title => 'Works without internet';
+
+  @override
+  String get welcomeSlide4Body =>
+      'Record anywhere — at events, bazaars, or low-signal areas. Your data syncs itself once you\'re back online.';
+
+  @override
+  String get welcomeStart => 'Get started';
 
   @override
   String get welcomeNext => 'Next';
 
   @override
-  String get welcomeGetStarted => 'Get started';
+  String get welcomeGetStarted => 'Let\'s go';
 
   @override
   String get receiptExpiringToday => 'Receipt photos are being deleted today.';

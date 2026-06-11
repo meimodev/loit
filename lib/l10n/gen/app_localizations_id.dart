@@ -1840,8 +1840,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get authWelcomeTitle => 'Selamat datang di LOIT';
 
   @override
-  String get authWelcomeSubtitle =>
-      'Keuangan pribadi & bersama, tenang secara desain.';
+  String get authWelcomeSubtitle => 'Uang kelompok, transparan buat semua.';
 
   @override
   String get authWelcomeContinue => 'Lanjutkan dengan Google';
@@ -2263,34 +2262,44 @@ class AppLocalizationsId extends AppLocalizations {
   String get roomSectionIncomeLabel => 'PEMASUKAN';
 
   @override
-  String get splashTagline => 'Bagi tagihan, bukan pertemanan.';
+  String get splashTagline => 'Kas kelompok, jelas buat semua.';
 
   @override
-  String get welcomeSlide1Title => 'Lacak pengeluaran dalam hitungan detik.';
+  String get welcomeSlide1Title => 'Atur uang bareng, semua jelas.';
 
   @override
   String get welcomeSlide1Body =>
-      'Jepret struk atau ketik jumlah. Kami yang menghitung.';
+      'Kelola kas dan anggaran kelompok dalam satu tempat yang transparan.';
 
   @override
-  String get welcomeSlide2Title => 'Berbagi dengan teman, secara privat.';
+  String get welcomeSlide2Title => 'Semua anggota lihat kas yang sama';
 
   @override
   String get welcomeSlide2Body =>
-      'Buat ruangan untuk liburan atau apartemen. Tidak ada yang melihat sisanya.';
+      'Nggak ada lagi salah paham soal uang. Setiap pemasukan dan pengeluaran tercatat dan kelihatan buat semua.';
 
   @override
-  String get welcomeSlide3Title => 'Catat sesukamu.';
+  String get welcomeSlide3Title => 'Foto struk, langsung jadi catatan';
 
   @override
   String get welcomeSlide3Body =>
-      'Chat, foto, atau pesan suara — bot yang mencatatnya. Telegram siap, WhatsApp segera hadir.';
+      'Scan struk pakai AI. Bukti pengeluaran rapi otomatis — siap buat laporan pertanggungjawaban.';
+
+  @override
+  String get welcomeSlide4Title => 'Jalan tanpa internet';
+
+  @override
+  String get welcomeSlide4Body =>
+      'Catat di mana aja — di acara, bazaar, atau daerah sinyal susah. Data sinkron sendiri pas online.';
+
+  @override
+  String get welcomeStart => 'Mulai';
 
   @override
   String get welcomeNext => 'Lanjut';
 
   @override
-  String get welcomeGetStarted => 'Mulai';
+  String get welcomeGetStarted => 'Mulai sekarang';
 
   @override
   String get receiptExpiringToday => 'Foto struk sedang dihapus hari ini.';

@@ -3416,7 +3416,7 @@ abstract class AppLocalizations {
   /// No description provided for @authWelcomeSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Personal & shared finance, calm by design.'**
+  /// **'Group money, transparent for everyone.'**
   String get authWelcomeSubtitle;
 
   /// No description provided for @authWelcomeContinue.
@@ -4118,44 +4118,62 @@ abstract class AppLocalizations {
   /// No description provided for @splashTagline.
   ///
   /// In en, this message translates to:
-  /// **'Split bills, not friendships.'**
+  /// **'Group cash, clear to everyone.'**
   String get splashTagline;
 
   /// No description provided for @welcomeSlide1Title.
   ///
   /// In en, this message translates to:
-  /// **'Track spending in seconds.'**
+  /// **'Manage money together, clearly.'**
   String get welcomeSlide1Title;
 
   /// No description provided for @welcomeSlide1Body.
   ///
   /// In en, this message translates to:
-  /// **'Snap a receipt or tap in an amount. We do the math.'**
+  /// **'Keep your group\'s cash and budget in one transparent place.'**
   String get welcomeSlide1Body;
 
   /// No description provided for @welcomeSlide2Title.
   ///
   /// In en, this message translates to:
-  /// **'Share with friends, privately.'**
+  /// **'Every member sees the same cash'**
   String get welcomeSlide2Title;
 
   /// No description provided for @welcomeSlide2Body.
   ///
   /// In en, this message translates to:
-  /// **'Create a room for trips or the apartment. No one sees the rest.'**
+  /// **'No more money mix-ups. Every bit of income and spending is logged and visible to everyone.'**
   String get welcomeSlide2Body;
 
   /// No description provided for @welcomeSlide3Title.
   ///
   /// In en, this message translates to:
-  /// **'Log it your way.'**
+  /// **'Snap a receipt, get an instant record'**
   String get welcomeSlide3Title;
 
   /// No description provided for @welcomeSlide3Body.
   ///
   /// In en, this message translates to:
-  /// **'Chat, photo, or voice note — the bot enters it for you. Telegram ready, WhatsApp coming soon.'**
+  /// **'Scan receipts with AI. Tidy proof of spending, automatically — ready for your accountability report.'**
   String get welcomeSlide3Body;
+
+  /// No description provided for @welcomeSlide4Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Works without internet'**
+  String get welcomeSlide4Title;
+
+  /// No description provided for @welcomeSlide4Body.
+  ///
+  /// In en, this message translates to:
+  /// **'Record anywhere — at events, bazaars, or low-signal areas. Your data syncs itself once you\'re back online.'**
+  String get welcomeSlide4Body;
+
+  /// No description provided for @welcomeStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Get started'**
+  String get welcomeStart;
 
   /// No description provided for @welcomeNext.
   ///
@@ -4166,7 +4184,7 @@ abstract class AppLocalizations {
   /// No description provided for @welcomeGetStarted.
   ///
   /// In en, this message translates to:
-  /// **'Get started'**
+  /// **'Let\'s go'**
   String get welcomeGetStarted;
 
   /// No description provided for @receiptExpiringToday.

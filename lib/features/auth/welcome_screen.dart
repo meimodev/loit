@@ -30,19 +30,24 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   List<(IconData, String, String)> _slides(AppLocalizations l) => [
         (
-          Icons.camera_alt_outlined,
+          Icons.savings_outlined,
           l.welcomeSlide1Title,
           l.welcomeSlide1Body,
         ),
         (
-          Icons.group_outlined,
+          Icons.visibility_outlined,
           l.welcomeSlide2Title,
           l.welcomeSlide2Body,
         ),
         (
-          Icons.auto_awesome,
+          Icons.camera_alt_outlined,
           l.welcomeSlide3Title,
           l.welcomeSlide3Body,
+        ),
+        (
+          Icons.cloud_sync_outlined,
+          l.welcomeSlide4Title,
+          l.welcomeSlide4Body,
         ),
       ];
 
@@ -151,17 +156,21 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         start: 0.15,
                         end: 0.70,
                         reduced: reduced,
-                        child: AnimatedSwitcher(
-                          duration: LoitMotion.emphasized,
-                          switchInCurve: LoitMotion.easeOutQuint,
-                          transitionBuilder: _fadeSlide,
-                          child: Text(
-                            title,
-                            key: ValueKey('t$i'),
-                            textAlign: TextAlign.center,
-                            style: LoitTypography.titleL.copyWith(
-                              color: c.contentPrimary,
-                              fontWeight: FontWeight.w600,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: LoitSpacing.s5),
+                          child: AnimatedSwitcher(
+                            duration: LoitMotion.emphasized,
+                            switchInCurve: LoitMotion.easeOutQuint,
+                            transitionBuilder: _fadeSlide,
+                            child: Text(
+                              title,
+                              key: ValueKey('t$i'),
+                              textAlign: TextAlign.center,
+                              style: LoitTypography.titleL.copyWith(
+                                color: c.contentPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ),
@@ -247,9 +256,15 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             child: child,
                           ),
                         ),
-                        child: Text(
-                          isLast ? l.welcomeGetStarted : l.welcomeNext,
-                          key: ValueKey(isLast),
+                        child: Builder(
+                          builder: (_) {
+                            final label = _idx == 0
+                                ? l.welcomeStart
+                                : isLast
+                                    ? l.welcomeGetStarted
+                                    : l.welcomeNext;
+                            return Text(label, key: ValueKey(label));
+                          },
                         ),
                       ),
                     ),
@@ -301,7 +316,7 @@ class _AnimatedHero extends StatelessWidget {
         children: [
           Positioned.fill(child: _decor()),
           base,
-          if (index == 0) Positioned.fill(child: _CameraGlint(idle: idle)),
+          if (index == 2) Positioned.fill(child: _CameraGlint(idle: idle)),
         ],
       ),
     );
@@ -310,12 +325,14 @@ class _AnimatedHero extends StatelessWidget {
   Widget _decor() {
     switch (index) {
       case 0:
-        return _CameraRings(idle: idle);
-      case 1:
         return _OrbitDots(idle: idle);
+      case 1:
+        return _RevealRings(idle: idle);
       case 2:
+        return _CameraRings(idle: idle);
+      case 3:
       default:
-        return _CheckSparkles(idle: idle);
+        return _SyncArcs(idle: idle);
     }
   }
 }
@@ -457,8 +474,8 @@ class _OrbitDots extends StatelessWidget {
   }
 }
 
-class _CheckSparkles extends StatelessWidget {
-  const _CheckSparkles({required this.idle});
+class _RevealRings extends StatelessWidget {
+  const _RevealRings({required this.idle});
   final Animation<double> idle;
 
   @override
@@ -467,44 +484,98 @@ class _CheckSparkles extends StatelessWidget {
       child: AnimatedBuilder(
         animation: idle,
         builder: (_, __) => CustomPaint(
-          painter: _CheckSparklesPainter(phase: idle.value),
+          painter: _RevealRingsPainter(phase: idle.value),
         ),
       ),
     );
   }
 }
 
-class _CheckSparklesPainter extends CustomPainter {
-  _CheckSparklesPainter({required this.phase});
+class _RevealRingsPainter extends CustomPainter {
+  _RevealRingsPainter({required this.phase});
   final double phase;
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
-    final halo = (math.sin(phase * math.pi * 2) * 0.5 + 0.5);
-    canvas.drawCircle(
-      center,
-      50 + halo * 8,
-      Paint()
-        ..color = LoitPalette.teal400.withValues(alpha: 0.08 + halo * 0.10),
-    );
-    const count = 6;
-    for (var i = 0; i < count; i++) {
-      final t = (phase + i / count) % 1.0;
-      final a = i * (2 * math.pi / count) - math.pi / 2;
-      final dist = 38 + t * 30;
-      final pos =
-          center + Offset(math.cos(a) * dist, math.sin(a) * dist);
-      final fade = (1 - t).clamp(0.0, 1.0);
-      final color = (i.isEven ? LoitPalette.ochre400 : LoitPalette.teal500)
-          .withValues(alpha: fade * 0.75);
-      canvas.drawCircle(pos, 2.4 + (1 - fade) * 1.2,
-          Paint()..color = color);
+    for (var i = 0; i < 3; i++) {
+      final t = (phase + i / 3) % 1.0;
+      final r = 44.0 + t * 26.0;
+      final opacity = ((1 - t).clamp(0.0, 1.0)) * 0.40;
+      if (opacity <= 0) continue;
+      canvas.drawCircle(
+        center,
+        r,
+        Paint()
+          ..color = LoitPalette.teal400.withValues(alpha: opacity)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(_CheckSparklesPainter old) => old.phase != phase;
+  bool shouldRepaint(_RevealRingsPainter old) => old.phase != phase;
+}
+
+class _SyncArcs extends StatelessWidget {
+  const _SyncArcs({required this.idle});
+  final Animation<double> idle;
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: idle,
+        builder: (_, __) => CustomPaint(
+          painter: _SyncArcsPainter(phase: idle.value),
+        ),
+      ),
+    );
+  }
+}
+
+class _SyncArcsPainter extends CustomPainter {
+  _SyncArcsPainter({required this.phase});
+  final double phase;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    const radius = 54.0;
+    final rot = phase * 2 * math.pi;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    final sweep = math.pi * 0.7;
+    final stroke = Paint()
+      ..color = LoitPalette.teal400.withValues(alpha: 0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < 2; i++) {
+      final start = rot + i * math.pi;
+      canvas.drawArc(rect, start, sweep, false, stroke);
+      final endA = start + sweep;
+      final tip =
+          center + Offset(math.cos(endA) * radius, math.sin(endA) * radius);
+      final dir = endA + math.pi / 2;
+      final p1 = tip + Offset(math.cos(dir + 0.5), math.sin(dir + 0.5)) * 7;
+      final p2 = tip + Offset(math.cos(dir - 0.5), math.sin(dir - 0.5)) * 7;
+      final arrow = Paint()
+        ..color = i == 0 ? LoitPalette.teal500 : LoitPalette.ochre400
+        ..style = PaintingStyle.fill;
+      canvas.drawPath(
+        Path()
+          ..moveTo(tip.dx, tip.dy)
+          ..lineTo(p1.dx, p1.dy)
+          ..lineTo(p2.dx, p2.dy)
+          ..close(),
+        arrow,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SyncArcsPainter old) => old.phase != phase;
 }
 
 class _StaggeredEntrance extends StatelessWidget {

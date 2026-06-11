@@ -5098,6 +5098,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t generate link code. Try again.'**
   String get telegramGenerateFailed;
+
+  /// No description provided for @commonSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get commonSave;
+
+  /// No description provided for @roomBalanceTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance'**
+  String get roomBalanceTab;
+
+  /// No description provided for @roomBalanceNet.
+  ///
+  /// In en, this message translates to:
+  /// **'Net balance'**
+  String get roomBalanceNet;
+
+  /// No description provided for @roomBalanceAssets.
+  ///
+  /// In en, this message translates to:
+  /// **'Assets'**
+  String get roomBalanceAssets;
+
+  /// No description provided for @roomBalanceLiabilities.
+  ///
+  /// In en, this message translates to:
+  /// **'Liabilities'**
+  String get roomBalanceLiabilities;
+
+  /// No description provided for @roomBalanceAccountsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts'**
+  String get roomBalanceAccountsLabel;
+
+  /// No description provided for @roomAccountsEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No room accounts yet'**
+  String get roomAccountsEmptyTitle;
+
+  /// No description provided for @roomAccountsEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Admins can add a shared cash pool or debt to track together.'**
+  String get roomAccountsEmptyBody;
+
+  /// No description provided for @roomAccountAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add account'**
+  String get roomAccountAdd;
+
+  /// No description provided for @roomAccountEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit account'**
+  String get roomAccountEdit;
+
+  /// No description provided for @roomAccountName.
+  ///
+  /// In en, this message translates to:
+  /// **'Account name'**
+  String get roomAccountName;
+
+  /// No description provided for @roomAccountNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name'**
+  String get roomAccountNameRequired;
+
+  /// No description provided for @roomAccountNameTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'An account with that name already exists in this room.'**
+  String get roomAccountNameTaken;
+
+  /// No description provided for @roomAccountKindAsset.
+  ///
+  /// In en, this message translates to:
+  /// **'Asset'**
+  String get roomAccountKindAsset;
+
+  /// No description provided for @roomAccountKindLiability.
+  ///
+  /// In en, this message translates to:
+  /// **'Liability'**
+  String get roomAccountKindLiability;
+
+  /// No description provided for @roomAccountInitialBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Initial balance'**
+  String get roomAccountInitialBalance;
+
+  /// No description provided for @roomAccountArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive account'**
+  String get roomAccountArchive;
+
+  /// No description provided for @roomMovementNoAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a room account first to log a movement.'**
+  String get roomMovementNoAccounts;
+
+  /// No description provided for @roomMovementOnlineOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Room movements need an internet connection.'**
+  String get roomMovementOnlineOnly;
 }
 
 class _AppLocalizationsDelegate

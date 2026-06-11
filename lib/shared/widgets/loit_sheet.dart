@@ -90,6 +90,7 @@ Future<T?> showLoitSheet<T>(
   required WidgetBuilder builder,
   bool isDismissible = true,
   bool enableDrag = true,
+  bool useRootNavigator = false,
 }) {
   return showModalBottomSheet<T>(
     context: context,
@@ -97,6 +98,9 @@ Future<T?> showLoitSheet<T>(
     backgroundColor: Colors.transparent,
     isDismissible: isDismissible,
     enableDrag: enableDrag,
+    // Root navigator so the sheet overlays a persistent shell bottom navbar
+    // instead of rendering behind it.
+    useRootNavigator: useRootNavigator,
     builder: builder,
   );
 }

@@ -212,4 +212,48 @@ class RoomService {
         .eq('id', budgetId)
         .eq('room_id', roomId);
   }
+
+  // Room accounts — the room's shared balance sheet (ADR 0007).
+  // Currency is fixed to the room's base_currency by the caller; admin-only
+  // writes are enforced by RLS.
+  Future<Map<String, dynamic>> createRoomAccount({
+    required String roomId,
+    required String name,
+    required String kind, // 'asset' | 'liability'
+    required String currency,
+    double initialBalance = 0,
+    String? icon,
+    String? color,
+  }) async {
+    return _client
+        .from('accounts')
+        .insert({
+          'room_id': roomId,
+          'name': name,
+          'kind': kind,
+          'currency': currency,
+          'initial_balance': initialBalance,
+          if (icon != null) 'icon': icon,
+          if (color != null) 'color': color,
+          'client_updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .select()
+        .single();
+  }
+
+  Future<void> updateRoomAccount(
+    String accountId,
+    Map<String, dynamic> updates,
+  ) async {
+    updates['client_updated_at'] = DateTime.now().toUtc().toIso8601String();
+    await _client.from('accounts').update(updates).eq('id', accountId);
+  }
+
+  /// Archive-only — room accounts are never hard-deleted (a mirror transfer is
+  /// one row shared with a member's personal ledger). See ADR 0007.
+  Future<void> archiveRoomAccount(String accountId) async {
+    await _client.from('accounts').update({
+      'archived_at': DateTime.now().toUtc().toIso8601String(),
+    }).eq('id', accountId);
+  }
 }

@@ -24,6 +24,7 @@ import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_avatar.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 import '../rooms/room_colors.dart';
+import 'room_balance_tab.dart';
 
 class RoomDetailScreen extends ConsumerStatefulWidget {
   const RoomDetailScreen({
@@ -44,7 +45,7 @@ class RoomDetailScreen extends ConsumerStatefulWidget {
 
 class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   late int _tab =
-      widget.highlightTxId != null ? 0 : widget.initialTab.clamp(0, 2);
+      widget.highlightTxId != null ? 0 : widget.initialTab.clamp(0, 3);
   String? _pendingScrollTxId;
   bool _scrollScheduled = false;
   final GlobalKey _highlightRowKey = GlobalKey(debugLabel: 'highlight-row');
@@ -114,6 +115,11 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         final members = (room['room_members'] as List?)
                 ?.cast<Map<String, dynamic>>() ??
             [];
+        final myRole = members
+            .where((m) => m['user_id'] == user?.id)
+            .map((m) => m['role'] as String?)
+            .firstOrNull;
+        final isAdmin = isCreator || myRole == 'admin';
         final accent = RoomColors.forId(widget.roomId);
         final currency = room['base_currency'] as String? ?? 'IDR';
         String fmt(double v) => formatMoney(v, currency);
@@ -184,6 +190,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                           members: members,
                           currentUserId: user?.id,
                           isCreator: isCreator,
+                          isAdmin: isAdmin,
                           accent: accent,
                           fmt: fmt,
                           currency: currency,
@@ -211,6 +218,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
               accent: accent,
               isArchived: isArchived,
               isCreator: isCreator,
+              isAdmin: isAdmin,
               currency: currency,
               room: room,
             ),
@@ -225,6 +233,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     required Color accent,
     required bool isArchived,
     required bool isCreator,
+    required bool isAdmin,
     required String currency,
     required Map<String, dynamic> room,
   }) {
@@ -260,6 +269,18 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         child: const Icon(Icons.add),
       );
     }
+    if (_tab == 3 && isAdmin) {
+      // Balance tab: admins add room accounts here; members add transactions
+      // from the Feed tab. Pool-only entry — see ADR 0007.
+      return FloatingActionButton(
+        key: const ValueKey('fab-balance'),
+        backgroundColor: accent,
+        foregroundColor: Colors.white,
+        onPressed: () => showRoomAccountForm(context, ref,
+            roomId: widget.roomId, currency: currency),
+        child: const Icon(Icons.add),
+      );
+    }
     return null;
   }
 
@@ -269,6 +290,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     required List<Map<String, dynamic>> members,
     required String? currentUserId,
     required bool isCreator,
+    required bool isAdmin,
     required Color accent,
     required String Function(double) fmt,
     required String currency,
@@ -286,6 +308,12 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         return _CategoriesTab(
             roomId: widget.roomId,
             isCreator: isCreator,
+            isArchived: isArchived);
+      case 3:
+        return RoomBalanceTab(
+            roomId: widget.roomId,
+            currency: currency,
+            isAdmin: isAdmin,
             isArchived: isArchived);
       case 0:
       default:
@@ -732,7 +760,12 @@ class _TabStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.loitColors;
     final l = context.l10n;
-    final labels = [l.roomDetailFeedTab, l.roomDetailBudgets, l.roomDetailCategoriesTab];
+    final labels = [
+      l.roomDetailFeedTab,
+      l.roomDetailBudgets,
+      l.roomDetailCategoriesTab,
+      l.roomBalanceTab,
+    ];
     return Container(
       margin: const EdgeInsets.fromLTRB(
           LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, LoitSpacing.s2),

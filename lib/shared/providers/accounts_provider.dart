@@ -25,7 +25,11 @@ class AccountNameTakenException implements Exception {
 
 class Account {
   final String id;
-  final String userId;
+  /// Personal owner. Null for a room account (see [roomId]).
+  final String? userId;
+  /// Owning room. Null for a personal account. Exactly one of
+  /// [userId] / [roomId] is set (DB CHECK accounts_owner_xor).
+  final String? roomId;
   final String name;
   final AccountKind kind;
   final String currency;
@@ -37,7 +41,8 @@ class Account {
 
   const Account({
     required this.id,
-    required this.userId,
+    this.userId,
+    this.roomId,
     required this.name,
     required this.kind,
     required this.currency,
@@ -48,9 +53,12 @@ class Account {
     required this.createdAt,
   });
 
+  bool get isRoomAccount => roomId != null;
+
   factory Account.fromRow(Map<String, dynamic> r) => Account(
         id: r['id'] as String,
-        userId: r['user_id'] as String,
+        userId: r['user_id'] as String?,
+        roomId: r['room_id'] as String?,
         name: r['name'] as String,
         kind: (r['kind'] as String?) == 'liability'
             ? AccountKind.liability
@@ -236,15 +244,22 @@ final accountBalancesProvider = Provider<Map<String, double>>((ref) {
   for (final t in txns) {
     if (t.accountId == null) continue;
     final v = t.absAmountIn(home);
+    // Only mutate keys for personal accounts (those seeded above). A room-account
+    // leg of a mirror transfer (or a one-sided room movement the user logged)
+    // must never reach personal net worth — see ADR 0007.
     if (t.type == 'transfer') {
-      map[t.accountId!] = (map[t.accountId!] ?? 0) - v;
-      if (t.toAccountId != null) {
-        map[t.toAccountId!] = (map[t.toAccountId!] ?? 0) + v;
+      if (map.containsKey(t.accountId)) {
+        map[t.accountId!] = map[t.accountId]! - v;
       }
+      if (t.toAccountId != null && map.containsKey(t.toAccountId)) {
+        map[t.toAccountId!] = map[t.toAccountId]! + v;
+      }
+    } else if (!map.containsKey(t.accountId)) {
+      continue;
     } else if (t.type == 'income') {
-      map[t.accountId!] = (map[t.accountId!] ?? 0) + v;
+      map[t.accountId!] = map[t.accountId]! + v;
     } else {
-      map[t.accountId!] = (map[t.accountId!] ?? 0) - v;
+      map[t.accountId!] = map[t.accountId]! - v;
     }
   }
   return map;

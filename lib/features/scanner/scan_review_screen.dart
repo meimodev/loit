@@ -16,6 +16,7 @@ import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/room_accounts_provider.dart';
 import '../../shared/providers/services_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
@@ -99,11 +100,25 @@ class _ScanReviewScreenState extends ConsumerState<ScanReviewScreen> {
     setState(() => _saving = true);
 
     final p = widget.scan.parsed;
-    final accounts = ref.read(accountsProvider).value ?? const [];
+    final roomId = widget.scan.roomId;
+    // Room scan → resolve against the room's pool accounts only (pool-only
+    // entry, ADR 0007); personal scan → personal accounts.
+    final accounts = roomId != null
+        ? await ref.read(roomAccountsProvider(roomId).future)
+        : (ref.read(accountsProvider).value ?? const []);
+    if (!mounted) return;
     final accountId = _accountIdFromName(p['account'] as String?, accounts) ??
         _firstActiveAccountId(accounts);
     if (accountId == null) {
       setState(() => _saving = false);
+      if (roomId != null) {
+        // No pool account in this room — can't book a room scan. Admin must
+        // create one first; manual edit wouldn't help (form is room-scoped too).
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.roomMovementNoAccounts)),
+        );
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.scanNoAccount)),
       );
@@ -152,7 +167,7 @@ class _ScanReviewScreenState extends ConsumerState<ScanReviewScreen> {
         'created_at': DateTime.now().toUtc().toIso8601String(),
         if (widget.scan.roomId != null) 'room_id': widget.scan.roomId,
         if (p['items'] != null) 'items': p['items'],
-      });
+      }, requireOnline: roomId != null);
 
       // Receipt upload: mirror manual form path (transaction_form_screen).
       // `addTransaction` strips `_*` keys, so the image has to be uploaded

@@ -7,16 +7,20 @@ import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
 import '../providers/accounts_provider.dart';
+import '../providers/room_accounts_provider.dart';
 import 'loit_sheet.dart';
 
 /// Bottom sheet for picking an account. Returns the selected account id.
 /// [excludeId] prevents selecting the same account (e.g., transfer destination).
 /// [kindFilter] limits to asset or liability; null = all.
+/// [roomId] scopes the list to that room's accounts (pool-only entry); null =
+/// the user's personal accounts.
 Future<String?> pickLoitAccount(
   BuildContext context, {
   String? selectedId,
   String? excludeId,
   AccountKind? kindFilter,
+  String? roomId,
 }) {
   return showLoitSheet<String>(
     context,
@@ -24,6 +28,7 @@ Future<String?> pickLoitAccount(
       selectedId: selectedId,
       excludeId: excludeId,
       kindFilter: kindFilter,
+      roomId: roomId,
     ),
   );
 }
@@ -33,16 +38,20 @@ class _AccountPickerSheet extends ConsumerWidget {
     this.selectedId,
     this.excludeId,
     this.kindFilter,
+    this.roomId,
   });
 
   final String? selectedId;
   final String? excludeId;
   final AccountKind? kindFilter;
+  final String? roomId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
-    final accounts = ref.watch(activeAccountsProvider);
+    final accounts = roomId != null
+        ? ref.watch(activeRoomAccountsProvider(roomId!))
+        : ref.watch(activeAccountsProvider);
     final visible = accounts.where((a) {
       if (a.id == excludeId) return false;
       if (kindFilter != null && a.kind != kindFilter) return false;

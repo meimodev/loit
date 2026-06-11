@@ -20,6 +20,7 @@ import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/room_accounts_provider.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/services_providers.dart';
 import '../../shared/providers/preferences_provider.dart';
@@ -361,7 +362,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     final catList = scopedCats
         .map((c) => {'key': c.key, 'name': c.name, 'kind': c.kind})
         .toList();
-    final activeAccounts = (ref.read(accountsProvider).value ?? const [])
+    // Account hints scoped to context: room scan → that room's accounts only
+    // (pool-only entry), so the AI never suggests a personal account.
+    final activeAccounts = (widget.roomId != null
+            ? await ref.read(roomAccountsProvider(widget.roomId!).future)
+            : (ref.read(accountsProvider).value ?? const []))
         .where((a) => a.archivedAt == null)
         .map((a) => a.name)
         .toList(growable: false);

@@ -18,6 +18,7 @@ import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/room_accounts_provider.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/services_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
@@ -231,8 +232,11 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
 
     // Auto-select first active account once accounts load; fires immediately if
     // already cached. Avoids post-frame mutation in build().
+    // Room-scoped entry (pool-only): default + pickers use the room's accounts.
     _accountsSub = ref.listenManual<List<Account>>(
-      activeAccountsProvider,
+      _roomId != null
+          ? activeRoomAccountsProvider(_roomId!)
+          : activeAccountsProvider,
       (prev, next) {
         if (mounted && _accountId == null && next.isNotEmpty) {
           setState(() => _accountId = next.first.id);
@@ -659,7 +663,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       } else {
         insertedId = await ref
             .read(transactionsProvider.notifier)
-            .addTransaction(payload);
+            .addTransaction(payload, requireOnline: _roomId != null);
       }
 
       if (insertedId != null && _imagePath != null) {
@@ -780,9 +784,11 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
         metadata: {'category': _category, 'currency': _currency},
       );
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(context.l10n.txFormSaveFailed(e.toString()))));
+        final msg = e is OnlineOnlyActionException
+            ? context.l10n.roomMovementOnlineOnly
+            : context.l10n.txFormSaveFailed(e.toString());
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -828,6 +834,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
     final picked = await pickLoitAccount(
       context,
       selectedId: _accountId,
+      roomId: _roomId,
     );
     if (picked != null) setState(() => _accountId = picked);
   }
@@ -837,6 +844,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       context,
       selectedId: _toAccountId,
       excludeId: _accountId,
+      roomId: _roomId,
     );
     if (picked != null) setState(() => _toAccountId = picked);
   }
@@ -886,7 +894,9 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
     final catLabel = ref.watch(categoryLabelProvider(
         CategoryLabelKey(key: _category, activeRoomId: _roomId)));
 
-    final activeAccounts = ref.watch(activeAccountsProvider);
+    final activeAccounts = _roomId != null
+        ? ref.watch(activeRoomAccountsProvider(_roomId!))
+        : ref.watch(activeAccountsProvider);
 
     // Null-safe account lookup: clear stale id if not found in current list.
     Account? findAccount(String? id) {

@@ -19,6 +19,12 @@ class LoitPalette {
   static const n800 = Color(0xFF2E3230);
   static const n900 = Color(0xFF111613);
 
+  // Mint (logo brand) — vivid spring green from the LOIT wordmark
+  static const mint200 = Color(0xFF5CF2B4); // highlight
+  static const mint300 = Color(0xFF34E89E); // logo green — dark brand
+  static const mint400 = Color(0xFF2BC487); // pressed/hover
+  static const mintDark = Color(0xFF1FA871); // light-mode brand, AA on white
+
   // Teal (brand)
   static const teal50 = Color(0xFFE6F4F0);
   static const teal100 = Color(0xFFC4E4DB);
@@ -161,12 +167,12 @@ class LoitColors extends ThemeExtension<LoitColors> {
     contentTertiary: LoitPalette.n500,
     contentDisabled: LoitPalette.n400,
     contentInverse: Color(0xFFFFFFFF),
-    brand: LoitPalette.teal600,
+    brand: LoitPalette.mintDark,
     accent: LoitPalette.ochre500,
     borderSubtle: LoitPalette.n200,
     borderDefault: LoitPalette.n300,
     borderStrong: LoitPalette.n400,
-    borderFocus: LoitPalette.teal500,
+    borderFocus: LoitPalette.mintDark,
     borderDanger: LoitPalette.red500,
     success: LoitPalette.green500,
     warning: LoitPalette.amber500,
@@ -178,33 +184,35 @@ class LoitColors extends ThemeExtension<LoitColors> {
     infoSurface: LoitPalette.blue50,
   );
 
+  // Dark mode retoned to the logo palette — mint brand on desaturated petrol.
+  // See docs/adr/0006-dark-mode-brand-retone.md.
   static const dark = LoitColors(
-    canvas: Color(0xFF101311),
-    surface: Color(0xFF181B19),
-    raised: Color(0xFF1F2321),
-    overlay: Color(0xFF262A28),
-    muted: Color(0x82222624),
+    canvas: Color(0xFF0D2E33), // desaturated petrol (logo bg #0B3A42 = splash)
+    surface: Color(0xFF123A40),
+    raised: Color(0xFF16454C),
+    overlay: Color(0xFF1B5159),
+    muted: Color(0x82173D44),
     inverse: LoitPalette.n50,
-    contentPrimary: Color(0xFFF2F2EC),
-    contentSecondary: Color(0xFFB8BCB6),
-    contentTertiary: Color(0xFF8A8E88),
-    contentDisabled: Color(0xFF5A5E58),
+    contentPrimary: Color(0xFFEAF5F1),
+    contentSecondary: Color(0xFFA9C4BD),
+    contentTertiary: Color(0xFF7B9893),
+    contentDisabled: Color(0xFF4F6A66),
     contentInverse: LoitPalette.n900,
-    brand: LoitPalette.teal300,
+    brand: LoitPalette.mint300,
     accent: LoitPalette.ochre300,
-    borderSubtle: LoitPalette.n800,
-    borderDefault: Color(0xFF3A3E3C),
-    borderStrong: Color(0xFF525652),
-    borderFocus: LoitPalette.teal300,
+    borderSubtle: Color(0xFF163D44),
+    borderDefault: Color(0xFF1E4952),
+    borderStrong: Color(0xFF2C5A64),
+    borderFocus: LoitPalette.mint300,
     borderDanger: LoitPalette.red400,
     success: LoitPalette.green400,
     warning: LoitPalette.amber400,
     danger: LoitPalette.red400,
-    info: LoitPalette.blue400,
-    successSurface: Color(0xFF1A2E22),
+    info: Color(0xFF5CC8E8), // cyan-shifted income/info — pops on petrol
+    successSurface: Color(0xFF173D30),
     warningSurface: Color(0xFF2E2414),
     dangerSurface: Color(0xFF2E1A18),
-    infoSurface: Color(0xFF18242E),
+    infoSurface: Color(0xFF16323A),
   );
 
   @override

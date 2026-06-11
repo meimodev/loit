@@ -211,7 +211,8 @@ class LoitTheme {
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? Colors.white : c.surface,
+          // Mint track is a light fill → dark thumb (see ADR 0006 invariant).
+          (s) => s.contains(WidgetState.selected) ? c.contentInverse : c.surface,
         ),
         trackColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected) ? c.brand : c.borderDefault,
@@ -225,7 +226,8 @@ class LoitTheme {
               ? c.brand
               : Colors.transparent,
         ),
-        checkColor: const WidgetStatePropertyAll(Colors.white),
+        // Mint fill is light → dark check glyph (see ADR 0006 invariant).
+        checkColor: WidgetStatePropertyAll(c.contentInverse),
       ),
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith(

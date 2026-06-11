@@ -2827,4 +2827,65 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get telegramGenerateFailed =>
       'Couldn\'t generate link code. Try again.';
+
+  @override
+  String get commonSave => 'Save';
+
+  @override
+  String get roomBalanceTab => 'Balance';
+
+  @override
+  String get roomBalanceNet => 'Net balance';
+
+  @override
+  String get roomBalanceAssets => 'Assets';
+
+  @override
+  String get roomBalanceLiabilities => 'Liabilities';
+
+  @override
+  String get roomBalanceAccountsLabel => 'Accounts';
+
+  @override
+  String get roomAccountsEmptyTitle => 'No room accounts yet';
+
+  @override
+  String get roomAccountsEmptyBody =>
+      'Admins can add a shared cash pool or debt to track together.';
+
+  @override
+  String get roomAccountAdd => 'Add account';
+
+  @override
+  String get roomAccountEdit => 'Edit account';
+
+  @override
+  String get roomAccountName => 'Account name';
+
+  @override
+  String get roomAccountNameRequired => 'Enter a name';
+
+  @override
+  String get roomAccountNameTaken =>
+      'An account with that name already exists in this room.';
+
+  @override
+  String get roomAccountKindAsset => 'Asset';
+
+  @override
+  String get roomAccountKindLiability => 'Liability';
+
+  @override
+  String get roomAccountInitialBalance => 'Initial balance';
+
+  @override
+  String get roomAccountArchive => 'Archive account';
+
+  @override
+  String get roomMovementNoAccounts =>
+      'Add a room account first to log a movement.';
+
+  @override
+  String get roomMovementOnlineOnly =>
+      'Room movements need an internet connection.';
 }

@@ -10,7 +10,10 @@ import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
+import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
+import '../../shared/providers/room_accounts_provider.dart';
+import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
@@ -156,7 +159,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _tabScroll(_overviewSlivers(monthTxns, fmt, home)),
+                _tabScroll([
+                  ..._roomBalanceSlivers(),
+                  ..._overviewSlivers(monthTxns, fmt, home),
+                ]),
                 _tabScroll(_categoriesSlivers(monthTxns, fmt, home)),
                 _tabScroll(_trendSlivers(txns, fmt, home)),
                 _tabScroll(_insightsSlivers(monthTxns, fmt, home)),
@@ -227,6 +233,89 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       out[k] = (out[k] ?? 0) + v;
     }
     return out;
+  }
+
+  /// Room balance-sheet section (shared accounts + net), shown at the top of
+  /// the Overview tab for room-scoped reports. Base-currency, never converted
+  /// to a viewer's home currency (ADR 0007). Empty for personal reports.
+  List<Widget> _roomBalanceSlivers() {
+    final roomId = widget.roomId;
+    if (roomId == null) return const [];
+    final c = context.loitColors;
+    final l10n = context.l10n;
+    final accounts = (ref.watch(roomAccountsProvider(roomId)).value ?? const [])
+        .where((a) => a.archivedAt == null)
+        .toList();
+    if (accounts.isEmpty) return const [];
+    final balances =
+        ref.watch(roomAccountBalancesProvider(roomId)).value ?? const {};
+    final base =
+        ref.watch(roomDetailProvider(roomId)).value?['base_currency'] as String? ??
+            'IDR';
+    var net = 0.0;
+    for (final a in accounts) {
+      net += balances[a.id] ?? a.initialBalance;
+    }
+
+    return [
+      SliverToBoxAdapter(child: LoitGroupLabel(label: l10n.roomBalanceTab)),
+      SliverToBoxAdapter(
+        child: LoitFadeSlideIn(
+          child: Container(
+            color: c.surface,
+            padding: const EdgeInsets.fromLTRB(
+                LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, LoitSpacing.s3),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Text(l10n.roomBalanceNet,
+                        style: LoitTypography.bodyS
+                            .copyWith(color: c.contentSecondary)),
+                    const Spacer(),
+                    Text(formatMoney(net, base),
+                        style: LoitTypography.titleM.copyWith(
+                            color: net < 0 ? c.danger : c.contentPrimary,
+                            fontWeight: FontWeight.w800)),
+                  ],
+                ),
+                const SizedBox(height: LoitSpacing.s2),
+                for (final a in accounts)
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: LoitSpacing.s1),
+                    child: Row(
+                      children: [
+                        Icon(
+                            a.kind == AccountKind.liability
+                                ? Icons.trending_down
+                                : Icons.account_balance_wallet,
+                            size: 16,
+                            color: c.contentSecondary),
+                        const SizedBox(width: LoitSpacing.s2),
+                        Expanded(
+                          child: Text(a.name,
+                              style: LoitTypography.bodyM
+                                  .copyWith(color: c.contentPrimary)),
+                        ),
+                        Text(
+                            formatMoney(
+                                balances[a.id] ?? a.initialBalance, base),
+                            style: LoitTypography.bodyM.copyWith(
+                                color: (balances[a.id] ?? a.initialBalance) < 0
+                                    ? c.danger
+                                    : c.contentPrimary,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ];
   }
 
   List<Widget> _overviewSlivers(List<Txn> monthTxns, String Function(double) fmt, String home) {

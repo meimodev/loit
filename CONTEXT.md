@@ -88,6 +88,30 @@ the **Rooms intro** (discovery for users with no rooms) and the **Rooms tab
 empty state** (the zero-rooms entry point).
 _Avoid_: add-room button, new-room icon.
 
+### Room balance sheet
+
+**Room account**:
+A balance-bearing account **owned by a Room**, not a user — the shared analogue
+of a personal **Account**. Has a kind (asset/liability), an **initial balance**,
+and a currency fixed to the Room's `base_currency`. A Room may have **multiple**.
+Room accounts give a Room its own balance sheet (shared cash pools, shared
+debts) — distinct from **Room budgets**, which only cap shared *spending*.
+_Avoid_: shared account, group wallet, room wallet.
+A **Room account** lives in the same `accounts` table as a personal **Account**;
+exactly one of `user_id` / `room_id` is set. Personal screens must filter
+`room_id IS NULL` so room accounts never leak into a user's own balance sheet.
+
+**Room-account movement**:
+A transaction logged **inside a room** — it moves a **Room account** only, never
+a personal **Account** (the pool model). One-sided expense/income on a Room
+account (pool pays an outside bill, pool earns interest) or a transfer between
+two Room accounts of the same room. Entered through the **usual add-transaction
+form** and the scanner, both of which — when opened from a room — scope their
+account and category pickers to that room alone. There is **no** personal-money
+leg: a member paying a shared cost from their own pocket is not a Room-account
+movement. Room-account movements are **online-only** (shared-state divergence).
+_Avoid_: personal mirror, sync to personal, room transaction sheet.
+
 ## Example dialogue
 
 > **Dev:** A free user sends three text messages and one photo to the bot. What

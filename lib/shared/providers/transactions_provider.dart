@@ -143,6 +143,15 @@ class Txn {
   double absAmountIn(String target) => amountIn(target).abs();
 }
 
+/// Thrown when a connectivity-required action (a transaction touching a room
+/// account) is attempted offline. Room-account movements are online-only so the
+/// shared balance never diverges across members — see ADR 0007.
+class OnlineOnlyActionException implements Exception {
+  const OnlineOnlyActionException();
+  @override
+  String toString() => 'This action needs an internet connection.';
+}
+
 class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
   RealtimeChannel? _channel;
 
@@ -207,7 +216,10 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
   /// enqueues offline. UI state is optimistically updated.
   /// Returns the inserted transaction id when the online insert succeeds,
   /// or `null` when the row was queued offline (no id yet).
-  Future<String?> addTransaction(Map<String, dynamic> payload) async {
+  Future<String?> addTransaction(
+    Map<String, dynamic> payload, {
+    bool requireOnline = false,
+  }) async {
     final user = ref.read(currentUserProvider);
     if (user == null) throw StateError('Not signed in');
 
@@ -287,6 +299,8 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
     // way the UI reflects the real outcome instead of always looking
     // "offline-saved" before the network call completes.
     if (await _isOffline()) {
+      // Room-account movements must not queue offline (shared-state divergence).
+      if (requireOnline) throw const OnlineOnlyActionException();
       final db = ref.read(offlineDbProvider);
       // Re-attach items so the queued row can replay items on sync.
       if (items.isNotEmpty) payload['items'] = items;
@@ -329,6 +343,8 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
       state = AsyncData([Txn.fromRow(inserted), ...current]);
       return newId;
     } catch (e) {
+      // Room-account movements never fall back to the offline queue.
+      if (requireOnline) rethrow;
       Log.w('TransactionsProvider', 'Online insert failed, enqueuing', error: e);
       if (items.isNotEmpty) payload['items'] = items;
       final db = ref.read(offlineDbProvider);

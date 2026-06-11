@@ -2837,4 +2837,65 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get telegramGenerateFailed => 'Gagal membuat kode tautan. Coba lagi.';
+
+  @override
+  String get commonSave => 'Simpan';
+
+  @override
+  String get roomBalanceTab => 'Saldo';
+
+  @override
+  String get roomBalanceNet => 'Saldo bersih';
+
+  @override
+  String get roomBalanceAssets => 'Aset';
+
+  @override
+  String get roomBalanceLiabilities => 'Kewajiban';
+
+  @override
+  String get roomBalanceAccountsLabel => 'Akun';
+
+  @override
+  String get roomAccountsEmptyTitle => 'Belum ada akun ruang';
+
+  @override
+  String get roomAccountsEmptyBody =>
+      'Admin bisa menambah kas bersama atau utang untuk dikelola bareng.';
+
+  @override
+  String get roomAccountAdd => 'Tambah akun';
+
+  @override
+  String get roomAccountEdit => 'Ubah akun';
+
+  @override
+  String get roomAccountName => 'Nama akun';
+
+  @override
+  String get roomAccountNameRequired => 'Masukkan nama';
+
+  @override
+  String get roomAccountNameTaken =>
+      'Akun dengan nama itu sudah ada di ruang ini.';
+
+  @override
+  String get roomAccountKindAsset => 'Aset';
+
+  @override
+  String get roomAccountKindLiability => 'Kewajiban';
+
+  @override
+  String get roomAccountInitialBalance => 'Saldo awal';
+
+  @override
+  String get roomAccountArchive => 'Arsipkan akun';
+
+  @override
+  String get roomMovementNoAccounts =>
+      'Tambah akun ruang dulu untuk mencatat transaksi.';
+
+  @override
+  String get roomMovementOnlineOnly =>
+      'Transaksi ruang butuh koneksi internet.';
 }

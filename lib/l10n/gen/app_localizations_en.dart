@@ -1614,6 +1614,195 @@ class AppLocalizationsEn extends AppLocalizations {
       'Reports will appear when you have transactions.';
 
   @override
+  String get reportsTabOverview => 'Overview';
+
+  @override
+  String get reportsTabCategories => 'Categories';
+
+  @override
+  String get reportsTabTrend => 'Trend';
+
+  @override
+  String get reportsTabInsights => 'Insights';
+
+  @override
+  String get reportsTabIncome => 'Income';
+
+  @override
+  String get reportsIncomeBySource => 'Income by source';
+
+  @override
+  String get reportsTrendThisMonth => 'Trend · this month';
+
+  @override
+  String get reportsAvgPerDay => 'Avg/day';
+
+  @override
+  String get reportsDaysActive => 'Days';
+
+  @override
+  String get reportsByCategory => 'By category';
+
+  @override
+  String get reportsAllCategories => 'All categories';
+
+  @override
+  String get reportsLast6Months => 'Last 6 months';
+
+  @override
+  String get reportsTotals => 'Totals';
+
+  @override
+  String get reportsUnknownMerchant => 'Unknown';
+
+  @override
+  String reportsInsightsCount(int count) {
+    return 'Insights · $count';
+  }
+
+  @override
+  String reportsInsightTopCategoryTitle(String category) {
+    return '$category leads spending';
+  }
+
+  @override
+  String reportsInsightTopCategoryBody(String amount) {
+    return '$amount this month — your biggest category.';
+  }
+
+  @override
+  String reportsInsightMerchantVisits(String merchant, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count visits',
+      one: '1 visit',
+    );
+    return '$merchant · $_temp0';
+  }
+
+  @override
+  String reportsInsightMerchantBody(String amount) {
+    return 'Most spent here: $amount. Consider a budget cap.';
+  }
+
+  @override
+  String reportsInsightSubscriptionsTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count recurring subscriptions',
+      one: '1 recurring subscription',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reportsInsightSubscriptionsBody(String list) {
+    return '$list. Tap to review.';
+  }
+
+  @override
+  String get reportsInsightSummaryBalanced =>
+      'You\'re spending evenly across categories — your most balanced month yet.';
+
+  @override
+  String get reportsInsightSummaryForming =>
+      'Your spend pattern is forming — keep going.';
+
+  @override
+  String commonErrorWithDetail(String detail) {
+    return 'Error: $detail';
+  }
+
+  @override
+  String get roomJoinFieldLabel => 'Invite link or token';
+
+  @override
+  String get roomJoinScanHint =>
+      'You can scan a QR from the inviter or paste the loit.app/invite/… URL below.';
+
+  @override
+  String get roomCreatedBy => 'Created by';
+
+  @override
+  String get roomTxnRemoveBody =>
+      'This removes the transaction from the room for everyone. Cannot be undone.';
+
+  @override
+  String get roomBudgetScopeNote =>
+      'Room budgets apply to this room only. All members can see them.';
+
+  @override
+  String get roomCreateAdminNote =>
+      'You will be added as admin. Invite people after the room is created.';
+
+  @override
+  String get notificationsMarkAllRead => 'Mark all read';
+
+  @override
+  String get notificationsEmptyBody =>
+      'New activity in your rooms, budgets, and receipts will land here.';
+
+  @override
+  String get lockAuthPrompt => 'Authenticate to continue';
+
+  @override
+  String get proSuccessUnlimitedScans => 'Unlimited receipt scans';
+
+  @override
+  String get connectivityOfflineBody =>
+      'Changes are saved locally and will sync when you reconnect.';
+
+  @override
+  String get staleRateTitle => 'Rates may be outdated';
+
+  @override
+  String get accountPickerEmpty => 'No accounts available.';
+
+  @override
+  String get currencySearchPlaceholder => 'Search code, symbol, or name';
+
+  @override
+  String get currencyPickerTitle => 'Select currency';
+
+  @override
+  String get currencyNoMatches => 'No matches';
+
+  @override
+  String currencyLoadError(String error) {
+    return 'Failed to load currencies: $error';
+  }
+
+  @override
+  String get chartNoSpendYet => 'No spend yet';
+
+  @override
+  String get notificationsEmptyTitle => 'You\'re all caught up';
+
+  @override
+  String get connectivityOfflineTitle => 'You\'re offline';
+
+  @override
+  String get accountPickerTitle => 'Select account';
+
+  @override
+  String get proFeatureBudgets => 'Unlimited budgets';
+
+  @override
+  String get proFeatureExport => 'CSV & PDF export';
+
+  @override
+  String get proFeatureMultiCurrency => 'Multi-currency';
+
+  @override
+  String get proFeatureInsights => 'Advanced insights';
+
+  @override
+  String get permissionsSkipHint =>
+      'We\'ll ask each when you need it — you can skip now.';
+
+  @override
   String get exportScreenTitle => 'Export data';
 
   @override
@@ -1677,8 +1866,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomsScreenJoinRoom => 'Join room';
 
   @override
+  String get roomsScreenAcceptInvite => 'Accept';
+
+  @override
+  String get roomsLoadErrorTitle => 'Couldn\'t load rooms';
+
+  @override
+  String get roomsLoadError =>
+      'Something went wrong. Check your connection and try again.';
+
+  @override
+  String get roomsLoadRetry => 'Try again';
+
+  @override
   String roomsScreenMembers(int n) {
-    return '$n members';
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n members',
+      one: '1 member',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -1723,9 +1931,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomJoinInvalid => 'This invite is invalid or expired.';
 
   @override
-  String roomJoinFailed(String error) {
-    return 'Failed to join: $error';
-  }
+  String get roomJoinFailed => 'Couldn\'t join that room. Please try again.';
 
   @override
   String get roomDetailAddTransaction => 'Add transaction';
@@ -2088,31 +2294,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomTileArchivedLabel => 'Archived';
 
   @override
-  String get roomTileNoDescription => 'No description set — tap to add one.';
-
-  @override
   String get roomTileYouOwn => 'You own this';
 
   @override
-  String roomTileYourRole(String role) {
-    return 'You · $role';
-  }
-
-  @override
-  String roomTileCreated(String date) {
-    return 'Created $date';
-  }
-
-  @override
-  String get roomOnlineOnlyYou => 'Only you online';
-
-  @override
   String get roomOnlineStatus => 'Online';
-
-  @override
-  String roomOnlineYouPlus(int count) {
-    return 'You + $count online';
-  }
 
   @override
   String roomOnlineOthers(int count) {
@@ -2127,8 +2312,8 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count rooms / ∞',
-      one: '1 room / ∞',
+      other: '$count rooms · Unlimited',
+      one: '1 room · Unlimited',
     );
     return '$_temp0';
   }
@@ -2138,8 +2323,8 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count rooms / $limit',
-      one: '1 room / $limit',
+      other: '$count of $limit rooms',
+      one: '1 of $limit rooms',
     );
     return '$_temp0';
   }
@@ -2364,6 +2549,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get roomsIntroCta => 'Got it';
+
+  @override
+  String get roomsIntroCreateCta => 'Create a room';
+
+  @override
+  String get roomsIntroLaterCta => 'Maybe later';
 
   @override
   String get paywallHeroPro => 'You\'re on Pro.\nEverything\nunlocked.';

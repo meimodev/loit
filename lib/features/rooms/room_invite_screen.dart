@@ -59,7 +59,7 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
           body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(
         appBar: AppBar(),
-        body: Center(child: Text('Error: $e')),
+        body: Center(child: Text(context.l10n.commonErrorWithDetail('$e'))),
       ),
       data: (room) {
         final name = room['name'] as String? ?? 'Room';

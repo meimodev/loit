@@ -48,7 +48,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                       fontWeight: FontWeight.w600,
                     )),
                 const SizedBox(height: 6),
-                Text("We'll ask each when you need it — you can skip now.",
+                Text(l10n.permissionsSkipHint,
                     style: LoitTypography.bodyM
                         .copyWith(color: c.contentSecondary)),
                 const SizedBox(height: LoitSpacing.s4),

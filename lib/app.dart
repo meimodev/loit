@@ -32,6 +32,7 @@ import 'shared/providers/presence_provider.dart';
 import 'shared/providers/room_providers.dart';
 import 'shared/providers/services_providers.dart';
 import 'shared/providers/today_expense_provider.dart';
+import 'shared/providers/transactions_provider.dart';
 
 class LoitApp extends ConsumerStatefulWidget {
   const LoitApp({super.key});
@@ -47,9 +48,14 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
   StreamSubscription<RemoteMessage>? _foregroundPushSub;
   RealtimeChannel? _userRowChannel;
   DateTime? _pausedAt;
+  // Session guard against double-showing the Rooms intro before the persistent
+  // `has_seen_rooms_intro` write lands. The once-ever authority is the DB flag;
+  // see ADR-0005.
   bool _roomsIntroShown = false;
-  bool _introOnNextProfile = false;
   static const _lockBackgroundThreshold = Duration(seconds: 15);
+  // Rooms intro engagement trigger thresholds (ADR-0005).
+  static const _roomsIntroMinTxns = 3;
+  static const _roomsIntroDayTwo = Duration(hours: 20);
 
   @override
   void initState() {
@@ -235,6 +241,58 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
     }
   }
 
+  /// Engagement-gated Rooms intro (ADR-0005). Shows the intro sheet exactly
+  /// once per user, when a zero-room user has felt personal value (≥3 logged
+  /// transactions OR their day-2 session). Idempotent — safe to call from
+  /// every profile/transaction tick; all guards bail cheaply.
+  Future<void> _maybeShowRoomsIntro() async {
+    if (_roomsIntroShown) return;
+    if (ref.read(appLockedProvider)) return; // don't surface under lock screen
+
+    final profile = ref.read(userProfileProvider).value;
+    if (profile == null || profile.hasSeenRoomsIntro) return;
+
+    // Only loaded data counts; a null means "not ready", re-evaluated later.
+    final rooms = ref.read(myRoomsProvider).value;
+    if (rooms == null) return;
+    if (rooms.isNotEmpty) return; // already adopted — nothing to discover
+
+    final txnCount = ref.read(transactionsProvider).value?.length ?? 0;
+    final firstSeen = ref.read(preferencesProvider.notifier).firstSeen;
+    final dayTwo = firstSeen != null &&
+        DateTime.now().difference(firstSeen) >= _roomsIntroDayTwo;
+    if (txnCount < _roomsIntroMinTxns && !dayTwo) return;
+
+    _roomsIntroShown = true;
+    // Two frames so any pending locale/theme propagation settles before the
+    // sheet mounts (avoids a one-frame stale-locale flash).
+    await WidgetsBinding.instance.endOfFrame;
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    final router = ref.read(appRouterProvider);
+    final ctx = router.routerDelegate.navigatorKey.currentContext;
+    if (ctx == null) return;
+    // ignore: use_build_context_synchronously
+    final wantsCreate = await showRoomsIntroDialog(ctx);
+    await _markRoomsIntroSeen();
+    if (wantsCreate && mounted) router.push('/rooms/new');
+  }
+
+  /// Persist the once-ever Rooms intro contract. The DB flag is the authority;
+  /// failures degrade to the per-session [_roomsIntroShown] guard.
+  Future<void> _markRoomsIntroSeen() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    try {
+      await Supabase.instance.client
+          .from('users')
+          .update({'has_seen_rooms_intro': true}).eq('id', user.id);
+      ref.invalidate(userProfileProvider);
+    } catch (e) {
+      Log.w('App', 'rooms intro seen-flag write failed', error: e);
+    }
+  }
+
   void _subscribeUserRow(String userId) {
     _userRowChannel?.unsubscribe();
     // Realtime UPDATE on the user's own public.users row. Catches any
@@ -269,9 +327,6 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
         'hasSession': session != null,
       });
       if (session != null) {
-        if (event == AuthChangeEvent.signedIn) {
-          _introOnNextProfile = true;
-        }
         Log.i('App', 'User signed in: ${session.user.id}');
         Log.setUser(id: session.user.id, email: session.user.email);
         Log.event('Auth', 'signed in', data: {
@@ -311,7 +366,6 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       } else {
         Log.i('App', 'User signed out');
         _roomsIntroShown = false;
-        _introOnNextProfile = false;
         Log.event('Auth', 'signed out', data: {'event': event?.name});
         Log.setUser(id: null);
         Analytics.reset();
@@ -351,35 +405,21 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
           Log.w('App', 'language local sync failed', error: e);
         },
       );
-      final themeSync = notifier.syncThemeFromDb(profile.theme).catchError(
+      notifier.syncThemeFromDb(profile.theme).catchError(
         (Object e, StackTrace st) {
           Log.w('App', 'theme local sync failed', error: e);
         },
       );
 
-      // Sign-in: surface the Rooms intro once per sign-in event.
-      // Chained off the language sync so MaterialApp.locale reflects the DB
-      // value before the sheet mounts — otherwise the previous session's
-      // locale renders for a frame.
-      if (_introOnNextProfile && !_roomsIntroShown) {
-        _introOnNextProfile = false;
-        _roomsIntroShown = true;
-        themeSync.whenComplete(() async {
-          await notifier.syncLanguageFromDb(profile.language).catchError(
-            (Object _) {},
-          );
-          if (!mounted) return;
-          // Two frames: first lets Riverpod propagate the locale change to
-          // MaterialApp, second lets the Localizations widget rebuild.
-          await WidgetsBinding.instance.endOfFrame;
-          await WidgetsBinding.instance.endOfFrame;
-          if (!mounted) return;
-          final router = ref.read(appRouterProvider);
-          final ctx = router.routerDelegate.navigatorKey.currentContext;
-          // ignore: use_build_context_synchronously
-          if (ctx != null) showRoomsIntroDialog(ctx);
-        });
-      }
+      // Profile load is one of the two evaluation points for the Rooms intro
+      // (the other is a new transaction); see ADR-0005.
+      unawaited(_maybeShowRoomsIntro());
+    });
+
+    // Re-evaluate the Rooms intro when the transaction feed changes — catches
+    // the user crossing the ≥3-transactions threshold mid-session.
+    ref.listen<AsyncValue<List<Txn>>>(transactionsProvider, (_, __) {
+      unawaited(_maybeShowRoomsIntro());
     });
 
     // Deep link → navigate to joined room

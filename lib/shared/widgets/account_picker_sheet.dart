@@ -5,6 +5,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../providers/accounts_provider.dart';
 import 'loit_sheet.dart';
 
@@ -49,12 +50,12 @@ class _AccountPickerSheet extends ConsumerWidget {
     }).toList();
 
     return LoitSheet(
-      title: 'Select account',
+      title: context.l10n.accountPickerTitle,
       child: visible.isEmpty
           ? Padding(
               padding: const EdgeInsets.symmetric(vertical: LoitSpacing.s5),
               child: Text(
-                'No accounts available.',
+                context.l10n.accountPickerEmpty,
                 style: LoitTypography.bodyM.copyWith(color: c.contentSecondary),
                 textAlign: TextAlign.center,
               ),

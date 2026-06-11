@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 
 /// Compact sparkline of daily values. Used by Dashboard insights preview and
 /// Reports Overview tab.
@@ -12,13 +13,13 @@ class LoitMiniLineChart extends StatelessWidget {
     super.key,
     required this.values,
     this.height = 90,
-    this.emptyLabel = 'No spend yet',
+    this.emptyLabel,
     this.formatValue,
   });
 
   final List<double> values;
   final double height;
-  final String emptyLabel;
+  final String? emptyLabel;
   final String Function(double value)? formatValue;
 
   @override
@@ -29,7 +30,7 @@ class LoitMiniLineChart extends StatelessWidget {
         height: height,
         child: Center(
           child: Text(
-            emptyLabel,
+            emptyLabel ?? context.l10n.chartNoSpendYet,
             style: LoitTypography.bodyS.copyWith(color: c.contentTertiary),
           ),
         ),

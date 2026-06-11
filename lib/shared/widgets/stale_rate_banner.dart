@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n_x.dart';
+
 /// Banner shown when an FX rate was served from a stale cache (provider unreachable).
 class StaleRateBanner extends StatelessWidget {
   const StaleRateBanner({super.key});
@@ -19,7 +21,7 @@ class StaleRateBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Rates may be outdated',
+              context.l10n.staleRateTitle,
               style: TextStyle(
                 color: Colors.amber.shade900,
                 fontWeight: FontWeight.w600,

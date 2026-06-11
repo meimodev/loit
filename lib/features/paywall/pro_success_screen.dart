@@ -119,12 +119,12 @@ class ProSuccessScreen extends ConsumerWidget {
                                     ),
                                   ),
                                   const SizedBox(height: 10),
-                                  for (final f in const [
-                                    'Unlimited budgets',
-                                    'Unlimited receipt scans',
-                                    'CSV & PDF export',
-                                    'Multi-currency',
-                                    'Advanced insights',
+                                  for (final f in [
+                                    l10n.proFeatureBudgets,
+                                    l10n.proSuccessUnlimitedScans,
+                                    l10n.proFeatureExport,
+                                    l10n.proFeatureMultiCurrency,
+                                    l10n.proFeatureInsights,
                                   ])
                                     Padding(
                                       padding: const EdgeInsets.symmetric(

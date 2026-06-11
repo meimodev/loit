@@ -44,6 +44,50 @@ A low-confidence parse held for explicit user confirmation before it becomes a
 discarding it does not change the **Scan quota**.
 _Avoid_: draft, unconfirmed scan.
 
+### Categories
+
+**Category style**:
+The *visual* identity of a category — tint colour, icon, and a canonical
+**English** name. Sourced from `categoryStyleProvider`. The English name is for
+internal/visual use; it is **not** the string to render to the user.
+_Avoid_: category label, category name (when meaning the visible text).
+
+**Category display label**:
+The *locale-aware* user-facing name of a category. Sourced from
+`categoryLabelProvider` / `_localizeDefault`, which substitutes Indonesian
+defaults for `id` locale. Always the correct source for visible category text.
+Conflating it with the **Category style** name leaks English into Indonesian UI.
+_Avoid_: category style label.
+
+### Rooms discovery
+
+**Rooms intro**:
+The one-time educational sheet that sells the value of **Rooms** (shared
+expense spaces) to a user who has none. Shown **once per user, ever** — gated
+on the persistent `has_seen_rooms_intro` flag, not per sign-in. Fires when the
+user has felt personal value (after ~3 logged transactions or their day-2
+session, whichever first), then offers a direct path to create a first room.
+Distinct from the **Rooms tab empty state**, which is the always-available
+fallback entry seen only if the user opens the Rooms tab themselves.
+_Avoid_: rooms nudge, rooms onboarding, intro dialog (when meaning the once-ever contract).
+
+**Rooms tab empty state**:
+The zero-rooms placeholder rendered inside the Rooms tab itself. A permanent,
+reactive entry point (the user navigated there). Does not drive discovery —
+the **Rooms intro** does that for users who never tap the tab.
+_Avoid_: rooms intro, empty rooms screen.
+
+**Rooms create FAB**:
+The persistent "New room" floating action button in the Rooms tab, shown only
+once the user already has at least one room (the **Rooms tab empty state**
+carries its own create CTA, so the FAB does not appear there). It is the
+primary create affordance for an existing member and is always visible. At the
+tier **room limit** it does not create — tapping opens the upgrade paywall
+instead, making the create affordance double as the upgrade path. Distinct from
+the **Rooms intro** (discovery for users with no rooms) and the **Rooms tab
+empty state** (the zero-rooms entry point).
+_Avoid_: add-room button, new-room icon.
+
 ## Example dialogue
 
 > **Dev:** A free user sends three text messages and one photo to the bot. What

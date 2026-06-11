@@ -134,7 +134,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                 const SizedBox(width: LoitSpacing.s2),
                 Expanded(
                   child: Text(
-                    'You will be added as admin. Invite people after the room is created.',
+                    l.roomCreateAdminNote,
                     style: LoitTypography.bodyS
                         .copyWith(color: c.contentSecondary),
                   ),

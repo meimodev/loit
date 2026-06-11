@@ -106,7 +106,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       loading: () => const Scaffold(
           body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(
-          appBar: AppBar(), body: Center(child: Text('Error: $e'))),
+          appBar: AppBar(), body: Center(child: Text(context.l10n.commonErrorWithDetail('$e')))),
       data: (room) {
         final name = room['name'] as String? ?? context.l10n.roomDetailRoomFallback;
         final isCreator = room['created_by'] == user?.id;
@@ -840,7 +840,7 @@ class _FeedTab extends ConsumerWidget {
     return feedAsync.when(
       skipLoadingOnReload: true,
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => Center(child: Text(context.l10n.commonErrorWithDetail('$e'))),
       data: (allTxns) {
         final visible = allTxns
             .where((t) => !pending.contains(t['id'] as String?))
@@ -1662,7 +1662,7 @@ class _BudgetTab extends ConsumerWidget {
     return budgetsAsync.when(
       skipLoadingOnReload: true,
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => Center(child: Text(context.l10n.commonErrorWithDetail('$e'))),
       data: (list) {
         if (list.isEmpty) {
           return ListView(
@@ -1888,7 +1888,7 @@ class _CategoriesTab extends ConsumerWidget {
     return asyncCats.when(
       skipLoadingOnReload: true,
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => Center(child: Text(context.l10n.commonErrorWithDetail('$e'))),
       data: (cats) {
         final roomCats = cats
             .where((cat) => cat.roomId == roomId && !pending.contains(cat.id))

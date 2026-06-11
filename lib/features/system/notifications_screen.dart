@@ -41,7 +41,7 @@ class SystemNotificationsScreen extends ConsumerWidget {
               onPressed: () =>
                   ref.read(notificationsProvider.notifier).markAllRead(),
               child: Text(
-                'Mark all read',
+                l.notificationsMarkAllRead,
                 style: LoitTypography.bodyM.copyWith(
                   color: c.brand,
                   fontWeight: FontWeight.w600,
@@ -70,7 +70,7 @@ class SystemNotificationsScreen extends ConsumerWidget {
           children: [
             SizedBox(
               height: 400,
-              child: Center(child: Text('Error: $e')),
+              child: Center(child: Text(context.l10n.commonErrorWithDetail('$e'))),
             ),
           ],
         ),
@@ -83,9 +83,8 @@ class SystemNotificationsScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(32),
                   child: LoitEmptyState(
                     icon: Icons.notifications_none_rounded,
-                    title: "You're all caught up",
-                    body:
-                        'New activity in your rooms, budgets, and receipts will land here.',
+                    title: l.notificationsEmptyTitle,
+                    body: l.notificationsEmptyBody,
                   ),
                 ),
               ],

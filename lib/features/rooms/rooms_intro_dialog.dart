@@ -7,11 +7,13 @@ import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
 
-/// Rooms intro bottom sheet. Surfaced by app.dart on every successful
-/// sign-in. Fires a PostHog event on dismissal.
-Future<void> showRoomsIntroDialog(BuildContext context) async {
+/// Rooms intro bottom sheet. Surfaced once per user by app.dart's engagement
+/// trigger (see ADR-0005). Fires a PostHog event on dismissal. Returns `true`
+/// when the user tapped the "Create a room" CTA so the caller can route to the
+/// create form.
+Future<bool> showRoomsIntroDialog(BuildContext context) async {
   final c = context.loitColors;
-  await showModalBottomSheet<void>(
+  final created = await showModalBottomSheet<bool>(
     context: context,
     isDismissible: false,
     enableDrag: false,
@@ -24,6 +26,7 @@ Future<void> showRoomsIntroDialog(BuildContext context) async {
   );
 
   Analytics.roomsIntroSeen();
+  return created ?? false;
 }
 
 class _RoomsIntroSheet extends StatelessWidget {
@@ -95,8 +98,17 @@ class _RoomsIntroSheet extends StatelessWidget {
               width: double.infinity,
               height: 48,
               child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(l.roomsIntroCta),
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(l.roomsIntroCreateCta),
+              ),
+            ),
+            const SizedBox(height: LoitSpacing.s2),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(l.roomsIntroLaterCta),
               ),
             ),
           ],

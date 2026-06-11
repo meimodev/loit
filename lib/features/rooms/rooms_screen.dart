@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../shared/utils/locale_date_format.dart';
 
 import '../../core/services/analytics_service.dart';
 import '../../core/services/interaction_log_service.dart';
@@ -30,8 +29,30 @@ class RoomsScreen extends ConsumerWidget {
     final rooms = ref.watch(myRoomsProvider);
     final invites = ref.watch(pendingInvitesProvider);
 
+    final roomCount = rooms.value?.length ?? 0;
+    final hasRooms = rooms.value?.isNotEmpty ?? false;
+    final tier = ref.watch(userProfileProvider).value?.tier ?? 'free';
+    final limit = FeatureFlags.forTier(tier).roomLimit;
+    final atLimit = limit != null && roomCount >= limit;
+
     return Scaffold(
       backgroundColor: c.canvas,
+      // Persistent create affordance once the user already has a room; the
+      // empty state carries its own create CTA, so the FAB stays hidden there.
+      // At the tier room limit the FAB routes to the paywall instead of
+      // create — the create affordance doubles as the upgrade path.
+      floatingActionButton: hasRooms
+          ? FloatingActionButton.extended(
+              // Theme sets a global CircleBorder for FABs, which clips the
+              // extended pill — override to a stadium so the label fits.
+              shape: const StadiumBorder(),
+              onPressed: () => atLimit
+                  ? showPaywallSheet(context, feature: 'more_rooms')
+                  : context.push('/rooms/new'),
+              icon: const Icon(Icons.add),
+              label: Text(l.roomsScreenCreateRoom),
+            )
+          : null,
       appBar: AppBar(
         title: Text(l.roomsScreenTitle),
         actions: [
@@ -39,11 +60,6 @@ class RoomsScreen extends ConsumerWidget {
             icon: const Icon(Icons.link),
             tooltip: l.roomsScreenJoinRoom,
             onPressed: () => context.push('/rooms/join'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: l.roomsScreenCreateRoom,
-            onPressed: () => context.push('/rooms/new'),
           ),
         ],
       ),
@@ -80,7 +96,20 @@ class RoomsScreen extends ConsumerWidget {
               loading: () => const SliverFillRemaining(
                   child: Center(child: CircularProgressIndicator())),
               error: (e, _) => SliverFillRemaining(
-                child: Center(child: Text('Error: $e')),
+                hasScrollBody: false,
+                child: Padding(
+                  padding: const EdgeInsets.all(LoitSpacing.s5),
+                  child: LoitEmptyState(
+                    icon: Icons.cloud_off_outlined,
+                    title: l.roomsLoadErrorTitle,
+                    body: l.roomsLoadError,
+                    primaryCta: l.roomsLoadRetry,
+                    onPrimaryCta: () {
+                      ref.invalidate(myRoomsProvider);
+                      ref.invalidate(pendingInvitesProvider);
+                    },
+                  ),
+                ),
               ),
               data: (list) => list.isEmpty
                   ? SliverFillRemaining(
@@ -135,11 +164,8 @@ class _RoomTile extends ConsumerWidget {
     final l = context.l10n;
     final id = room['id'] as String? ?? '';
     final name = room['name'] as String? ?? l.roomTileUntitled;
-    final description = (room['description'] as String?)?.trim();
     final baseCurrency = (room['base_currency'] as String?) ?? 'IDR';
     final createdBy = room['created_by'] as String?;
-    final createdAt = DateTime.tryParse(
-        (room['created_at'] as String?) ?? '')?.toLocal();
     final members =
         (room['room_members'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final memberCount = members.length;
@@ -147,24 +173,20 @@ class _RoomTile extends ConsumerWidget {
     final color = RoomColors.forId(id);
 
     final currentUserId = ref.watch(currentUserProvider)?.id;
-    final myRole = members
-        .firstWhere((m) => m['user_id'] == currentUserId,
-            orElse: () => const <String, dynamic>{})['role'] as String?;
     final isOwner = createdBy != null && createdBy == currentUserId;
 
     // Presence — count members of this room that are online right now,
-    // excluding self (we already know we're online).
+    // excluding self (we already know we're online, so our own presence is
+    // not a signal worth showing on the list).
     final onlineIds = ref.watch(onlineUsersProvider).value ?? const <String>{};
     final memberIds = members
         .map((m) => m['user_id'] as String?)
         .whereType<String>()
         .toSet();
-    final onlineMemberIds = memberIds.intersection(onlineIds);
-    final othersOnline = onlineMemberIds
+    final othersOnline = memberIds
+        .intersection(onlineIds)
         .where((id) => id != currentUserId)
         .length;
-    final selfOnline =
-        currentUserId != null && onlineMemberIds.contains(currentUserId);
 
     return InkWell(
       onTap: () => context.push('/rooms/$id'),
@@ -196,7 +218,7 @@ class _RoomTile extends ConsumerWidget {
                         color: Colors.white, fontWeight: FontWeight.w600),
                   ),
                 ),
-                if (onlineMemberIds.isNotEmpty && !isArchived)
+                if (othersOnline > 0 && !isArchived)
                   Positioned(
                     right: -4,
                     bottom: -4,
@@ -232,32 +254,19 @@ class _RoomTile extends ConsumerWidget {
                                 fontWeight: FontWeight.w600),
                             overflow: TextOverflow.ellipsis),
                       ),
-                      const SizedBox(width: LoitSpacing.s2),
-                      _Pill(label: baseCurrency, color: c.contentSecondary),
+                      if (baseCurrency != 'IDR') ...[
+                        const SizedBox(width: LoitSpacing.s2),
+                        _Pill(
+                            label: baseCurrency, color: c.contentSecondary),
+                      ],
                       if (isArchived) ...[
                         const SizedBox(width: 4),
-                        _Pill(label: l.roomTileArchivedLabel, color: c.warning),
+                        _Pill(
+                            label: l.roomTileArchivedLabel.toUpperCase(),
+                            color: c.warning),
                       ],
                     ],
                   ),
-                  if (description != null && description.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: LoitTypography.bodyS
-                          .copyWith(color: c.contentSecondary, height: 1.3),
-                    ),
-                  ] else ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      l.roomTileNoDescription,
-                      style: LoitTypography.bodyS.copyWith(
-                          color: c.contentTertiary,
-                          fontStyle: FontStyle.italic),
-                    ),
-                  ],
                   const SizedBox(height: LoitSpacing.s2),
                   Wrap(
                     spacing: LoitSpacing.s3,
@@ -267,25 +276,10 @@ class _RoomTile extends ConsumerWidget {
                         icon: Icons.group_outlined,
                         text: l.roomsScreenMembers(memberCount),
                       ),
-                      if (onlineMemberIds.isNotEmpty && !isArchived)
-                        _OnlineMeta(
-                          othersOnline: othersOnline,
-                          selfOnline: selfOnline,
-                        ),
                       if (isOwner)
                         _MetaItem(
-                            icon: Icons.shield_outlined, text: l.roomTileYouOwn)
-                      else if (myRole != null)
-                        _MetaItem(
-                            icon: Icons.badge_outlined,
-                            text: l.roomTileYourRole(
-                                '${myRole[0].toUpperCase()}${myRole.substring(1)}')),
-                      if (createdAt != null)
-                        _MetaItem(
-                          icon: Icons.event_outlined,
-                          text: l.roomTileCreated(
-                              yMMMd(context).format(createdAt)),
-                        ),
+                            icon: Icons.shield_outlined,
+                            text: l.roomTileYouOwn),
                     ],
                   ),
                 ],
@@ -307,12 +301,15 @@ class _MembershipCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
+    final l = context.l10n;
     final profile = ref.watch(userProfileProvider).value;
     final tier = profile?.tier ?? 'free';
     final flags = FeatureFlags.forTier(tier);
     final limit = flags.roomLimit;
     final unlimited = flags.hasUnlimitedRooms;
     final atLimit = limit != null && roomCount >= limit;
+    final nearLimit =
+        !unlimited && limit != null && limit > 0 && roomCount / limit >= 0.8;
     final tierLabel = switch (tier) {
       'pro' => 'Pro',
       'lite' => 'Lite',
@@ -323,13 +320,40 @@ class _MembershipCard extends ConsumerWidget {
       'lite' => c.info,
       _ => c.contentSecondary,
     };
-    final progress = unlimited
-        ? 0.0
-        : (limit == 0 ? 0.0 : (roomCount / limit!).clamp(0.0, 1.0));
+    final usageText = unlimited
+        ? l.roomMembershipUsageUnlimited(roomCount)
+        : l.roomMembershipUsageLimited(roomCount, limit ?? 0);
+
+    // Quiet by default: the quota is secondary to the rooms list, so it
+    // rides as a single slim line. It only earns a full bordered card with
+    // progress + upgrade once you're close to being blocked.
+    if (!atLimit && !nearLimit) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+            LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4, 0),
+        child: Row(
+          children: [
+            Icon(Icons.workspace_premium_outlined, size: 16, color: tierColor),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                usageText,
+                style:
+                    LoitTypography.bodyS.copyWith(color: c.contentSecondary),
+              ),
+            ),
+            _Pill(label: tierLabel.toUpperCase(), color: tierColor),
+          ],
+        ),
+      );
+    }
+
+    final progress =
+        limit == 0 ? 0.0 : (roomCount / limit).clamp(0.0, 1.0);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(
-          LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, 0),
+          LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4, 0),
       padding: const EdgeInsets.all(LoitSpacing.s4),
       decoration: BoxDecoration(
         color: c.surface,
@@ -347,7 +371,7 @@ class _MembershipCard extends ConsumerWidget {
                   size: 18, color: tierColor),
               const SizedBox(width: 6),
               Text(
-                context.l10n.roomMembershipTitle,
+                l.roomMembershipTitle,
                 style: LoitTypography.bodyS
                     .copyWith(color: c.contentSecondary),
               ),
@@ -357,29 +381,24 @@ class _MembershipCard extends ConsumerWidget {
           ),
           const SizedBox(height: LoitSpacing.s3),
           Text(
-            unlimited
-                ? context.l10n.roomMembershipUsageUnlimited(roomCount)
-                : context.l10n.roomMembershipUsageLimited(
-                    roomCount, limit ?? 0),
+            usageText,
             style: LoitTypography.bodyL.copyWith(
                 color: c.contentPrimary, fontWeight: FontWeight.w600),
           ),
-          if (!unlimited) ...[
-            const SizedBox(height: LoitSpacing.s2),
-            LoitAnimatedProgress(
-              value: progress,
-              color: atLimit ? c.warning : tierColor,
-              background: c.muted,
-              borderRadius: const BorderRadius.all(Radius.circular(4)),
-            ),
-          ],
+          const SizedBox(height: LoitSpacing.s2),
+          LoitAnimatedProgress(
+            value: progress,
+            color: atLimit ? c.warning : tierColor,
+            background: c.muted,
+            borderRadius: const BorderRadius.all(Radius.circular(4)),
+          ),
           if (atLimit) ...[
             const SizedBox(height: LoitSpacing.s3),
             Row(
               children: [
                 Expanded(
                   child: Text(
-                    context.l10n.roomMembershipAtLimit(tierLabel),
+                    l.roomMembershipAtLimit(tierLabel),
                     style: LoitTypography.bodyS
                         .copyWith(color: c.contentSecondary),
                   ),
@@ -387,7 +406,7 @@ class _MembershipCard extends ConsumerWidget {
                 TextButton(
                   onPressed: () =>
                       showPaywallSheet(context, feature: 'more_rooms'),
-                  child: Text(context.l10n.roomUpgrade),
+                  child: Text(l.roomUpgrade),
                 ),
               ],
             ),
@@ -419,38 +438,6 @@ class _Pill extends StatelessWidget {
           letterSpacing: 0.3,
         ),
       ),
-    );
-  }
-}
-
-class _OnlineMeta extends StatelessWidget {
-  const _OnlineMeta({required this.othersOnline, required this.selfOnline});
-  final int othersOnline;
-  final bool selfOnline;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.loitColors;
-    final l = context.l10n;
-    final String text;
-    if (othersOnline == 0 && selfOnline) {
-      text = l.roomOnlineOnlyYou;
-    } else if (othersOnline == 0) {
-      text = l.roomOnlineStatus;
-    } else if (selfOnline) {
-      text = l.roomOnlineYouPlus(othersOnline);
-    } else {
-      text = l.roomOnlineOthers(othersOnline);
-    }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const LoitPulseDot(color: Color(0xFF22C55E), size: 8, maxRing: 14),
-        const SizedBox(width: 4),
-        Text(text,
-            style: LoitTypography.bodyS.copyWith(
-                color: c.contentPrimary, fontWeight: FontWeight.w600)),
-      ],
     );
   }
 }
@@ -525,7 +512,7 @@ class _InvitesBanner extends ConsumerWidget {
                   ),
                   TextButton(
                     onPressed: () => _accept(context, ref, invite),
-                    child: Text(l.roomsScreenJoinRoom),
+                    child: Text(l.roomsScreenAcceptInvite),
                   ),
                 ],
               ),
@@ -555,7 +542,7 @@ class _InvitesBanner extends ConsumerWidget {
           action: 'room_join', screen: 'rooms', message: '$e');
       if (context.mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(l.roomJoinFailed('$e'))));
+            .showSnackBar(SnackBar(content: Text(l.roomJoinFailed)));
       }
     }
   }

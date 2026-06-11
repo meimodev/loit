@@ -42,7 +42,7 @@ class AccountsScreen extends ConsumerWidget {
         },
         child: accountsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text(context.l10n.commonErrorWithDetail('$e'))),
         data: (accounts) {
           final assets =
               accounts.where((a) => a.kind == AccountKind.asset).toList();
@@ -208,6 +208,9 @@ class AccountsScreen extends ConsumerWidget {
       ),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        // Theme sets a global CircleBorder for FABs, which clips the extended
+        // pill — override to a stadium so the label fits.
+        shape: const StadiumBorder(),
         onPressed: () => context.push('/accounts/new'),
         icon: const Icon(Icons.add),
         label: Text(l.accountsScreenAddAccount),

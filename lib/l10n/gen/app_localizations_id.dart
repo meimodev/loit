@@ -1624,6 +1624,193 @@ class AppLocalizationsId extends AppLocalizations {
       'Laporan akan muncul saat Anda memiliki transaksi.';
 
   @override
+  String get reportsTabOverview => 'Ringkasan';
+
+  @override
+  String get reportsTabCategories => 'Kategori';
+
+  @override
+  String get reportsTabTrend => 'Tren';
+
+  @override
+  String get reportsTabInsights => 'Wawasan';
+
+  @override
+  String get reportsTabIncome => 'Pemasukan';
+
+  @override
+  String get reportsIncomeBySource => 'Pemasukan per sumber';
+
+  @override
+  String get reportsTrendThisMonth => 'Tren · bulan ini';
+
+  @override
+  String get reportsAvgPerDay => 'Rata-rata/hari';
+
+  @override
+  String get reportsDaysActive => 'Hari';
+
+  @override
+  String get reportsByCategory => 'Per kategori';
+
+  @override
+  String get reportsAllCategories => 'Semua kategori';
+
+  @override
+  String get reportsLast6Months => '6 bulan terakhir';
+
+  @override
+  String get reportsTotals => 'Total';
+
+  @override
+  String get reportsUnknownMerchant => 'Tidak diketahui';
+
+  @override
+  String reportsInsightsCount(int count) {
+    return 'Wawasan · $count';
+  }
+
+  @override
+  String reportsInsightTopCategoryTitle(String category) {
+    return '$category mendominasi pengeluaran';
+  }
+
+  @override
+  String reportsInsightTopCategoryBody(String amount) {
+    return '$amount bulan ini — kategori terbesar Anda.';
+  }
+
+  @override
+  String reportsInsightMerchantVisits(String merchant, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count kunjungan',
+    );
+    return '$merchant · $_temp0';
+  }
+
+  @override
+  String reportsInsightMerchantBody(String amount) {
+    return 'Paling banyak di sini: $amount. Pertimbangkan batas anggaran.';
+  }
+
+  @override
+  String reportsInsightSubscriptionsTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count langganan berulang',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reportsInsightSubscriptionsBody(String list) {
+    return '$list. Ketuk untuk meninjau.';
+  }
+
+  @override
+  String get reportsInsightSummaryBalanced =>
+      'Pengeluaran Anda merata di semua kategori — bulan paling seimbang sejauh ini.';
+
+  @override
+  String get reportsInsightSummaryForming =>
+      'Pola pengeluaran Anda sedang terbentuk — teruskan.';
+
+  @override
+  String commonErrorWithDetail(String detail) {
+    return 'Kesalahan: $detail';
+  }
+
+  @override
+  String get roomJoinFieldLabel => 'Tautan undangan atau token';
+
+  @override
+  String get roomJoinScanHint =>
+      'Anda dapat memindai QR dari pengundang atau menempel URL loit.app/invite/… di bawah.';
+
+  @override
+  String get roomCreatedBy => 'Dibuat oleh';
+
+  @override
+  String get roomTxnRemoveBody =>
+      'Ini menghapus transaksi dari ruang untuk semua orang. Tidak dapat dibatalkan.';
+
+  @override
+  String get roomBudgetScopeNote =>
+      'Anggaran ruang hanya berlaku untuk ruang ini. Semua anggota dapat melihatnya.';
+
+  @override
+  String get roomCreateAdminNote =>
+      'Anda akan ditambahkan sebagai admin. Undang orang setelah ruang dibuat.';
+
+  @override
+  String get notificationsMarkAllRead => 'Tandai semua dibaca';
+
+  @override
+  String get notificationsEmptyBody =>
+      'Aktivitas baru di ruang, anggaran, dan struk Anda akan muncul di sini.';
+
+  @override
+  String get lockAuthPrompt => 'Autentikasi untuk melanjutkan';
+
+  @override
+  String get proSuccessUnlimitedScans => 'Pemindaian struk tanpa batas';
+
+  @override
+  String get connectivityOfflineBody =>
+      'Perubahan disimpan secara lokal dan akan tersinkron saat Anda terhubung kembali.';
+
+  @override
+  String get staleRateTitle => 'Kurs mungkin sudah usang';
+
+  @override
+  String get accountPickerEmpty => 'Tidak ada akun tersedia.';
+
+  @override
+  String get currencySearchPlaceholder => 'Cari kode, simbol, atau nama';
+
+  @override
+  String get currencyPickerTitle => 'Pilih mata uang';
+
+  @override
+  String get currencyNoMatches => 'Tidak ada hasil';
+
+  @override
+  String currencyLoadError(String error) {
+    return 'Gagal memuat mata uang: $error';
+  }
+
+  @override
+  String get chartNoSpendYet => 'Belum ada pengeluaran';
+
+  @override
+  String get notificationsEmptyTitle => 'Anda sudah membaca semua';
+
+  @override
+  String get connectivityOfflineTitle => 'Anda sedang offline';
+
+  @override
+  String get accountPickerTitle => 'Pilih akun';
+
+  @override
+  String get proFeatureBudgets => 'Anggaran tanpa batas';
+
+  @override
+  String get proFeatureExport => 'Ekspor CSV & PDF';
+
+  @override
+  String get proFeatureMultiCurrency => 'Multi-mata uang';
+
+  @override
+  String get proFeatureInsights => 'Wawasan lanjutan';
+
+  @override
+  String get permissionsSkipHint =>
+      'Kami akan meminta tiap izin saat Anda membutuhkannya — Anda bisa lewati sekarang.';
+
+  @override
   String get exportScreenTitle => 'Ekspor data';
 
   @override
@@ -1687,8 +1874,26 @@ class AppLocalizationsId extends AppLocalizations {
   String get roomsScreenJoinRoom => 'Gabung ruangan';
 
   @override
+  String get roomsScreenAcceptInvite => 'Terima';
+
+  @override
+  String get roomsLoadErrorTitle => 'Gagal memuat ruangan';
+
+  @override
+  String get roomsLoadError =>
+      'Terjadi kesalahan. Periksa koneksi kamu lalu coba lagi.';
+
+  @override
+  String get roomsLoadRetry => 'Coba lagi';
+
+  @override
   String roomsScreenMembers(int n) {
-    return '$n anggota';
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n anggota',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -1734,9 +1939,8 @@ class AppLocalizationsId extends AppLocalizations {
   String get roomJoinInvalid => 'Undangan ini tidak valid atau kedaluwarsa.';
 
   @override
-  String roomJoinFailed(String error) {
-    return 'Gagal bergabung: $error';
-  }
+  String get roomJoinFailed =>
+      'Gagal bergabung ke ruangan itu. Silakan coba lagi.';
 
   @override
   String get roomDetailAddTransaction => 'Tambah transaksi';
@@ -2100,32 +2304,10 @@ class AppLocalizationsId extends AppLocalizations {
   String get roomTileArchivedLabel => 'Diarsipkan';
 
   @override
-  String get roomTileNoDescription =>
-      'Belum ada deskripsi — ketuk untuk menambahkan.';
-
-  @override
   String get roomTileYouOwn => 'Kamu pemiliknya';
 
   @override
-  String roomTileYourRole(String role) {
-    return 'Kamu · $role';
-  }
-
-  @override
-  String roomTileCreated(String date) {
-    return 'Dibuat $date';
-  }
-
-  @override
-  String get roomOnlineOnlyYou => 'Hanya kamu yang online';
-
-  @override
   String get roomOnlineStatus => 'Online';
-
-  @override
-  String roomOnlineYouPlus(int count) {
-    return 'Kamu + $count online';
-  }
 
   @override
   String roomOnlineOthers(int count) {
@@ -2140,7 +2322,7 @@ class AppLocalizationsId extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count ruangan / ∞',
+      other: '$count ruangan · Tanpa batas',
     );
     return '$_temp0';
   }
@@ -2150,7 +2332,7 @@ class AppLocalizationsId extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count ruangan / $limit',
+      other: '$count dari $limit ruangan',
     );
     return '$_temp0';
   }
@@ -2375,6 +2557,12 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get roomsIntroCta => 'Mengerti';
+
+  @override
+  String get roomsIntroCreateCta => 'Buat room';
+
+  @override
+  String get roomsIntroLaterCta => 'Nanti saja';
 
   @override
   String get paywallHeroPro => 'Anda di Pro.\nSemua\nterbuka.';

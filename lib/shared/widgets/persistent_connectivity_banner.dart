@@ -8,6 +8,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_elevation.dart';
 import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_spacing.dart';
+import '../../l10n/l10n_x.dart';
 import 'loit_banner.dart';
 
 class PersistentConnectivityBanner extends ConsumerStatefulWidget {
@@ -111,8 +112,8 @@ class _PersistentConnectivityBannerState
       child: LoitBanner(
         key: const ValueKey('banner'),
         kind: LoitBannerKind.offline,
-        title: "You're offline",
-        body: 'Changes are saved locally and will sync when you reconnect.',
+        title: context.l10n.connectivityOfflineTitle,
+        body: context.l10n.connectivityOfflineBody,
         onDismiss: () {
           _cancelTimer();
           setState(() => _minimized = true);

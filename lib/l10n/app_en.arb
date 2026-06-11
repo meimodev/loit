@@ -807,6 +807,111 @@
   "reportsScreenAmount": "Amount",
   "reportsScreenPercent": "%",
   "reportsScreenEmptyBody": "Reports will appear when you have transactions.",
+  "reportsTabOverview": "Overview",
+  "reportsTabCategories": "Categories",
+  "reportsTabTrend": "Trend",
+  "reportsTabInsights": "Insights",
+  "reportsTabIncome": "Income",
+  "reportsIncomeBySource": "Income by source",
+  "reportsTrendThisMonth": "Trend · this month",
+  "reportsAvgPerDay": "Avg/day",
+  "reportsDaysActive": "Days",
+  "reportsByCategory": "By category",
+  "reportsAllCategories": "All categories",
+  "reportsLast6Months": "Last 6 months",
+  "reportsTotals": "Totals",
+  "reportsUnknownMerchant": "Unknown",
+  "reportsInsightsCount": "Insights · {count}",
+  "@reportsInsightsCount": {
+    "description": "Insights section label with card count",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "reportsInsightTopCategoryTitle": "{category} leads spending",
+  "@reportsInsightTopCategoryTitle": {
+    "description": "Insight card title for the top spending category",
+    "placeholders": {
+      "category": {"type": "String"}
+    }
+  },
+  "reportsInsightTopCategoryBody": "{amount} this month — your biggest category.",
+  "@reportsInsightTopCategoryBody": {
+    "description": "Insight card body for the top spending category",
+    "placeholders": {
+      "amount": {"type": "String"}
+    }
+  },
+  "reportsInsightMerchantVisits": "{merchant} · {count, plural, one{1 visit} other{{count} visits}}",
+  "@reportsInsightMerchantVisits": {
+    "description": "Insight card title for a frequently visited merchant",
+    "placeholders": {
+      "merchant": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "reportsInsightMerchantBody": "Most spent here: {amount}. Consider a budget cap.",
+  "@reportsInsightMerchantBody": {
+    "description": "Insight card body for a frequently visited merchant",
+    "placeholders": {
+      "amount": {"type": "String"}
+    }
+  },
+  "reportsInsightSubscriptionsTitle": "{count, plural, one{1 recurring subscription} other{{count} recurring subscriptions}}",
+  "@reportsInsightSubscriptionsTitle": {
+    "description": "Insight card title for detected recurring subscriptions",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "reportsInsightSubscriptionsBody": "{list}. Tap to review.",
+  "@reportsInsightSubscriptionsBody": {
+    "description": "Insight card body listing detected subscriptions",
+    "placeholders": {
+      "list": {"type": "String"}
+    }
+  },
+  "reportsInsightSummaryBalanced": "You're spending evenly across categories — your most balanced month yet.",
+  "reportsInsightSummaryForming": "Your spend pattern is forming — keep going.",
+  "commonErrorWithDetail": "Error: {detail}",
+  "@commonErrorWithDetail": {
+    "description": "Generic error fallback with raw detail",
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
+  "roomJoinFieldLabel": "Invite link or token",
+  "roomJoinScanHint": "You can scan a QR from the inviter or paste the loit.app/invite/… URL below.",
+  "roomCreatedBy": "Created by",
+  "roomTxnRemoveBody": "This removes the transaction from the room for everyone. Cannot be undone.",
+  "roomBudgetScopeNote": "Room budgets apply to this room only. All members can see them.",
+  "roomCreateAdminNote": "You will be added as admin. Invite people after the room is created.",
+  "notificationsMarkAllRead": "Mark all read",
+  "notificationsEmptyBody": "New activity in your rooms, budgets, and receipts will land here.",
+  "lockAuthPrompt": "Authenticate to continue",
+  "proSuccessUnlimitedScans": "Unlimited receipt scans",
+  "connectivityOfflineBody": "Changes are saved locally and will sync when you reconnect.",
+  "staleRateTitle": "Rates may be outdated",
+  "accountPickerEmpty": "No accounts available.",
+  "currencySearchPlaceholder": "Search code, symbol, or name",
+  "currencyPickerTitle": "Select currency",
+  "currencyNoMatches": "No matches",
+  "currencyLoadError": "Failed to load currencies: {error}",
+  "@currencyLoadError": {
+    "description": "Error when the currency registry fails to load",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chartNoSpendYet": "No spend yet",
+  "notificationsEmptyTitle": "You're all caught up",
+  "connectivityOfflineTitle": "You're offline",
+  "accountPickerTitle": "Select account",
+  "proFeatureBudgets": "Unlimited budgets",
+  "proFeatureExport": "CSV & PDF export",
+  "proFeatureMultiCurrency": "Multi-currency",
+  "proFeatureInsights": "Advanced insights",
+  "permissionsSkipHint": "We'll ask each when you need it — you can skip now.",
   "exportScreenTitle": "Export data",
   "exportScreenFormat": "Format",
   "exportScreenDateRange": "Date range",
@@ -834,9 +939,13 @@
   "roomsScreenEmptyBody": "Create or join a room to track shared expenses.",
   "roomsScreenCreateRoom": "Create room",
   "roomsScreenJoinRoom": "Join room",
-  "roomsScreenMembers": "{n} members",
+  "roomsScreenAcceptInvite": "Accept",
+  "roomsLoadErrorTitle": "Couldn't load rooms",
+  "roomsLoadError": "Something went wrong. Check your connection and try again.",
+  "roomsLoadRetry": "Try again",
+  "roomsScreenMembers": "{n, plural, one{1 member} other{{n} members}}",
   "@roomsScreenMembers": {
-    "description": "Room member count, e.g. '3 members'",
+    "description": "Room member count, e.g. '1 member', '3 members'",
     "placeholders": {
       "n": {"type": "int"}
     }
@@ -860,12 +969,9 @@
   "roomJoinTitle": "Join room",
   "roomJoinJoining": "Joining…",
   "roomJoinInvalid": "This invite is invalid or expired.",
-  "roomJoinFailed": "Failed to join: {error}",
+  "roomJoinFailed": "Couldn't join that room. Please try again.",
   "@roomJoinFailed": {
-    "description": "Error when joining a room fails",
-    "placeholders": {
-      "error": {"type": "String"}
-    }
+    "description": "Shown when joining a room fails. Raw error is logged, not shown."
   },
   "roomDetailAddTransaction": "Add transaction",
   "roomDetailMembers": "Members",
@@ -1036,31 +1142,8 @@
 
   "roomTileUntitled": "Untitled",
   "roomTileArchivedLabel": "Archived",
-  "roomTileNoDescription": "No description set — tap to add one.",
   "roomTileYouOwn": "You own this",
-  "roomTileYourRole": "You · {role}",
-  "@roomTileYourRole": {
-    "description": "Role label, e.g. 'You · Admin'",
-    "placeholders": {
-      "role": {"type": "String"}
-    }
-  },
-  "roomTileCreated": "Created {date}",
-  "@roomTileCreated": {
-    "description": "Creation date label, e.g. 'Created Jan 15, 2026'",
-    "placeholders": {
-      "date": {"type": "String"}
-    }
-  },
-  "roomOnlineOnlyYou": "Only you online",
   "roomOnlineStatus": "Online",
-  "roomOnlineYouPlus": "You + {count} online",
-  "@roomOnlineYouPlus": {
-    "description": "Online status with self and others, e.g. 'You + 3 online'",
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
   "roomOnlineOthers": "{count} online",
   "@roomOnlineOthers": {
     "description": "Online count for others, e.g. '3 online'",
@@ -1069,14 +1152,14 @@
     }
   },
   "roomMembershipTitle": "Membership",
-  "roomMembershipUsageUnlimited": "{count, plural, one{1 room / ∞} other{{count} rooms / ∞}}",
+  "roomMembershipUsageUnlimited": "{count, plural, one{1 room · Unlimited} other{{count} rooms · Unlimited}}",
   "@roomMembershipUsageUnlimited": {
     "description": "Unlimited room usage text",
     "placeholders": {
       "count": {"type": "int"}
     }
   },
-  "roomMembershipUsageLimited": "{count, plural, one{1 room / {limit}} other{{count} rooms / {limit}}}",
+  "roomMembershipUsageLimited": "{count, plural, one{1 of {limit} rooms} other{{count} of {limit} rooms}}",
   "@roomMembershipUsageLimited": {
     "description": "Limited room usage text, e.g. '2 rooms / 3'",
     "placeholders": {
@@ -1202,6 +1285,8 @@
   "roomsIntroUseCase2": "Trip expenses with friends — split a holiday and settle up later.",
   "roomsIntroUseCase3": "Family monthly expense tracking — keep household spending in one place.",
   "roomsIntroCta": "Got it",
+  "roomsIntroCreateCta": "Create a room",
+  "roomsIntroLaterCta": "Maybe later",
 
   "paywallHeroPro": "You're on Pro.\nEverything\nunlocked.",
   "paywallHero": "Smarter scans.\nFairer caps.\nGo Pro.",

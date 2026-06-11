@@ -107,7 +107,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                _error ?? 'Authenticate to continue',
+                _error ?? l10n.lockAuthPrompt,
                 textAlign: TextAlign.center,
                 style: LoitTypography.bodyM.copyWith(
                   color: _error == null ? c.contentSecondary : c.danger,

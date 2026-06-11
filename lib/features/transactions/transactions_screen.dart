@@ -209,7 +209,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
             children: [
               SizedBox(
                 height: 400,
-                child: Center(child: Text('Error: $e')),
+                child: Center(child: Text(context.l10n.commonErrorWithDetail('$e'))),
               ),
             ],
           ),

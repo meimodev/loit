@@ -3017,6 +3017,306 @@ abstract class AppLocalizations {
   /// **'Reports will appear when you have transactions.'**
   String get reportsScreenEmptyBody;
 
+  /// No description provided for @reportsTabOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get reportsTabOverview;
+
+  /// No description provided for @reportsTabCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get reportsTabCategories;
+
+  /// No description provided for @reportsTabTrend.
+  ///
+  /// In en, this message translates to:
+  /// **'Trend'**
+  String get reportsTabTrend;
+
+  /// No description provided for @reportsTabInsights.
+  ///
+  /// In en, this message translates to:
+  /// **'Insights'**
+  String get reportsTabInsights;
+
+  /// No description provided for @reportsTabIncome.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get reportsTabIncome;
+
+  /// No description provided for @reportsIncomeBySource.
+  ///
+  /// In en, this message translates to:
+  /// **'Income by source'**
+  String get reportsIncomeBySource;
+
+  /// No description provided for @reportsTrendThisMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Trend · this month'**
+  String get reportsTrendThisMonth;
+
+  /// No description provided for @reportsAvgPerDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg/day'**
+  String get reportsAvgPerDay;
+
+  /// No description provided for @reportsDaysActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Days'**
+  String get reportsDaysActive;
+
+  /// No description provided for @reportsByCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'By category'**
+  String get reportsByCategory;
+
+  /// No description provided for @reportsAllCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'All categories'**
+  String get reportsAllCategories;
+
+  /// No description provided for @reportsLast6Months.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 6 months'**
+  String get reportsLast6Months;
+
+  /// No description provided for @reportsTotals.
+  ///
+  /// In en, this message translates to:
+  /// **'Totals'**
+  String get reportsTotals;
+
+  /// No description provided for @reportsUnknownMerchant.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get reportsUnknownMerchant;
+
+  /// Insights section label with card count
+  ///
+  /// In en, this message translates to:
+  /// **'Insights · {count}'**
+  String reportsInsightsCount(int count);
+
+  /// Insight card title for the top spending category
+  ///
+  /// In en, this message translates to:
+  /// **'{category} leads spending'**
+  String reportsInsightTopCategoryTitle(String category);
+
+  /// Insight card body for the top spending category
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} this month — your biggest category.'**
+  String reportsInsightTopCategoryBody(String amount);
+
+  /// Insight card title for a frequently visited merchant
+  ///
+  /// In en, this message translates to:
+  /// **'{merchant} · {count, plural, one{1 visit} other{{count} visits}}'**
+  String reportsInsightMerchantVisits(String merchant, int count);
+
+  /// Insight card body for a frequently visited merchant
+  ///
+  /// In en, this message translates to:
+  /// **'Most spent here: {amount}. Consider a budget cap.'**
+  String reportsInsightMerchantBody(String amount);
+
+  /// Insight card title for detected recurring subscriptions
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 recurring subscription} other{{count} recurring subscriptions}}'**
+  String reportsInsightSubscriptionsTitle(int count);
+
+  /// Insight card body listing detected subscriptions
+  ///
+  /// In en, this message translates to:
+  /// **'{list}. Tap to review.'**
+  String reportsInsightSubscriptionsBody(String list);
+
+  /// No description provided for @reportsInsightSummaryBalanced.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re spending evenly across categories — your most balanced month yet.'**
+  String get reportsInsightSummaryBalanced;
+
+  /// No description provided for @reportsInsightSummaryForming.
+  ///
+  /// In en, this message translates to:
+  /// **'Your spend pattern is forming — keep going.'**
+  String get reportsInsightSummaryForming;
+
+  /// Generic error fallback with raw detail
+  ///
+  /// In en, this message translates to:
+  /// **'Error: {detail}'**
+  String commonErrorWithDetail(String detail);
+
+  /// No description provided for @roomJoinFieldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite link or token'**
+  String get roomJoinFieldLabel;
+
+  /// No description provided for @roomJoinScanHint.
+  ///
+  /// In en, this message translates to:
+  /// **'You can scan a QR from the inviter or paste the loit.app/invite/… URL below.'**
+  String get roomJoinScanHint;
+
+  /// No description provided for @roomCreatedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Created by'**
+  String get roomCreatedBy;
+
+  /// No description provided for @roomTxnRemoveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes the transaction from the room for everyone. Cannot be undone.'**
+  String get roomTxnRemoveBody;
+
+  /// No description provided for @roomBudgetScopeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Room budgets apply to this room only. All members can see them.'**
+  String get roomBudgetScopeNote;
+
+  /// No description provided for @roomCreateAdminNote.
+  ///
+  /// In en, this message translates to:
+  /// **'You will be added as admin. Invite people after the room is created.'**
+  String get roomCreateAdminNote;
+
+  /// No description provided for @notificationsMarkAllRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all read'**
+  String get notificationsMarkAllRead;
+
+  /// No description provided for @notificationsEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'New activity in your rooms, budgets, and receipts will land here.'**
+  String get notificationsEmptyBody;
+
+  /// No description provided for @lockAuthPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticate to continue'**
+  String get lockAuthPrompt;
+
+  /// No description provided for @proSuccessUnlimitedScans.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited receipt scans'**
+  String get proSuccessUnlimitedScans;
+
+  /// No description provided for @connectivityOfflineBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes are saved locally and will sync when you reconnect.'**
+  String get connectivityOfflineBody;
+
+  /// No description provided for @staleRateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rates may be outdated'**
+  String get staleRateTitle;
+
+  /// No description provided for @accountPickerEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No accounts available.'**
+  String get accountPickerEmpty;
+
+  /// No description provided for @currencySearchPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Search code, symbol, or name'**
+  String get currencySearchPlaceholder;
+
+  /// No description provided for @currencyPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select currency'**
+  String get currencyPickerTitle;
+
+  /// No description provided for @currencyNoMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No matches'**
+  String get currencyNoMatches;
+
+  /// Error when the currency registry fails to load
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load currencies: {error}'**
+  String currencyLoadError(String error);
+
+  /// No description provided for @chartNoSpendYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No spend yet'**
+  String get chartNoSpendYet;
+
+  /// No description provided for @notificationsEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re all caught up'**
+  String get notificationsEmptyTitle;
+
+  /// No description provided for @connectivityOfflineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline'**
+  String get connectivityOfflineTitle;
+
+  /// No description provided for @accountPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select account'**
+  String get accountPickerTitle;
+
+  /// No description provided for @proFeatureBudgets.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited budgets'**
+  String get proFeatureBudgets;
+
+  /// No description provided for @proFeatureExport.
+  ///
+  /// In en, this message translates to:
+  /// **'CSV & PDF export'**
+  String get proFeatureExport;
+
+  /// No description provided for @proFeatureMultiCurrency.
+  ///
+  /// In en, this message translates to:
+  /// **'Multi-currency'**
+  String get proFeatureMultiCurrency;
+
+  /// No description provided for @proFeatureInsights.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced insights'**
+  String get proFeatureInsights;
+
+  /// No description provided for @permissionsSkipHint.
+  ///
+  /// In en, this message translates to:
+  /// **'We\'ll ask each when you need it — you can skip now.'**
+  String get permissionsSkipHint;
+
   /// No description provided for @exportScreenTitle.
   ///
   /// In en, this message translates to:
@@ -3137,10 +3437,34 @@ abstract class AppLocalizations {
   /// **'Join room'**
   String get roomsScreenJoinRoom;
 
-  /// Room member count, e.g. '3 members'
+  /// No description provided for @roomsScreenAcceptInvite.
   ///
   /// In en, this message translates to:
-  /// **'{n} members'**
+  /// **'Accept'**
+  String get roomsScreenAcceptInvite;
+
+  /// No description provided for @roomsLoadErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load rooms'**
+  String get roomsLoadErrorTitle;
+
+  /// No description provided for @roomsLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Check your connection and try again.'**
+  String get roomsLoadError;
+
+  /// No description provided for @roomsLoadRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get roomsLoadRetry;
+
+  /// Room member count, e.g. '1 member', '3 members'
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, one{1 member} other{{n} members}}'**
   String roomsScreenMembers(int n);
 
   /// No description provided for @roomCreateTitle.
@@ -3221,11 +3545,11 @@ abstract class AppLocalizations {
   /// **'This invite is invalid or expired.'**
   String get roomJoinInvalid;
 
-  /// Error when joining a room fails
+  /// Shown when joining a room fails. Raw error is logged, not shown.
   ///
   /// In en, this message translates to:
-  /// **'Failed to join: {error}'**
-  String roomJoinFailed(String error);
+  /// **'Couldn\'t join that room. Please try again.'**
+  String get roomJoinFailed;
 
   /// No description provided for @roomDetailAddTransaction.
   ///
@@ -3875,47 +4199,17 @@ abstract class AppLocalizations {
   /// **'Archived'**
   String get roomTileArchivedLabel;
 
-  /// No description provided for @roomTileNoDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'No description set — tap to add one.'**
-  String get roomTileNoDescription;
-
   /// No description provided for @roomTileYouOwn.
   ///
   /// In en, this message translates to:
   /// **'You own this'**
   String get roomTileYouOwn;
 
-  /// Role label, e.g. 'You · Admin'
-  ///
-  /// In en, this message translates to:
-  /// **'You · {role}'**
-  String roomTileYourRole(String role);
-
-  /// Creation date label, e.g. 'Created Jan 15, 2026'
-  ///
-  /// In en, this message translates to:
-  /// **'Created {date}'**
-  String roomTileCreated(String date);
-
-  /// No description provided for @roomOnlineOnlyYou.
-  ///
-  /// In en, this message translates to:
-  /// **'Only you online'**
-  String get roomOnlineOnlyYou;
-
   /// No description provided for @roomOnlineStatus.
   ///
   /// In en, this message translates to:
   /// **'Online'**
   String get roomOnlineStatus;
-
-  /// Online status with self and others, e.g. 'You + 3 online'
-  ///
-  /// In en, this message translates to:
-  /// **'You + {count} online'**
-  String roomOnlineYouPlus(int count);
 
   /// Online count for others, e.g. '3 online'
   ///
@@ -3932,13 +4226,13 @@ abstract class AppLocalizations {
   /// Unlimited room usage text
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one{1 room / ∞} other{{count} rooms / ∞}}'**
+  /// **'{count, plural, one{1 room · Unlimited} other{{count} rooms · Unlimited}}'**
   String roomMembershipUsageUnlimited(int count);
 
   /// Limited room usage text, e.g. '2 rooms / 3'
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one{1 room / {limit}} other{{count} rooms / {limit}}}'**
+  /// **'{count, plural, one{1 of {limit} rooms} other{{count} of {limit} rooms}}'**
   String roomMembershipUsageLimited(int count, int limit);
 
   /// At room limit message, e.g. 'You've reached the room limit on Free.'
@@ -4312,6 +4606,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Got it'**
   String get roomsIntroCta;
+
+  /// No description provided for @roomsIntroCreateCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a room'**
+  String get roomsIntroCreateCta;
+
+  /// No description provided for @roomsIntroLaterCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Maybe later'**
+  String get roomsIntroLaterCta;
 
   /// No description provided for @paywallHeroPro.
   ///

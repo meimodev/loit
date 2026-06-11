@@ -143,12 +143,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                   LoitTypography.bodyS.copyWith(fontWeight: FontWeight.w700),
               unselectedLabelStyle:
                   LoitTypography.bodyS.copyWith(fontWeight: FontWeight.w600),
-              tabs: const [
-                Tab(text: 'Overview'),
-                Tab(text: 'Categories'),
-                Tab(text: 'Trend'),
-                Tab(text: 'Insights'),
-                Tab(text: 'Income'),
+              tabs: [
+                Tab(text: l10n.reportsTabOverview),
+                Tab(text: l10n.reportsTabCategories),
+                Tab(text: l10n.reportsTabTrend),
+                Tab(text: l10n.reportsTabInsights),
+                Tab(text: l10n.reportsTabIncome),
               ],
             ),
           ),
@@ -203,8 +203,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       ];
     }
     return [
-      const SliverToBoxAdapter(
-          child: LoitGroupLabel(label: 'Income by source')),
+      SliverToBoxAdapter(
+          child: LoitGroupLabel(label: l10n.reportsIncomeBySource)),
       SliverList.builder(
         itemCount: cats.length,
         itemBuilder: (_, i) => _CategoryLine(
@@ -212,6 +212,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
           total: total,
           fmt: fmt,
           isLast: i == cats.length - 1,
+          roomId: widget.roomId,
         ),
       ),
     ];
@@ -241,7 +242,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     final totalCats = cats.fold<double>(0, (s, e) => s + e.value);
 
     return [
-      const SliverToBoxAdapter(child: LoitGroupLabel(label: 'Trend · this month')),
+      SliverToBoxAdapter(
+          child: LoitGroupLabel(label: l10n.reportsTrendThisMonth)),
       SliverToBoxAdapter(
         child: LoitFadeSlideIn(
           child: Container(
@@ -257,9 +259,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _MetricCell(
-                        label: 'AVG/DAY', value: fmt(avgDay), align: TextAlign.left),
+                        label: l10n.reportsAvgPerDay,
+                        value: fmt(avgDay),
+                        align: TextAlign.left),
                     _MetricCell(
-                        label: 'DAYS',
+                        label: l10n.reportsDaysActive,
                         value: '${byDay.where((v) => v > 0).length} / ${byDay.length}',
                         align: TextAlign.right),
                   ],
@@ -274,7 +278,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
           ),
         ),
       ),
-      const SliverToBoxAdapter(child: LoitGroupLabel(label: 'By category')),
+      SliverToBoxAdapter(child: LoitGroupLabel(label: l10n.reportsByCategory)),
       SliverToBoxAdapter(
         child: LoitFadeSlideIn(
           delay: LoitMotion.staggerStep,
@@ -296,6 +300,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
             total: totalCats,
             fmt: fmt,
             isLast: i == cats.length - 1,
+            roomId: widget.roomId,
           ),
         ),
     ];
@@ -312,8 +317,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       ];
     }
     return [
-      const SliverToBoxAdapter(
-          child: LoitGroupLabel(label: 'All categories')),
+      SliverToBoxAdapter(
+          child: LoitGroupLabel(label: l10n.reportsAllCategories)),
       SliverList.builder(
         itemCount: cats.length,
         itemBuilder: (_, i) => _CategoryLine(
@@ -321,6 +326,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
           total: total,
           fmt: fmt,
           isLast: i == cats.length - 1,
+          roomId: widget.roomId,
         ),
       ),
     ];
@@ -328,6 +334,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
   List<Widget> _trendSlivers(List<Txn> allTxns, String Function(double) fmt, String home) {
     final c = context.loitColors;
+    final l10n = context.l10n;
     final mmm = MMM(context);
     final now = DateTime.now();
     final months = List.generate(
@@ -345,7 +352,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         (totals.fold<double>(0, (s, v) => v > s ? v : s)) * 1.2 + 1;
 
     return [
-      const SliverToBoxAdapter(child: LoitGroupLabel(label: 'Last 6 months')),
+      SliverToBoxAdapter(
+          child: LoitGroupLabel(label: l10n.reportsLast6Months)),
       SliverToBoxAdapter(
         child: LoitFadeSlideIn(
           child: Container(
@@ -411,7 +419,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         ),
         ),
       ),
-      const SliverToBoxAdapter(child: LoitGroupLabel(label: 'Totals')),
+      SliverToBoxAdapter(child: LoitGroupLabel(label: l10n.reportsTotals)),
       SliverList.builder(
         itemCount: months.length,
         itemBuilder: (_, i) {
@@ -460,10 +468,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     if (cats.isNotEmpty) {
       final top = cats.first;
       final style = ref.watch(categoryStyleProvider(top.key));
+      final label = ref.watch(categoryLabelProvider(
+          CategoryLabelKey(key: top.key, activeRoomId: widget.roomId)));
       cards.add(_InsightCard(
-        title: '${style.label} leads spending',
-        body:
-            '${fmt(top.value)} this month — your biggest category.',
+        title: l10n.reportsInsightTopCategoryTitle(label),
+        body: l10n.reportsInsightTopCategoryBody(fmt(top.value)),
         color: style.tint,
         icon: style.icon,
       ));
@@ -474,7 +483,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       final spendByMerchant = <String, double>{};
       for (final t in monthTxns) {
         final raw = (t.notes ?? '').trim();
-        final m = raw.isEmpty ? 'Unknown' : raw.split('\n').first;
+        final m = raw.isEmpty ? l10n.reportsUnknownMerchant : raw.split('\n').first;
         byMerchant[m] = (byMerchant[m] ?? 0) + 1;
         if (!t.isTransfer && !t.isIncome) {
           spendByMerchant[m] =
@@ -486,9 +495,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       if (repeats.isNotEmpty) {
         final r = repeats.first;
         cards.add(_InsightCard(
-          title: '${r.key} · ${r.value} visits',
-          body:
-              'Most spent here: ${fmt(spendByMerchant[r.key] ?? 0)}. Consider a budget cap.',
+          title: l10n.reportsInsightMerchantVisits(r.key, r.value),
+          body: l10n.reportsInsightMerchantBody(fmt(spendByMerchant[r.key] ?? 0)),
           color: c.info,
           icon: Icons.repeat,
         ));
@@ -498,8 +506,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     final subs = _detectSubscriptions(monthTxns);
     if (subs.isNotEmpty) {
       cards.add(_InsightCard(
-        title: '${subs.length} recurring subscription${subs.length == 1 ? '' : 's'}',
-        body: '${subs.take(3).join(', ')}. Tap to review.',
+        title: l10n.reportsInsightSubscriptionsTitle(subs.length),
+        body: l10n.reportsInsightSubscriptionsBody(subs.take(3).join(', ')),
         color: const Color(0xFFD49A2B),
         icon: Icons.power,
       ));
@@ -531,8 +539,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                 const SizedBox(height: 4),
                 Text(
                   cards.length >= 3
-                      ? "You're spending evenly across categories — your most balanced month yet."
-                      : "Your spend pattern is forming — keep going.",
+                      ? l10n.reportsInsightSummaryBalanced
+                      : l10n.reportsInsightSummaryForming,
                   style: LoitTypography.titleM.copyWith(
                       color: c.contentPrimary, fontWeight: FontWeight.w600),
                 ),
@@ -543,7 +551,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       ),
       SliverToBoxAdapter(
         child: LoitGroupLabel(
-          label: 'Insights · ${cards.length}',
+          label: l10n.reportsInsightsCount(cards.length),
           trailing: _BetaChip(),
         ),
       ),
@@ -678,16 +686,20 @@ class _CategoryLine extends ConsumerWidget {
     required this.total,
     required this.fmt,
     required this.isLast,
+    this.roomId,
   });
   final MapEntry<String, double> entry;
   final double total;
   final String Function(double) fmt;
   final bool isLast;
+  final String? roomId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.loitColors;
     final style = ref.watch(categoryStyleProvider(entry.key));
+    final label = ref.watch(categoryLabelProvider(
+        CategoryLabelKey(key: entry.key, activeRoomId: roomId)));
     final pct = total <= 0 ? 0 : ((entry.value / total) * 100).round();
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -712,7 +724,7 @@ class _CategoryLine extends ConsumerWidget {
           ),
           const SizedBox(width: LoitSpacing.s3),
           Expanded(
-            child: Text(style.label,
+            child: Text(label,
                 style: LoitTypography.bodyM
                     .copyWith(color: c.contentPrimary)),
           ),

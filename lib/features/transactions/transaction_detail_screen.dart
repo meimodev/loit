@@ -79,7 +79,7 @@ class TransactionDetailScreen extends ConsumerWidget {
           ? _buildDetail(context, ref, txn!, accountMap, isUnsynced: true)
           : txns.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
+              error: (e, _) => Center(child: Text(context.l10n.commonErrorWithDetail('$e'))),
               data: (items) {
                 final t = items.firstWhere(
                   (e) => e.id == transactionId,

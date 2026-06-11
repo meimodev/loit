@@ -104,6 +104,9 @@ class _Keys {
   static const notifProductUpdates = 'pref.notif.productUpdates';
   static const scanAutoConfirm = 'pref.scan.autoConfirm';
   static const quickActionsNotifEnabled = 'pref.notif.quickActions';
+  // First time this install rendered the app, epoch ms. Seeds the Rooms intro
+  // day-2 engagement trigger (ADR-0005). Set once, never overwritten.
+  static const firstSeenAt = 'pref.firstSeenAt';
 }
 
 ThemeMode _decodeThemeMode(String? v) {
@@ -130,6 +133,11 @@ class PreferencesNotifier extends AsyncNotifier<AppPreferences> {
   @override
   Future<AppPreferences> build() async {
     _sp = await SharedPreferences.getInstance();
+    // Stamp first-seen once so the Rooms intro day-2 trigger has an anchor.
+    if (!_sp.containsKey(_Keys.firstSeenAt)) {
+      await _sp.setInt(
+          _Keys.firstSeenAt, DateTime.now().millisecondsSinceEpoch);
+    }
     return AppPreferences(
       themeMode: _decodeThemeMode(_sp.getString(_Keys.themeMode)),
       language: _sp.getString(_Keys.language) ?? 'id',
@@ -153,6 +161,13 @@ class PreferencesNotifier extends AsyncNotifier<AppPreferences> {
 
   Future<void> _update(AppPreferences next) async {
     state = AsyncData(next);
+  }
+
+  /// First time this install rendered the app. Anchors the Rooms intro day-2
+  /// trigger (ADR-0005). Null only before the first [build] completes.
+  DateTime? get firstSeen {
+    final ms = _sp.getInt(_Keys.firstSeenAt);
+    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
   }
 
   Future<void> setThemeMode(ThemeMode m) async {

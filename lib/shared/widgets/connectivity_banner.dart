@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/services/reachability_service.dart';
+import '../../l10n/l10n_x.dart';
 import 'loit_banner.dart';
 
 /// Debug override for testing offline behavior.
@@ -35,10 +36,10 @@ class ConnectivityBanner extends ConsumerWidget {
     if (!offline) return const SizedBox.shrink();
     return Padding(
       padding: padding ?? const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: const LoitBanner(
+      child: LoitBanner(
         kind: LoitBannerKind.offline,
-        title: "You're offline",
-        body: 'Changes are saved locally and will sync when you reconnect.',
+        title: context.l10n.connectivityOfflineTitle,
+        body: context.l10n.connectivityOfflineBody,
       ),
     );
   }

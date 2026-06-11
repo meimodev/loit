@@ -204,7 +204,7 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
               body: Center(child: CircularProgressIndicator())),
           error: (e, _) => Scaffold(
               appBar: AppBar(),
-              body: Center(child: Text('Error: $e'))),
+              body: Center(child: Text(context.l10n.commonErrorWithDetail('$e')))),
           data: (row) {
             if (row == null) {
               return Scaffold(
@@ -361,7 +361,7 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                              'Room budgets apply to this room only. All members can see them.',
+                              l.roomBudgetScopeNote,
                               style: LoitTypography.bodyS.copyWith(
                                   color: LoitPalette.teal800, height: 1.4)),
                         ),

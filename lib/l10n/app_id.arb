@@ -807,6 +807,111 @@
   "reportsScreenAmount": "Jumlah",
   "reportsScreenPercent": "%",
   "reportsScreenEmptyBody": "Laporan akan muncul saat Anda memiliki transaksi.",
+  "reportsTabOverview": "Ringkasan",
+  "reportsTabCategories": "Kategori",
+  "reportsTabTrend": "Tren",
+  "reportsTabInsights": "Wawasan",
+  "reportsTabIncome": "Pemasukan",
+  "reportsIncomeBySource": "Pemasukan per sumber",
+  "reportsTrendThisMonth": "Tren · bulan ini",
+  "reportsAvgPerDay": "Rata-rata/hari",
+  "reportsDaysActive": "Hari",
+  "reportsByCategory": "Per kategori",
+  "reportsAllCategories": "Semua kategori",
+  "reportsLast6Months": "6 bulan terakhir",
+  "reportsTotals": "Total",
+  "reportsUnknownMerchant": "Tidak diketahui",
+  "reportsInsightsCount": "Wawasan · {count}",
+  "@reportsInsightsCount": {
+    "description": "Insights section label with card count",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "reportsInsightTopCategoryTitle": "{category} mendominasi pengeluaran",
+  "@reportsInsightTopCategoryTitle": {
+    "description": "Insight card title for the top spending category",
+    "placeholders": {
+      "category": {"type": "String"}
+    }
+  },
+  "reportsInsightTopCategoryBody": "{amount} bulan ini — kategori terbesar Anda.",
+  "@reportsInsightTopCategoryBody": {
+    "description": "Insight card body for the top spending category",
+    "placeholders": {
+      "amount": {"type": "String"}
+    }
+  },
+  "reportsInsightMerchantVisits": "{merchant} · {count, plural, other{{count} kunjungan}}",
+  "@reportsInsightMerchantVisits": {
+    "description": "Insight card title for a frequently visited merchant",
+    "placeholders": {
+      "merchant": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "reportsInsightMerchantBody": "Paling banyak di sini: {amount}. Pertimbangkan batas anggaran.",
+  "@reportsInsightMerchantBody": {
+    "description": "Insight card body for a frequently visited merchant",
+    "placeholders": {
+      "amount": {"type": "String"}
+    }
+  },
+  "reportsInsightSubscriptionsTitle": "{count, plural, other{{count} langganan berulang}}",
+  "@reportsInsightSubscriptionsTitle": {
+    "description": "Insight card title for detected recurring subscriptions",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "reportsInsightSubscriptionsBody": "{list}. Ketuk untuk meninjau.",
+  "@reportsInsightSubscriptionsBody": {
+    "description": "Insight card body listing detected subscriptions",
+    "placeholders": {
+      "list": {"type": "String"}
+    }
+  },
+  "reportsInsightSummaryBalanced": "Pengeluaran Anda merata di semua kategori — bulan paling seimbang sejauh ini.",
+  "reportsInsightSummaryForming": "Pola pengeluaran Anda sedang terbentuk — teruskan.",
+  "commonErrorWithDetail": "Kesalahan: {detail}",
+  "@commonErrorWithDetail": {
+    "description": "Generic error fallback with raw detail",
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
+  "roomJoinFieldLabel": "Tautan undangan atau token",
+  "roomJoinScanHint": "Anda dapat memindai QR dari pengundang atau menempel URL loit.app/invite/… di bawah.",
+  "roomCreatedBy": "Dibuat oleh",
+  "roomTxnRemoveBody": "Ini menghapus transaksi dari ruang untuk semua orang. Tidak dapat dibatalkan.",
+  "roomBudgetScopeNote": "Anggaran ruang hanya berlaku untuk ruang ini. Semua anggota dapat melihatnya.",
+  "roomCreateAdminNote": "Anda akan ditambahkan sebagai admin. Undang orang setelah ruang dibuat.",
+  "notificationsMarkAllRead": "Tandai semua dibaca",
+  "notificationsEmptyBody": "Aktivitas baru di ruang, anggaran, dan struk Anda akan muncul di sini.",
+  "lockAuthPrompt": "Autentikasi untuk melanjutkan",
+  "proSuccessUnlimitedScans": "Pemindaian struk tanpa batas",
+  "connectivityOfflineBody": "Perubahan disimpan secara lokal dan akan tersinkron saat Anda terhubung kembali.",
+  "staleRateTitle": "Kurs mungkin sudah usang",
+  "accountPickerEmpty": "Tidak ada akun tersedia.",
+  "currencySearchPlaceholder": "Cari kode, simbol, atau nama",
+  "currencyPickerTitle": "Pilih mata uang",
+  "currencyNoMatches": "Tidak ada hasil",
+  "currencyLoadError": "Gagal memuat mata uang: {error}",
+  "@currencyLoadError": {
+    "description": "Error when the currency registry fails to load",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chartNoSpendYet": "Belum ada pengeluaran",
+  "notificationsEmptyTitle": "Anda sudah membaca semua",
+  "connectivityOfflineTitle": "Anda sedang offline",
+  "accountPickerTitle": "Pilih akun",
+  "proFeatureBudgets": "Anggaran tanpa batas",
+  "proFeatureExport": "Ekspor CSV & PDF",
+  "proFeatureMultiCurrency": "Multi-mata uang",
+  "proFeatureInsights": "Wawasan lanjutan",
+  "permissionsSkipHint": "Kami akan meminta tiap izin saat Anda membutuhkannya — Anda bisa lewati sekarang.",
   "exportScreenTitle": "Ekspor data",
   "exportScreenFormat": "Format",
   "exportScreenDateRange": "Rentang tanggal",
@@ -828,7 +933,11 @@
   "roomsScreenEmptyBody": "Buat atau gabung ruangan untuk melacak pengeluaran bersama.",
   "roomsScreenCreateRoom": "Buat ruangan",
   "roomsScreenJoinRoom": "Gabung ruangan",
-  "roomsScreenMembers": "{n} anggota",
+  "roomsScreenAcceptInvite": "Terima",
+  "roomsLoadErrorTitle": "Gagal memuat ruangan",
+  "roomsLoadError": "Terjadi kesalahan. Periksa koneksi kamu lalu coba lagi.",
+  "roomsLoadRetry": "Coba lagi",
+  "roomsScreenMembers": "{n, plural, other{{n} anggota}}",
   "@roomsScreenMembers": {
     "description": "Room member count, e.g. '3 members'",
     "placeholders": {
@@ -854,12 +963,9 @@
   "roomJoinTitle": "Gabung ruangan",
   "roomJoinJoining": "Bergabung…",
   "roomJoinInvalid": "Undangan ini tidak valid atau kedaluwarsa.",
-  "roomJoinFailed": "Gagal bergabung: {error}",
+  "roomJoinFailed": "Gagal bergabung ke ruangan itu. Silakan coba lagi.",
   "@roomJoinFailed": {
-    "description": "Error when joining a room fails",
-    "placeholders": {
-      "error": {"type": "String"}
-    }
+    "description": "Shown when joining a room fails. Raw error is logged, not shown."
   },
   "roomDetailAddTransaction": "Tambah transaksi",
   "roomDetailMembers": "Anggota",
@@ -1030,31 +1136,8 @@
 
   "roomTileUntitled": "Tanpa Judul",
   "roomTileArchivedLabel": "Diarsipkan",
-  "roomTileNoDescription": "Belum ada deskripsi — ketuk untuk menambahkan.",
   "roomTileYouOwn": "Kamu pemiliknya",
-  "roomTileYourRole": "Kamu · {role}",
-  "@roomTileYourRole": {
-    "description": "Role label, e.g. 'You · Admin'",
-    "placeholders": {
-      "role": {"type": "String"}
-    }
-  },
-  "roomTileCreated": "Dibuat {date}",
-  "@roomTileCreated": {
-    "description": "Creation date label",
-    "placeholders": {
-      "date": {"type": "String"}
-    }
-  },
-  "roomOnlineOnlyYou": "Hanya kamu yang online",
   "roomOnlineStatus": "Online",
-  "roomOnlineYouPlus": "Kamu + {count} online",
-  "@roomOnlineYouPlus": {
-    "description": "Online status with self and others",
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
   "roomOnlineOthers": "{count} online",
   "@roomOnlineOthers": {
     "description": "Online count for others",
@@ -1063,14 +1146,14 @@
     }
   },
   "roomMembershipTitle": "Keanggotaan",
-  "roomMembershipUsageUnlimited": "{count, plural, other{{count} ruangan / ∞}}",
+  "roomMembershipUsageUnlimited": "{count, plural, other{{count} ruangan · Tanpa batas}}",
   "@roomMembershipUsageUnlimited": {
     "description": "Unlimited room usage text",
     "placeholders": {
       "count": {"type": "int"}
     }
   },
-  "roomMembershipUsageLimited": "{count, plural, other{{count} ruangan / {limit}}}",
+  "roomMembershipUsageLimited": "{count, plural, other{{count} dari {limit} ruangan}}",
   "@roomMembershipUsageLimited": {
     "description": "Limited room usage text",
     "placeholders": {
@@ -1196,6 +1279,8 @@
   "roomsIntroUseCase2": "Biaya perjalanan dengan teman — bagi pengeluaran liburan dan lunasi belakangan.",
   "roomsIntroUseCase3": "Pelacakan pengeluaran keluarga bulanan — satukan pengeluaran rumah tangga.",
   "roomsIntroCta": "Mengerti",
+  "roomsIntroCreateCta": "Buat room",
+  "roomsIntroLaterCta": "Nanti saja",
 
   "paywallHeroPro": "Anda di Pro.\nSemua\nterbuka.",
   "paywallHero": "Pindai lebih cerdas.\nBatas lebih adil.\nUpgrade Pro.",

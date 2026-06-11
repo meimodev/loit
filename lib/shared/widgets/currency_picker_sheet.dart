@@ -5,6 +5,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../l10n/l10n_x.dart';
 import '../providers/supported_currencies_provider.dart';
 import 'loit_input.dart';
 import 'loit_sheet.dart';
@@ -14,11 +15,12 @@ import 'loit_sheet.dart';
 Future<String?> pickCurrency(
   BuildContext context, {
   String? selected,
-  String title = 'Select currency',
+  String? title,
 }) {
+  final resolvedTitle = title ?? context.l10n.currencyPickerTitle;
   return showLoitSheet<String>(
     context,
-    builder: (_) => _CurrencyPickerSheet(selected: selected, title: title),
+    builder: (_) => _CurrencyPickerSheet(selected: selected, title: resolvedTitle),
   );
 }
 
@@ -62,7 +64,7 @@ class _CurrencyPickerSheetState extends ConsumerState<_CurrencyPickerSheet> {
               ),
               child: LoitInput(
                 controller: _searchCtrl,
-                placeholder: 'Search code, symbol, or name',
+                placeholder: context.l10n.currencySearchPlaceholder,
                 leading: Icon(
                   Icons.search,
                   size: 18,
@@ -80,7 +82,7 @@ class _CurrencyPickerSheetState extends ConsumerState<_CurrencyPickerSheet> {
                   child: Padding(
                     padding: const EdgeInsets.all(LoitSpacing.s4),
                     child: Text(
-                      'Failed to load currencies: $e',
+                      context.l10n.currencyLoadError('$e'),
                       style: LoitTypography.bodyS
                           .copyWith(color: c.contentSecondary),
                       textAlign: TextAlign.center,
@@ -99,7 +101,7 @@ class _CurrencyPickerSheetState extends ConsumerState<_CurrencyPickerSheet> {
                   if (list.isEmpty) {
                     return Center(
                       child: Text(
-                        'No matches',
+                        context.l10n.currencyNoMatches,
                         style: LoitTypography.bodyM
                             .copyWith(color: c.contentTertiary),
                       ),

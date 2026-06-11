@@ -62,7 +62,7 @@ class _RoomJoinScreenState extends ConsumerState<RoomJoinScreen> {
     } catch (e) {
       InteractionLog.error(
           action: 'room_join', screen: 'join_room', message: '$e');
-      if (mounted) setState(() => _error = l.roomJoinFailed('$e'));
+      if (mounted) setState(() => _error = l.roomJoinFailed);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -102,7 +102,7 @@ class _RoomJoinScreenState extends ConsumerState<RoomJoinScreen> {
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
                 Text(
-                  'You can scan a QR from the inviter or paste the loit.app/invite/\u2026 URL below.',
+                  l.roomJoinScanHint,
                   style: LoitTypography.bodyS
                       .copyWith(color: c.contentSecondary),
                 ),
@@ -111,7 +111,7 @@ class _RoomJoinScreenState extends ConsumerState<RoomJoinScreen> {
           ),
           const SizedBox(height: LoitSpacing.s5),
           LoitInput(
-            label: 'Invite link or token',
+            label: l.roomJoinFieldLabel,
             controller: _ctrl,
             placeholder: 'loit.app/invite/\u2026',
             error: _error,

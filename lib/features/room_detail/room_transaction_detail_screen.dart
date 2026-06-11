@@ -79,7 +79,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
       )),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text(context.l10n.commonErrorWithDetail('$e'))),
         data: (row) {
           if (row == null) return Center(child: Text(l.txDetailNotFound));
           return _buildDetail(context, ref, row);
@@ -95,8 +95,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
       context: context,
       builder: (_) => AlertDialog(
         title: Text(l.txDetailDeleteTitle),
-        content: const Text(
-            'This removes the transaction from the room for everyone. Cannot be undone.'),
+        content: Text(l.roomTxnRemoveBody),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -207,7 +206,7 @@ class RoomTransactionDetailScreen extends ConsumerWidget {
       children: [
         _heroCard(context, t, catStyle, catLabel, fmt, isTransfer),
         const SizedBox(height: LoitSpacing.s5),
-        const LoitGroupLabel(label: 'Created by'),
+        LoitGroupLabel(label: l.roomCreatedBy),
         _creatorRow(context, payer, avatarUrl, email),
         const SizedBox(height: LoitSpacing.s4),
         LoitGroupLabel(label: l.txDetailDetails),

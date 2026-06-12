@@ -101,24 +101,23 @@ class _ScanReviewScreenState extends ConsumerState<ScanReviewScreen> {
 
     final p = widget.scan.parsed;
     final roomId = widget.scan.roomId;
-    // Room scan → resolve against the room's pool accounts only (pool-only
-    // entry, ADR 0007); personal scan → personal accounts.
-    final accounts = roomId != null
+    // Room scan → resolve against the room's pool accounts first (a Room-account
+    // movement). When the room has no room account, fall back to the user's
+    // personal accounts and book an Out-of-pocket room expense (ADR 0011, My
+    // money default). Personal scan → personal accounts.
+    List<Account> accounts = roomId != null
         ? await ref.read(roomAccountsProvider(roomId).future)
-        : (ref.read(accountsProvider).value ?? const []);
+        : (ref.read(accountsProvider).value ?? const <Account>[]);
     if (!mounted) return;
+    if (roomId != null && accounts.isEmpty) {
+      accounts = ref.read(accountsProvider).value ?? const <Account>[];
+    }
     final accountId = _accountIdFromName(p['account'] as String?, accounts) ??
         _firstActiveAccountId(accounts);
     if (accountId == null) {
       setState(() => _saving = false);
-      if (roomId != null) {
-        // No pool account in this room — can't book a room scan. Admin must
-        // create one first; manual edit wouldn't help (form is room-scoped too).
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.roomMovementNoAccounts)),
-        );
-        return;
-      }
+      // No usable account anywhere (personal pool empty too) — divert to the
+      // manual form, which surfaces the Paid-from segment for an explicit pick.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.scanNoAccount)),
       );

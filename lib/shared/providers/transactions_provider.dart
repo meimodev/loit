@@ -64,6 +64,12 @@ class Txn {
   final String type; // 'expense' | 'income' | 'transfer'
   final String? accountId;
   final String? toAccountId;
+  final String? userId;
+  // Payer identity — populated only for room-account movements (the `users`
+  // join). Null for personal rows. See ADR 0010.
+  final String? payerName;
+  final String? payerEmail;
+  final String? payerAvatarUrl;
 
   const Txn({
     required this.id,
@@ -82,6 +88,10 @@ class Txn {
     this.type = 'expense',
     this.accountId,
     this.toAccountId,
+    this.userId,
+    this.payerName,
+    this.payerEmail,
+    this.payerAvatarUrl,
   });
 
   factory Txn.fromRow(Map<String, dynamic> r) {
@@ -123,6 +133,16 @@ class Txn {
       type: type,
       accountId: r['account_id'] as String?,
       toAccountId: r['to_account_id'] as String?,
+      userId: r['user_id'] as String?,
+      payerName: (r['users'] is Map<String, dynamic>)
+          ? (r['users'] as Map<String, dynamic>)['name'] as String?
+          : null,
+      payerEmail: (r['users'] is Map<String, dynamic>)
+          ? (r['users'] as Map<String, dynamic>)['email'] as String?
+          : null,
+      payerAvatarUrl: (r['users'] is Map<String, dynamic>)
+          ? (r['users'] as Map<String, dynamic>)['avatar_url'] as String?
+          : null,
     );
   }
 

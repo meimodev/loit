@@ -23,6 +23,8 @@ import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_avatar.dart';
 import '../../shared/widgets/loit_empty_state.dart';
+import '../../shared/widgets/loit_tx_row.dart';
+import '../transactions/notes_breakdown.dart';
 import '../rooms/room_colors.dart';
 import 'room_balance_tab.dart';
 
@@ -1385,15 +1387,15 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
     final isIncome = txType == 'income';
     final isTransfer = txType == 'transfer';
     final notes = (tx['notes'] as String?)?.trim();
-    final merchant = (notes != null && notes.isNotEmpty)
-        ? notes.split('\n').first
+    final parsedTitle = breakdownTitle(notes);
+    final merchant = parsedTitle.isNotEmpty
+        ? parsedTitle
         : (isTransfer
             ? context.l10n.txDetailFallbackTransfer
             : isIncome
                 ? context.l10n.txFormIncome
                 : context.l10n.txFormExpense);
     final cat = tx['category'] as String?;
-    final style = ref.watch(categoryStyleProvider(cat));
     final catLabel = ref.watch(categoryLabelProvider(
         CategoryLabelKey(key: cat, activeRoomId: roomId)));
     final user = tx['users'] as Map<String, dynamic>?;
@@ -1406,7 +1408,6 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
         : (emailHandle != null && emailHandle.isNotEmpty)
             ? emailHandle
             : context.l10n.roomMemberUnknown;
-    final incomeColor = const Color(0xFF2F8F5E);
 
     final createdRaw = tx['created_at'] as String?;
     final created =
@@ -1415,146 +1416,51 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
 
     final txId = tx['id'] as String?;
 
-    final body = Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: LoitSpacing.s4, vertical: LoitSpacing.s3),
-      decoration: BoxDecoration(
-        color: c.surface,
-        border: Border(
-          bottom: isLast ? BorderSide.none : BorderSide(color: c.borderSubtle),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: style.tint.withValues(alpha: 0.16),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Icon(style.icon, size: 20, color: style.tint),
+    final row = LoitTxRow(
+      categoryKey: cat,
+      title: merchant,
+      subtitle: timeText != null
+          ? '$payer \u00b7 $catLabel \u00b7 $timeText'
+          : '$payer \u00b7 $catLabel',
+      amount: formatMoney(amount.abs(), txCurrency),
+      subAmount: (isForeign && convertedAmount != null)
+          ? '\u2248 ${formatMoney(convertedAmount, homeCurrency)}'
+          : null,
+      isIncome: isIncome,
+      isTransfer: isTransfer,
+      showDivider: !isLast,
+      leadingBadge: user != null
+          ? _PayerBadge(member: {
+              'user_id': tx['user_id'],
+              'users': user,
+            })
+          : null,
+      onTap: txId == null
+          ? null
+          : () => context.push(
+                '/rooms/$roomId/transactions/$txId',
+                extra: tx,
               ),
-              if (user != null)
-                Positioned(
-                  right: -3,
-                  bottom: -3,
-                  child: _PayerBadge(member: {
-                    'user_id': tx['user_id'],
-                    'users': user,
-                  }),
-                ),
-            ],
-          ),
-          const SizedBox(width: LoitSpacing.s3),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  merchant,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: LoitTypography.bodyM.copyWith(
-                      color: c.contentPrimary,
-                      fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$payer \u00b7 $catLabel',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: LoitTypography.bodyS
-                      .copyWith(color: c.contentSecondary),
-                ),
-                if (isIncome) ...[
-                  const SizedBox(height: 6),
-                  _RoomChip(
-                    icon: Icons.call_received,
-                    label: context.l10n.txFormIncome,
-                    tint: incomeColor,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: LoitSpacing.s2),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${isTransfer ? '' : isIncome ? '+' : '\u2212'}${formatMoney(amount.abs(), txCurrency)}',
-                style: LoitTypography.bodyM.copyWith(
-                    color: isTransfer
-                        ? c.contentSecondary
-                        : isIncome
-                            ? incomeColor
-                            : c.danger,
-                    fontWeight: FontWeight.w700,
-                    fontFeatures: const [FontFeature.tabularFigures()]),
-              ),
-              if (isForeign && convertedAmount != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  '\u2248 ${formatMoney(convertedAmount, homeCurrency)}',
-                  style: LoitTypography.bodyS.copyWith(
-                    color: c.contentTertiary,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ],
-              if (timeText != null) ...[
-                const SizedBox(height: 2),
-                Text(timeText,
-                    style: LoitTypography.bodyS
-                        .copyWith(color: c.contentTertiary)),
-              ],
-            ],
-          ),
-        ],
-      ),
     );
 
+    final isOwner = currentUserId != null && tx['user_id'] == currentUserId;
     final Widget core;
-    if (txId == null) {
-      core = body;
+    if (txId == null || !isOwner) {
+      core = row;
     } else {
-      final tappable = LoitTapScale(
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => context.push(
-              '/rooms/$roomId/transactions/$txId',
-              extra: tx,
-            ),
-            child: body,
-          ),
+      core = Dismissible(
+        key: ValueKey('room-tx-$txId'),
+        direction: DismissDirection.endToStart,
+        onDismissed: (_) =>
+            _scheduleDeleteWithUndo(context, ref, txId, merchant),
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          color: c.danger,
+          child: const Icon(Icons.delete_outline, color: Colors.white),
         ),
+        child: row,
       );
-      final isOwner =
-          currentUserId != null && tx['user_id'] == currentUserId;
-      if (!isOwner) {
-        core = tappable;
-      } else {
-        core = Dismissible(
-          key: ValueKey('room-tx-$txId'),
-          direction: DismissDirection.endToStart,
-          onDismissed: (_) =>
-              _scheduleDeleteWithUndo(context, ref, txId, merchant),
-          background: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20),
-            color: c.danger,
-            child: const Icon(Icons.delete_outline, color: Colors.white),
-          ),
-          child: tappable,
-        );
-      }
     }
 
     final flash = _flashAnim;
@@ -1631,42 +1537,6 @@ class _PayerBadge extends ConsumerWidget {
                   fontWeight: FontWeight.w700),
             )
           : null,
-    );
-  }
-}
-
-class _RoomChip extends StatelessWidget {
-  const _RoomChip({required this.label, required this.tint, this.icon});
-  final String label;
-  final Color tint;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-          horizontal: icon != null ? 6 : 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: tint.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 11, color: tint),
-            const SizedBox(width: 3),
-          ],
-          Text(
-            label,
-            style: LoitTypography.labelS.copyWith(
-              color: tint,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -2070,9 +1940,14 @@ class _CategoryGroup extends ConsumerWidget {
 
   Widget _row(
       BuildContext context, WidgetRef ref, UserCategory cat, bool divider) {
+    // Localized label — resolves room catch-all categories (ADR 0009) to
+    // "Lainnya"/"Pemasukan lain" etc.; a plain name for every other cat.
+    final label = ref.watch(categoryLabelProvider(
+        CategoryLabelKey(key: cat.key, activeRoomId: roomId)));
     final row = _CategoryRow(
       roomId: roomId,
       cat: cat,
+      label: label,
       divider: divider,
       canManage: canManage,
     );
@@ -2081,7 +1956,7 @@ class _CategoryGroup extends ConsumerWidget {
     return Dismissible(
       key: ValueKey(cat.id),
       direction: DismissDirection.endToStart,
-      onDismissed: (_) => _scheduleDeleteWithUndo(context, ref, cat),
+      onDismissed: (_) => _scheduleDeleteWithUndo(context, ref, cat, label),
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
@@ -2093,7 +1968,7 @@ class _CategoryGroup extends ConsumerWidget {
   }
 
   void _scheduleDeleteWithUndo(
-      BuildContext context, WidgetRef ref, UserCategory cat) {
+      BuildContext context, WidgetRef ref, UserCategory cat, String label) {
     const window = Duration(seconds: 4);
     ref
         .read(pendingCategoryDeletesProvider.notifier)
@@ -2103,7 +1978,7 @@ class _CategoryGroup extends ConsumerWidget {
     final controller = messenger.showSnackBar(
       SnackBar(
         duration: window,
-        content: Text(context.l10n.roomDeleteCategory(cat.name)),
+        content: Text(context.l10n.roomDeleteCategory(label)),
         action: SnackBarAction(
           label: context.l10n.txListUndo,
           onPressed: () => ref
@@ -2122,11 +1997,13 @@ class _CategoryRow extends StatelessWidget {
   const _CategoryRow({
     required this.roomId,
     required this.cat,
+    required this.label,
     required this.divider,
     required this.canManage,
   });
   final String roomId;
   final UserCategory cat;
+  final String label;
   final bool divider;
   final bool canManage;
 
@@ -2157,7 +2034,7 @@ class _CategoryRow extends StatelessWidget {
             ),
             const SizedBox(width: LoitSpacing.s3),
             Expanded(
-              child: Text(cat.name,
+              child: Text(label,
                   style: LoitTypography.bodyM.copyWith(
                       color: c.contentPrimary,
                       fontWeight: FontWeight.w500)),

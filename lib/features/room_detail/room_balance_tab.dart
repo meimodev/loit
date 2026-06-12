@@ -186,7 +186,6 @@ class _AccountRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    final isLiability = account.kind == AccountKind.liability;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -195,9 +194,6 @@ class _AccountRow extends StatelessWidget {
             vertical: LoitSpacing.s3, horizontal: LoitSpacing.s1),
         child: Row(
           children: [
-            Icon(isLiability ? Icons.trending_down : Icons.account_balance_wallet,
-                size: 20, color: c.contentSecondary),
-            const SizedBox(width: LoitSpacing.s3),
             Expanded(
               child: Text(account.name,
                   style: LoitTypography.bodyM
@@ -281,9 +277,8 @@ class _RoomAccountFormState extends ConsumerState<_RoomAccountForm> {
       TextEditingController(text: widget.existing?.name ?? '');
   late final TextEditingController _balance = TextEditingController(
       text: (widget.existing != null && widget.existing!.initialBalance != 0)
-          ? formatAmountInput(widget.existing!.initialBalance.abs())
+          ? formatAmountInput(widget.existing!.initialBalance)
           : '');
-  late AccountKind _kind = widget.existing?.kind ?? AccountKind.asset;
   bool _busy = false;
   String? _error;
 
@@ -305,24 +300,22 @@ class _RoomAccountFormState extends ConsumerState<_RoomAccountForm> {
       _busy = true;
       _error = null;
     });
-    final raw = parseAmountInput(_balance.text) ?? 0;
-    final initial = _kind == AccountKind.liability ? -raw.abs() : raw;
-    final kindStr = _kind == AccountKind.asset ? 'asset' : 'liability';
     try {
       final svc = RoomService();
       if (widget.existing == null) {
+        // New room accounts always start at 0; kind is derived from balance by a
+        // DB trigger (ADR 0008), so there is no kind switch / opening-balance field.
         await svc.createRoomAccount(
           roomId: widget.roomId,
           name: name,
-          kind: kindStr,
+          kind: 'asset',
           currency: widget.currency,
-          initialBalance: initial,
         );
       } else {
+        // Opening balance is signed (negative ⇒ debt); kind is trigger-derived.
         await svc.updateRoomAccount(widget.existing!.id, {
           'name': name,
-          'kind': kindStr,
-          'initial_balance': initial,
+          'initial_balance': parseAmountInput(_balance.text) ?? 0,
         });
       }
       ref.invalidate(roomAccountsProvider(widget.roomId));
@@ -364,36 +357,22 @@ class _RoomAccountFormState extends ConsumerState<_RoomAccountForm> {
               controller: _name,
               label: l.roomAccountName,
               error: _error == l.roomAccountNameRequired ? _error : null),
-          const SizedBox(height: LoitSpacing.s3),
-          Row(
-            children: [
-              Expanded(
-                  child: _KindChip(
-                      label: l.roomAccountKindAsset,
-                      selected: _kind == AccountKind.asset,
-                      onTap: () => setState(() => _kind = AccountKind.asset))),
-              const SizedBox(width: LoitSpacing.s2),
-              Expanded(
-                  child: _KindChip(
-                      label: l.roomAccountKindLiability,
-                      selected: _kind == AccountKind.liability,
-                      onTap: () =>
-                          setState(() => _kind = AccountKind.liability))),
-            ],
-          ),
-          const SizedBox(height: LoitSpacing.s3),
-          LoitInput(
-            controller: _balance,
-            label: l.roomAccountInitialBalance,
-            placeholder: '0',
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))
-            ],
-            trailing: Text(widget.currency,
-                style: LoitTypography.bodyS.copyWith(color: c.contentSecondary)),
-          ),
+          if (editing) ...[
+            const SizedBox(height: LoitSpacing.s3),
+            LoitInput(
+              controller: _balance,
+              label: l.roomAccountInitialBalance,
+              placeholder: '0',
+              keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true, signed: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,-]'))
+              ],
+              trailing: Text(widget.currency,
+                  style:
+                      LoitTypography.bodyS.copyWith(color: c.contentSecondary)),
+            ),
+          ],
           if (_error != null && _error != l.roomAccountNameRequired) ...[
             const SizedBox(height: LoitSpacing.s2),
             Text(_error!,
@@ -411,34 +390,6 @@ class _RoomAccountFormState extends ConsumerState<_RoomAccountForm> {
           ],
           const SizedBox(height: LoitSpacing.s2),
         ],
-      ),
-    );
-  }
-}
-
-class _KindChip extends StatelessWidget {
-  const _KindChip(
-      {required this.label, required this.selected, required this.onTap});
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.loitColors;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 40,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? c.contentPrimary : c.muted,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(label,
-            style: LoitTypography.bodyS.copyWith(
-                color: selected ? c.surface : c.contentSecondary,
-                fontWeight: FontWeight.w600)),
       ),
     );
   }

@@ -160,8 +160,7 @@ class RoomTxKey {
 }
 
 final roomTransactionProvider =
-    FutureProvider.family<Map<String, dynamic>?, RoomTxKey>(
-        (ref, key) async {
+    FutureProvider.family<Txn?, RoomTxKey>((ref, key) async {
   final supabase = Supabase.instance.client;
   final row = await supabase
       .from('transactions')
@@ -170,7 +169,8 @@ final roomTransactionProvider =
       .eq('room_id', key.roomId)
       .eq('id', key.txId)
       .maybeSingle();
-  return row;
+  if (row == null) return null;
+  return Txn.fromRow(row);
 });
 
 // Pending room-tx deletes (txId set) — feed filters these out so the

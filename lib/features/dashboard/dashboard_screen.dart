@@ -373,6 +373,7 @@ List<double> _spendByDay(List<Txn> txns, DateTime month, String home) {
   final monthEnd = DateTime(month.year, month.month + 1, 1);
   for (final t in txns) {
     if (t.isTransfer || t.isIncome) continue;
+    if (t.roomId != null) continue; // room ledger, not personal spend (ADR 0011)
     if (t.createdAt.isBefore(monthStart)) continue;
     if (!t.createdAt.isBefore(monthEnd)) continue;
     final v = t.absAmountIn(home);
@@ -760,6 +761,11 @@ class _MonthSummary {
     var expenses = 0.0;
     for (final t in items) {
       if (t.isTransfer) continue;
+      // Room transactions belong to the room's ledger, not the user's personal
+      // spend — exclude any room_id row (ADR 0011 Out-of-pocket invariant). This
+      // also closes a pre-existing leak where pool-funded room movements (which
+      // carry the user's user_id) inflated personal month-to-date spend.
+      if (t.roomId != null) continue;
       if (t.createdAt.isBefore(monthStart)) continue;
       if (!t.createdAt.isBefore(monthEnd)) continue;
       final v = t.absAmountIn(home);

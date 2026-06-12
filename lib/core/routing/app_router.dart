@@ -30,7 +30,6 @@ import '../../features/paywall/paywall_screen.dart';
 import '../../features/room_detail/room_budget_form_screen.dart';
 import '../../features/room_detail/room_budgets_screen.dart';
 import '../../features/room_detail/room_detail_screen.dart';
-import '../../features/room_detail/room_transaction_detail_screen.dart';
 import '../../features/rooms/room_create_screen.dart';
 import '../../features/rooms/room_invite_screen.dart';
 import '../../features/rooms/room_join_screen.dart';
@@ -324,10 +323,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/rooms/:roomId/transactions/:transactionId',
-        builder: (_, state) => RoomTransactionDetailScreen(
-          roomId: state.pathParameters['roomId']!,
+        builder: (_, state) => TransactionDetailScreen(
           transactionId: state.pathParameters['transactionId']!,
-          txn: state.extra as Map<String, dynamic>?,
+          roomId: state.pathParameters['roomId']!,
         ),
       ),
       GoRoute(

@@ -358,8 +358,35 @@ final categoryLabelProvider =
   if (cat == null) {
     return _localizeDefault(ref, k.key!);
   }
+  // Room catch-all categories (ADR 0009) store an English name but display a
+  // locale-aware label, resolved by key suffix. Outside their owning room they
+  // keep the same `<Room name> ` prefix as any other room category.
+  if (cat.isRoom) {
+    final suffix = cat.key.endsWith(':income_other')
+        ? 'income_other'
+        : cat.key.endsWith(':other')
+            ? 'other'
+            : null;
+    if (suffix != null) {
+      final base = _catchAllLabel(ref, suffix);
+      if (cat.roomId == k.activeRoomId) return base;
+      final r = (cat.roomName ?? '').trim();
+      return r.isEmpty ? base : '$r $base';
+    }
+  }
   return cat.displayLabel(activeRoomId: k.activeRoomId);
 });
+
+/// Locale-aware label for a room catch-all key suffix (`other` /
+/// `income_other`). Mirrors the `id` strings in [_idLabels] and the English
+/// defaults; kept here because this provider has no [BuildContext] for l10n.
+String _catchAllLabel(Ref ref, String suffix) {
+  final isId = ref.watch(localePrefProvider)?.languageCode == 'id';
+  return switch (suffix) {
+    'income_other' => isId ? 'Pemasukan lain' : 'Income other',
+    _ => isId ? 'Lainnya' : 'Other',
+  };
+}
 
 String _localizeDefault(Ref ref, String key) {
   final locale = ref.watch(localePrefProvider);

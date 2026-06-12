@@ -27,6 +27,7 @@ class LoitTxRow extends StatefulWidget {
     this.leadingSelector,
     this.roomBadge,
     this.accentStripeColor,
+    this.leadingBadge,
   });
 
   final String title;
@@ -57,12 +58,40 @@ class LoitTxRow extends StatefulWidget {
   /// the room's accent.
   final Color? accentStripeColor;
 
+  /// Optional small widget overlaid on the bottom-right corner of the
+  /// category avatar. Used in a room's Transactions tab to show the payer's
+  /// avatar (who logged the room-account movement).
+  final Widget? leadingBadge;
+
   @override
   State<LoitTxRow> createState() => _LoitTxRowState();
 }
 
 class _LoitTxRowState extends State<LoitTxRow> {
   bool _pressed = false;
+
+  Widget _buildAvatar(LoitColors c) {
+    final avatar = widget.isTransfer
+        ? Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: c.contentSecondary.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            alignment: Alignment.center,
+            child: Icon(Icons.swap_horiz, size: 18, color: c.contentSecondary),
+          )
+        : LoitCategoryAvatar(categoryKey: widget.categoryKey, size: 36);
+    if (widget.leadingBadge == null) return avatar;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        avatar,
+        Positioned(right: -3, bottom: -3, child: widget.leadingBadge!),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,18 +128,7 @@ class _LoitTxRowState extends State<LoitTxRow> {
             child: widget.leadingSelector ??
                 const SizedBox.shrink(key: ValueKey('no-sel')),
           ),
-          widget.isTransfer
-              ? Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: c.contentSecondary.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(Icons.swap_horiz, size: 18, color: c.contentSecondary),
-                )
-              : LoitCategoryAvatar(categoryKey: widget.categoryKey, size: 36),
+          _buildAvatar(c),
           const SizedBox(width: LoitSpacing.s4),
           Expanded(
             child: Column(

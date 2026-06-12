@@ -550,6 +550,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get txFormFromAccount => 'From account';
 
   @override
+  String get txFormPaidFrom => 'Paid from';
+
+  @override
+  String get txFormPaidFromRoomPool => 'Room pool';
+
+  @override
+  String get txFormPaidFromMyMoney => 'My money';
+
+  @override
+  String get txFormPaidFromNoPoolHint =>
+      'Add a room account to pay from the shared pool';
+
+  @override
   String get txFormAccount => 'Account';
 
   @override
@@ -684,6 +697,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get txDetailAccount => 'Account';
+
+  @override
+  String get txDetailChooseAccount => 'Choose account';
+
+  @override
+  String get txDetailAddNote => 'Add a note';
 
   @override
   String get txDetailToAccount => 'To account';
@@ -2368,7 +2387,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomInviteTooltip => 'Invite';
 
   @override
-  String get roomDetailFeedTab => 'Feed';
+  String get roomDetailFeedTab => 'Transactions';
 
   @override
   String get roomDetailCategoriesTab => 'Categories';

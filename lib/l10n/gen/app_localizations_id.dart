@@ -554,6 +554,19 @@ class AppLocalizationsId extends AppLocalizations {
   String get txFormFromAccount => 'Dari akun';
 
   @override
+  String get txFormPaidFrom => 'Dibayar dari';
+
+  @override
+  String get txFormPaidFromRoomPool => 'Kas ruangan';
+
+  @override
+  String get txFormPaidFromMyMoney => 'Uang saya';
+
+  @override
+  String get txFormPaidFromNoPoolHint =>
+      'Tambahkan akun ruangan untuk membayar dari kas bersama';
+
+  @override
   String get txFormAccount => 'Akun';
 
   @override
@@ -688,6 +701,12 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get txDetailAccount => 'Akun';
+
+  @override
+  String get txDetailChooseAccount => 'Pilih akun';
+
+  @override
+  String get txDetailAddNote => 'Tambah catatan';
 
   @override
   String get txDetailToAccount => 'Ke akun';
@@ -2375,7 +2394,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get roomInviteTooltip => 'Undang';
 
   @override
-  String get roomDetailFeedTab => 'Umpan';
+  String get roomDetailFeedTab => 'Transaksi';
 
   @override
   String get roomDetailCategoriesTab => 'Kategori';

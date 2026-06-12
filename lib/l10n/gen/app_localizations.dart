@@ -1124,6 +1124,30 @@ abstract class AppLocalizations {
   /// **'From account'**
   String get txFormFromAccount;
 
+  /// No description provided for @txFormPaidFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid from'**
+  String get txFormPaidFrom;
+
+  /// No description provided for @txFormPaidFromRoomPool.
+  ///
+  /// In en, this message translates to:
+  /// **'Room pool'**
+  String get txFormPaidFromRoomPool;
+
+  /// No description provided for @txFormPaidFromMyMoney.
+  ///
+  /// In en, this message translates to:
+  /// **'My money'**
+  String get txFormPaidFromMyMoney;
+
+  /// No description provided for @txFormPaidFromNoPoolHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a room account to pay from the shared pool'**
+  String get txFormPaidFromNoPoolHint;
+
   /// No description provided for @txFormAccount.
   ///
   /// In en, this message translates to:
@@ -1381,6 +1405,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Account'**
   String get txDetailAccount;
+
+  /// No description provided for @txDetailChooseAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose account'**
+  String get txDetailChooseAccount;
+
+  /// No description provided for @txDetailAddNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a note'**
+  String get txDetailAddNote;
 
   /// No description provided for @txDetailToAccount.
   ///
@@ -4292,7 +4328,7 @@ abstract class AppLocalizations {
   /// No description provided for @roomDetailFeedTab.
   ///
   /// In en, this message translates to:
-  /// **'Feed'**
+  /// **'Transactions'**
   String get roomDetailFeedTab;
 
   /// No description provided for @roomDetailCategoriesTab.

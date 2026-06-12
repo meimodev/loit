@@ -1,5 +1,11 @@
 # Room accounts share the accounts table; room transactions are pool-only
 
+> **Partially superseded by [ADR 0011](0011-out-of-pocket-room-expenses.md).**
+> The unified-`accounts`-table model stands. The **pool-only** stance does not:
+> ADR 0011 reintroduces the personal-paid room expense as a first-class
+> **Out-of-pocket room expense**, with the edit/delete/leave-room hazards cited
+> below explicitly closed.
+
 Rooms need their own balance sheet — shared cash pools and shared debts a
 **Room account** carries a balance, distinct from **Room budgets**, which only
 cap shared spending. A room may have many; each is fixed to the room's

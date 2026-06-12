@@ -2,6 +2,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'budgets_provider.dart';
+import 'room_providers.dart';
+import 'transactions_provider.dart';
+
+/// Refreshes every room-scoped aggregate after a transaction is written inside
+/// a room (add / edit / delete / account-leg change). Call from the write site
+/// before navigating away. `roomAccountBalancesProvider` and
+/// `roomNetWorthProvider` watch `roomTransactionsProvider` via `.future`, so
+/// they rebuild automatically off the invalidation below — no need to list them.
+void invalidateRoomData(WidgetRef ref, String roomId) {
+  ref.invalidate(roomFeedProvider(roomId));
+  ref.invalidate(roomTransactionsProvider(roomId));
+  ref.invalidate(roomTotalsProvider(roomId));
+  ref.invalidate(roomBudgetSpendConvertedProvider(roomId));
+}
 
 /// Aggregated totals for a room, normalized into the room's `base_currency`.
 class RoomTotals {

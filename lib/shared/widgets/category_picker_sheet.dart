@@ -64,8 +64,10 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
     if (_query.isEmpty) return true;
     final q = _query.toLowerCase();
     final raw = cat.name.toLowerCase();
-    final display =
-        cat.displayLabel(activeRoomId: widget.activeRoomId).toLowerCase();
+    final display = ref
+        .read(categoryLabelProvider(
+            CategoryLabelKey(key: cat.key, activeRoomId: widget.activeRoomId)))
+        .toLowerCase();
     final key = cat.key.toLowerCase();
     return raw.contains(q) || display.contains(q) || key.contains(q);
   }
@@ -171,7 +173,9 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
   }
 
   Widget _row(UserCategory cat, LoitColors c) {
-    final label = cat.displayLabel(activeRoomId: widget.activeRoomId);
+    // Use the room-aware provider so catch-all categories (ADR 0009) localize.
+    final label = ref.watch(categoryLabelProvider(
+        CategoryLabelKey(key: cat.key, activeRoomId: widget.activeRoomId)));
     return InkWell(
       borderRadius: LoitRadius.brM,
       onTap: () => Navigator.of(context).pop(cat.key),

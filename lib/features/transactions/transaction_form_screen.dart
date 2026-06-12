@@ -19,11 +19,13 @@ import '../../l10n/l10n_x.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/room_accounts_provider.dart';
+import '../../shared/providers/room_aggregations_provider.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/services_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/account_picker_sheet.dart';
 import '../../shared/widgets/category_picker_sheet.dart';
+import '../../shared/widgets/loit_paid_from_segment.dart';
 import '../../shared/widgets/currency_picker_sheet.dart';
 import '../../shared/widgets/loit_banner.dart';
 import '../../shared/widgets/loit_category_avatar.dart';
@@ -64,6 +66,10 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
   Map<String, double>? _usdBaseRates;
   bool _ratesStale = false;
   String? _roomId;
+  // Funding source for room transactions (ADR 0011). roomPool = pool-funded
+  // (account pool = room accounts); myMoney = Out-of-pocket room expense
+  // (account pool = the payer's personal accounts). Ignored when not in a room.
+  PaidFrom _paidFrom = PaidFrom.roomPool;
   String? _imagePath;
   String _source = 'manual';
   DateTime _date = DateTime.now();
@@ -234,8 +240,8 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
     // already cached. Avoids post-frame mutation in build().
     // Room-scoped entry (pool-only): default + pickers use the room's accounts.
     _accountsSub = ref.listenManual<List<Account>>(
-      _roomId != null
-          ? activeRoomAccountsProvider(_roomId!)
+      _accountScopeRoomId != null
+          ? activeRoomAccountsProvider(_accountScopeRoomId!)
           : activeAccountsProvider,
       (prev, next) {
         if (mounted && _accountId == null && next.isNotEmpty) {
@@ -760,6 +766,13 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
         },
       );
 
+      // Refresh the room's aggregates (balance tab, budgets, feed, totals) so
+      // the add/edit is reflected when the room view appears. Personal-only
+      // saves skip this.
+      if (_roomId != null) {
+        invalidateRoomData(ref, _roomId!);
+      }
+
       if (mounted) {
         // When transaction targets a room, jump into the room view instead
         // of popping back to the previous screen (typically scanner/form).
@@ -830,11 +843,32 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
     return kind == 'income' ? 'income_other' : 'other';
   }
 
+  /// The room id that scopes the **account** pool. Null ⇒ personal accounts.
+  /// Room transfers stay pool-only; a non-transfer in a room follows [_paidFrom]
+  /// (My money ⇒ personal pool ⇒ null scope ⇒ an Out-of-pocket room expense).
+  String? get _accountScopeRoomId {
+    if (_roomId == null) return null;
+    if (_type == 'transfer') return _roomId;
+    return _paidFrom == PaidFrom.roomPool ? _roomId : null;
+  }
+
+  void _onPaidFromChanged(PaidFrom v) {
+    if (v == _paidFrom) return;
+    setState(() {
+      _paidFrom = v;
+      // Re-seed the account from the newly-selected pool.
+      final pool = v == PaidFrom.roomPool
+          ? ref.read(activeRoomAccountsProvider(_roomId!))
+          : ref.read(activeAccountsProvider);
+      _accountId = pool.isNotEmpty ? pool.first.id : null;
+    });
+  }
+
   Future<void> _pickAccount() async {
     final picked = await pickLoitAccount(
       context,
       selectedId: _accountId,
-      roomId: _roomId,
+      roomId: _accountScopeRoomId,
     );
     if (picked != null) setState(() => _accountId = picked);
   }
@@ -844,7 +878,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       context,
       selectedId: _toAccountId,
       excludeId: _accountId,
-      roomId: _roomId,
+      roomId: _accountScopeRoomId,
     );
     if (picked != null) setState(() => _toAccountId = picked);
   }
@@ -894,8 +928,22 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
     final catLabel = ref.watch(categoryLabelProvider(
         CategoryLabelKey(key: _category, activeRoomId: _roomId)));
 
-    final activeAccounts = _roomId != null
+    // Room accounts existence drives the Paid-from segment: a room with no room
+    // account can only be funded out-of-pocket (ADR 0011).
+    final roomAccounts = _roomId != null
         ? ref.watch(activeRoomAccountsProvider(_roomId!))
+        : const <Account>[];
+    final poolEnabled = roomAccounts.isNotEmpty;
+    final showPaidFrom = _roomId != null && _type != 'transfer';
+    // Empty-pool room ⇒ force My money (Room pool segment is disabled).
+    if (showPaidFrom && !poolEnabled && _paidFrom == PaidFrom.roomPool) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _onPaidFromChanged(PaidFrom.myMoney);
+      });
+    }
+
+    final activeAccounts = _accountScopeRoomId != null
+        ? ref.watch(activeRoomAccountsProvider(_accountScopeRoomId!))
         : ref.watch(activeAccountsProvider);
 
     // Null-safe account lookup: clear stale id if not found in current list.
@@ -1015,6 +1063,14 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
                 ),
               ),
             const SizedBox(height: LoitSpacing.s4),
+            if (showPaidFrom) ...[
+              LoitPaidFromSegment(
+                value: _paidFrom,
+                poolEnabled: poolEnabled,
+                onChanged: _onPaidFromChanged,
+              ),
+              const SizedBox(height: LoitSpacing.s4),
+            ],
             if (activeAccounts.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: LoitSpacing.s4),

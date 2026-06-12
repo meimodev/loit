@@ -59,6 +59,18 @@ defaults for `id` locale. Always the correct source for visible category text.
 Conflating it with the **Category style** name leaks English into Indonesian UI.
 _Avoid_: category style label.
 
+**Room catch-all category**:
+The two fallback categories — `other` (expense) and `income_other` (income) —
+**guaranteed present in every Room** so any **Room-account movement** always has
+a category to land in. Seeded into `room_categories` at room creation (and
+backfilled into existing Rooms) **independently** of the creator's personal
+categories, under the namespaced keys `room:<room_id>:other` /
+`room:<room_id>:income_other`. Guaranteed at creation **only** — the creator may
+later rename or delete them (not pinned). Their **Category display label** is
+localized by key suffix, so `id` locale shows "Lainnya" / "Pemasukan lain"
+despite the stored English name.
+_Avoid_: default category, uncategorized, fallback bucket.
+
 ### Rooms discovery
 
 **Rooms intro**:
@@ -92,8 +104,13 @@ _Avoid_: add-room button, new-room icon.
 
 **Room account**:
 A balance-bearing account **owned by a Room**, not a user — the shared analogue
-of a personal **Account**. Has a kind (asset/liability), an **initial balance**,
-and a currency fixed to the Room's `base_currency`. A Room may have **multiple**.
+of a personal **Account**. Its **kind** (asset/liability) is **derived from its
+balance**, not chosen: a Room account is a *liability* while its balance is
+negative and an *asset* otherwise — maintained automatically (see ADR 0008), so
+the admin add/edit form has no kind switch. (Personal **Account**s keep a manual
+kind.) Its **opening balance** is **0 at creation** — the admin sets a starting
+figure only by editing afterwards, where a negative value marks a debt. A Room
+account's currency is fixed to the Room's `base_currency`. A Room may have **multiple**.
 Room accounts give a Room its own balance sheet (shared cash pools, shared
 debts) — distinct from **Room budgets**, which only cap shared *spending*.
 _Avoid_: shared account, group wallet, room wallet.
@@ -101,16 +118,53 @@ A **Room account** lives in the same `accounts` table as a personal **Account**;
 exactly one of `user_id` / `room_id` is set. Personal screens must filter
 `room_id IS NULL` so room accounts never leak into a user's own balance sheet.
 
+**Room transaction**:
+The umbrella for **any** transaction carrying a `room_id` — it shows in the
+room feed and counts toward **Room budgets** / room spend. Two species,
+distinguished only by which account funds them: a **Room-account movement**
+(pool-funded) or an **Out-of-pocket room expense** (personal-funded). All Room
+transactions are **online-only** (any `room_id` row is shared; offline-queuing
+one makes it invisible in every room surface — which read the DB by `room_id` —
+until sync). _Avoid_: room movement (when meaning the umbrella), shared txn.
+
 **Room-account movement**:
-A transaction logged **inside a room** — it moves a **Room account** only, never
-a personal **Account** (the pool model). One-sided expense/income on a Room
-account (pool pays an outside bill, pool earns interest) or a transfer between
-two Room accounts of the same room. Entered through the **usual add-transaction
-form** and the scanner, both of which — when opened from a room — scope their
-account and category pickers to that room alone. There is **no** personal-money
-leg: a member paying a shared cost from their own pocket is not a Room-account
-movement. Room-account movements are **online-only** (shared-state divergence).
-_Avoid_: personal mirror, sync to personal, room transaction sheet.
+The **pool-funded** species of **Room transaction** — it moves a **Room
+account** only, never a personal **Account** (the pool model). One-sided
+expense/income on a Room account (pool pays an outside bill, pool earns
+interest) or a transfer between two Room accounts of the same room. There is
+**no** personal-money leg. (A member paying a shared cost from their own pocket
+is the sibling **Out-of-pocket room expense**, not this.) _Avoid_: personal
+mirror, sync to personal, room transaction sheet.
+
+**Out-of-pocket room expense**:
+The **personal-funded** species of **Room transaction** (ADR 0011, superseding
+the pool-only stance of ADR 0007) — a row with `room_id` set whose `account_id`
+is the **payer's own personal Account**. It **counts in room spend/budget**
+(keyed off `room_id`) and **debits the payer's personal cash balance** (keyed
+off `account_id` membership), but touches **no Room account**, so the room
+**balance sheet** is unaffected. It is **account-only**, not a settlement: the
+room implicitly owes the payer, but that debt is **not tracked** (no
+who-owes-whom, no settle-up — that would be a separate Settlement ledger). The
+UI surfaces it as **Paid from: Room pool | My money** on the add form,
+quick-add, scanner, and transaction detail; default is **Room pool** (My money
+when the room has no Room account yet). _Avoid_: personal mirror (the dead
+dual-write transfer), split, reimbursement.
+
+**Out-of-pocket invariant** (spend vs balance):
+The same rupiah of an **Out-of-pocket room expense** is the **room's** spend,
+not the payer's. Personal **spend aggregates must exclude `room_id != null`**;
+personal **account balance** must include the leg (the cash left the wallet).
+Counting it in both ledgers' *spend* is the double-count ADR 0007 warned of.
+Mutating such a row moves the payer's real cash, so it is **payer-editable
+only** — the room-admin override on Room transactions applies to Room-account
+movements, never to Out-of-pocket room expenses.
+
+**Payer**:
+The room **member** who logged a given **Room-account movement** — surfaced on
+each row in the room's **Transactions** tab as that member's avatar (badge on
+the category icon) and name. Distinguishes a shared room's rows from the
+personal transaction list, where authorship is implicit. _Avoid_: owner (means
+the room creator), author.
 
 ## Example dialogue
 

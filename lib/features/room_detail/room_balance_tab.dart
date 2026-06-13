@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/services/room_service.dart';
+import '../../core/services/reachability_service.dart'
+    show OnlineOnlyActionException;
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/room_accounts_provider.dart';
+import '../../shared/providers/room_providers.dart' show roomServiceProvider;
 import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_input.dart';
 import '../../shared/widgets/loit_sheet.dart';
+import '../../shared/widgets/room_error_state.dart';
 
 /// Room balance-sheet tab: the room's shared accounts, their balances, and the
 /// net total (ADR 0007). Account CRUD is admin-only via the tab FAB; members add
@@ -40,7 +43,12 @@ class RoomBalanceTab extends ConsumerWidget {
 
     return accountsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(l.commonErrorWithDetail('$e'))),
+      error: (e, _) => Center(
+        child: RoomErrorState(
+          error: e,
+          onRetry: () => ref.invalidate(roomAccountsProvider(roomId)),
+        ),
+      ),
       data: (all) {
         final active = all.where((a) => a.archivedAt == null).toList();
         var assets = 0.0;
@@ -301,7 +309,7 @@ class _RoomAccountFormState extends ConsumerState<_RoomAccountForm> {
       _error = null;
     });
     try {
-      final svc = RoomService();
+      final svc = ref.read(roomServiceProvider);
       if (widget.existing == null) {
         // New room accounts always start at 0; kind is derived from balance by a
         // DB trigger (ADR 0008), so there is no kind switch / opening-balance field.
@@ -320,6 +328,11 @@ class _RoomAccountFormState extends ConsumerState<_RoomAccountForm> {
       }
       ref.invalidate(roomAccountsProvider(widget.roomId));
       if (mounted) Navigator.pop(context);
+    } on OnlineOnlyActionException {
+      setState(() {
+        _busy = false;
+        _error = l.roomActionOnlineOnly;
+      });
     } catch (e) {
       setState(() {
         _busy = false;
@@ -331,9 +344,14 @@ class _RoomAccountFormState extends ConsumerState<_RoomAccountForm> {
   Future<void> _archive() async {
     setState(() => _busy = true);
     try {
-      await RoomService().archiveRoomAccount(widget.existing!.id);
+      await ref.read(roomServiceProvider).archiveRoomAccount(widget.existing!.id);
       ref.invalidate(roomAccountsProvider(widget.roomId));
       if (mounted) Navigator.pop(context);
+    } on OnlineOnlyActionException {
+      if (mounted) {
+        setState(() => _busy = false);
+        showRoomOnlineOnlySnack(context);
+      }
     } catch (_) {
       if (mounted) setState(() => _busy = false);
     }

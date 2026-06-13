@@ -59,9 +59,20 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     final c = context.loitColors;
     final l10n = context.l10n;
     final roomId = widget.roomId;
-    final txns = roomId != null
-        ? (ref.watch(roomTransactionsProvider(roomId)).value ?? const [])
-        : (ref.watch(transactionsProvider).value ?? const []);
+    final List<Txn> txns;
+    if (roomId != null) {
+      // Pool-only room report (ADR 0013): Out-of-pocket "My money" rows are the
+      // payer's spend, surfaced on their personal reports, not the room's.
+      final roomAccountIds =
+          (ref.watch(roomAccountsProvider(roomId)).value ?? const <Account>[])
+              .map((a) => a.id)
+              .toSet();
+      txns = (ref.watch(roomTransactionsProvider(roomId)).value ?? const [])
+          .where((t) => roomAccountIds.contains(t.accountId))
+          .toList();
+    } else {
+      txns = ref.watch(transactionsProvider).value ?? const [];
+    }
     final profile = ref.watch(userProfileProvider).value;
     final home = profile?.homeCurrency ?? 'IDR';
     String fmt(double v) => formatMoney(v, home);

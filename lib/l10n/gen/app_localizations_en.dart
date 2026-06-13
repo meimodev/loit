@@ -563,6 +563,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Add a room account to pay from the shared pool';
 
   @override
+  String get txListFundingPoolExplainer =>
+      'Paid from the room\'s shared pool — doesn\'t touch your money.';
+
+  @override
+  String get txListFundingMyMoneyExplainer =>
+      'You paid from your own account. Leaves your cash balance, but counts as room spend, not personal spend.';
+
+  @override
   String get txFormAccount => 'Account';
 
   @override
@@ -784,6 +792,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get txListTotal => 'Total';
+
+  @override
+  String get txListExcludesPool => 'Excludes room-pool movements';
 
   @override
   String get txListNoMatches => 'No transactions match this filter';
@@ -1771,7 +1782,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get connectivityOfflineBody =>
-      'Changes are saved locally and will sync when you reconnect.';
+      'Saved locally — syncs when you\'re back online.';
 
   @override
   String get staleRateTitle => 'Rates may be outdated';
@@ -1800,7 +1811,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notificationsEmptyTitle => 'You\'re all caught up';
 
   @override
-  String get connectivityOfflineTitle => 'You\'re offline';
+  String get connectivityOfflineTitle => 'Offline';
 
   @override
   String get accountPickerTitle => 'Select account';
@@ -1896,6 +1907,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get roomsLoadRetry => 'Try again';
+
+  @override
+  String get roomsOfflineTitle => 'You\'re offline';
+
+  @override
+  String get roomsOfflineBody =>
+      'Rooms need an internet connection. This will refresh automatically when you\'re back online.';
+
+  @override
+  String get roomActionOnlineOnly => 'Rooms need an internet connection.';
 
   @override
   String roomsScreenMembers(int n) {

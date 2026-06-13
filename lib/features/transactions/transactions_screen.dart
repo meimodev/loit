@@ -24,6 +24,7 @@ import '../../shared/widgets/loit_month_app_bar.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 import '../../shared/widgets/loit_fab_stack.dart';
 import '../../shared/widgets/loit_group_label.dart';
+import '../../shared/widgets/loit_funding_badge.dart';
 import '../../shared/widgets/loit_room_origin_badge.dart';
 import '../../shared/widgets/loit_sheet.dart';
 import '../../shared/widgets/loit_tx_row.dart';
@@ -231,8 +232,21 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
               }
             }).toList();
 
+            // The triple is a personal cash-flow total (ADR 0012): it sums what
+            // moved through the user's own wallet. A pool row (Room-account
+            // movement) has no personal-cash leg, so it contributes nothing
+            // under the all/personal lenses — even though it's listed. Under the
+            // rooms lens the triple is a room-flow total and counts both species.
+            final inRoomsLens = _sourceFilter == _SourceFilter.rooms;
             var incomeSum = 0.0, expenseSum = 0.0;
+            var hasExcludedPool = false;
             for (final t in filtered) {
+              final isPool =
+                  t.roomId != null && !accountMap.containsKey(t.accountId);
+              if (isPool && !inRoomsLens) {
+                hasExcludedPool = true;
+                continue;
+              }
               if (t.isTransfer) continue;
               final v = t.absAmountIn(currency);
               if (t.isIncome) {
@@ -351,19 +365,50 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
                       final roomAccent = isRoomTx
                           ? RoomColors.forId(t.roomId!)
                           : null;
+                      // Funding species: a room row whose account is personal
+                      // (present in accountMap, which loads all personal
+                      // accounts incl. archived) is an Out-of-pocket "My money"
+                      // expense; otherwise it moves a room account ("Room pool").
+                      final isMyMoney =
+                          isRoomTx && accountMap.containsKey(t.accountId);
+                      // Pool rows carry no personal-cash leg; under the
+                      // personal-facing lenses they're informational only, so
+                      // dim the amount and show an explicit sign (ADR 0012).
+                      // Under the rooms lens pool is the relevant money — normal.
+                      final dimPool = isRoomTx &&
+                          !isMyMoney &&
+                          _sourceFilter != _SourceFilter.rooms;
                       final roomBadge = isRoomTx
-                          ? LoitRoomOriginBadge(
-                              accent: roomAccent!,
-                              name: t.roomName ??
-                                  roomNameById[t.roomId!] ??
-                                  l.txListRoom,
+                          ? Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                LoitRoomOriginBadge(
+                                  accent: roomAccent!,
+                                  name: t.roomName ??
+                                      roomNameById[t.roomId!] ??
+                                      l.txListRoom,
+                                ),
+                                LoitFundingBadge(
+                                  species: isMyMoney
+                                      ? FundingSpecies.myMoney
+                                      : FundingSpecies.pool,
+                                  label: isMyMoney
+                                      ? l.txFormPaidFromMyMoney
+                                      : l.txFormPaidFromRoomPool,
+                                ),
+                              ],
                             )
                           : null;
                       final row = LoitTxRow(
                         title: breakdownTitle(t.notes),
                         categoryKey: t.isTransfer ? null : t.category,
                         subtitle: _txSubtitle(t),
-                        amount: _fmt(t.amount, t.currency),
+                        amount: dimPool && !t.isTransfer
+                            ? formatMoney(t.amount, t.currency, showSign: true)
+                            : _fmt(t.amount, t.currency),
+                        amountColor: dimPool ? c.contentDisabled : null,
                         subAmount: (t.currency != currency &&
                                 t.fxSnapshot.containsKey(currency))
                             ? '≈ ${_fmt(t.absAmountIn(currency), currency)}'
@@ -441,6 +486,22 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(child: summaryTriple),
+                if (hasExcludedPool)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        LoitSpacing.s5,
+                        0,
+                        LoitSpacing.s5,
+                        LoitSpacing.s2,
+                      ),
+                      child: Text(
+                        l.txListExcludesPool,
+                        style: LoitTypography.labelS
+                            .copyWith(color: c.contentTertiary),
+                      ),
+                    ),
+                  ),
                 if (_overBudgetCount(filtered) > 0)
                   SliverToBoxAdapter(
                     child: Padding(
@@ -875,20 +936,15 @@ class _AnimatedSummaryTriple extends StatefulWidget {
 }
 
 class _AnimatedSummaryTripleState extends State<_AnimatedSummaryTriple> {
-  late double _income = widget.reduceMotion ? widget.income : 0;
-  late double _expense = widget.reduceMotion ? widget.expense : 0;
-  late double _net = widget.reduceMotion ? widget.net : 0;
-  double _prevIncome = 0;
-  double _prevExpense = 0;
-  double _prevNet = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _prevIncome = _income;
-    _prevExpense = _expense;
-    _prevNet = _net;
-  }
+  // Seed from real values on mount so a fresh instance (month switch / cold
+  // open) snaps to the correct numbers instead of rolling up from 0. The
+  // count-up only plays for live in-month updates, via didUpdateWidget.
+  late double _income = widget.income;
+  late double _expense = widget.expense;
+  late double _net = widget.net;
+  late double _prevIncome = widget.income;
+  late double _prevExpense = widget.expense;
+  late double _prevNet = widget.net;
 
   @override
   void didUpdateWidget(covariant _AnimatedSummaryTriple old) {

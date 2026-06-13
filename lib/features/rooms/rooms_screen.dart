@@ -9,12 +9,15 @@ import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../core/services/reachability_service.dart'
+    show OnlineOnlyActionException;
 import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/presence_provider.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_empty_state.dart';
+import '../../shared/widgets/room_error_state.dart';
 import '../paywall/feature_gate.dart';
 import '../paywall/paywall_screen.dart';
 import 'room_colors.dart';
@@ -537,6 +540,8 @@ class _InvitesBanner extends ConsumerWidget {
       if (context.mounted && roomId != null) {
         context.push('/rooms/$roomId');
       }
+    } on OnlineOnlyActionException {
+      if (context.mounted) showRoomOnlineOnlySnack(context);
     } catch (e) {
       InteractionLog.error(
           action: 'room_join', screen: 'rooms', message: '$e');

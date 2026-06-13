@@ -144,8 +144,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           data: (items) {
             _maybeStartEntrance();
             final currency = profile?.homeCurrency ?? 'IDR';
-            final summary = _MonthSummary.fromTxns(items, month, currency);
-            final byDay = _spendByDay(items, month, currency);
+            // ADR 0013: My-money (Out-of-pocket) room rows — funded from one of
+            // the user's own personal accounts — are the payer's spend and
+            // count in the personal aggregate; pool rows are the room's spend
+            // and stay excluded.
+            final personalAccountIds =
+                (ref.watch(accountsProvider).value ?? const <Account>[])
+                    .map((a) => a.id)
+                    .toSet();
+            final summary =
+                _MonthSummary.fromTxns(items, month, currency, personalAccountIds);
+            final byDay = _spendByDay(items, month, currency, personalAccountIds);
             final activeDays = byDay.where((v) => v > 0).length;
             final avgDay = activeDays == 0
                 ? 0.0
@@ -366,14 +375,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   }
 }
 
-List<double> _spendByDay(List<Txn> txns, DateTime month, String home) {
+List<double> _spendByDay(List<Txn> txns, DateTime month, String home,
+    Set<String> personalAccountIds) {
   final days = DateTime(month.year, month.month + 1, 0).day;
   final out = List<double>.filled(days, 0);
   final monthStart = DateTime(month.year, month.month, 1);
   final monthEnd = DateTime(month.year, month.month + 1, 1);
   for (final t in txns) {
     if (t.isTransfer || t.isIncome) continue;
-    if (t.roomId != null) continue; // room ledger, not personal spend (ADR 0011)
+    // Exclude pool room rows; keep My-money (personal-account) ones (ADR 0013).
+    if (t.roomId != null && !personalAccountIds.contains(t.accountId)) continue;
     if (t.createdAt.isBefore(monthStart)) continue;
     if (!t.createdAt.isBefore(monthEnd)) continue;
     final v = t.absAmountIn(home);
@@ -754,18 +765,22 @@ class _MonthSummary {
   final double income;
   final double expenses;
 
-  factory _MonthSummary.fromTxns(List<Txn> items, DateTime month, String home) {
+  factory _MonthSummary.fromTxns(List<Txn> items, DateTime month, String home,
+      Set<String> personalAccountIds) {
     final monthStart = DateTime(month.year, month.month, 1);
     final monthEnd = DateTime(month.year, month.month + 1, 1);
     var income = 0.0;
     var expenses = 0.0;
     for (final t in items) {
       if (t.isTransfer) continue;
-      // Room transactions belong to the room's ledger, not the user's personal
-      // spend — exclude any room_id row (ADR 0011 Out-of-pocket invariant). This
-      // also closes a pre-existing leak where pool-funded room movements (which
-      // carry the user's user_id) inflated personal month-to-date spend.
-      if (t.roomId != null) continue;
+      // ADR 0013 (flips ADR 0011): a My-money room row — funded from the user's
+      // own personal account — is the payer's spend and counts here. A pool
+      // room movement is the room's spend; exclude it. Pool rows carry the
+      // user's user_id but a room account_id, so the account check is the
+      // discriminator, not the bare room_id.
+      if (t.roomId != null && !personalAccountIds.contains(t.accountId)) {
+        continue;
+      }
       if (t.createdAt.isBefore(monthStart)) continue;
       if (!t.createdAt.isBefore(monthEnd)) continue;
       final v = t.absAmountIn(home);

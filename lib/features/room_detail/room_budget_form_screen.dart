@@ -9,7 +9,10 @@ import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../core/services/reachability_service.dart'
+    show OnlineOnlyActionException;
 import '../../l10n/l10n_x.dart';
+import '../../shared/widgets/room_error_state.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/user_categories_provider.dart';
@@ -121,6 +124,8 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
       }
       ref.invalidate(roomBudgetsProvider(widget.roomId));
       if (mounted) context.pop();
+    } on OnlineOnlyActionException {
+      if (mounted) showRoomOnlineOnlySnack(context);
     } catch (e) {
       Log.e('RoomBudgetForm', 'Save failed', error: e);
       if (mounted) {
@@ -162,6 +167,8 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
           );
       ref.invalidate(roomBudgetsProvider(widget.roomId));
       if (mounted) context.pop();
+    } on OnlineOnlyActionException {
+      if (mounted) showRoomOnlineOnlySnack(context);
     } catch (e) {
       Log.e('RoomBudgetForm', 'Delete failed', error: e);
       if (mounted) {
@@ -204,7 +211,15 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
               body: Center(child: CircularProgressIndicator())),
           error: (e, _) => Scaffold(
               appBar: AppBar(),
-              body: Center(child: Text(context.l10n.commonErrorWithDetail('$e')))),
+              body: Center(
+                child: RoomErrorState(
+                  error: e,
+                  onRetry: () => ref.invalidate(roomBudgetProvider(RoomBudgetKey(
+                    roomId: widget.roomId,
+                    budgetId: widget.budgetId!,
+                  ))),
+                ),
+              )),
           data: (row) {
             if (row == null) {
               return Scaffold(

@@ -3,17 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../shared/utils/locale_date_format.dart';
 
-import '../../core/services/room_service.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
+import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/home_currency_provider.dart';
 import '../../shared/providers/presence_provider.dart';
+import '../../shared/providers/room_accounts_provider.dart';
 import '../../shared/providers/room_aggregations_provider.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/selected_month_provider.dart';
@@ -23,6 +24,8 @@ import '../../shared/utils/amount_input.dart';
 import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_avatar.dart';
 import '../../shared/widgets/loit_empty_state.dart';
+import '../../shared/widgets/loit_funding_badge.dart';
+import '../../shared/widgets/room_error_state.dart';
 import '../../shared/widgets/loit_tx_row.dart';
 import '../transactions/notes_breakdown.dart';
 import '../rooms/room_colors.dart';
@@ -109,7 +112,13 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       loading: () => const Scaffold(
           body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(
-          appBar: AppBar(), body: Center(child: Text(context.l10n.commonErrorWithDetail('$e')))),
+          appBar: AppBar(),
+          body: Center(
+            child: RoomErrorState(
+              error: e,
+              onRetry: () => ref.invalidate(roomDetailProvider(widget.roomId)),
+            ),
+          )),
       data: (room) {
         final name = room['name'] as String? ?? context.l10n.roomDetailRoomFallback;
         final isCreator = room['created_by'] == user?.id;
@@ -363,9 +372,13 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       ),
     );
     if (ok == true && context.mounted) {
-      await RoomService().archiveRoom(widget.roomId);
-      ref.invalidate(myRoomsProvider);
-      ref.invalidate(roomDetailProvider(widget.roomId));
+      try {
+        await ref.read(roomServiceProvider).archiveRoom(widget.roomId);
+        ref.invalidate(myRoomsProvider);
+        ref.invalidate(roomDetailProvider(widget.roomId));
+      } on OnlineOnlyActionException {
+        if (context.mounted) showRoomOnlineOnlySnack(context);
+      }
     }
   }
 
@@ -387,9 +400,13 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       ),
     );
     if (ok == true && context.mounted) {
-      await RoomService().leaveRoom(widget.roomId);
-      ref.invalidate(myRoomsProvider);
-      if (context.mounted) context.go('/rooms');
+      try {
+        await ref.read(roomServiceProvider).leaveRoom(widget.roomId);
+        ref.invalidate(myRoomsProvider);
+        if (context.mounted) context.go('/rooms');
+      } on OnlineOnlyActionException {
+        if (context.mounted) showRoomOnlineOnlySnack(context);
+      }
     }
   }
 
@@ -872,14 +889,34 @@ class _FeedTab extends ConsumerWidget {
     final month = ref.watch(selectedMonthProvider);
     final monthBar = _MonthBar(month: month);
     final fxAsync = ref.watch(roomFxRatesProvider(roomId));
+    // Funding species: a row whose account is NOT a room account is an
+    // Out-of-pocket "My money" expense — the payer's spend, not the room's
+    // (ADR 0013). It stays visible in the feed but counts toward no room total.
+    final roomAccountIds =
+        (ref.watch(roomAccountsProvider(roomId)).value ?? const <Account>[])
+            .map((a) => a.id)
+            .toSet();
     return feedAsync.when(
       skipLoadingOnReload: true,
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(context.l10n.commonErrorWithDetail('$e'))),
+      error: (e, _) => Center(
+        child: RoomErrorState(
+          error: e,
+          compact: true,
+          onRetry: () => ref.invalidate(roomFeedProvider(roomId)),
+        ),
+      ),
       data: (allTxns) {
         final visible = allTxns
             .where((t) => !pending.contains(t['id'] as String?))
             .toList();
+        // Summary + list both scoped to the selected month: switching months
+        // must move income/expense totals, not just the visible rows.
+        final txns = visible.where((t) {
+          final dt = DateTime.tryParse((t['created_at'] as String?) ?? '');
+          if (dt == null) return false;
+          return dt.year == month.year && dt.month == month.month;
+        }).toList();
         // Read-time conversion: each row keeps its original currency, but
         // totals are normalized to room.base_currency for the summary card.
         final fxRates = fxAsync.value;
@@ -887,11 +924,13 @@ class _FeedTab extends ConsumerWidget {
         double incomeTotal = 0;
         int expensesCount = 0;
         int incomeCount = 0;
-        for (final t in visible) {
+        for (final t in txns) {
           final amt = (t['amount'] as num?)?.toDouble() ?? 0;
           final type = (t['type'] as String?) ??
               (amt > 0 ? 'income' : 'expense');
           if (type == 'transfer') continue;
+          // Pool-only totals (ADR 0013): skip Out-of-pocket "My money" rows.
+          if (!roomAccountIds.contains(t['account_id'] as String?)) continue;
           final txCur = (t['currency'] as String?) ?? (fxRates?.baseCurrency ?? 'IDR');
           final converted = fxRates?.convert(amt.abs(), txCur, t['fx_snapshot']) ?? amt.abs();
           if (type == 'income') {
@@ -902,19 +941,19 @@ class _FeedTab extends ConsumerWidget {
             expensesCount++;
           }
         }
-        final summaryCard = _TotalSpentCard(
-          total: expensesTotal,
-          income: incomeTotal,
-          expensesCount: expensesCount,
-          incomeCount: incomeCount,
-          fmt: fmt,
-          isStale: fxRates?.isStale ?? false,
+        final monthKey =
+            '${month.year}-${month.month.toString().padLeft(2, '0')}';
+        final summaryCard = KeyedSubtree(
+          key: ValueKey('room-summary-$monthKey'),
+          child: _TotalSpentCard(
+            total: expensesTotal,
+            income: incomeTotal,
+            expensesCount: expensesCount,
+            incomeCount: incomeCount,
+            fmt: fmt,
+            isStale: fxRates?.isStale ?? false,
+          ),
         );
-        final txns = visible.where((t) {
-          final dt = DateTime.tryParse((t['created_at'] as String?) ?? '');
-          if (dt == null) return false;
-          return dt.year == month.year && dt.month == month.month;
-        }).toList();
         if (txns.isEmpty) {
           return ListView(
             padding: const EdgeInsets.fromLTRB(
@@ -1085,7 +1124,7 @@ class _MonthBarState extends ConsumerState<_MonthBar> {
   }
 }
 
-class _TotalSpentCard extends StatelessWidget {
+class _TotalSpentCard extends StatefulWidget {
   const _TotalSpentCard({
     required this.total,
     required this.income,
@@ -1102,8 +1141,32 @@ class _TotalSpentCard extends StatelessWidget {
   final bool isStale;
 
   @override
+  State<_TotalSpentCard> createState() => _TotalSpentCardState();
+}
+
+class _TotalSpentCardState extends State<_TotalSpentCard> {
+  // Seed prev == current on mount so a fresh instance (month switch, keyed by
+  // monthKey) snaps to the right numbers. Count-up only plays for live
+  // in-month edits, via didUpdateWidget.
+  late double _prevTotal = widget.total;
+  late double _prevIncome = widget.income;
+
+  @override
+  void didUpdateWidget(covariant _TotalSpentCard old) {
+    super.didUpdateWidget(old);
+    _prevTotal = old.total;
+    _prevIncome = old.income;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final total = widget.total;
+    final income = widget.income;
+    final expensesCount = widget.expensesCount;
+    final incomeCount = widget.incomeCount;
+    final fmt = widget.fmt;
+    final isStale = widget.isStale;
     final l = context.l10n;
     final incomeColor = const Color(0xFF2F8F5E);
     final expenseColor = c.danger;
@@ -1137,9 +1200,11 @@ class _TotalSpentCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: LoitAnimatedCount(
-                  value: total,
-                  builder: (_, v) => _SummaryStat(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: _prevTotal, end: total),
+                  duration: LoitMotion.entrance,
+                  curve: LoitMotion.easeOutQuart,
+                  builder: (_, v, __) => _SummaryStat(
                     label: l.roomSummaryExpenses,
                     value: fmt(v),
                     icon: Icons.trending_down,
@@ -1155,9 +1220,11 @@ class _TotalSpentCard extends StatelessWidget {
                 color: c.borderSubtle,
               ),
               Expanded(
-                child: LoitAnimatedCount(
-                  value: income,
-                  builder: (_, v) => _SummaryStat(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: _prevIncome, end: income),
+                  duration: LoitMotion.entrance,
+                  curve: LoitMotion.easeOutQuart,
+                  builder: (_, v, __) => _SummaryStat(
                     label: l.roomSummaryIncome,
                     value: fmt(v),
                     icon: Icons.trending_up,
@@ -1386,6 +1453,15 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
     final txType = tx['type'] as String? ?? (amount > 0 ? 'income' : 'expense');
     final isIncome = txType == 'income';
     final isTransfer = txType == 'transfer';
+    // Funding species (ADR 0013): a row whose account is NOT a room account is
+    // an Out-of-pocket "My money" expense — the payer's spend, shown here but
+    // not counted in any room total. De-emphasised with an explicit sign.
+    final roomAccountIds =
+        (ref.watch(roomAccountsProvider(roomId)).value ?? const <Account>[])
+            .map((a) => a.id)
+            .toSet();
+    final isMyMoney =
+        !isTransfer && !roomAccountIds.contains(tx['account_id'] as String?);
     final notes = (tx['notes'] as String?)?.trim();
     final parsedTitle = breakdownTitle(notes);
     final merchant = parsedTitle.isNotEmpty
@@ -1422,13 +1498,23 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
       subtitle: timeText != null
           ? '$payer \u00b7 $catLabel \u00b7 $timeText'
           : '$payer \u00b7 $catLabel',
-      amount: formatMoney(amount.abs(), txCurrency),
+      amount: isMyMoney
+          ? formatMoney(isIncome ? amount.abs() : -amount.abs(), txCurrency,
+              showSign: true)
+          : formatMoney(amount.abs(), txCurrency),
+      amountColor: isMyMoney ? c.contentDisabled : null,
       subAmount: (isForeign && convertedAmount != null)
           ? '\u2248 ${formatMoney(convertedAmount, homeCurrency)}'
           : null,
       isIncome: isIncome,
       isTransfer: isTransfer,
       showDivider: !isLast,
+      roomBadge: LoitFundingBadge(
+        species: isMyMoney ? FundingSpecies.myMoney : FundingSpecies.pool,
+        label: isMyMoney
+            ? context.l10n.txFormPaidFromMyMoney
+            : context.l10n.txFormPaidFromRoomPool,
+      ),
       leadingBadge: user != null
           ? _PayerBadge(member: {
               'user_id': tx['user_id'],
@@ -1565,7 +1651,13 @@ class _BudgetTab extends ConsumerWidget {
     return budgetsAsync.when(
       skipLoadingOnReload: true,
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(context.l10n.commonErrorWithDetail('$e'))),
+      error: (e, _) => Center(
+        child: RoomErrorState(
+          error: e,
+          compact: true,
+          onRetry: () => ref.invalidate(roomBudgetsProvider(roomId)),
+        ),
+      ),
       data: (list) {
         if (list.isEmpty) {
           return ListView(
@@ -1791,7 +1883,13 @@ class _CategoriesTab extends ConsumerWidget {
     return asyncCats.when(
       skipLoadingOnReload: true,
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(context.l10n.commonErrorWithDetail('$e'))),
+      error: (e, _) => Center(
+        child: RoomErrorState(
+          error: e,
+          compact: true,
+          onRetry: () => ref.invalidate(userCategoriesProvider),
+        ),
+      ),
       data: (cats) {
         final roomCats = cats
             .where((cat) => cat.roomId == roomId && !pending.contains(cat.id))

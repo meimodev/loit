@@ -17,6 +17,7 @@ import '../../shared/providers/room_accounts_provider.dart';
 import '../../shared/providers/room_aggregations_provider.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
+import '../../shared/widgets/room_error_state.dart';
 import '../../shared/providers/preferences_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/utils/amount_input.dart';
@@ -221,6 +222,34 @@ class _DetailBody extends ConsumerWidget {
             roomId: roomId,
             canEdit: canEdit && !t.isTransfer,
           ),
+          // Funding species (ADR 0011): a room row funded by the user's own
+          // personal account is an Out-of-pocket "My money" expense (its leg
+          // debits the payer's cash); otherwise it moves a Room account
+          // ("Room pool"). Membership test uses the full personal account list
+          // (incl. archived) so an archived account never misclassifies.
+          if (_isRoom)
+            Padding(
+              padding: const EdgeInsets.only(top: LoitSpacing.s3),
+              child: Builder(
+                builder: (_) {
+                  final personalAccounts =
+                      ref.watch(accountsProvider).value ?? const [];
+                  final isMyMoney =
+                      personalAccounts.any((a) => a.id == t.accountId);
+                  return LoitBanner(
+                    kind: isMyMoney
+                        ? LoitBannerKind.warning
+                        : LoitBannerKind.info,
+                    title: isMyMoney
+                        ? l.txFormPaidFromMyMoney
+                        : l.txFormPaidFromRoomPool,
+                    body: isMyMoney
+                        ? l.txListFundingMyMoneyExplainer
+                        : l.txListFundingPoolExplainer,
+                  );
+                },
+              ),
+            ),
           if (t.isTransfer && t.toAccountId != null)
             _ToAccountRow(t: t, roomId: roomId),
           if (!t.isTransfer)
@@ -338,9 +367,14 @@ class _DetailBody extends ConsumerWidget {
             ),
           );
           if (ok != true) return;
-          await ref
-              .read(transactionsProvider.notifier)
-              .deleteTransaction(t.id!);
+          try {
+            await ref
+                .read(transactionsProvider.notifier)
+                .deleteTransaction(t.id!, requireOnline: _isRoom);
+          } on OnlineOnlyActionException {
+            if (context.mounted) showRoomOnlineOnlySnack(context);
+            return;
+          }
           await _afterSave(ref, roomId, t.id!);
           if (context.mounted) context.pop();
         },
@@ -659,6 +693,7 @@ class _CategoryRowState extends ConsumerState<_CategoryRow> {
       await ref.read(transactionsProvider.notifier).updateTransaction(
         widget.t.id!,
         {'category': picked},
+        requireOnline: widget.roomId != null,
       );
       await _afterSave(ref, widget.roomId, widget.t.id!);
     } catch (e) {
@@ -706,6 +741,7 @@ class _AccountInlineRowState extends ConsumerState<_AccountInlineRow> {
       await ref.read(transactionsProvider.notifier).updateTransaction(
         widget.t.id!,
         {'account_id': picked},
+        requireOnline: widget.roomId != null,
       );
       await _afterSave(ref, widget.roomId, widget.t.id!);
       await Future<void>.delayed(const Duration(milliseconds: 120));
@@ -842,6 +878,7 @@ class _AmountRowState extends ConsumerState<_AmountRow> {
       await ref.read(transactionsProvider.notifier).updateTransaction(
         widget.t.id!,
         {'amount': signed},
+        requireOnline: widget.roomId != null,
       );
       await _afterSave(ref, widget.roomId, widget.t.id!);
     } catch (e) {
@@ -908,6 +945,7 @@ class _DateRowState extends ConsumerState<_DateRow> {
       await ref.read(transactionsProvider.notifier).updateTransaction(
         widget.t.id!,
         {'created_at': next.toUtc().toIso8601String()},
+        requireOnline: widget.roomId != null,
       );
       await _afterSave(ref, widget.roomId, widget.t.id!);
     } catch (e) {
@@ -954,6 +992,7 @@ class _NotesRowState extends ConsumerState<_NotesRow> {
       await ref.read(transactionsProvider.notifier).updateTransaction(
         widget.t.id!,
         {'notes': entered},
+        requireOnline: widget.roomId != null,
       );
       await _afterSave(ref, widget.roomId, widget.t.id!);
     } catch (e) {
@@ -1122,8 +1161,13 @@ class _NotesSheetState extends State<_NotesSheet> {
 
 void _snack(BuildContext context, WidgetRef ref, Object e) {
   if (!context.mounted) return;
+  // Room edits are online-only (ADR 0014): show the canonical message instead
+  // of an "update failed" with a raw exception string.
+  final msg = e is OnlineOnlyActionException
+      ? context.l10n.roomActionOnlineOnly
+      : context.l10n.roomUpdateFailed(e.toString());
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(context.l10n.roomUpdateFailed(e.toString()))),
+    SnackBar(content: Text(msg)),
   );
 }
 
@@ -1327,13 +1371,19 @@ class _BreakdownEditorState extends ConsumerState<_BreakdownEditor> {
       }
       await ref
           .read(transactionsProvider.notifier)
-          .updateTransaction(widget.txn.id!, payload);
+          .updateTransaction(widget.txn.id!, payload,
+              requireOnline: widget.roomId != null);
       await _afterSave(ref, widget.roomId, widget.txn.id!);
       if (!mounted) return;
       setState(() {
         _editing = false;
         _saving = false;
       });
+    } on OnlineOnlyActionException {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.roomActionOnlineOnly)));
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);

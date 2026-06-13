@@ -120,12 +120,38 @@ exactly one of `user_id` / `room_id` is set. Personal screens must filter
 
 **Room transaction**:
 The umbrella for **any** transaction carrying a `room_id` — it shows in the
-room feed and counts toward **Room budgets** / room spend. Two species,
-distinguished only by which account funds them: a **Room-account movement**
-(pool-funded) or an **Out-of-pocket room expense** (personal-funded). All Room
+room feed. Two species, distinguished only by which account funds them: a
+**Room-account movement** (pool-funded) or an **Out-of-pocket room expense**
+(personal-funded). Only the **pool** species counts toward **Room budgets** /
+room spend / room balance; the My-money species is the *payer's* spend (ADR
+0013) and is visible-but-uncounted in the room. All Room
 transactions are **online-only** (any `room_id` row is shared; offline-queuing
 one makes it invisible in every room surface — which read the DB by `room_id` —
 until sync). _Avoid_: room movement (when meaning the umbrella), shared txn.
+
+**Online-only room operation**:
+**Any** read or write touching a `room_id` — room list/feed/detail/budget/
+account reads, and every mutation (create/update/archive room, leave, kick,
+invite, accept invite, room budgets, room accounts, and **all** Room
+transactions including the **Out-of-pocket room expense**). Room state is
+server-authoritative and shared, so the app never serves it from a local
+cache and never offline-queues a room write. Offline, a room **read** shows a
+clean per-surface "you're offline" state (Retry; auto-heals when connectivity
+returns) and a room **write** is rejected with **Online-only rejection** —
+never silently queued. The single exception that escapes by design is a
+`createRoom` whose request was sent but whose response was lost: a retry may
+create a duplicate room (a known, accepted limitation — every other room write
+is idempotent). _Avoid_: offline room mode, room sync, queued room action.
+
+**Online-only rejection**:
+The signal that a write was refused for lack of connectivity, surfaced as a
+single `OnlineOnlyActionException` regardless of op. Raised two ways: a
+pre-write reachability probe that fails fast, **or** a network-class exception
+(`SocketException` / `ClientException` / timeout) caught around the live call
+and mapped. Non-network failures (RLS denial, validation, expired invite,
+business errors from an Edge function) are **never** mapped to this — they keep
+their real message, so a connected user is never told "needs internet" for a
+server-side refusal. _Avoid_: offline error, save failed (when meaning this).
 
 **Room-account movement**:
 The **pool-funded** species of **Room transaction** — it moves a **Room
@@ -137,27 +163,51 @@ is the sibling **Out-of-pocket room expense**, not this.) _Avoid_: personal
 mirror, sync to personal, room transaction sheet.
 
 **Out-of-pocket room expense**:
-The **personal-funded** species of **Room transaction** (ADR 0011, superseding
-the pool-only stance of ADR 0007) — a row with `room_id` set whose `account_id`
-is the **payer's own personal Account**. It **counts in room spend/budget**
-(keyed off `room_id`) and **debits the payer's personal cash balance** (keyed
-off `account_id` membership), but touches **no Room account**, so the room
-**balance sheet** is unaffected. It is **account-only**, not a settlement: the
-room implicitly owes the payer, but that debt is **not tracked** (no
-who-owes-whom, no settle-up — that would be a separate Settlement ledger). The
-UI surfaces it as **Paid from: Room pool | My money** on the add form,
+The **personal-funded** species of **Room transaction** (ADR 0011; ownership
+reversed by ADR 0013) — a row with `room_id` set whose `account_id` is the
+**payer's own personal Account**. It is the **payer's** spend, not the room's:
+it counts in the payer's **Personal spend aggregate** and **personal budget**
+and **debits the payer's personal cash balance** (keyed off `account_id`
+membership), but counts toward **none** of the room's totals — not room
+expense/income, not **Room budgets**, not the **balance sheet** (it touches no
+Room account). It stays **visible** in the room Feed (members see who fronted
+the cash) but renders **de-emphasised** there: amount in `contentDisabled` with
+a leading sign, carrying a **My money** chip. It is **account-only**, not a
+settlement: the room implicitly owes the payer, but that debt is **not tracked**
+(no who-owes-whom, no settle-up — that would be a separate Settlement ledger).
+The UI surfaces it as **Paid from: Room pool | My money** on the add form,
 quick-add, scanner, and transaction detail; default is **Room pool** (My money
 when the room has no Room account yet). _Avoid_: personal mirror (the dead
 dual-write transfer), split, reimbursement.
 
-**Out-of-pocket invariant** (spend vs balance):
-The same rupiah of an **Out-of-pocket room expense** is the **room's** spend,
-not the payer's. Personal **spend aggregates must exclude `room_id != null`**;
-personal **account balance** must include the leg (the cash left the wallet).
-Counting it in both ledgers' *spend* is the double-count ADR 0007 warned of.
-Mutating such a row moves the payer's real cash, so it is **payer-editable
-only** — the room-admin override on Room transactions applies to Room-account
-movements, never to Out-of-pocket room expenses.
+**Personal cash-flow total**:
+The income / expense / net summary on the **Transactions** tab. Sums **what
+moved through the user's own wallet** — every personal row, plus the **My money**
+leg of an **Out-of-pocket room expense** (real cash left the wallet). A
+**Room-account movement** (pool) has **no personal leg** and so contributes
+**nothing**, even when shown in the list under the *all* lens. Close to the
+**Personal spend aggregate** (dashboard MTD) since ADR 0013 — both now include
+**My money** out-of-pocket rows and exclude **pool**. They still differ in
+scope: cash-flow is the Tx-tab triple over the selected lens; the aggregate is
+the dashboard MTD spend metric.
+_Avoid_: spend total, monthly spend (when meaning the tx-tab triple).
+
+**Personal spend aggregate**:
+A "what I spent on my own life" total (dashboard month-to-date). Excludes
+**pool** rows (Room-account movements) but **includes** **My money**
+out-of-pocket room rows (ADR 0013 flipped this — that spend is the payer's).
+_Avoid_: cash flow, wallet total.
+
+**Out-of-pocket invariant** (funding decides ownership):
+A rupiah of spend has exactly **one** owner, set by funding. **Pool** money is
+the **room's** spend (room totals, room budget, room balance). **My money** is
+the **payer's** spend (personal spend aggregate, personal budget, personal cash
+balance) — and counts toward **none** of the room's totals, though it stays
+visible (de-emphasised) in the room Feed. Counting one rupiah in both ledgers'
+*spend* is the double-count ADR 0007 warned of; ADR 0013 resolves it by giving
+each rupiah a single owner. Mutating a My-money row moves the payer's real cash,
+so it is **payer-editable only** — the room-admin override on Room transactions
+applies to Room-account movements, never to Out-of-pocket room expenses.
 
 **Payer**:
 The room **member** who logged a given **Room-account movement** — surfaced on

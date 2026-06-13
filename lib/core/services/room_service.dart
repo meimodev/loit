@@ -1,15 +1,29 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'log_service.dart';
+import 'reachability_service.dart';
 
 class RoomService {
   static const _tag = 'RoomService';
 
   final SupabaseClient _client;
 
-  RoomService([SupabaseClient? client])
-      : _client = client ?? Supabase.instance.client;
+  /// Offline gate injected by the provider (reachability probe + dev override).
+  /// Defaults to always-online so a bare `RoomService()` (tests) still works;
+  /// in that mode the [runOnline] wrap degrades to network-error mapping only.
+  final Future<bool> Function() _isOffline;
+
+  RoomService([SupabaseClient? client, Future<bool> Function()? isOffline])
+      : _client = client ?? Supabase.instance.client,
+        _isOffline = isOffline ?? (() async => false);
 
   String get _uid => _client.auth.currentUser!.id;
+
+  /// Routes a room mutation through the online-only gate (ADR 0014): pre-write
+  /// reachability probe, then network-class errors mapped to
+  /// [OnlineOnlyActionException]. Reads deliberately skip this — they surface
+  /// the raw error so the UI can classify offline vs server failure.
+  Future<T> _online<T>(Future<T> Function() action) =>
+      runOnline(_isOffline, action);
 
   Future<List<Map<String, dynamic>>> listMyRooms() async {
     final memberRows = await _client
@@ -43,7 +57,9 @@ class RoomService {
     String baseCurrency = 'IDR',
   }) async {
     Log.i(_tag, 'Creating room: $name');
-    final row = await _client
+    // NOTE (ADR 0014): the one non-idempotent room write. A lost response after
+    // the insert lands may, on retry, create a duplicate room — accepted limit.
+    final row = await _online(() => _client
         .from('rooms')
         .insert({
           'name': name,
@@ -52,44 +68,45 @@ class RoomService {
           'created_by': _uid,
         })
         .select()
-        .single();
+        .single());
     Log.i(_tag, 'Room created: ${row['id']}');
     return row;
   }
 
   Future<void> updateRoom(String roomId, Map<String, dynamic> updates) async {
-    await _client.from('rooms').update(updates).eq('id', roomId);
+    await _online(
+        () => _client.from('rooms').update(updates).eq('id', roomId));
   }
 
   Future<void> archiveRoom(String roomId) async {
-    await _client.from('rooms').update({
-      'is_archived': true,
-      'archived_at': DateTime.now().toUtc().toIso8601String(),
-    }).eq('id', roomId);
+    await _online(() => _client.from('rooms').update({
+          'is_archived': true,
+          'archived_at': DateTime.now().toUtc().toIso8601String(),
+        }).eq('id', roomId));
   }
 
   Future<void> leaveRoom(String roomId) async {
-    await _client
+    await _online(() => _client
         .from('room_members')
         .delete()
         .eq('room_id', roomId)
-        .eq('user_id', _uid);
+        .eq('user_id', _uid));
   }
 
   Future<void> kickMember(String roomId, String userId) async {
-    await _client
+    await _online(() => _client
         .from('room_members')
         .delete()
         .eq('room_id', roomId)
-        .eq('user_id', userId);
+        .eq('user_id', userId));
   }
 
   Future<String?> acceptInvite(String token) async {
     Log.i(_tag, 'Accepting invite');
-    final result = await _client.rpc(
-      'accept_room_invite',
-      params: {'p_invite_token': token},
-    );
+    final result = await _online(() => _client.rpc(
+          'accept_room_invite',
+          params: {'p_invite_token': token},
+        ));
     Log.i(_tag, 'Invite accepted: roomId=$result');
     return result as String?;
   }
@@ -107,14 +124,16 @@ class RoomService {
     required String roomId,
     required String invitedEmail,
   }) async {
-    final resp = await _client.functions.invoke(
-      'create-room-invite',
-      body: {'room_id': roomId, 'invited_email': invitedEmail},
-    );
-    if (resp.status >= 400) {
-      throw Exception(resp.data?.toString() ?? 'Failed to create invite');
-    }
-    return resp.data as Map<String, dynamic>;
+    return _online(() async {
+      final resp = await _client.functions.invoke(
+        'create-room-invite',
+        body: {'room_id': roomId, 'invited_email': invitedEmail},
+      );
+      if (resp.status >= 400) {
+        throw Exception(resp.data?.toString() ?? 'Failed to create invite');
+      }
+      return resp.data as Map<String, dynamic>;
+    });
   }
 
   Future<void> notifyRoomTransaction({
@@ -167,19 +186,19 @@ class RoomService {
     int resetDay = 1,
     int? customDays,
   }) async {
-    await _client.from('room_budgets').upsert(
-      {
-        'room_id': roomId,
-        'category': category,
-        'budget_limit': budgetLimit,
-        'currency': currency,
-        'period': period,
-        'reset_day': resetDay,
-        'custom_days': period == 'custom' ? customDays : null,
-        'created_by': _uid,
-      },
-      onConflict: 'room_id,category',
-    );
+    await _online(() => _client.from('room_budgets').upsert(
+          {
+            'room_id': roomId,
+            'category': category,
+            'budget_limit': budgetLimit,
+            'currency': currency,
+            'period': period,
+            'reset_day': resetDay,
+            'custom_days': period == 'custom' ? customDays : null,
+            'created_by': _uid,
+          },
+          onConflict: 'room_id,category',
+        ));
   }
 
   Future<void> updateRoomBudget({
@@ -192,25 +211,25 @@ class RoomService {
     int resetDay = 1,
     int? customDays,
   }) async {
-    await _client.from('room_budgets').update({
-      'category': category,
-      'budget_limit': budgetLimit,
-      'currency': currency,
-      'period': period,
-      'reset_day': resetDay,
-      'custom_days': period == 'custom' ? customDays : null,
-    }).eq('id', budgetId).eq('room_id', roomId);
+    await _online(() => _client.from('room_budgets').update({
+          'category': category,
+          'budget_limit': budgetLimit,
+          'currency': currency,
+          'period': period,
+          'reset_day': resetDay,
+          'custom_days': period == 'custom' ? customDays : null,
+        }).eq('id', budgetId).eq('room_id', roomId));
   }
 
   Future<void> deleteRoomBudget({
     required String budgetId,
     required String roomId,
   }) async {
-    await _client
+    await _online(() => _client
         .from('room_budgets')
         .delete()
         .eq('id', budgetId)
-        .eq('room_id', roomId);
+        .eq('room_id', roomId));
   }
 
   // Room accounts — the room's shared balance sheet (ADR 0007).
@@ -225,7 +244,7 @@ class RoomService {
     String? icon,
     String? color,
   }) async {
-    return _client
+    return _online(() => _client
         .from('accounts')
         .insert({
           'room_id': roomId,
@@ -238,7 +257,7 @@ class RoomService {
           'client_updated_at': DateTime.now().toUtc().toIso8601String(),
         })
         .select()
-        .single();
+        .single());
   }
 
   Future<void> updateRoomAccount(
@@ -246,14 +265,15 @@ class RoomService {
     Map<String, dynamic> updates,
   ) async {
     updates['client_updated_at'] = DateTime.now().toUtc().toIso8601String();
-    await _client.from('accounts').update(updates).eq('id', accountId);
+    await _online(
+        () => _client.from('accounts').update(updates).eq('id', accountId));
   }
 
   /// Archive-only — room accounts are never hard-deleted (a mirror transfer is
   /// one row shared with a member's personal ledger). See ADR 0007.
   Future<void> archiveRoomAccount(String accountId) async {
-    await _client.from('accounts').update({
-      'archived_at': DateTime.now().toUtc().toIso8601String(),
-    }).eq('id', accountId);
+    await _online(() => _client.from('accounts').update({
+          'archived_at': DateTime.now().toUtc().toIso8601String(),
+        }).eq('id', accountId));
   }
 }

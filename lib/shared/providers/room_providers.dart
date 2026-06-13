@@ -3,21 +3,33 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/services/reachability_service.dart'
+    show reachabilityServiceProvider, onlineEpochProvider;
 import '../../core/services/room_service.dart';
+import '../widgets/connectivity_banner.dart' show offlineDebugOverrideProvider;
 import 'transactions_provider.dart';
 
-// Service singleton
-final roomServiceProvider = Provider<RoomService>((ref) => RoomService());
+// Service singleton — injected with the online-only gate (ADR 0014): dev
+// override first, then the reachability probe.
+final roomServiceProvider = Provider<RoomService>((ref) => RoomService(
+      null,
+      () async {
+        if (ref.read(offlineDebugOverrideProvider) == true) return true;
+        return !(await ref.read(reachabilityServiceProvider).isReachable());
+      },
+    ));
 
 // My rooms list — invalidate after create/join/leave
 final myRoomsProvider =
     FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  ref.watch(onlineEpochProvider); // auto-heal on reconnect
   return ref.watch(roomServiceProvider).listMyRooms();
 });
 
 // Single room detail
 final roomDetailProvider =
     FutureProvider.family<Map<String, dynamic>, String>((ref, roomId) async {
+  ref.watch(onlineEpochProvider); // auto-heal on reconnect
   return ref.watch(roomServiceProvider).getRoom(roomId);
 });
 
@@ -25,6 +37,7 @@ final roomDetailProvider =
 final roomBudgetsProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>(
         (ref, roomId) async {
+  ref.watch(onlineEpochProvider); // auto-heal on reconnect
   return ref.watch(roomServiceProvider).getRoomBudgets(roomId);
 });
 
@@ -103,12 +116,14 @@ final myRoomsTransactionsProvider =
 // Pending invites for current user
 final pendingInvitesProvider =
     FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  ref.watch(onlineEpochProvider); // auto-heal on reconnect
   return ref.watch(roomServiceProvider).getPendingInvites();
 });
 
 // Real-time room feed (transactions in a room)
 final roomFeedProvider = FutureProvider.family<List<Map<String, dynamic>>, String>(
     (ref, roomId) async {
+  ref.watch(onlineEpochProvider); // auto-heal on reconnect
   final supabase = Supabase.instance.client;
 
   final initial = await supabase

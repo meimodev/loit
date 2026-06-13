@@ -4,6 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/services/currency_service.dart';
 import '../../core/services/log_service.dart';
 import '../../core/services/reachability_service.dart';
+// OnlineOnlyActionException moved to reachability_service (ADR 0014); re-exported
+// here so existing call sites importing it from this provider keep working.
+export '../../core/services/reachability_service.dart'
+    show OnlineOnlyActionException;
 import '../widgets/connectivity_banner.dart';
 import 'auth_providers.dart';
 import 'services_providers.dart';
@@ -161,15 +165,6 @@ class Txn {
   }
 
   double absAmountIn(String target) => amountIn(target).abs();
-}
-
-/// Thrown when a connectivity-required action (a transaction touching a room
-/// account) is attempted offline. Room-account movements are online-only so the
-/// shared balance never diverges across members — see ADR 0007.
-class OnlineOnlyActionException implements Exception {
-  const OnlineOnlyActionException();
-  @override
-  String toString() => 'This action needs an internet connection.';
 }
 
 class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
@@ -363,8 +358,14 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
       state = AsyncData([Txn.fromRow(inserted), ...current]);
       return newId;
     } catch (e) {
-      // Room-account movements never fall back to the offline queue.
-      if (requireOnline) rethrow;
+      // Room-account movements never fall back to the offline queue. Map a
+      // network-class failure to the canonical online-only rejection so the UI
+      // shows the same "needs internet" message as the pre-check path; a real
+      // server error (RLS, validation) keeps its message (ADR 0014).
+      if (requireOnline) {
+        if (isNetworkError(e)) throw const OnlineOnlyActionException();
+        rethrow;
+      }
       Log.w('TransactionsProvider', 'Online insert failed, enqueuing', error: e);
       if (items.isNotEmpty) payload['items'] = items;
       final db = ref.read(offlineDbProvider);
@@ -390,8 +391,9 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
 
   Future<void> updateTransaction(
     String id,
-    Map<String, dynamic> payload,
-  ) async {
+    Map<String, dynamic> payload, {
+    bool requireOnline = false,
+  }) async {
     payload.removeWhere((k, _) => k.startsWith('_'));
     payload['client_updated_at'] = DateTime.now().toUtc().toIso8601String();
     payload['id'] = id;
@@ -400,6 +402,8 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
     final items = _coerceItems(payload.remove('items'));
 
     if (await _isOffline()) {
+      // Room transactions are online-only (ADR 0014): never queue a shared row.
+      if (requireOnline) throw const OnlineOnlyActionException();
       final queued = {...payload};
       if (hasItemsKey) queued['items'] = items;
       await ref.read(offlineDbProvider).enqueue(queued);
@@ -436,6 +440,11 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
         } catch (_) {/* best-effort */}
       }
     } catch (e) {
+      // Room transactions never fall back to the offline queue (ADR 0014).
+      if (requireOnline) {
+        if (isNetworkError(e)) throw const OnlineOnlyActionException();
+        rethrow;
+      }
       Log.w('TransactionsProvider', 'Online update failed, enqueuing', error: e);
       final queued = {...payload};
       if (hasItemsKey) queued['items'] = items;
@@ -444,8 +453,10 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
     ref.invalidateSelf();
   }
 
-  Future<void> deleteTransaction(String id) async {
+  Future<void> deleteTransaction(String id, {bool requireOnline = false}) async {
     if (await _isOffline()) {
+      // Room transactions are online-only (ADR 0014): never queue a shared row.
+      if (requireOnline) throw const OnlineOnlyActionException();
       await ref.read(offlineDbProvider).enqueue({'_op': 'delete', 'id': id});
       final cur = state.value ?? const [];
       state = AsyncData(cur.where((t) => t.id != id).toList());
@@ -456,7 +467,11 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
       await Supabase.instance.client.from('transactions').delete().eq('id', id);
       final cur = state.value ?? const [];
       state = AsyncData(cur.where((t) => t.id != id).toList());
-    } catch (_) {
+    } catch (e) {
+      if (requireOnline) {
+        if (isNetworkError(e)) throw const OnlineOnlyActionException();
+        rethrow;
+      }
       await ref.read(offlineDbProvider).enqueue({'_op': 'delete', 'id': id});
       final cur = state.value ?? const [];
       state = AsyncData(cur.where((t) => t.id != id).toList());
@@ -485,6 +500,7 @@ final transactionsProvider =
 /// visibility to room members. Used by the per-room Reports screen.
 final roomTransactionsProvider =
     FutureProvider.family<List<Txn>, String>((ref, roomId) async {
+  ref.watch(onlineEpochProvider); // auto-heal on reconnect (ADR 0014)
   final user = ref.watch(currentUserProvider);
   if (user == null) return const [];
   final rows = await Supabase.instance.client

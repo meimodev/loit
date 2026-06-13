@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/services/reachability_service.dart' show onlineEpochProvider;
 import 'accounts_provider.dart';
 import 'transactions_provider.dart';
 
@@ -9,6 +10,7 @@ import 'transactions_provider.dart';
 /// [activeRoomAccountsProvider] for pickers and the visible list.
 final roomAccountsProvider =
     FutureProvider.family<List<Account>, String>((ref, roomId) async {
+  ref.watch(onlineEpochProvider); // auto-heal on reconnect (ADR 0014)
   final rows = await Supabase.instance.client
       .from('accounts')
       .select()

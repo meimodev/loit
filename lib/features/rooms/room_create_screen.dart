@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/services/analytics_service.dart';
 import '../../core/services/interaction_log_service.dart';
-import '../../core/services/room_service.dart';
+import '../../core/services/reachability_service.dart'
+    show OnlineOnlyActionException;
+import '../../shared/widgets/room_error_state.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
@@ -206,7 +208,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
     final l = context.l10n;
     setState(() => _busy = true);
     try {
-      final room = await RoomService().createRoom(
+      final room = await ref.read(roomServiceProvider).createRoom(
         name: name,
         baseCurrency: _currency,
       );
@@ -222,6 +224,8 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
       if (mounted) {
         context.pushReplacement('/rooms/${room['id']}');
       }
+    } on OnlineOnlyActionException {
+      if (mounted) showRoomOnlineOnlySnack(context);
     } catch (e) {
       InteractionLog.error(
         action: 'room_create',

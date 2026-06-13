@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -102,3 +103,73 @@ final reachabilityProvider = StreamProvider<bool>((ref) {
   final svc = ref.watch(reachabilityServiceProvider);
   return svc.onStatusChange;
 });
+
+/// Monotonic counter that bumps only on an offline→online rising edge. Room
+/// read providers `watch` it so an error state self-heals when connectivity
+/// returns (ADR 0014); a flap (online→offline) does not trigger a refetch.
+class OnlineEpoch extends Notifier<int> {
+  bool? _last;
+
+  @override
+  int build() {
+    ref.listen(reachabilityProvider, (_, next) {
+      final online = next.value ?? false;
+      if (_last == false && online) state = state + 1;
+      _last = online;
+    });
+    return 0;
+  }
+}
+
+final onlineEpochProvider =
+    NotifierProvider<OnlineEpoch, int>(OnlineEpoch.new);
+
+/// Thrown when a connectivity-required action is attempted offline (or its live
+/// call fails with a network-class error). The single signal that a write was
+/// refused for lack of connectivity — see ADR 0014 and the **Online-only
+/// rejection** term in CONTEXT.md. Every room operation routes through
+/// [runOnline]; the room-transaction add path raises this directly.
+class OnlineOnlyActionException implements Exception {
+  const OnlineOnlyActionException();
+  @override
+  String toString() => 'This action needs an internet connection.';
+}
+
+/// True when [e] is a transport/connectivity failure rather than a server-side
+/// refusal. Deliberately narrow: a `PostgrestException` (RLS denial, validation,
+/// expired invite) or an Edge-function business error is **not** a network
+/// error and keeps its real message — a connected user is never told "needs
+/// internet" for a server-side failure.
+bool isNetworkError(Object e) {
+  if (e is OnlineOnlyActionException) return true;
+  if (e is SocketException) return true;
+  if (e is TimeoutException) return true;
+  if (e is HttpException) return true;
+  final s = e.toString().toLowerCase();
+  return s.contains('socketexception') ||
+      s.contains('clientexception') ||
+      s.contains('failed host lookup') ||
+      s.contains('connection closed') ||
+      s.contains('connection refused') ||
+      s.contains('connection reset') ||
+      s.contains('connection timed out') ||
+      s.contains('network is unreachable') ||
+      s.contains('software caused connection abort');
+}
+
+/// Runs an online-only write through the two-layer gate (ADR 0014): a fast
+/// pre-write reachability probe via [isOffline], then the live [action] with a
+/// network-class exception mapped to [OnlineOnlyActionException]. Non-network
+/// failures rethrow untouched so their real message survives.
+Future<T> runOnline<T>(
+  Future<bool> Function() isOffline,
+  Future<T> Function() action,
+) async {
+  if (await isOffline()) throw const OnlineOnlyActionException();
+  try {
+    return await action();
+  } catch (e) {
+    if (isNetworkError(e)) throw const OnlineOnlyActionException();
+    rethrow;
+  }
+}

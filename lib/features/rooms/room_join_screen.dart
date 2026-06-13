@@ -8,6 +8,8 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../core/services/reachability_service.dart'
+    show OnlineOnlyActionException;
 import '../../l10n/l10n_x.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/user_categories_provider.dart';
@@ -59,6 +61,8 @@ class _RoomJoinScreenState extends ConsumerState<RoomJoinScreen> {
       } else if (mounted) {
         setState(() => _error = l.roomJoinInvalid);
       }
+    } on OnlineOnlyActionException {
+      if (mounted) setState(() => _error = l.roomActionOnlineOnly);
     } catch (e) {
       InteractionLog.error(
           action: 'room_join', screen: 'join_room', message: '$e');

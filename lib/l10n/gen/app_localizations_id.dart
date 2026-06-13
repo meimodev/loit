@@ -567,6 +567,14 @@ class AppLocalizationsId extends AppLocalizations {
       'Tambahkan akun ruangan untuk membayar dari kas bersama';
 
   @override
+  String get txListFundingPoolExplainer =>
+      'Dibayar dari kas bersama ruangan — tidak memengaruhi uangmu.';
+
+  @override
+  String get txListFundingMyMoneyExplainer =>
+      'Kamu bayar dari akunmu sendiri. Mengurangi saldomu, tapi dihitung sebagai pengeluaran ruangan, bukan pribadi.';
+
+  @override
   String get txFormAccount => 'Akun';
 
   @override
@@ -788,6 +796,10 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get txListTotal => 'Total';
+
+  @override
+  String get txListExcludesPool =>
+      'Tidak termasuk pergerakan kas bersama ruang';
 
   @override
   String get txListNoMatches =>
@@ -1779,7 +1791,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get connectivityOfflineBody =>
-      'Perubahan disimpan secara lokal dan akan tersinkron saat Anda terhubung kembali.';
+      'Tersimpan lokal — sinkron saat Anda kembali online.';
 
   @override
   String get staleRateTitle => 'Kurs mungkin sudah usang';
@@ -1808,7 +1820,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get notificationsEmptyTitle => 'Anda sudah membaca semua';
 
   @override
-  String get connectivityOfflineTitle => 'Anda sedang offline';
+  String get connectivityOfflineTitle => 'Offline';
 
   @override
   String get accountPickerTitle => 'Pilih akun';
@@ -1904,6 +1916,16 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get roomsLoadRetry => 'Coba lagi';
+
+  @override
+  String get roomsOfflineTitle => 'Kamu sedang offline';
+
+  @override
+  String get roomsOfflineBody =>
+      'Ruangan butuh koneksi internet. Halaman ini akan dimuat ulang otomatis saat kamu kembali online.';
+
+  @override
+  String get roomActionOnlineOnly => 'Ruangan butuh koneksi internet.';
 
   @override
   String roomsScreenMembers(int n) {

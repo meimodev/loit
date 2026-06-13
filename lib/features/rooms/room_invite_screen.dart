@@ -10,7 +10,9 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
+import '../../core/services/reachability_service.dart' show isNetworkError;
 import '../../l10n/l10n_x.dart';
+import '../../shared/widgets/room_error_state.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/widgets/loit_button.dart';
@@ -38,9 +40,17 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
       ref.invalidate(roomDetailProvider(widget.roomId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.roomInviteRegenFailed(e.toString()))),
-        );
+        // Regenerate is a direct room-write RPC (online-only, ADR 0014): map a
+        // network failure to the canonical message; keep real errors otherwise.
+        if (isNetworkError(e)) {
+          showRoomOnlineOnlySnack(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content:
+                    Text(context.l10n.roomInviteRegenFailed(e.toString()))),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _regenerating = false);
@@ -59,7 +69,12 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
           body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(
         appBar: AppBar(),
-        body: Center(child: Text(context.l10n.commonErrorWithDetail('$e'))),
+        body: Center(
+          child: RoomErrorState(
+            error: e,
+            onRetry: () => ref.invalidate(roomDetailProvider(widget.roomId)),
+          ),
+        ),
       ),
       data: (room) {
         final name = room['name'] as String? ?? 'Room';

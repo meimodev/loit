@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'budgets_provider.dart';
+import 'room_accounts_provider.dart';
 import 'room_providers.dart';
 import 'transactions_provider.dart';
 
@@ -57,9 +58,15 @@ final roomTotalsProvider =
       .single();
   final base = (room['base_currency'] as String?) ?? 'IDR';
 
+  // Pool-only totals (ADR 0013): a row whose account is not a room account is
+  // an Out-of-pocket "My money" expense — the payer's spend, not the room's.
+  final roomAccountIds = (await ref.watch(roomAccountsProvider(roomId).future))
+      .map((a) => a.id)
+      .toSet();
+
   final rows = await supabase
       .from('transactions')
-      .select('amount, currency, type, fx_snapshot')
+      .select('amount, currency, type, fx_snapshot, account_id')
       .eq('room_id', roomId);
 
   var income = 0.0;
@@ -69,6 +76,7 @@ final roomTotalsProvider =
   for (final m in rows) {
     final type = m['type'] as String?;
     if (type == 'transfer') continue;
+    if (!roomAccountIds.contains(m['account_id'] as String?)) continue;
     final cur = (m['currency'] as String?) ?? base;
     final amt = ((m['amount'] as num?) ?? 0).toDouble().abs();
     double converted;
@@ -167,9 +175,16 @@ final roomBudgetSpendConvertedProvider = FutureProvider.family<
   final fromIso =
       (earliest ?? DateTime(now.year, now.month, 1)).toUtc().toIso8601String();
 
+  // Pool-only spend (ADR 0013): Out-of-pocket "My money" expenses count toward
+  // the payer's personal budget, never the room budget.
+  final roomAccountIds = (await ref.watch(roomAccountsProvider(roomId).future))
+      .map((a) => a.id)
+      .toSet();
+
   final rows = await supabase
       .from('transactions')
-      .select('category, currency, amount, type, created_at, fx_snapshot')
+      .select(
+          'category, currency, amount, type, created_at, fx_snapshot, account_id')
       .eq('room_id', roomId)
       .eq('type', 'expense')
       .gte('created_at', fromIso);
@@ -181,6 +196,7 @@ final roomBudgetSpendConvertedProvider = FutureProvider.family<
     final cat = m['category'] as String?;
     final cur = m['currency'] as String?;
     if (cat == null || cur == null) continue;
+    if (!roomAccountIds.contains(m['account_id'] as String?)) continue;
     final winStart = windows[cat];
     if (winStart == null) continue;
     final createdRaw = m['created_at'];

@@ -1148,6 +1148,18 @@ abstract class AppLocalizations {
   /// **'Add a room account to pay from the shared pool'**
   String get txFormPaidFromNoPoolHint;
 
+  /// No description provided for @txListFundingPoolExplainer.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid from the room\'s shared pool — doesn\'t touch your money.'**
+  String get txListFundingPoolExplainer;
+
+  /// No description provided for @txListFundingMyMoneyExplainer.
+  ///
+  /// In en, this message translates to:
+  /// **'You paid from your own account. Leaves your cash balance, but counts as room spend, not personal spend.'**
+  String get txListFundingMyMoneyExplainer;
+
   /// No description provided for @txFormAccount.
   ///
   /// In en, this message translates to:
@@ -1579,6 +1591,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Total'**
   String get txListTotal;
+
+  /// No description provided for @txListExcludesPool.
+  ///
+  /// In en, this message translates to:
+  /// **'Excludes room-pool movements'**
+  String get txListExcludesPool;
 
   /// No description provided for @txListNoMatches.
   ///
@@ -3260,7 +3278,7 @@ abstract class AppLocalizations {
   /// No description provided for @connectivityOfflineBody.
   ///
   /// In en, this message translates to:
-  /// **'Changes are saved locally and will sync when you reconnect.'**
+  /// **'Saved locally — syncs when you\'re back online.'**
   String get connectivityOfflineBody;
 
   /// No description provided for @staleRateTitle.
@@ -3314,7 +3332,7 @@ abstract class AppLocalizations {
   /// No description provided for @connectivityOfflineTitle.
   ///
   /// In en, this message translates to:
-  /// **'You\'re offline'**
+  /// **'Offline'**
   String get connectivityOfflineTitle;
 
   /// No description provided for @accountPickerTitle.
@@ -3496,6 +3514,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try again'**
   String get roomsLoadRetry;
+
+  /// No description provided for @roomsOfflineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline'**
+  String get roomsOfflineTitle;
+
+  /// No description provided for @roomsOfflineBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Rooms need an internet connection. This will refresh automatically when you\'re back online.'**
+  String get roomsOfflineBody;
+
+  /// No description provided for @roomActionOnlineOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Rooms need an internet connection.'**
+  String get roomActionOnlineOnly;
 
   /// Room member count, e.g. '1 member', '3 members'
   ///

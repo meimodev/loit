@@ -88,8 +88,8 @@ workflows:
     publishing:
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        # Play Console open-testing track. Standard API track id is "beta".
-        track: "beta"
+        # Play Console production track (live to all users).
+        track: "production"
         submit_as_draft: false
       email:
         recipients:

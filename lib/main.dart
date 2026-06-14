@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/env.dart';
 import 'core/services/log_service.dart';
 import 'firebase_options.dart';
+import 'shared/providers/preferences_provider.dart';
 import 'app.dart';
 
 Future<void> main() async {
@@ -16,6 +17,11 @@ Future<void> main() async {
   Log.init();
 
   Log.lifecycle('LOIT starting...');
+
+  // Warm SharedPreferences before the first frame so MaterialApp resolves the
+  // saved theme/locale synchronously — avoids a one-frame light flash on cold
+  // start for users whose saved theme is dark.
+  await warmPreferences();
 
   Log.lifecycle('Firebase initializing');
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);

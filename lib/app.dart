@@ -387,6 +387,12 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
     // Mirror DB-canonical home_currency into the SharedPreferences cache so
     // local reads stay in sync after webhook/multi-device edits.
     ref.listen<AsyncValue<UserProfile?>>(userProfileProvider, (_, next) {
+      // Only mirror settled data. On invalidate/refresh the provider emits
+      // AsyncLoading that RETAINS the previous (stale) profile; acting on it
+      // would clobber a just-applied local optimistic change (e.g. a theme
+      // switch) with the old DB value and then re-apply the new one — a
+      // visible dark->light->dark flicker. Wait for the fresh value.
+      if (next.isLoading) return;
       final profile = next.value;
       if (profile == null) return;
       final notifier = ref.read(preferencesProvider.notifier);
@@ -488,6 +494,12 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       theme: LoitTheme.light(),
       darkTheme: LoitTheme.dark(),
       themeMode: ref.watch(themeModePrefProvider),
+      // Switch themes instantly. MaterialApp's default 200ms AnimatedTheme
+      // cross-fade lerps continuous colors but holds discrete props (brightness,
+      // overlay style, icon themes) at the OLD value until the midpoint, then
+      // snaps — which reads as a "wrong theme, then snap" flicker on a
+      // light<->dark flip. Zero duration removes the half-lerped frame.
+      themeAnimationDuration: Duration.zero,
       locale: ref.watch(localePrefProvider),
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,

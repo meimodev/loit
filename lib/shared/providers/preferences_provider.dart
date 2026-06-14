@@ -304,12 +304,24 @@ final preferencesProvider =
     AsyncNotifierProvider<PreferencesNotifier, AppPreferences>(
         PreferencesNotifier.new);
 
+/// SharedPreferences warmed by [warmPreferences] in `main()` before `runApp`,
+/// so [themeModePrefProvider] / [localePrefProvider] can resolve the *saved*
+/// value synchronously on the very first frame. Without it those providers fall
+/// back to `light` / `id` during the async `preferencesProvider` load, and a
+/// saved-dark user gets a one-frame light flash on cold start.
+SharedPreferences? _bootPrefs;
+
+/// Warm the SharedPreferences singleton ahead of the first frame. Idempotent.
+Future<void> warmPreferences() async {
+  _bootPrefs = await SharedPreferences.getInstance();
+}
+
 /// Synchronous theme-mode for `MaterialApp.themeMode`.
 final themeModePrefProvider = Provider<ThemeMode>((ref) {
   final async = ref.watch(preferencesProvider);
   return async.maybeWhen(
     data: (p) => p.themeMode,
-    orElse: () => ThemeMode.light,
+    orElse: () => _decodeThemeMode(_bootPrefs?.getString(_Keys.themeMode)),
   );
 });
 
@@ -317,7 +329,7 @@ final themeModePrefProvider = Provider<ThemeMode>((ref) {
 final localePrefProvider = Provider<Locale?>((ref) {
   final lang = ref.watch(preferencesProvider).maybeWhen(
         data: (p) => p.language,
-        orElse: () => 'id',
+        orElse: () => _bootPrefs?.getString(_Keys.language) ?? 'id',
       );
   return switch (lang) {
     'en' => const Locale('en'),

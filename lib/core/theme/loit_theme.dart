@@ -9,8 +9,16 @@ import 'loit_typography.dart';
 class LoitTheme {
   LoitTheme._();
 
-  static ThemeData light() => _build(LoitColors.light, Brightness.light);
-  static ThemeData dark() => _build(LoitColors.dark, Brightness.dark);
+  // Built once and cached. MaterialApp wraps theme/darkTheme in an
+  // AnimatedTheme; if a fresh (non-`==`) ThemeData were handed back on every
+  // LoitApp rebuild (presence ticks, DB realtime echoes), AnimatedTheme would
+  // restart its cross-fade mid-flight and the screen would flicker/double-blink
+  // on a theme switch. Stable instances keep the transition single and smooth.
+  static final ThemeData _light = _build(LoitColors.light, Brightness.light);
+  static final ThemeData _dark = _build(LoitColors.dark, Brightness.dark);
+
+  static ThemeData light() => _light;
+  static ThemeData dark() => _dark;
 
   static ThemeData _build(LoitColors c, Brightness brightness) {
     final isDark = brightness == Brightness.dark;

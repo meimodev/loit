@@ -1054,6 +1054,10 @@
   "systemUpdateTitle": "Update required",
   "systemUpdateBody": "Please update LOIT to the latest version to continue.",
   "systemUpdateAction": "Update",
+  "updatePromptTitle": "Update available",
+  "updatePromptBody": "A new version of LOIT is ready. Update for the latest features and fixes.",
+  "updatePromptUpdate": "Update now",
+  "updatePromptLater": "Later",
 
   "roomArchiveTitle": "Archive room?",
   "roomArchiveConfirm": "Archive",

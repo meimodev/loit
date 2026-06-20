@@ -115,6 +115,10 @@ dependencies:
   # URL launcher — opens external URLs (privacy policy, ToS, support links)
   url_launcher: ^6.3.1
 
+  # Play in-app updates — immediate (Blocked) + flexible (Recommended/Optional)
+  # update flows for the Update gate (ADR-0015). Falls back to store_url.
+  in_app_update: ^4.2.3
+
   # Deep linking (Phase 2 invite flow) — handles uni_links + custom schemes + universal links
   app_links: ^6.3.2
 

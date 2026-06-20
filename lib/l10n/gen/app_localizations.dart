@@ -3989,6 +3989,30 @@ abstract class AppLocalizations {
   /// **'Update'**
   String get systemUpdateAction;
 
+  /// No description provided for @updatePromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update available'**
+  String get updatePromptTitle;
+
+  /// No description provided for @updatePromptBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A new version of LOIT is ready. Update for the latest features and fixes.'**
+  String get updatePromptBody;
+
+  /// No description provided for @updatePromptUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update now'**
+  String get updatePromptUpdate;
+
+  /// No description provided for @updatePromptLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get updatePromptLater;
+
   /// No description provided for @roomArchiveTitle.
   ///
   /// In en, this message translates to:

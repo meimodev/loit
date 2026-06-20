@@ -11,6 +11,7 @@ workflows:
         - loit_env_prod      # ENV_PRODUCTION_JSON (base64)
         - loit_google        # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS, GOOGLE_SERVICES_JSON (base64)
         - loit_sentry        # SENTRY_AUTH_TOKEN
+        - loit_supabase      # SUPABASE_GATE_URL, SUPABASE_GATE_SERVICE_KEY (service-role, write app_release_gate)
       vars:
         PACKAGE_NAME: id.activid.loit
     triggering:
@@ -81,6 +82,39 @@ workflows:
             --dart-define-from-file=env.production.json \
             -Pposthog.api.key="$POSTHOG_API_KEY" \
             --build-number=$(($(date +%s) / 60))
+      - name: Update release gate (ADR-0015)
+        # Parses the release tag and upserts app_release_gate, cascading up so
+        # min <= recommended <= latest holds:
+        #   v1.2.0             -> latest = 1.2.0
+        #   v1.2.0-recommended -> recommended = latest = 1.2.0
+        #   v1.2.0-breaking    -> min = recommended = latest = 1.2.0
+        # Runs pre-publish; the in-app-update + store_url fallback tolerates the
+        # brief window before the new AAB propagates on Play. Best-effort:
+        # never fails the build.
+        script: |
+          set -uo pipefail
+          : "${SUPABASE_GATE_URL:?missing}"
+          : "${SUPABASE_GATE_SERVICE_KEY:?missing}"
+          TAG="${CM_TAG:-}"
+          [ -n "$TAG" ] || { echo "no CM_TAG, skipping gate update"; exit 0; }
+          VER="${TAG#v}"            # strip leading v -> 1.2.0 or 1.2.0-breaking
+          BASE="${VER%%[-+]*}"     # 1.2.0 (strip -suffix and/or +build metadata)
+          SUFFIX=""
+          case "$VER" in *-*) SUFFIX="${VER#*-}"; SUFFIX="${SUFFIX%%+*}";; esac
+          PATCH="{\"latest_version\":\"$BASE\",\"updated_at\":\"$(date -u +%FT%TZ)\""
+          case "$SUFFIX" in
+            recommended) PATCH="$PATCH,\"recommended_version\":\"$BASE\"";;
+            breaking)    PATCH="$PATCH,\"recommended_version\":\"$BASE\",\"min_version\":\"$BASE\"";;
+          esac
+          PATCH="$PATCH}"
+          echo "Upserting release gate: $PATCH"
+          curl -fsS -X PATCH "$SUPABASE_GATE_URL/rest/v1/app_release_gate?id=eq.1" \
+            -H "apikey: $SUPABASE_GATE_SERVICE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_GATE_SERVICE_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d "$PATCH" || echo "WARN: release gate update failed (non-fatal)"
+        ignore_failure: true
     artifacts:
       - build/**/outputs/bundle/**/*.aab
       - build/**/outputs/mapping/**/mapping.txt

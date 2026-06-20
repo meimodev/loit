@@ -2185,6 +2185,19 @@ class AppLocalizationsId extends AppLocalizations {
   String get systemUpdateAction => 'Perbarui';
 
   @override
+  String get updatePromptTitle => 'Pembaruan tersedia';
+
+  @override
+  String get updatePromptBody =>
+      'Versi baru LOIT sudah siap. Perbarui untuk fitur dan perbaikan terbaru.';
+
+  @override
+  String get updatePromptUpdate => 'Perbarui sekarang';
+
+  @override
+  String get updatePromptLater => 'Nanti';
+
+  @override
   String get roomArchiveTitle => 'Arsipkan ruangan?';
 
   @override

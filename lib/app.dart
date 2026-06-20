@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/routing/app_router.dart';
+import 'core/services/app_update_service.dart';
 import 'core/theme/loit_theme.dart';
 import 'core/services/analytics_service.dart';
 import 'core/services/deep_link_service.dart';
@@ -18,6 +20,8 @@ import 'core/services/revenuecat_payment_service.dart';
 import 'shared/utils/amount_input.dart';
 import 'features/rooms/rooms_intro_dialog.dart';
 import 'features/system/lock_screen.dart';
+import 'features/system/update_prompt_sheet.dart';
+import 'features/system/update_required_screen.dart';
 import 'l10n/gen/app_localizations.dart';
 import 'l10n/l10n_x.dart';
 import 'shared/widgets/persistent_connectivity_banner.dart';
@@ -33,6 +37,7 @@ import 'shared/providers/room_providers.dart';
 import 'shared/providers/services_providers.dart';
 import 'shared/providers/today_expense_provider.dart';
 import 'shared/providers/transactions_provider.dart';
+import 'shared/providers/update_gate_provider.dart';
 
 class LoitApp extends ConsumerStatefulWidget {
   const LoitApp({super.key});
@@ -52,6 +57,10 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
   // `has_seen_rooms_intro` write lands. The once-ever authority is the DB flag;
   // see ADR-0005.
   bool _roomsIntroShown = false;
+  // Per-session guard so the Recommended/Optional update sheet shows at most
+  // once per app launch (resume invalidates the gate provider, which re-fires
+  // the listener). "Every launch" for Recommended is satisfied by cold starts.
+  bool _updatePromptShown = false;
   static const _lockBackgroundThreshold = Duration(seconds: 15);
   // Rooms intro engagement trigger thresholds (ADR-0005).
   static const _roomsIntroMinTxns = 3;
@@ -183,6 +192,9 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       final pausedAt = _pausedAt;
       _pausedAt = null;
+      // Re-evaluate the Update gate on resume (covers a user who backgrounded
+      // for days then returned on a now-blocked build). Runs regardless of auth.
+      ref.invalidate(updateGateProvider);
       if (Supabase.instance.client.auth.currentUser == null) return;
 
       // Lock gate: re-prompt if backgrounded long enough.
@@ -290,6 +302,50 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       ref.invalidate(userProfileProvider);
     } catch (e) {
       Log.w('App', 'rooms intro seen-flag write failed', error: e);
+    }
+  }
+
+  /// Surface the dismissible update sheet for the Recommended / Optional states
+  /// (ADR-0015). Recommended re-nags every launch; Optional shows once per
+  /// release (persisted by `latest_version`). Blocked is handled by the overlay
+  /// in [build], not here. Idempotent — all guards bail cheaply.
+  Future<void> _maybeShowUpdatePrompt(UpdateGateStatus status) async {
+    if (_updatePromptShown) return;
+    if (status.state != UpdateState.recommended &&
+        status.state != UpdateState.optional) {
+      return;
+    }
+    if (ref.read(appLockedProvider)) return; // don't stack over the lock screen
+
+    final prefs = await SharedPreferences.getInstance();
+    if (status.state == UpdateState.optional &&
+        prefs.getString(updateOptionalDismissedKey) ==
+            status.gate.latestVersion) {
+      return; // Optional already shown once for this release.
+    }
+
+    _updatePromptShown = true;
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    final router = ref.read(appRouterProvider);
+    final ctx = router.routerDelegate.navigatorKey.currentContext;
+    if (ctx == null) {
+      _updatePromptShown = false;
+      return;
+    }
+    // Persist the Optional once-per-release marker up front so it never re-nags
+    // even if the user dismisses without updating.
+    if (status.state == UpdateState.optional) {
+      await prefs.setString(
+          updateOptionalDismissedKey, status.gate.latestVersion);
+    }
+    // ignore: use_build_context_synchronously
+    final wantsUpdate = await showUpdatePromptSheet(ctx);
+    if (wantsUpdate == true) {
+      await appUpdateService.performUpdate(
+        immediate: false,
+        storeUrl: status.gate.storeUrl,
+      );
     }
   }
 
@@ -467,6 +523,15 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       }
     });
 
+    // Update gate (ADR-0015): surface the dismissible sheet for Recommended /
+    // Optional states when the gate resolves. Blocked is handled by the overlay
+    // below, not here.
+    ref.listen<AsyncValue<UpdateGateStatus>>(updateGateProvider, (_, next) {
+      final status = next.value;
+      if (status == null) return;
+      unawaited(_maybeShowUpdatePrompt(status));
+    });
+
     // Push notification open → navigate to room
     _wirePushNavigation();
 
@@ -476,6 +541,10 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
 
     final router = ref.watch(appRouterProvider);
     final locked = ref.watch(appLockedProvider);
+    // Blocked Update state (ADR-0015): paint a non-dismissible overlay above
+    // everything — even the lock screen — so a too-old client can't be used.
+    final blockedGate = ref.watch(updateGateProvider).value;
+    final blocked = blockedGate?.state == UpdateState.blocked;
     return MaterialApp.router(
       scaffoldMessengerKey: _scaffoldMessengerKey,
       builder: (context, child) => Stack(
@@ -486,6 +555,17 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
           if (locked)
             const Positioned.fill(
               child: Material(child: LockScreen()),
+            ),
+          if (blocked)
+            Positioned.fill(
+              child: Material(
+                child: UpdateRequiredScreen(
+                  onUpdate: () => appUpdateService.performUpdate(
+                    immediate: true,
+                    storeUrl: blockedGate!.gate.storeUrl,
+                  ),
+                ),
+              ),
             ),
         ],
       ),

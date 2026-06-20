@@ -12,6 +12,7 @@ import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../core/services/analytics_service.dart';
+import '../../core/services/app_update_service.dart';
 import '../../core/services/push_service.dart';
 import '../../l10n/l10n_x.dart';
 import '../../shared/providers/accounts_provider.dart';
@@ -20,6 +21,7 @@ import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/messaging_link_provider.dart';
 import '../../shared/providers/preferences_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
+import '../../shared/providers/update_gate_provider.dart';
 import '../../shared/widgets/currency_picker_sheet.dart';
 import '../../shared/widgets/connectivity_banner.dart';
 import '../../shared/widgets/loit_animations.dart';
@@ -260,6 +262,7 @@ class SettingsScreen extends ConsumerWidget {
             delay: const Duration(milliseconds: 440),
             offset: 10,
               child: SettingsGroup(label: l.settingsAbout, children: [
+                const _UpdateAvailableRow(),
                 SettingsRow(
                   label: l.settingsHelpSupport,
                   onTap: () => context.push('/settings/about'),
@@ -448,6 +451,43 @@ class SettingsScreen extends ConsumerWidget {
     } catch (_) {}
     await Supabase.instance.client.auth.signOut();
     await Analytics.reset();
+  }
+}
+
+/// Passive "update available" marker (ADR-0015) for the Optional / Recommended
+/// update states. Hidden when the client is Current; Blocked is handled by the
+/// full-screen overlay in `app.dart`, not here. Tapping runs the flexible update
+/// flow (in-app update + store fallback).
+class _UpdateAvailableRow extends ConsumerWidget {
+  const _UpdateAvailableRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(updateGateProvider).value;
+    final state = status?.state;
+    if (state != UpdateState.optional && state != UpdateState.recommended) {
+      return const SizedBox.shrink();
+    }
+    final c = context.loitColors;
+    return SettingsRow(
+      label: context.l10n.updatePromptTitle,
+      onTap: () => appUpdateService.performUpdate(
+        immediate: false,
+        storeUrl: status!.gate.storeUrl,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: c.brand, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 10),
+          Icon(Icons.chevron_right, size: 18, color: c.contentTertiary),
+        ],
+      ),
+    );
   }
 }
 

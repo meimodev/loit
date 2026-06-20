@@ -1,0 +1,62 @@
+import 'package:in_app_update/in_app_update.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'log_service.dart';
+
+/// Performs the actual app update for the Update gate (ADR-0015). The server
+/// gate decides *state*; Play performs the *update*. Uses the in-app update
+/// flow when a newer build is live and propagated to this device, and falls
+/// back to launching the store URL otherwise (covers the propagation gap where
+/// the gate says Blocked but Play hasn't served the new APK here yet).
+class AppUpdateService {
+  const AppUpdateService();
+
+  /// [immediate] true for Blocked (Play's full-screen blocking flow); false for
+  /// Recommended/Optional (flexible background download).
+  Future<void> performUpdate({
+    required bool immediate,
+    required String storeUrl,
+  }) async {
+    try {
+      final info = await InAppUpdate.checkForUpdate();
+      if (info.updateAvailability == UpdateAvailability.updateAvailable) {
+        if (immediate && info.immediateUpdateAllowed) {
+          await InAppUpdate.performImmediateUpdate();
+          return;
+        }
+        if (!immediate && info.flexibleUpdateAllowed) {
+          await InAppUpdate.startFlexibleUpdate();
+          await InAppUpdate.completeFlexibleUpdate();
+          return;
+        }
+      }
+    } catch (e) {
+      Log.w('AppUpdate', 'in-app update flow failed, falling back to store',
+          error: e);
+    }
+    await _launchStore(storeUrl);
+  }
+
+  Future<void> _launchStore(String storeUrl) async {
+    // Prefer the Play app via market:// (skips the browser bounce); fall back
+    // to the https URL if the market scheme can't be handled.
+    final market = _toMarketUri(storeUrl);
+    if (market != null &&
+        await launchUrl(market, mode: LaunchMode.externalApplication)) {
+      return;
+    }
+    final web = Uri.tryParse(storeUrl);
+    if (web != null) {
+      await launchUrl(web, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Uri? _toMarketUri(String storeUrl) {
+    final uri = Uri.tryParse(storeUrl);
+    final id = uri?.queryParameters['id'];
+    if (id == null || id.isEmpty) return null;
+    return Uri.parse('market://details?id=$id');
+  }
+}
+
+final appUpdateService = AppUpdateService();

@@ -74,6 +74,7 @@ Codemagic builds release AABs and ships to Google Play Closed Testing. Config at
   - `loit_env_prod` — `ENV_PRODUCTION_JSON` (base64 of `env.production.json`). Decoded back to repo root; `flutter build appbundle` consumes via `--dart-define-from-file`. POSTHOG key re-extracted and passed as Gradle `-PPOSTHOG_API_KEY` (matches `manifestPlaceholders` reader in `android/app/build.gradle.kts`).
   - `loit_google` — `GOOGLE_SERVICES_JSON` (base64) restored to `android/app/google-services.json`; `GCLOUD_SERVICE_ACCOUNT_CREDENTIALS` raw JSON of Play service account (Releases Admin + Store presence Edit, scoped to app).
   - `loit_sentry` — `SENTRY_AUTH_TOKEN` for `sentry_dart_plugin` release upload during build.
+  - `loit_supabase` — `SUPABASE_GATE_URL` + `SUPABASE_GATE_SERVICE_KEY` (service-role). The post-build step parses the release tag and upserts `app_release_gate` (Update gate, ADR-0015): `v1.2.0`→`latest`, `-recommended`→`recommended`+`latest`, `-breaking`→`min`+`recommended`+`latest` (cascade up). Service-role key never ships in `env*.json`.
 - **Build number:** monotonic `$(date +%s)/60` injected via `--build-number`; pubspec `+N` ignored on CI to avoid versionCode collisions.
 - **First publish gotcha:** Play Publishing API rejects first upload — initial AAB for the app must be uploaded manually through Play Console before CI publishes work.
 - **Gitignored locally:** `android/key.properties`, `android/app/*.jks`, `env.production.json`, `android/app/google-services.json`. Never commit; CI restores from base64 secrets.

@@ -1048,6 +1048,10 @@
   "systemUpdateTitle": "Pembaruan diperlukan",
   "systemUpdateBody": "Silakan perbarui LOIT ke versi terbaru untuk melanjutkan.",
   "systemUpdateAction": "Perbarui",
+  "updatePromptTitle": "Pembaruan tersedia",
+  "updatePromptBody": "Versi baru LOIT sudah siap. Perbarui untuk fitur dan perbaikan terbaru.",
+  "updatePromptUpdate": "Perbarui sekarang",
+  "updatePromptLater": "Nanti",
 
   "roomArchiveTitle": "Arsipkan ruangan?",
   "roomArchiveConfirm": "Arsipkan",

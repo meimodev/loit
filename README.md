@@ -67,6 +67,8 @@ base64 -i android/app/google-services.json | pbcopy  # → GOOGLE_SERVICES_JSON
 | `loit_google` | `GOOGLE_SERVICES_JSON` | base64 of `google-services.json` |
 | `loit_google` | `GCLOUD_SERVICE_ACCOUNT_CREDENTIALS` | raw JSON (step 4) |
 | `loit_sentry` | `SENTRY_AUTH_TOKEN` | sentry.io → Settings → Auth Tokens (scopes: `project:releases`, `org:read`) |
+| `loit_supabase` | `SUPABASE_GATE_URL` | `https://<project-ref>.supabase.co` (no trailing slash) |
+| `loit_supabase` | `SUPABASE_GATE_SERVICE_KEY` | Supabase → Project Settings → API → **service_role** secret |
 
 #### 4. Google Play service account
 1. **Play Console → Setup → API access → Create new service account** → link Google Cloud project.
@@ -92,6 +94,57 @@ git tag v1.0.3
 git push origin v1.0.3
 ```
 Codemagic detects tag → builds → uploads AAB to track → emails result.
+
+#### 8. Update gate (ADR-0015)
+
+Forces or nudges old clients to update. CI parses the release tag and upserts a
+single-row `app_release_gate` table; the client compares its own `versionName`
+against three semver thresholds. One-time wiring:
+
+1. **Apply the migration.** `app_release_gate` ships in
+   `supabase/migrations/20260619000000_app_release_gate.sql`. Apply it:
+   ```bash
+   supabase db push          # against the linked remote project
+   ```
+   It seeds one row (`id = 1`) with all thresholds at `0.0.0` (gate open — every
+   client is up to date) and a default `store_url`. Verify in the SQL editor:
+   ```sql
+   select * from app_release_gate;   -- expect exactly one row, id = 1
+   ```
+2. **Confirm anon read works** (the Blocked overlay must load before sign-in):
+   ```bash
+   curl "$SUPABASE_GATE_URL/rest/v1/app_release_gate?id=eq.1&select=*" \
+     -H "apikey: <ANON_KEY>"
+   # -> 200 with the single row. If 401/empty, re-check the RLS SELECT policy.
+   ```
+3. **Create the `loit_supabase` Codemagic group** (step 3 table) with:
+   - `SUPABASE_GATE_URL` = `https://<project-ref>.supabase.co` (project ref is in
+     the Supabase dashboard URL / Project Settings → General). **No trailing slash.**
+   - `SUPABASE_GATE_SERVICE_KEY` = the **service_role** key
+     (Project Settings → API → Project API keys → `service_role`, "reveal").
+     This key bypasses RLS so CI can write the row — mark it **Secure**, never put
+     it in `env*.json`, never expose it client-side.
+4. **Optional — confirm the service key can write** before relying on CI:
+   ```bash
+   curl -X PATCH "$SUPABASE_GATE_URL/rest/v1/app_release_gate?id=eq.1" \
+     -H "apikey: <SERVICE_ROLE_KEY>" \
+     -H "Authorization: Bearer <SERVICE_ROLE_KEY>" \
+     -H "Content-Type: application/json" -H "Prefer: return=representation" \
+     -d '{"latest_version":"1.0.18"}'
+   # -> 200 with the updated row.
+   ```
+5. **Release with severity** via `/push-deploy`:
+   - plain `v1.2.0` → sets `latest` (no in-app prompt).
+   - `v1.2.0-recommended` → dismissible "update" sheet every launch.
+   - `v1.2.0-breaking` → non-dismissible block until updated.
+
+   After CI runs, the `Update release gate` build step prints the upsert payload —
+   check the log to confirm the thresholds moved.
+
+> **Manual override / rollback.** Thresholds only ever move up via the tag
+> cascade. To correct a mistaken `-breaking` tag (or roll the gate back), edit the
+> row directly in the Supabase SQL editor — e.g. `update app_release_gate set
+> min_version = '0.0.0' where id = 1;` to unblock everyone.
 
 ### Gotchas
 

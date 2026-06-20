@@ -2174,6 +2174,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get systemUpdateAction => 'Update';
 
   @override
+  String get updatePromptTitle => 'Update available';
+
+  @override
+  String get updatePromptBody =>
+      'A new version of LOIT is ready. Update for the latest features and fixes.';
+
+  @override
+  String get updatePromptUpdate => 'Update now';
+
+  @override
+  String get updatePromptLater => 'Later';
+
+  @override
   String get roomArchiveTitle => 'Archive room?';
 
   @override

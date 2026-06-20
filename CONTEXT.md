@@ -216,6 +216,32 @@ the category icon) and name. Distinguishes a shared room's rows from the
 personal transaction list, where authorship is implicit. _Avoid_: owner (means
 the room creator), author.
 
+### Update gating
+
+**Update gate**:
+The server-side authority that decides whether a running client build is too old.
+A single public-read row holds three **semantic-version** thresholds —
+**minimum**, **recommended**, **latest** — compared against the device's own
+version string with proper version ordering (`1.0.9 < 1.0.10`). The semver
+(`versionName`, surfaced by `package_info.version`) is the load-bearing identity,
+**not** the build number: CI overrides the pubspec `+N` (`versionCode`) with a
+timestamp, so the build number is unknowable ahead of a release, whereas the
+semver is human-controlled and bumped each release by `push-deploy`.
+_Avoid_: version check, force-update flag (the gate is four states, not a boolean);
+build number (the gate ignores it).
+
+**Update state**:
+The client's standing against the **Update gate**, derived by comparing the
+device version to the thresholds. Exactly one of four:
+- **Blocked** — `version < minimum`. Non-dismissible; the app is unusable until
+  updated. Used only for **breaking** releases.
+- **Recommended** — `minimum <= version < recommended`. A dismissible prompt shown
+  on **every launch** until updated.
+- **Optional** — `recommended <= version < latest`. Prompted **once**, then
+  reduced to a passive marker; not re-nagged.
+- **Current** — `version >= latest`. No prompt.
+_Avoid_: outdated, stale (ambiguous about which of the three lower states).
+
 ## Example dialogue
 
 > **Dev:** A free user sends three text messages and one photo to the bot. What

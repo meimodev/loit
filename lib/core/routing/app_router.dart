@@ -19,7 +19,6 @@ import '../../features/budgets/budgets_screen.dart';
 import '../../features/categories/categories_screen.dart';
 import '../../features/categories/category_form_screen.dart';
 import '../../features/system/notifications_screen.dart' as system_notifs;
-import '../../features/system/update_required_screen.dart';
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
@@ -75,7 +74,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         '/sign-in',
         '/otp',
         '/permissions',
-        '/update-required',
       };
       final isPublic = publicPaths.contains(loc);
       if (!loggedIn && !isPublic) return '/welcome';
@@ -96,9 +94,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/permissions',
           builder: (_, __) => const PermissionsScreen()),
-      GoRoute(
-          path: '/update-required',
-          builder: (_, __) => const UpdateRequiredScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             ShellScaffold(navigationShell: navigationShell),

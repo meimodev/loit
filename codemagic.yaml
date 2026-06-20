@@ -11,7 +11,7 @@ workflows:
         - loit_env_prod      # ENV_PRODUCTION_JSON (base64)
         - loit_google        # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS, GOOGLE_SERVICES_JSON (base64)
         - loit_sentry        # SENTRY_AUTH_TOKEN
-        - loit_supabase      # SUPABASE_GATE_URL, SUPABASE_GATE_SERVICE_KEY (service-role, write app_release_gate)
+        - loit_other         # SUPABASE_GATE_URL, SUPABASE_GATE_SERVICE_KEY (service-role, write app_release_gate)
       vars:
         PACKAGE_NAME: id.activid.loit
     triggering:

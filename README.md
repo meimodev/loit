@@ -67,8 +67,8 @@ base64 -i android/app/google-services.json | pbcopy  # → GOOGLE_SERVICES_JSON
 | `loit_google` | `GOOGLE_SERVICES_JSON` | base64 of `google-services.json` |
 | `loit_google` | `GCLOUD_SERVICE_ACCOUNT_CREDENTIALS` | raw JSON (step 4) |
 | `loit_sentry` | `SENTRY_AUTH_TOKEN` | sentry.io → Settings → Auth Tokens (scopes: `project:releases`, `org:read`) |
-| `loit_supabase` | `SUPABASE_GATE_URL` | `https://<project-ref>.supabase.co` (no trailing slash) |
-| `loit_supabase` | `SUPABASE_GATE_SERVICE_KEY` | Supabase → Project Settings → API → **service_role** secret |
+| `loit_other` | `SUPABASE_GATE_URL` | `https://<project-ref>.supabase.co` (no trailing slash) |
+| `loit_other` | `SUPABASE_GATE_SERVICE_KEY` | Supabase → Project Settings → API → **service_role** secret |
 
 #### 4. Google Play service account
 1. **Play Console → Setup → API access → Create new service account** → link Google Cloud project.
@@ -117,7 +117,7 @@ against three semver thresholds. One-time wiring:
      -H "apikey: <ANON_KEY>"
    # -> 200 with the single row. If 401/empty, re-check the RLS SELECT policy.
    ```
-3. **Create the `loit_supabase` Codemagic group** (step 3 table) with:
+3. **Create the `loit_other` Codemagic group** (step 3 table) with:
    - `SUPABASE_GATE_URL` = `https://<project-ref>.supabase.co` (project ref is in
      the Supabase dashboard URL / Project Settings → General). **No trailing slash.**
    - `SUPABASE_GATE_SERVICE_KEY` = the **service_role** key

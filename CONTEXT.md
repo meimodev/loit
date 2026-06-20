@@ -227,20 +227,43 @@ version string with proper version ordering (`1.0.9 < 1.0.10`). The semver
 **not** the build number: CI overrides the pubspec `+N` (`versionCode`) with a
 timestamp, so the build number is unknowable ahead of a release, whereas the
 semver is human-controlled and bumped each release by `push-deploy`.
+The gate is **fail-open**: a fetch failure reuses the last cached gate (so a
+Blocked user can't dodge by going offline), but a client with **no cache**
+(first launch, or a reinstall) while offline resolves to **Current** — a
+deliberate ADR-0015 choice, since a breaking client's backend calls fail anyway,
+so the backend stays the real gate in that window.
 _Avoid_: version check, force-update flag (the gate is four states, not a boolean);
 build number (the gate ignores it).
 
 **Update state**:
 The client's standing against the **Update gate**, derived by comparing the
 device version to the thresholds. Exactly one of four:
-- **Blocked** — `version < minimum`. Non-dismissible; the app is unusable until
-  updated. Used only for **breaking** releases.
+- **Blocked** — `version < minimum`. Non-dismissible; the app is unusable once
+  the gate resolves (a brief post-launch window aside — the gate fetch is async,
+  so frame one paints before the overlay). Used only for **breaking** releases,
+  where the backend is the real gate during that window anyway.
 - **Recommended** — `minimum <= version < recommended`. A dismissible prompt shown
   on **every launch** until updated.
 - **Optional** — `recommended <= version < latest`. Prompted **once**, then
   reduced to a passive marker; not re-nagged.
 - **Current** — `version >= latest`. No prompt.
 _Avoid_: outdated, stale (ambiguous about which of the three lower states).
+
+**Tag → threshold → state** (the whole chain in one place — it lives split
+across the CI step, the migration, and `update_gate_provider.dart` otherwise):
+
+| Release tag (ADR-0015) | Threshold it raises | State older clients land in |
+|---|---|---|
+| `v1.2.0` *(plain)* | `latest` | **Optional** |
+| `v1.2.0-recommended` | `recommended` (+`latest`) | **Recommended** |
+| `v1.2.0-breaking` | `min` (+`recommended`+`latest`) | **Blocked** |
+
+_Flagged ambiguity_: the tag suffix names **neither** the threshold it sets
+**nor** the state it produces. Only `-recommended` is self-consistent. A plain
+tag yields **Optional** (there is deliberately **no** `-optional` suffix);
+`-breaking` sets `min` and yields **Blocked** (no `-blocked` suffix). Seeing
+"Blocked" in code, do **not** grep for a `-blocked` tag — it does not exist.
+Thresholds only ever rise (CI `max()`-es each field; lowering is manual SQL only).
 
 ## Example dialogue
 

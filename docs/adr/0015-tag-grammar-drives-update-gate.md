@@ -50,9 +50,15 @@ the release.
   bare semver (`1.2.0`); the suffix never reaches `versionName`. CI must strip it
   before computing the threshold value.
 - Mistakes are sticky: a `-breaking` tag force-blocks every older client the
-  moment CI runs. A wrong tag is corrected by pushing a new higher tag (thresholds
-  only ever move up via cascade) or a deliberate manual SQL override — never by
-  deleting the tag.
+  moment CI runs. A wrong tag is corrected by pushing a new higher tag or a
+  deliberate manual SQL override — never by deleting the tag.
+- **Thresholds only ever rise, and CI enforces it (not just the cascade).** Tags
+  fire in *push* order, not *version* order, so a stale or backport tag (e.g. a
+  `v1.0.9` hotfix cut after `v1.1.0` shipped) would otherwise blindly overwrite
+  `latest` downward and silently un-offer the newer release. The CI step reads
+  the current row and `max()`-es each field, so a lower tag is a no-op. Lowering
+  any threshold is therefore possible *only* via a deliberate manual SQL override
+  — the intended escape hatch, kept off the automated path.
 - Team muscle memory now binds to this grammar. Reversing it (back to manual, or
   to a console UI) means rewriting the CI publish step and retraining the release
   ritual — deliberate, not free.

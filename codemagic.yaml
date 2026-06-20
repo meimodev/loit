@@ -88,6 +88,11 @@ workflows:
         #   v1.2.0             -> latest = 1.2.0
         #   v1.2.0-recommended -> recommended = latest = 1.2.0
         #   v1.2.0-breaking    -> min = recommended = latest = 1.2.0
+        # MONOTONIC-UP: a threshold may only RISE. Tags fire in push order, not
+        # version order, so a stale/lower/backport tag (e.g. a v1.0.9 hotfix cut
+        # after v1.1.0) must never regress the gate. Each field is max()-ed
+        # against its current value; lowering a threshold is a deliberate manual
+        # SQL override only (ADR-0015).
         # Runs pre-publish; the in-app-update + store_url fallback tolerates the
         # brief window before the new AAB propagates on Play. Best-effort:
         # never fails the build.
@@ -101,13 +106,35 @@ workflows:
           BASE="${VER%%[-+]*}"     # 1.2.0 (strip -suffix and/or +build metadata)
           SUFFIX=""
           case "$VER" in *-*) SUFFIX="${VER#*-}"; SUFFIX="${SUFFIX%%+*}";; esac
-          PATCH="{\"latest_version\":\"$BASE\",\"updated_at\":\"$(date -u +%FT%TZ)\""
+
+          # Numeric semver compare (1.0.9 < 1.0.10). Pure awk -> no `sort -V`
+          # dependency (BSD/mac sort lacks it). vge a b -> 1 if a >= b.
+          vge() { awk -v a="$1" -v b="$2" 'BEGIN{
+            n=split(a,A,"."); m=split(b,B,"."); L=(n>m)?n:m;
+            for(i=1;i<=L;i++){x=(i<=n)?A[i]+0:0; y=(i<=m)?B[i]+0:0;
+              if(x>y){print 1;exit} if(x<y){print 0;exit}} print 1 }'; }
+          vmax() { if [ "$(vge "$1" "$2")" = 1 ]; then printf '%s' "$1"; else printf '%s' "$2"; fi; }
+          field() { printf '%s' "$1" | grep -o "\"$2\":\"[^\"]*\"" | head -1 | sed 's/.*:"//;s/"$//'; }
+
+          # Read current thresholds to enforce monotonic-up. If the read fails we
+          # skip rather than risk a blind overwrite that could regress the gate.
+          ROW=$(curl -fsS \
+            -H "apikey: $SUPABASE_GATE_SERVICE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_GATE_SERVICE_KEY" \
+            "$SUPABASE_GATE_URL/rest/v1/app_release_gate?id=eq.1&select=min_version,recommended_version,latest_version") \
+            || { echo "WARN: could not read current gate; skipping (non-fatal)"; exit 0; }
+          CUR_MIN=$(field "$ROW" min_version);          CUR_MIN="${CUR_MIN:-0.0.0}"
+          CUR_REC=$(field "$ROW" recommended_version);  CUR_REC="${CUR_REC:-0.0.0}"
+          CUR_LAT=$(field "$ROW" latest_version);        CUR_LAT="${CUR_LAT:-0.0.0}"
+
+          NEW_LAT=$(vmax "$CUR_LAT" "$BASE")
+          NEW_REC="$CUR_REC"; NEW_MIN="$CUR_MIN"
           case "$SUFFIX" in
-            recommended) PATCH="$PATCH,\"recommended_version\":\"$BASE\"";;
-            breaking)    PATCH="$PATCH,\"recommended_version\":\"$BASE\",\"min_version\":\"$BASE\"";;
+            recommended) NEW_REC=$(vmax "$CUR_REC" "$BASE");;
+            breaking)    NEW_REC=$(vmax "$CUR_REC" "$BASE"); NEW_MIN=$(vmax "$CUR_MIN" "$BASE");;
           esac
-          PATCH="$PATCH}"
-          echo "Upserting release gate: $PATCH"
+          PATCH="{\"min_version\":\"$NEW_MIN\",\"recommended_version\":\"$NEW_REC\",\"latest_version\":\"$NEW_LAT\",\"updated_at\":\"$(date -u +%FT%TZ)\"}"
+          echo "Release gate (tag $TAG): min $CUR_MIN->$NEW_MIN  rec $CUR_REC->$NEW_REC  latest $CUR_LAT->$NEW_LAT"
           curl -fsS -X PATCH "$SUPABASE_GATE_URL/rest/v1/app_release_gate?id=eq.1" \
             -H "apikey: $SUPABASE_GATE_SERVICE_KEY" \
             -H "Authorization: Bearer $SUPABASE_GATE_SERVICE_KEY" \

@@ -1,6 +1,4 @@
-import Anthropic from "npm:@anthropic-ai/sdk@0.32.1";
-
-const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! });
+import { chatComplete, imageDataUrl } from "./openrouter.ts";
 
 export type Category = { key: string; name: string; kind: string };
 export type AccountRef = { name: string };
@@ -134,11 +132,14 @@ function extractPartialFields(rawText: string): Record<string, unknown> {
   return partial;
 }
 
+// `completionTokens` rides on every result so the gate can meter AI Credits
+// (ADR-0017). It is the output-token count of the AI call that produced this
+// result (the last attempt when a strict retry ran).
 export type ReceiptParseResult =
-  | { kind: "ok"; parsed: Record<string, unknown> }
-  | { kind: "not_a_transaction"; transactionKind: string | null; reason: string | null }
-  | { kind: "partial"; partial: Record<string, unknown> }
-  | { kind: "ai_failure"; partial: Record<string, unknown> };
+  | { kind: "ok"; parsed: Record<string, unknown>; completionTokens: number }
+  | { kind: "not_a_transaction"; transactionKind: string | null; reason: string | null; completionTokens: number }
+  | { kind: "partial"; partial: Record<string, unknown>; completionTokens: number }
+  | { kind: "ai_failure"; partial: Record<string, unknown>; completionTokens: number };
 
 export async function parseReceiptImage(args: {
   imageBase64: string;
@@ -151,33 +152,17 @@ export async function parseReceiptImage(args: {
     ? "\n\nReturn ONLY the JSON object. No prose, no markdown fences."
     : "";
 
-  const result = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 1024,
-    system: [
-      // SDK 0.32 doesn't type prompt-caching control yet; runtime accepts it.
-      // deno-lint-ignore no-explicit-any
-      ({
-        type: "text",
-        text: STATIC_PROMPT,
-        cache_control: { type: "ephemeral" },
-      } as any),
+  const { text, completionTokens } = await chatComplete({
+    system: STATIC_PROMPT,
+    userContent: [
+      { type: "image_url", image_url: { url: imageDataUrl(args.imageBase64) } },
+      { type: "text", text: dynamicContext + strictSuffix },
     ],
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: { type: "base64", media_type: "image/jpeg", data: args.imageBase64 },
-          },
-          { type: "text", text: dynamicContext + strictSuffix },
-        ],
-      },
-    ],
+    // Long itemized receipts (70+ lines) overflow a small budget mid-`items`,
+    // truncating the JSON before total/category/account and forcing a partial.
+    // 8192 fits ~270 items; billing meters actual output, not this ceiling.
+    maxTokens: 8192,
   });
-
-  const text = result.content[0]?.type === "text" ? result.content[0].text : "";
   const stripped = text
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
@@ -191,6 +176,7 @@ export async function parseReceiptImage(args: {
         kind: "not_a_transaction",
         transactionKind: parsed.transaction_kind ?? null,
         reason: typeof parsed.reason === "string" ? parsed.reason : null,
+        completionTokens,
       };
     }
     // Arithmetic reconciliation — mirrors the in-app scanner's `_postProcess`
@@ -223,7 +209,7 @@ export async function parseReceiptImage(args: {
     } else {
       parsed.confidence = Math.max(0, Math.min(1, parsed.confidence));
     }
-    return { kind: "ok", parsed };
+    return { kind: "ok", parsed, completionTokens };
   } catch {
     const partialFields = extractPartialFields(stripped);
     const hasUsableTotal =
@@ -244,8 +230,8 @@ export async function parseReceiptImage(args: {
       } else {
         coerced.confidence = 0.4;
       }
-      return { kind: "partial", partial: coerced };
+      return { kind: "partial", partial: coerced, completionTokens };
     }
-    return { kind: "ai_failure", partial: partialFields };
+    return { kind: "ai_failure", partial: partialFields, completionTokens };
   }
 }

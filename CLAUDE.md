@@ -45,14 +45,14 @@ supabase secrets set KEY=value
 ### Supabase (`supabase/`)
 - `migrations/` timestamp-ordered, authoritative. Phase 1 schema + RLS, Phase 2 rooms + invites + push tokens, Phase 3 payments. Note `20240301000007_drop_midtrans.sql`: Midtrans replaced by RevenueCat — never reintroduce midtrans tables.
 - `functions/` (Deno):
-  - `scan-receipt` — Claude OCR; skips quota for `pro`/`team` (Phase 3 amendment), enforces 8/mo for free.
+  - `scan-receipt` — Claude vision OCR via OpenRouter (ADR-0016). Token-metered AI Credits (ADR-0017): all AI captures cost `max(1, ceil(completion_tokens/1024))` credits; per-tier caps free 5 / lite 30 / pro 150 (unknown tier = unlimited). Reserves 1 credit before the call, charges overshoot after (soft cap), refunds on no usable parse.
   - `revenuecat-webhook` — only place flipping `users.tier` / `tier_expires_at` for live purchases. Auths via shared `REVENUECAT_WEBHOOK_AUTH` bearer. Idempotent on `payment_receipts.purchase_token` (RC `event.id`). Grant: `INITIAL_PURCHASE`, `RENEWAL`, `PRODUCT_CHANGE`, `NON_RENEWING_PURCHASE`, `UNCANCELLATION`. Revoke: `EXPIRATION`, `BILLING_ISSUE`, `REFUND`, post-grace `CANCELLATION`.
   - `dummy-grant` — stub mirror of webhook, server-gated by `STUB_MODE=true`. Used while `Env.paymentStub=true` and Play Console SKUs not provisioned.
   - `create-room-invite`, `room-transaction-notify` (FCM fan-out), `recurring-bills-cron`, `receipt-expiry-cron`, `subscription-downgrade-cron`.
 
 ### Payment flow invariants
 - `PaymentService` only payment surface for feature code. No direct `purchases_flutter` imports outside `revenuecat_payment_service.dart`.
-- `FeatureFlags.scanLimitPerMonth` + `UserProfile.scanQuota` are `int?`; `null` ⇒ unlimited. UI renders "Unlimited", never decrement.
+- `FeatureFlags.scanLimitPerMonth` + `UserProfile.scanQuota` are `int?`; `null` ⇒ unlimited. UI renders "Unlimited", never decrement. Internal field/column/RPC names keep `scan` for back-compat; user-facing copy says "AI Credits" / "Kredit AI" (ADR-0017). A capture can cost >1 credit, so UI shows credits charged + remaining, not a fixed per-scan decrement.
 - Annual = 8× monthly ("4 months free / Save 33%"). Scan top-up + storage extension surface only for free tier.
 - Stub + live branches share same `payment_receipts` idempotency path — analytics/DB state identical.
 

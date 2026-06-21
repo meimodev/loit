@@ -8,40 +8,49 @@ distinctions are load-bearing for billing and abuse control.
 
 ### AI usage & gating
 
-**Scan**:
-A single metered AI extraction of one transaction from an **image** or **voice
-note**. The billable unit. A Scan is consumed at AI-call time and refunded only
-when the AI returns no usable transaction.
-_Avoid_: credit, OCR call, scan credit.
+**Capture**:
+A single act of turning one user input into one transaction via AI — a typed
+message (**Text parse**), a voice note, or a receipt **image**. The metered
+unit: every Capture consumes **AI Credits**. One Capture yields at most one
+transaction; a receipt with 70 line items is still one Capture. Credits are
+reserved to gate the Capture, charged after the AI responds (the count depends
+on output size), and refunded only when the AI returns no usable transaction.
+_Avoid_: scan (deprecated — it implied a photo and a fixed cost-of-one), OCR call.
 
-**Scan quota**:
-The per-tier monthly cap on **Scans** (free 5, lite 30, pro 150; `null` =
-unlimited). Enforced server-side; the client cap check is a UX pre-check only,
+**AI Credit** (_Kredit AI_):
+The user-facing unit of monthly AI allowance. A Capture costs
+`max(1, ceil(completion_tokens / 1024))` credits — larger content costs more, so
+a long receipt or a huge text paste draws several credits (ADR 0017). Each tier
+has a monthly **credit cap** (free 5, lite 30, pro 150; unknown tier =
+unlimited); top-ups add bonus credits. The cap is **soft**: a Capture is allowed
+whenever ≥1 credit remains and may overshoot, because the true cost is only known
+after the AI responds. Enforced server-side; the client check is a UX pre-check,
 never the authority.
-_Avoid_: scan credit, scan limit (when referring to the running balance).
+_Avoid_: scan, scan quota, scan credit, scan limit.
 
 **Text parse**:
-AI interpretation of a **typed** chat message into a transaction. Gated by the
-**Rate limit** only; never drawn from the **Scan quota**.
-_Avoid_: text scan.
+AI interpretation of a **typed** chat message into a transaction — one kind of
+**Capture**. Since ADR 0017 it **consumes AI Credits** (floor 1) exactly like
+image and voice; it is additionally throttled by the **Rate limit**.
+_Avoid_: text scan, free text (it is no longer free).
 
 **Rate limit**:
-A per-chat throttle on bot messages (50 / hour). Gates **Text parse** and
-flooding. Independent of **Scan quota** — a different concept with a different
-window and a different purpose (abuse control, not billing).
+A per-chat throttle on bot messages (50 / hour). Gates flooding across all
+**Capture** kinds. Independent of **AI Credits** — a different concept with a
+different window and a different purpose (abuse control, not billing).
 _Avoid_: quota, throttle quota.
 
 **Receipt image**:
-The stored photo of a scanned document, kept in the private `receipts` bucket
-for non-free tiers and auto-expiring. Distinct from the **Scan** that produced
-it — a Scan can occur without a Receipt image being kept (free tier, or
+The stored photo of a captured document, kept in the private `receipts` bucket
+for non-free tiers and auto-expiring. Distinct from the **Capture** that produced
+it — a Capture can occur without a Receipt image being kept (free tier, or
 unstored paths).
 _Avoid_: receipt, attachment.
 
 **Pending transaction**:
 A low-confidence parse held for explicit user confirmation before it becomes a
-**Transaction**. The **Scan** that produced it is already spent; confirming or
-discarding it does not change the **Scan quota**.
+**Transaction**. The **AI Credits** that produced it are already spent;
+confirming or discarding it does not change the balance.
 _Avoid_: draft, unconfirmed scan.
 
 ### Categories
@@ -267,13 +276,16 @@ Thresholds only ever rise (CI `max()`-es each field; lowering is manual SQL only
 
 ## Example dialogue
 
-> **Dev:** A free user sends three text messages and one photo to the bot. What
-> gets charged?
-> **Domain:** The photo is one **Scan** against their **Scan quota** (free cap
-> 5). The three texts are **Text parses** — they cost no Scans; they only count
-> toward the **Rate limit**.
+> **Dev:** A free user sends three text messages and one 70-item photo to the
+> bot. What gets charged?
+> **Domain:** Four **Captures**, all drawing **AI Credits** (free cap 5). Each
+> short text is one credit (floor 1); the long photo is
+> `max(1, ceil(completion_tokens / 1024))` — about 3 credits. That is 6 credits
+> against a cap of 5, so the photo Capture overshoots: it is allowed because a
+> credit remained when it started, and the next Capture is then blocked. All
+> four also count toward the **Rate limit**.
 > **Dev:** The photo came back low-confidence, so it's a **Pending
-> transaction**. If they ignore it, do they get the Scan back?
-> **Domain:** No. The Scan was spent the moment the image hit the AI. A refund
-> only happens when the AI returns nothing usable — not when the user declines a
-> usable result.
+> transaction**. If they ignore it, do they get the credits back?
+> **Domain:** No. The credits were spent the moment the image hit the AI. A
+> refund only happens when the AI returns nothing usable — not when the user
+> declines a usable result.

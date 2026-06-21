@@ -1,4 +1,10 @@
-import { consumeScanQuota, refundScanQuota } from "./quota.ts";
+import {
+  chargeExtraCredits,
+  consumeScanQuota,
+  creditsForTokens,
+  creditsRemaining,
+  refundScanQuota,
+} from "./quota.ts";
 import {
   parseReceiptImage,
   type AccountRef,
@@ -11,16 +17,22 @@ import {
 // quota model, retry behaviour, and reconciliation stay identical.
 //
 // Contract:
-//   - Reserve one Scan BEFORE the AI call (enforces the per-tier cap).
-//   - Strict-retry once internally on malformed JSON — one logical scan is at
-//     most one charge, no matter how many AI attempts it takes.
-//   - Refund ONLY when the AI returns no usable transaction
+//   - Reserve one credit BEFORE the AI call (enforces the per-tier cap).
+//   - Strict-retry once internally on malformed JSON — one logical capture is
+//     billed once, no matter how many AI attempts it takes (last attempt's
+//     output tokens drive the charge).
+//   - After a usable parse, charge any credits beyond the reserved 1, by
+//     output tokens (ADR-0017). This may overshoot the cap (soft cap).
+//   - Refund the reserved credit when the AI returns no usable transaction
 //     (`not_a_transaction` / `ai_failure` / thrown error). A usable result
 //     (`ok` / `partial`) keeps the charge even if the caller later discards it.
 //   - Save failures are the CALLER's concern; this helper does not refund them.
 export type GatedScanResult =
   | { kind: "quota_reached" }
-  | ReceiptParseResult;
+  | (ReceiptParseResult & {
+    creditsCharged: number;
+    creditsRemaining: number | null;
+  });
 
 export async function gatedScan(args: {
   userId: string;
@@ -57,6 +69,12 @@ export async function gatedScan(args: {
 
   if (res.kind === "not_a_transaction" || res.kind === "ai_failure") {
     await refundScanQuota(args.userId);
+    return { ...res, creditsCharged: 0, creditsRemaining: null };
   }
-  return res;
+
+  // Usable parse — charge any credits beyond the 1 reserved at the gate.
+  const credits = creditsForTokens(res.completionTokens, 1);
+  await chargeExtraCredits(args.userId, credits - 1);
+  const remaining = await creditsRemaining(args.userId, args.tier);
+  return { ...res, creditsCharged: credits, creditsRemaining: remaining };
 }

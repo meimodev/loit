@@ -86,7 +86,12 @@ serve(async (req) => {
         // Client maps 402 → ScanResult.quotaExceeded and shows the top-up sheet.
         return jsonResponse({ error: "Scan quota reached" }, 402);
       case "ok":
-        return jsonResponse(res.parsed, 200);
+        // credits_* are additive metadata (ADR-0017); existing clients that
+        // parse only transaction fields ignore the extra keys.
+        return jsonResponse(
+          { ...res.parsed, credits_charged: res.creditsCharged, credits_remaining: res.creditsRemaining },
+          200,
+        );
       case "not_a_transaction":
         return jsonResponse(
           {
@@ -97,7 +102,10 @@ serve(async (req) => {
           422,
         );
       case "partial":
-        return jsonResponse(res.partial, 200);
+        return jsonResponse(
+          { ...res.partial, credits_charged: res.creditsCharged, credits_remaining: res.creditsRemaining },
+          200,
+        );
       case "ai_failure":
         return jsonResponse(
           { ai_failure: true, partial_fields: res.partial },

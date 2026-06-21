@@ -44,7 +44,13 @@ import {
   saveTransaction,
   deleteTransaction,
 } from "../_shared/transaction_saver.ts";
-import { consumeScanQuota, refundScanQuota } from "../_shared/quota.ts";
+import {
+  chargeExtraCredits,
+  consumeScanQuota,
+  creditsForTokens,
+  creditsRemaining,
+  refundScanQuota,
+} from "../_shared/quota.ts";
 import {
   amountBucket,
   confidenceBucket,
@@ -494,6 +500,21 @@ type CommitOutcome =
     }
   | { ok: false; reason: string };
 
+// Per-capture AI Credit footer (ADR-0017). Empty for unlimited tiers
+// (remaining=null) or when no credit info is supplied. Shows the cost only
+// when a capture drew more than 1 credit.
+function creditFooter(
+  locale: Locale,
+  credits?: { charged: number; remaining: number | null },
+): string {
+  if (!credits || credits.remaining === null) return "";
+  const key = credits.charged > 1 ? "botCreditsFooterCharged" : "botCreditsFooter";
+  return "\n" + t(locale, key, {
+    charged: String(credits.charged),
+    remaining: String(credits.remaining),
+  });
+}
+
 async function commitAndReply(args: {
   link: MessagingLink;
   ctx: UserContext;
@@ -508,6 +529,9 @@ async function commitAndReply(args: {
   roomId: string | null;
   confidence: number | null;
   sourceType: "text" | "voice" | "image";
+  // AI Credits charged + remaining for this capture (ADR-0017). Omitted/
+  // remaining=null ⇒ no footer (unlimited tier).
+  credits?: { charged: number; remaining: number | null };
 }): Promise<CommitOutcome> {
   // Best-effort scope correction before save. If a parser produced a personal
   // category for a room transaction (or vice versa), try to remap by name —
@@ -576,7 +600,7 @@ async function commitAndReply(args: {
     date: todayYmd(),
   });
   const savedKey = args.type === "income" ? "botIncomeSaved" : "botTransactionSaved";
-  const reply = t(args.locale, savedKey, { summary });
+  const reply = t(args.locale, savedKey, { summary }) + creditFooter(args.locale, args.credits);
   // Mint the undo token BEFORE sending so the rendered button carries the
   // real id. `bot_message_id` is patched in once Telegram returns it.
   const tokenId = await issueUndoToken({
@@ -1740,8 +1764,21 @@ async function handleTextMessage(
   locale: Locale,
   message: string,
 ): Promise<void> {
-  const parsed = await parseTransactionText(message, ctx);
+  // Reserve one AI Credit before the parse (ADR-0017 — text is now metered).
+  const used = await consumeScanQuota(link.userId, ctx.tier);
+  if (used === null) {
+    await sendMessage(link.externalChatId, t(locale, "botQuotaReached"));
+    return;
+  }
+  let parsed: Awaited<ReturnType<typeof parseTransactionText>>;
+  try {
+    parsed = await parseTransactionText(message, ctx);
+  } catch (e) {
+    await refundScanQuota(link.userId);
+    throw e;
+  }
   if (parsed.kind === "rejected" || parsed.kind === "ai_failure") {
+    await refundScanQuota(link.userId); // no usable transaction → no charge
     // Surface a specific reply when the message named a room the user
     // doesn't actually have access to — far more actionable than a generic
     // "didn't understand" line. Common cause: Telegram linked to a LOIT
@@ -1776,7 +1813,11 @@ async function handleTextMessage(
     }
     return;
   }
-  return handleParsedText(link, ctx, locale, parsed.parsed);
+  // Usable parse — charge any credits beyond the reserved 1 (output tokens).
+  const charged = creditsForTokens(parsed.completionTokens, 1);
+  await chargeExtraCredits(link.userId, charged - 1);
+  const remaining = await creditsRemaining(link.userId, ctx.tier);
+  return handleParsedText(link, ctx, locale, parsed.parsed, { charged, remaining });
 }
 
 // Itemised parse: stamp canonical notes once so confirm/picker paths show
@@ -1805,6 +1846,7 @@ async function handleParsedText(
   ctx: UserContext,
   locale: Locale,
   parsedArg: import("../_shared/text_parser.ts").TextParseSuccess,
+  credits?: { charged: number; remaining: number | null },
 ): Promise<void> {
   const p = stampCanonicalNotes(parsedArg);
   const roomId = findRoomByName(ctx, p.destination_room)?.id ?? null;
@@ -1837,6 +1879,7 @@ async function handleParsedText(
       roomId,
       confidence: p.confidence,
       sourceType: "text",
+      credits,
     });
     return;
   }
@@ -1920,6 +1963,11 @@ async function handleVoice(
     const p = stampCanonicalNotes(parsed.parsed);
     const roomId = findRoomByName(ctx, p.destination_room)?.id ?? null;
 
+    // Tokens burned regardless of confidence — charge any beyond the reserved 1.
+    const charged = creditsForTokens(parsed.completionTokens, 1);
+    await chargeExtraCredits(link.userId, charged - 1);
+    const remaining = await creditsRemaining(link.userId, ctx.tier);
+
     if (p.rescued) {
       logBotEvent({
         event: "bot_parse_rescued",
@@ -1945,6 +1993,7 @@ async function handleVoice(
         roomId,
         confidence: p.confidence,
         sourceType: "voice",
+        credits: { charged, remaining },
       });
       if (!result.ok) {
         // No usable transaction was created — refund the scan.
@@ -2099,6 +2148,7 @@ async function handlePhoto(
         roomId: captionRoomId,
         confidence,
         sourceType: "image",
+        credits: { charged: scan.creditsCharged, remaining: scan.creditsRemaining },
       });
       // Save failures are not refunded — the AI call already happened.
       if (outcome.ok && storeReceipt) {

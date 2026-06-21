@@ -26,7 +26,9 @@ const dict: Record<string, Record<string, string>> = {
     botUndoDone: "↩️ Undone.",
     botUndoExpired: "Undo window passed. Edit in app:",
     botQuotaReached:
-      "You've reached your scan quota for this month. Upgrade or buy a top-up in LOIT to keep going.",
+      "You're out of AI credits for this month. Upgrade or buy a top-up in LOIT to keep going.",
+    botCreditsFooter: "💳 {remaining} AI credits left",
+    botCreditsFooterCharged: "💳 −{charged} · {remaining} AI credits left",
     botVoiceTooLong: "Voice notes must be 60 seconds or shorter.",
     botParseFailed: "I couldn't parse a transaction from that.",
     botToday: "📅 Today's transactions",
@@ -92,7 +94,9 @@ const dict: Record<string, Record<string, string>> = {
     botUndoDone: "↩️ Dibatalkan.",
     botUndoExpired: "Waktu undo sudah lewat. Ubah di aplikasi:",
     botQuotaReached:
-      "Kuota scan bulan ini habis. Upgrade atau beli top-up di LOIT untuk melanjutkan.",
+      "Kredit AI bulan ini habis. Upgrade atau beli top-up di LOIT untuk melanjutkan.",
+    botCreditsFooter: "💳 sisa {remaining} kredit AI",
+    botCreditsFooterCharged: "💳 −{charged} · sisa {remaining} kredit AI",
     botVoiceTooLong: "Pesan suara maksimum 60 detik.",
     botParseFailed: "Saya tidak menemukan transaksi dari pesan itu.",
     botToday: "📅 Transaksi hari ini",

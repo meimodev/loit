@@ -107,7 +107,7 @@ abstract class AppLocalizations {
   /// No description provided for @scanQuotaUnlimitedDescription.
   ///
   /// In en, this message translates to:
-  /// **'Scan as many receipts as you need'**
+  /// **'No monthly AI credit limit'**
   String get scanQuotaUnlimitedDescription;
 
   /// No description provided for @annualSavingsBadge.
@@ -149,7 +149,7 @@ abstract class AppLocalizations {
   /// No description provided for @scanTopUpPrice.
   ///
   /// In en, this message translates to:
-  /// **'Rp19,000 for 10 scans'**
+  /// **'Rp9,000 for 15 AI credits'**
   String get scanTopUpPrice;
 
   /// No description provided for @storageExtensionPrice.
@@ -677,7 +677,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsScansThisMonth.
   ///
   /// In en, this message translates to:
-  /// **'Scans this month'**
+  /// **'AI credits this month'**
   String get settingsScansThisMonth;
 
   /// No description provided for @settingsUnlimited.
@@ -2612,7 +2612,7 @@ abstract class AppLocalizations {
   /// No description provided for @scanLimitReached.
   ///
   /// In en, this message translates to:
-  /// **'Scan limit reached'**
+  /// **'AI credits used up'**
   String get scanLimitReached;
 
   /// No description provided for @scanReviewTitle.
@@ -2726,19 +2726,19 @@ abstract class AppLocalizations {
   /// No description provided for @scanRateLimited.
   ///
   /// In en, this message translates to:
-  /// **'Too many scans in a short time. Try again in a minute.'**
+  /// **'Too many captures in a short time. Try again in a minute.'**
   String get scanRateLimited;
 
   /// No description provided for @scanProCapReached.
   ///
   /// In en, this message translates to:
-  /// **'You\'ve hit your monthly Pro scan limit.'**
+  /// **'You\'ve hit your monthly Pro AI credit limit.'**
   String get scanProCapReached;
 
   /// No description provided for @scanLiteCapReached.
   ///
   /// In en, this message translates to:
-  /// **'You\'ve hit your monthly Lite scan limit.'**
+  /// **'You\'ve hit your monthly Lite AI credit limit.'**
   String get scanLiteCapReached;
 
   /// No description provided for @scanSettingsAutoConfirm.
@@ -2780,13 +2780,13 @@ abstract class AppLocalizations {
   /// No description provided for @scanInfoUsage.
   ///
   /// In en, this message translates to:
-  /// **'{used} / {total} scans used'**
+  /// **'{used} / {total} AI credits used'**
   String scanInfoUsage(int used, int total);
 
   /// No description provided for @scanInfoUsageUnlimited.
   ///
   /// In en, this message translates to:
-  /// **'Unlimited scanning'**
+  /// **'Unlimited AI credits'**
   String get scanInfoUsageUnlimited;
 
   /// No description provided for @scanInfoResetsOn.
@@ -2798,7 +2798,7 @@ abstract class AppLocalizations {
   /// No description provided for @scanInfoTierBenefit.
   ///
   /// In en, this message translates to:
-  /// **'{scans} scans per month'**
+  /// **'{scans} AI credits per month'**
   String scanInfoTierBenefit(int scans);
 
   /// No description provided for @scanInfoRecentLink.
@@ -2810,25 +2810,25 @@ abstract class AppLocalizations {
   /// No description provided for @scanInfoTopUpCta.
   ///
   /// In en, this message translates to:
-  /// **'Top up 15 scans · {price}'**
+  /// **'Top up 15 AI credits · {price}'**
   String scanInfoTopUpCta(String price);
 
   /// No description provided for @scanInfoBonusBreakdown.
   ///
   /// In en, this message translates to:
-  /// **'Includes +{bonus} top-up scans'**
+  /// **'Includes +{bonus} top-up AI credits'**
   String scanInfoBonusBreakdown(int bonus);
 
   /// No description provided for @scanInfoTopUpHelper.
   ///
   /// In en, this message translates to:
-  /// **'Adds 15 scans to this month\'s allowance'**
+  /// **'Adds 15 AI credits to this month\'s allowance'**
   String get scanInfoTopUpHelper;
 
   /// No description provided for @scanInfoTopUpSuccess.
   ///
   /// In en, this message translates to:
-  /// **'15 scans added to this month'**
+  /// **'15 AI credits added to this month'**
   String get scanInfoTopUpSuccess;
 
   /// No description provided for @scanInfoUpgradeCta.
@@ -2840,25 +2840,25 @@ abstract class AppLocalizations {
   /// Quota exceeded message showing used scans
   ///
   /// In en, this message translates to:
-  /// **'Used all {quota} scans on {tier} this month.'**
+  /// **'Used all {quota} AI credits on {tier} this month.'**
   String scanUsedAllScans(String quota, String tier);
 
   /// No description provided for @scanQuotaDefault.
   ///
   /// In en, this message translates to:
-  /// **'You have used your monthly scan quota.'**
+  /// **'You have used your monthly AI credits.'**
   String get scanQuotaDefault;
 
   /// No description provided for @scanTopUp.
   ///
   /// In en, this message translates to:
-  /// **'Top up · 15 scans for Rp9,000'**
+  /// **'Top up · 15 AI credits for Rp9,000'**
   String get scanTopUp;
 
   /// No description provided for @scanUpgrade.
   ///
   /// In en, this message translates to:
-  /// **'Upgrade to Pro — 150 scans/month'**
+  /// **'Upgrade to Pro — 150 AI credits/month'**
   String get scanUpgrade;
 
   /// No description provided for @scanNotNow.
@@ -3272,7 +3272,7 @@ abstract class AppLocalizations {
   /// No description provided for @proSuccessUnlimitedScans.
   ///
   /// In en, this message translates to:
-  /// **'Unlimited receipt scans'**
+  /// **'Unlimited AI credits'**
   String get proSuccessUnlimitedScans;
 
   /// No description provided for @connectivityOfflineBody.
@@ -3710,7 +3710,7 @@ abstract class AppLocalizations {
   /// No description provided for @paywallSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Unlock unlimited scans, receipts, and budgets.'**
+  /// **'Unlock unlimited AI credits, receipts, and budgets.'**
   String get paywallSubtitle;
 
   /// No description provided for @paywallContinue.
@@ -3752,7 +3752,7 @@ abstract class AppLocalizations {
   /// No description provided for @pwProSuccessBody.
   ///
   /// In en, this message translates to:
-  /// **'You now have unlimited scans and premium features.'**
+  /// **'You now have unlimited AI credits and premium features.'**
   String get pwProSuccessBody;
 
   /// No description provided for @pwProSuccessDone.
@@ -4748,31 +4748,31 @@ abstract class AppLocalizations {
   /// No description provided for @paywallFreeFeatures.
   ///
   /// In en, this message translates to:
-  /// **'5 scans/mo · 3 budgets · 3 months reports'**
+  /// **'5 AI credits/mo · 3 budgets · 3 months reports'**
   String get paywallFreeFeatures;
 
   /// No description provided for @paywallLiteAnnualFeatures.
   ///
   /// In en, this message translates to:
-  /// **'Save 4 months · 30 scans/mo · Unlimited budgets'**
+  /// **'Save 4 months · 30 AI credits/mo · Unlimited budgets'**
   String get paywallLiteAnnualFeatures;
 
   /// No description provided for @paywallLiteMonthlyFeatures.
   ///
   /// In en, this message translates to:
-  /// **'30 scans/mo · Unlimited budgets · Cancel anytime'**
+  /// **'30 AI credits/mo · Unlimited budgets · Cancel anytime'**
   String get paywallLiteMonthlyFeatures;
 
   /// No description provided for @paywallProAnnualFeatures.
   ///
   /// In en, this message translates to:
-  /// **'Save 4 months · 150 scans/mo · Unlimited budgets · Export'**
+  /// **'Save 4 months · 150 AI credits/mo · Unlimited budgets · Export'**
   String get paywallProAnnualFeatures;
 
   /// No description provided for @paywallProMonthlyFeatures.
   ///
   /// In en, this message translates to:
-  /// **'150 scans/mo · Unlimited budgets · Cancel anytime'**
+  /// **'150 AI credits/mo · Unlimited budgets · Cancel anytime'**
   String get paywallProMonthlyFeatures;
 
   /// No description provided for @paywallBestValue.
@@ -4904,7 +4904,7 @@ abstract class AppLocalizations {
   /// No description provided for @billingFreeBenefit1.
   ///
   /// In en, this message translates to:
-  /// **'5 document scans / month'**
+  /// **'5 AI credits / month'**
   String get billingFreeBenefit1;
 
   /// No description provided for @billingFreeBenefit2.
@@ -4922,7 +4922,7 @@ abstract class AppLocalizations {
   /// No description provided for @billingLiteBenefit1.
   ///
   /// In en, this message translates to:
-  /// **'30 document scans / month'**
+  /// **'30 AI credits / month'**
   String get billingLiteBenefit1;
 
   /// No description provided for @billingLiteBenefit2.
@@ -4940,7 +4940,7 @@ abstract class AppLocalizations {
   /// No description provided for @billingProBenefit1.
   ///
   /// In en, this message translates to:
-  /// **'150 document scans / month'**
+  /// **'150 AI credits / month'**
   String get billingProBenefit1;
 
   /// No description provided for @billingProBenefit2.

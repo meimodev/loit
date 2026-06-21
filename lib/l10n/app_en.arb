@@ -2,14 +2,14 @@
   "@@locale": "en",
 
   "scanQuotaUnlimited": "Unlimited",
-  "scanQuotaUnlimitedDescription": "Scan as many receipts as you need",
+  "scanQuotaUnlimitedDescription": "No monthly AI credit limit",
   "annualSavingsBadge": "4 months free",
   "annualSavingsPercent": "Save 33%",
   "proMonthlyPrice": "Rp99,000/mo",
   "proAnnualPrice": "Rp792,000/yr",
   "teamMonthlyPrice": "Rp199,000/mo",
   "teamAnnualPrice": "Rp1,592,000/yr",
-  "scanTopUpPrice": "Rp19,000 for 10 scans",
+  "scanTopUpPrice": "Rp9,000 for 15 AI credits",
   "storageExtensionPrice": "Rp19,000 for 6 months",
   "paymentGooglePlayOnly": "Payments processed securely via Google Play",
   "restorePurchases": "Restore purchases",
@@ -128,7 +128,7 @@
       "count": {"type": "int"}
     }
   },
-  "settingsScansThisMonth": "Scans this month",
+  "settingsScansThisMonth": "AI credits this month",
   "settingsUnlimited": "Unlimited",
   "settingsPlan": "Plan",
   "settingsReceipts": "Receipts",
@@ -674,7 +674,7 @@
   "scanSaved": "Saved",
   "scanNoRooms": "No rooms yet — create one before scanning to a room.",
   "scanSendToRoom": "Send to room",
-  "scanLimitReached": "Scan limit reached",
+  "scanLimitReached": "AI credits used up",
   "scanReviewTitle": "Review scan",
   "scanConfidenceHigh": "Looks good",
   "scanConfidenceLow": "Some details may need correction",
@@ -699,52 +699,52 @@
   "scanQualityBlurry": "Looks blurry — hold the camera steady.",
   "scanQualityTooDark": "Too dark — find better light.",
   "scanQualityBadAspect": "Crop looks off — recapture the full document.",
-  "scanRateLimited": "Too many scans in a short time. Try again in a minute.",
-  "scanProCapReached": "You've hit your monthly Pro scan limit.",
-  "scanLiteCapReached": "You've hit your monthly Lite scan limit.",
+  "scanRateLimited": "Too many captures in a short time. Try again in a minute.",
+  "scanProCapReached": "You've hit your monthly Pro AI credit limit.",
+  "scanLiteCapReached": "You've hit your monthly Lite AI credit limit.",
   "scanSettingsAutoConfirm": "Auto-save high-confidence scans after 3 seconds",
   "scanSettingsSection": "Scanning",
   "scanInfoPlanSection": "Your plan",
   "scanInfoUsageSection": "This month",
   "scanInfoTopUpSection": "Need more?",
   "scanInfoPrefsSection": "Preferences",
-  "scanInfoUsage": "{used} / {total} scans used",
+  "scanInfoUsage": "{used} / {total} AI credits used",
   "@scanInfoUsage": {
     "placeholders": {
       "used": {"type": "int"},
       "total": {"type": "int"}
     }
   },
-  "scanInfoUsageUnlimited": "Unlimited scanning",
+  "scanInfoUsageUnlimited": "Unlimited AI credits",
   "scanInfoResetsOn": "Resets on {date}",
   "@scanInfoResetsOn": {
     "placeholders": {
       "date": {"type": "String"}
     }
   },
-  "scanInfoTierBenefit": "{scans} scans per month",
+  "scanInfoTierBenefit": "{scans} AI credits per month",
   "@scanInfoTierBenefit": {
     "placeholders": {
       "scans": {"type": "int"}
     }
   },
   "scanInfoRecentLink": "Recent scans",
-  "scanInfoTopUpCta": "Top up 15 scans · {price}",
+  "scanInfoTopUpCta": "Top up 15 AI credits · {price}",
   "@scanInfoTopUpCta": {
     "placeholders": {
       "price": {"type": "String"}
     }
   },
-  "scanInfoBonusBreakdown": "Includes +{bonus} top-up scans",
+  "scanInfoBonusBreakdown": "Includes +{bonus} top-up AI credits",
   "@scanInfoBonusBreakdown": {
     "placeholders": {
       "bonus": {"type": "int"}
     }
   },
-  "scanInfoTopUpHelper": "Adds 15 scans to this month's allowance",
-  "scanInfoTopUpSuccess": "15 scans added to this month",
+  "scanInfoTopUpHelper": "Adds 15 AI credits to this month's allowance",
+  "scanInfoTopUpSuccess": "15 AI credits added to this month",
   "scanInfoUpgradeCta": "Change plan",
-  "scanUsedAllScans": "Used all {quota} scans on {tier} this month.",
+  "scanUsedAllScans": "Used all {quota} AI credits on {tier} this month.",
   "@scanUsedAllScans": {
     "description": "Quota exceeded message showing used scans",
     "placeholders": {
@@ -752,9 +752,9 @@
       "tier": {"type": "String"}
     }
   },
-  "scanQuotaDefault": "You have used your monthly scan quota.",
-  "scanTopUp": "Top up · 15 scans for Rp9,000",
-  "scanUpgrade": "Upgrade to Pro — 150 scans/month",
+  "scanQuotaDefault": "You have used your monthly AI credits.",
+  "scanTopUp": "Top up · 15 AI credits for Rp9,000",
+  "scanUpgrade": "Upgrade to Pro — 150 AI credits/month",
   "scanNotNow": "Not now",
   "scanTakeAnother": "Take another photo",
   "scanRetry": "Retry",
@@ -898,7 +898,7 @@
   "notificationsMarkAllRead": "Mark all read",
   "notificationsEmptyBody": "New activity in your rooms, budgets, and receipts will land here.",
   "lockAuthPrompt": "Authenticate to continue",
-  "proSuccessUnlimitedScans": "Unlimited receipt scans",
+  "proSuccessUnlimitedScans": "Unlimited AI credits",
   "connectivityOfflineBody": "Saved locally — syncs when you're back online.",
   "staleRateTitle": "Rates may be outdated",
   "accountPickerEmpty": "No accounts available.",
@@ -1000,14 +1000,14 @@
   "roomDetailNotSyncedBody": "This transaction hasn't synced yet. Edit to save it.",
 
   "paywallTitle": "Upgrade to Pro",
-  "paywallSubtitle": "Unlock unlimited scans, receipts, and budgets.",
+  "paywallSubtitle": "Unlock unlimited AI credits, receipts, and budgets.",
   "paywallContinue": "Continue",
   "paywallRestoring": "Restoring…",
   "paywallFree": "Free",
   "paywallPro": "Pro",
   "paywallTeam": "Team",
   "pwProSuccessTitle": "Welcome to Pro!",
-  "pwProSuccessBody": "You now have unlimited scans and premium features.",
+  "pwProSuccessBody": "You now have unlimited AI credits and premium features.",
   "pwProSuccessDone": "Done",
 
   "billingManageTitle": "Manage subscription",
@@ -1309,11 +1309,11 @@
   "paywallLite": "Lite",
   "paywallPlanYearly": "Yearly",
   "paywallPlanMonthly": "Monthly",
-  "paywallFreeFeatures": "5 scans/mo · 3 budgets · 3 months reports",
-  "paywallLiteAnnualFeatures": "Save 4 months · 30 scans/mo · Unlimited budgets",
-  "paywallLiteMonthlyFeatures": "30 scans/mo · Unlimited budgets · Cancel anytime",
-  "paywallProAnnualFeatures": "Save 4 months · 150 scans/mo · Unlimited budgets · Export",
-  "paywallProMonthlyFeatures": "150 scans/mo · Unlimited budgets · Cancel anytime",
+  "paywallFreeFeatures": "5 AI credits/mo · 3 budgets · 3 months reports",
+  "paywallLiteAnnualFeatures": "Save 4 months · 30 AI credits/mo · Unlimited budgets",
+  "paywallLiteMonthlyFeatures": "30 AI credits/mo · Unlimited budgets · Cancel anytime",
+  "paywallProAnnualFeatures": "Save 4 months · 150 AI credits/mo · Unlimited budgets · Export",
+  "paywallProMonthlyFeatures": "150 AI credits/mo · Unlimited budgets · Cancel anytime",
   "paywallBestValue": "BEST VALUE",
   "paywallCtaFree": "Continue on Free",
   "paywallCtaLiteAnnual": "Start Lite · {price}/yr",
@@ -1344,13 +1344,13 @@
   "@billingPlanEndsOn": {"placeholders": {"date": {"type": "String"}}},
   "billingUpgradeCta": "Upgrade",
   "billingPlanBenefits": "What you get",
-  "billingFreeBenefit1": "5 document scans / month",
+  "billingFreeBenefit1": "5 AI credits / month",
   "billingFreeBenefit2": "3 budget categories",
   "billingFreeBenefit3": "1 shared room",
-  "billingLiteBenefit1": "30 document scans / month",
+  "billingLiteBenefit1": "30 AI credits / month",
   "billingLiteBenefit2": "Unlimited budgets + custom categories",
   "billingLiteBenefit3": "3 shared rooms",
-  "billingProBenefit1": "150 document scans / month",
+  "billingProBenefit1": "150 AI credits / month",
   "billingProBenefit2": "Unlimited budgets, exports, receipt storage",
   "billingProBenefit3": "Unlimited rooms + full history",
   "billingGroupBilling": "Billing",

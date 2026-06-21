@@ -12,8 +12,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanQuotaUnlimited => 'Unlimited';
 
   @override
-  String get scanQuotaUnlimitedDescription =>
-      'Scan as many receipts as you need';
+  String get scanQuotaUnlimitedDescription => 'No monthly AI credit limit';
 
   @override
   String get annualSavingsBadge => '4 months free';
@@ -34,7 +33,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get teamAnnualPrice => 'Rp1,592,000/yr';
 
   @override
-  String get scanTopUpPrice => 'Rp19,000 for 10 scans';
+  String get scanTopUpPrice => 'Rp9,000 for 15 AI credits';
 
   @override
   String get storageExtensionPrice => 'Rp19,000 for 6 months';
@@ -313,7 +312,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get settingsScansThisMonth => 'Scans this month';
+  String get settingsScansThisMonth => 'AI credits this month';
 
   @override
   String get settingsUnlimited => 'Unlimited';
@@ -1373,7 +1372,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanSendToRoom => 'Send to room';
 
   @override
-  String get scanLimitReached => 'Scan limit reached';
+  String get scanLimitReached => 'AI credits used up';
 
   @override
   String get scanReviewTitle => 'Review scan';
@@ -1443,13 +1442,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scanRateLimited =>
-      'Too many scans in a short time. Try again in a minute.';
+      'Too many captures in a short time. Try again in a minute.';
 
   @override
-  String get scanProCapReached => 'You\'ve hit your monthly Pro scan limit.';
+  String get scanProCapReached =>
+      'You\'ve hit your monthly Pro AI credit limit.';
 
   @override
-  String get scanLiteCapReached => 'You\'ve hit your monthly Lite scan limit.';
+  String get scanLiteCapReached =>
+      'You\'ve hit your monthly Lite AI credit limit.';
 
   @override
   String get scanSettingsAutoConfirm =>
@@ -1472,11 +1473,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String scanInfoUsage(int used, int total) {
-    return '$used / $total scans used';
+    return '$used / $total AI credits used';
   }
 
   @override
-  String get scanInfoUsageUnlimited => 'Unlimited scanning';
+  String get scanInfoUsageUnlimited => 'Unlimited AI credits';
 
   @override
   String scanInfoResetsOn(String date) {
@@ -1485,7 +1486,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String scanInfoTierBenefit(int scans) {
-    return '$scans scans per month';
+    return '$scans AI credits per month';
   }
 
   @override
@@ -1493,36 +1494,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String scanInfoTopUpCta(String price) {
-    return 'Top up 15 scans · $price';
+    return 'Top up 15 AI credits · $price';
   }
 
   @override
   String scanInfoBonusBreakdown(int bonus) {
-    return 'Includes +$bonus top-up scans';
+    return 'Includes +$bonus top-up AI credits';
   }
 
   @override
-  String get scanInfoTopUpHelper => 'Adds 15 scans to this month\'s allowance';
+  String get scanInfoTopUpHelper =>
+      'Adds 15 AI credits to this month\'s allowance';
 
   @override
-  String get scanInfoTopUpSuccess => '15 scans added to this month';
+  String get scanInfoTopUpSuccess => '15 AI credits added to this month';
 
   @override
   String get scanInfoUpgradeCta => 'Change plan';
 
   @override
   String scanUsedAllScans(String quota, String tier) {
-    return 'Used all $quota scans on $tier this month.';
+    return 'Used all $quota AI credits on $tier this month.';
   }
 
   @override
-  String get scanQuotaDefault => 'You have used your monthly scan quota.';
+  String get scanQuotaDefault => 'You have used your monthly AI credits.';
 
   @override
-  String get scanTopUp => 'Top up · 15 scans for Rp9,000';
+  String get scanTopUp => 'Top up · 15 AI credits for Rp9,000';
 
   @override
-  String get scanUpgrade => 'Upgrade to Pro — 150 scans/month';
+  String get scanUpgrade => 'Upgrade to Pro — 150 AI credits/month';
 
   @override
   String get scanNotNow => 'Not now';
@@ -1778,7 +1780,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lockAuthPrompt => 'Authenticate to continue';
 
   @override
-  String get proSuccessUnlimitedScans => 'Unlimited receipt scans';
+  String get proSuccessUnlimitedScans => 'Unlimited AI credits';
 
   @override
   String get connectivityOfflineBody =>
@@ -2020,7 +2022,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get paywallSubtitle =>
-      'Unlock unlimited scans, receipts, and budgets.';
+      'Unlock unlimited AI credits, receipts, and budgets.';
 
   @override
   String get paywallContinue => 'Continue';
@@ -2042,7 +2044,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pwProSuccessBody =>
-      'You now have unlimited scans and premium features.';
+      'You now have unlimited AI credits and premium features.';
 
   @override
   String get pwProSuccessDone => 'Done';
@@ -2625,23 +2627,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywallPlanMonthly => 'Monthly';
 
   @override
-  String get paywallFreeFeatures => '5 scans/mo · 3 budgets · 3 months reports';
+  String get paywallFreeFeatures =>
+      '5 AI credits/mo · 3 budgets · 3 months reports';
 
   @override
   String get paywallLiteAnnualFeatures =>
-      'Save 4 months · 30 scans/mo · Unlimited budgets';
+      'Save 4 months · 30 AI credits/mo · Unlimited budgets';
 
   @override
   String get paywallLiteMonthlyFeatures =>
-      '30 scans/mo · Unlimited budgets · Cancel anytime';
+      '30 AI credits/mo · Unlimited budgets · Cancel anytime';
 
   @override
   String get paywallProAnnualFeatures =>
-      'Save 4 months · 150 scans/mo · Unlimited budgets · Export';
+      'Save 4 months · 150 AI credits/mo · Unlimited budgets · Export';
 
   @override
   String get paywallProMonthlyFeatures =>
-      '150 scans/mo · Unlimited budgets · Cancel anytime';
+      '150 AI credits/mo · Unlimited budgets · Cancel anytime';
 
   @override
   String get paywallBestValue => 'BEST VALUE';
@@ -2724,7 +2727,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get billingPlanBenefits => 'What you get';
 
   @override
-  String get billingFreeBenefit1 => '5 document scans / month';
+  String get billingFreeBenefit1 => '5 AI credits / month';
 
   @override
   String get billingFreeBenefit2 => '3 budget categories';
@@ -2733,7 +2736,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get billingFreeBenefit3 => '1 shared room';
 
   @override
-  String get billingLiteBenefit1 => '30 document scans / month';
+  String get billingLiteBenefit1 => '30 AI credits / month';
 
   @override
   String get billingLiteBenefit2 => 'Unlimited budgets + custom categories';
@@ -2742,7 +2745,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get billingLiteBenefit3 => '3 shared rooms';
 
   @override
-  String get billingProBenefit1 => '150 document scans / month';
+  String get billingProBenefit1 => '150 AI credits / month';
 
   @override
   String get billingProBenefit2 =>

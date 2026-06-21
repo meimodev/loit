@@ -12,8 +12,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get scanQuotaUnlimited => 'Tanpa batas';
 
   @override
-  String get scanQuotaUnlimitedDescription =>
-      'Pindai struk sebanyak yang Anda butuhkan';
+  String get scanQuotaUnlimitedDescription => 'Tanpa batas kredit AI bulanan';
 
   @override
   String get annualSavingsBadge => 'Gratis 4 bulan';
@@ -34,7 +33,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get teamAnnualPrice => 'Rp1.592.000/thn';
 
   @override
-  String get scanTopUpPrice => 'Rp19.000 untuk 10 pemindaian';
+  String get scanTopUpPrice => 'Rp9.000 untuk 15 kredit AI';
 
   @override
   String get storageExtensionPrice => 'Rp19.000 untuk 6 bulan';
@@ -317,7 +316,7 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String get settingsScansThisMonth => 'Pemindaian bulan ini';
+  String get settingsScansThisMonth => 'Kredit AI bulan ini';
 
   @override
   String get settingsUnlimited => 'Tanpa batas';
@@ -1380,7 +1379,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get scanSendToRoom => 'Kirim ke ruangan';
 
   @override
-  String get scanLimitReached => 'Batas pemindaian tercapai';
+  String get scanLimitReached => 'Kredit AI habis';
 
   @override
   String get scanReviewTitle => 'Tinjau pindaian';
@@ -1451,15 +1450,15 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get scanRateLimited =>
-      'Terlalu banyak pemindaian dalam waktu singkat. Coba lagi dalam satu menit.';
+      'Terlalu banyak masukan dalam waktu singkat. Coba lagi dalam satu menit.';
 
   @override
   String get scanProCapReached =>
-      'Anda mencapai batas pemindaian Pro bulan ini.';
+      'Anda mencapai batas kredit AI Pro bulan ini.';
 
   @override
   String get scanLiteCapReached =>
-      'Anda mencapai batas pemindaian Lite bulan ini.';
+      'Anda mencapai batas kredit AI Lite bulan ini.';
 
   @override
   String get scanSettingsAutoConfirm =>
@@ -1482,11 +1481,11 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String scanInfoUsage(int used, int total) {
-    return '$used / $total pindai terpakai';
+    return '$used / $total kredit AI terpakai';
   }
 
   @override
-  String get scanInfoUsageUnlimited => 'Pindai tanpa batas';
+  String get scanInfoUsageUnlimited => 'Kredit AI tanpa batas';
 
   @override
   String scanInfoResetsOn(String date) {
@@ -1495,7 +1494,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String scanInfoTierBenefit(int scans) {
-    return '$scans pindai per bulan';
+    return '$scans kredit AI per bulan';
   }
 
   @override
@@ -1503,37 +1502,37 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String scanInfoTopUpCta(String price) {
-    return 'Top up 15 pindai · $price';
+    return 'Top up 15 kredit AI · $price';
   }
 
   @override
   String scanInfoBonusBreakdown(int bonus) {
-    return 'Termasuk +$bonus pindai top-up';
+    return 'Termasuk +$bonus kredit AI top-up';
   }
 
   @override
-  String get scanInfoTopUpHelper => 'Tambah 15 pindai untuk bulan ini';
+  String get scanInfoTopUpHelper => 'Tambah 15 kredit AI untuk bulan ini';
 
   @override
-  String get scanInfoTopUpSuccess => '15 pindai ditambahkan bulan ini';
+  String get scanInfoTopUpSuccess => '15 kredit AI ditambahkan bulan ini';
 
   @override
   String get scanInfoUpgradeCta => 'Ubah paket';
 
   @override
   String scanUsedAllScans(String quota, String tier) {
-    return 'Menggunakan semua $quota pemindaian di $tier bulan ini.';
+    return 'Menggunakan semua $quota kredit AI di $tier bulan ini.';
   }
 
   @override
   String get scanQuotaDefault =>
-      'Anda telah menggunakan kuota pemindaian bulanan Anda.';
+      'Anda telah menggunakan kredit AI bulanan Anda.';
 
   @override
-  String get scanTopUp => 'Isi ulang · 15 pemindaian seharga Rp9.000';
+  String get scanTopUp => 'Isi ulang · 15 kredit AI seharga Rp9.000';
 
   @override
-  String get scanUpgrade => 'Upgrade ke Pro — 150 pemindaian/bulan';
+  String get scanUpgrade => 'Upgrade ke Pro — 150 kredit AI/bulan';
 
   @override
   String get scanNotNow => 'Nanti saja';
@@ -1787,7 +1786,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get lockAuthPrompt => 'Autentikasi untuk melanjutkan';
 
   @override
-  String get proSuccessUnlimitedScans => 'Pemindaian struk tanpa batas';
+  String get proSuccessUnlimitedScans => 'Kredit AI tanpa batas';
 
   @override
   String get connectivityOfflineBody =>
@@ -2030,7 +2029,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get paywallSubtitle =>
-      'Buka pemindaian, struk, dan anggaran tanpa batas.';
+      'Buka kredit AI, struk, dan anggaran tanpa batas.';
 
   @override
   String get paywallContinue => 'Lanjutkan';
@@ -2052,7 +2051,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get pwProSuccessBody =>
-      'Anda sekarang memiliki pemindaian tanpa batas dan fitur premium.';
+      'Anda sekarang memiliki kredit AI tanpa batas dan fitur premium.';
 
   @override
   String get pwProSuccessDone => 'Selesai';
@@ -2635,23 +2634,24 @@ class AppLocalizationsId extends AppLocalizations {
   String get paywallPlanMonthly => 'Bulanan';
 
   @override
-  String get paywallFreeFeatures => '5 pindai/bln · 3 budget · laporan 3 bulan';
+  String get paywallFreeFeatures =>
+      '5 kredit AI/bln · 3 budget · laporan 3 bulan';
 
   @override
   String get paywallLiteAnnualFeatures =>
-      'Hemat 4 bulan · 30 pindai/bln · Budget tanpa batas';
+      'Hemat 4 bulan · 30 kredit AI/bln · Budget tanpa batas';
 
   @override
   String get paywallLiteMonthlyFeatures =>
-      '30 pindai/bln · Budget tanpa batas · Batalkan kapan saja';
+      '30 kredit AI/bln · Budget tanpa batas · Batalkan kapan saja';
 
   @override
   String get paywallProAnnualFeatures =>
-      'Hemat 4 bulan · 150 pindai/bln · Budget tanpa batas · Ekspor';
+      'Hemat 4 bulan · 150 kredit AI/bln · Budget tanpa batas · Ekspor';
 
   @override
   String get paywallProMonthlyFeatures =>
-      '150 pindai/bln · Budget tanpa batas · Batalkan kapan saja';
+      '150 kredit AI/bln · Budget tanpa batas · Batalkan kapan saja';
 
   @override
   String get paywallBestValue => 'PALING HEMAT';
@@ -2735,7 +2735,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get billingPlanBenefits => 'Yang Anda dapatkan';
 
   @override
-  String get billingFreeBenefit1 => '5 pemindaian dokumen / bulan';
+  String get billingFreeBenefit1 => '5 kredit AI / bulan';
 
   @override
   String get billingFreeBenefit2 => '3 kategori anggaran';
@@ -2744,7 +2744,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get billingFreeBenefit3 => '1 ruangan bersama';
 
   @override
-  String get billingLiteBenefit1 => '30 pemindaian dokumen / bulan';
+  String get billingLiteBenefit1 => '30 kredit AI / bulan';
 
   @override
   String get billingLiteBenefit2 => 'Anggaran tanpa batas + kategori kustom';
@@ -2753,7 +2753,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get billingLiteBenefit3 => '3 ruangan bersama';
 
   @override
-  String get billingProBenefit1 => '150 pemindaian dokumen / bulan';
+  String get billingProBenefit1 => '150 kredit AI / bulan';
 
   @override
   String get billingProBenefit2 =>

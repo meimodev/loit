@@ -2,14 +2,14 @@
   "@@locale": "id",
 
   "scanQuotaUnlimited": "Tanpa batas",
-  "scanQuotaUnlimitedDescription": "Pindai struk sebanyak yang Anda butuhkan",
+  "scanQuotaUnlimitedDescription": "Tanpa batas kredit AI bulanan",
   "annualSavingsBadge": "Gratis 4 bulan",
   "annualSavingsPercent": "Hemat 33%",
   "proMonthlyPrice": "Rp99.000/bln",
   "proAnnualPrice": "Rp792.000/thn",
   "teamMonthlyPrice": "Rp199.000/bln",
   "teamAnnualPrice": "Rp1.592.000/thn",
-  "scanTopUpPrice": "Rp19.000 untuk 10 pemindaian",
+  "scanTopUpPrice": "Rp9.000 untuk 15 kredit AI",
   "storageExtensionPrice": "Rp19.000 untuk 6 bulan",
   "paymentGooglePlayOnly": "Pembayaran diproses dengan aman melalui Google Play",
   "restorePurchases": "Pulihkan pembelian",
@@ -128,7 +128,7 @@
       "count": {"type": "int"}
     }
   },
-  "settingsScansThisMonth": "Pemindaian bulan ini",
+  "settingsScansThisMonth": "Kredit AI bulan ini",
   "settingsUnlimited": "Tanpa batas",
   "settingsPlan": "Paket",
   "settingsReceipts": "Struk",
@@ -674,7 +674,7 @@
   "scanSaved": "Tersimpan",
   "scanNoRooms": "Belum ada ruangan — buat ruangan sebelum memindai ke ruangan.",
   "scanSendToRoom": "Kirim ke ruangan",
-  "scanLimitReached": "Batas pemindaian tercapai",
+  "scanLimitReached": "Kredit AI habis",
   "scanReviewTitle": "Tinjau pindaian",
   "scanConfidenceHigh": "Terlihat oke",
   "scanConfidenceLow": "Beberapa detail mungkin perlu dikoreksi",
@@ -699,52 +699,52 @@
   "scanQualityBlurry": "Terlihat buram — pegang kamera lebih stabil.",
   "scanQualityTooDark": "Terlalu gelap — cari pencahayaan lebih baik.",
   "scanQualityBadAspect": "Bingkai tidak pas — foto ulang seluruh dokumen.",
-  "scanRateLimited": "Terlalu banyak pemindaian dalam waktu singkat. Coba lagi dalam satu menit.",
-  "scanProCapReached": "Anda mencapai batas pemindaian Pro bulan ini.",
-  "scanLiteCapReached": "Anda mencapai batas pemindaian Lite bulan ini.",
+  "scanRateLimited": "Terlalu banyak masukan dalam waktu singkat. Coba lagi dalam satu menit.",
+  "scanProCapReached": "Anda mencapai batas kredit AI Pro bulan ini.",
+  "scanLiteCapReached": "Anda mencapai batas kredit AI Lite bulan ini.",
   "scanSettingsAutoConfirm": "Simpan otomatis pindaian berkepercayaan tinggi setelah 3 detik",
   "scanSettingsSection": "Pemindaian",
   "scanInfoPlanSection": "Paket Anda",
   "scanInfoUsageSection": "Bulan ini",
   "scanInfoTopUpSection": "Butuh lebih?",
   "scanInfoPrefsSection": "Preferensi",
-  "scanInfoUsage": "{used} / {total} pindai terpakai",
+  "scanInfoUsage": "{used} / {total} kredit AI terpakai",
   "@scanInfoUsage": {
     "placeholders": {
       "used": {"type": "int"},
       "total": {"type": "int"}
     }
   },
-  "scanInfoUsageUnlimited": "Pindai tanpa batas",
+  "scanInfoUsageUnlimited": "Kredit AI tanpa batas",
   "scanInfoResetsOn": "Direset pada {date}",
   "@scanInfoResetsOn": {
     "placeholders": {
       "date": {"type": "String"}
     }
   },
-  "scanInfoTierBenefit": "{scans} pindai per bulan",
+  "scanInfoTierBenefit": "{scans} kredit AI per bulan",
   "@scanInfoTierBenefit": {
     "placeholders": {
       "scans": {"type": "int"}
     }
   },
   "scanInfoRecentLink": "Pindaian terbaru",
-  "scanInfoTopUpCta": "Top up 15 pindai · {price}",
+  "scanInfoTopUpCta": "Top up 15 kredit AI · {price}",
   "@scanInfoTopUpCta": {
     "placeholders": {
       "price": {"type": "String"}
     }
   },
-  "scanInfoBonusBreakdown": "Termasuk +{bonus} pindai top-up",
+  "scanInfoBonusBreakdown": "Termasuk +{bonus} kredit AI top-up",
   "@scanInfoBonusBreakdown": {
     "placeholders": {
       "bonus": {"type": "int"}
     }
   },
-  "scanInfoTopUpHelper": "Tambah 15 pindai untuk bulan ini",
-  "scanInfoTopUpSuccess": "15 pindai ditambahkan bulan ini",
+  "scanInfoTopUpHelper": "Tambah 15 kredit AI untuk bulan ini",
+  "scanInfoTopUpSuccess": "15 kredit AI ditambahkan bulan ini",
   "scanInfoUpgradeCta": "Ubah paket",
-  "scanUsedAllScans": "Menggunakan semua {quota} pemindaian di {tier} bulan ini.",
+  "scanUsedAllScans": "Menggunakan semua {quota} kredit AI di {tier} bulan ini.",
   "@scanUsedAllScans": {
     "description": "Quota exceeded message showing used scans",
     "placeholders": {
@@ -752,9 +752,9 @@
       "tier": {"type": "String"}
     }
   },
-  "scanQuotaDefault": "Anda telah menggunakan kuota pemindaian bulanan Anda.",
-  "scanTopUp": "Isi ulang · 15 pemindaian seharga Rp9.000",
-  "scanUpgrade": "Upgrade ke Pro — 150 pemindaian/bulan",
+  "scanQuotaDefault": "Anda telah menggunakan kredit AI bulanan Anda.",
+  "scanTopUp": "Isi ulang · 15 kredit AI seharga Rp9.000",
+  "scanUpgrade": "Upgrade ke Pro — 150 kredit AI/bulan",
   "scanNotNow": "Nanti saja",
   "scanTakeAnother": "Ambil foto lain",
   "scanRetry": "Coba lagi",
@@ -898,7 +898,7 @@
   "notificationsMarkAllRead": "Tandai semua dibaca",
   "notificationsEmptyBody": "Aktivitas baru di ruang, anggaran, dan struk Anda akan muncul di sini.",
   "lockAuthPrompt": "Autentikasi untuk melanjutkan",
-  "proSuccessUnlimitedScans": "Pemindaian struk tanpa batas",
+  "proSuccessUnlimitedScans": "Kredit AI tanpa batas",
   "connectivityOfflineBody": "Tersimpan lokal — sinkron saat Anda kembali online.",
   "staleRateTitle": "Kurs mungkin sudah usang",
   "accountPickerEmpty": "Tidak ada akun tersedia.",
@@ -994,14 +994,14 @@
   "roomDetailNotSyncedBody": "Transaksi ini belum disinkronkan. Edit untuk menyimpan.",
 
   "paywallTitle": "Upgrade ke Pro",
-  "paywallSubtitle": "Buka pemindaian, struk, dan anggaran tanpa batas.",
+  "paywallSubtitle": "Buka kredit AI, struk, dan anggaran tanpa batas.",
   "paywallContinue": "Lanjutkan",
   "paywallRestoring": "Memulihkan…",
   "paywallFree": "Gratis",
   "paywallPro": "Pro",
   "paywallTeam": "Tim",
   "pwProSuccessTitle": "Selamat datang di Pro!",
-  "pwProSuccessBody": "Anda sekarang memiliki pemindaian tanpa batas dan fitur premium.",
+  "pwProSuccessBody": "Anda sekarang memiliki kredit AI tanpa batas dan fitur premium.",
   "pwProSuccessDone": "Selesai",
 
   "billingManageTitle": "Kelola langganan",
@@ -1303,11 +1303,11 @@
   "paywallLite": "Lite",
   "paywallPlanYearly": "Tahunan",
   "paywallPlanMonthly": "Bulanan",
-  "paywallFreeFeatures": "5 pindai/bln · 3 budget · laporan 3 bulan",
-  "paywallLiteAnnualFeatures": "Hemat 4 bulan · 30 pindai/bln · Budget tanpa batas",
-  "paywallLiteMonthlyFeatures": "30 pindai/bln · Budget tanpa batas · Batalkan kapan saja",
-  "paywallProAnnualFeatures": "Hemat 4 bulan · 150 pindai/bln · Budget tanpa batas · Ekspor",
-  "paywallProMonthlyFeatures": "150 pindai/bln · Budget tanpa batas · Batalkan kapan saja",
+  "paywallFreeFeatures": "5 kredit AI/bln · 3 budget · laporan 3 bulan",
+  "paywallLiteAnnualFeatures": "Hemat 4 bulan · 30 kredit AI/bln · Budget tanpa batas",
+  "paywallLiteMonthlyFeatures": "30 kredit AI/bln · Budget tanpa batas · Batalkan kapan saja",
+  "paywallProAnnualFeatures": "Hemat 4 bulan · 150 kredit AI/bln · Budget tanpa batas · Ekspor",
+  "paywallProMonthlyFeatures": "150 kredit AI/bln · Budget tanpa batas · Batalkan kapan saja",
   "paywallBestValue": "PALING HEMAT",
   "paywallCtaFree": "Lanjutkan dengan Gratis",
   "paywallCtaLiteAnnual": "Mulai Lite · {price}/thn",
@@ -1338,13 +1338,13 @@
   "@billingPlanEndsOn": {"placeholders": {"date": {"type": "String"}}},
   "billingUpgradeCta": "Tingkatkan",
   "billingPlanBenefits": "Yang Anda dapatkan",
-  "billingFreeBenefit1": "5 pemindaian dokumen / bulan",
+  "billingFreeBenefit1": "5 kredit AI / bulan",
   "billingFreeBenefit2": "3 kategori anggaran",
   "billingFreeBenefit3": "1 ruangan bersama",
-  "billingLiteBenefit1": "30 pemindaian dokumen / bulan",
+  "billingLiteBenefit1": "30 kredit AI / bulan",
   "billingLiteBenefit2": "Anggaran tanpa batas + kategori kustom",
   "billingLiteBenefit3": "3 ruangan bersama",
-  "billingProBenefit1": "150 pemindaian dokumen / bulan",
+  "billingProBenefit1": "150 kredit AI / bulan",
   "billingProBenefit2": "Anggaran, ekspor, penyimpanan struk tanpa batas",
   "billingProBenefit3": "Ruangan tanpa batas + riwayat lengkap",
   "billingGroupBilling": "Tagihan",

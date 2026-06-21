@@ -1,9 +1,6 @@
-import Anthropic from "npm:@anthropic-ai/sdk@0.32.1";
 import type { UserContext } from "./user_context.ts";
 import { formatBreakdownNotes } from "./notes_breakdown.ts";
-import { geminiTranscribe } from "./gemini.ts";
-
-const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! });
+import { chatComplete, transcribeAudio } from "./openrouter.ts";
 
 const TEXT_STATIC_PROMPT = `You are LOIT's transaction parser for chat messages. Read the user's message and return ONLY valid JSON — no prose, no markdown fences.
 
@@ -86,7 +83,10 @@ export interface TextParseRejected {
 }
 
 export type TextParseResult =
-  | { kind: "ok"; parsed: TextParseSuccess }
+  // completionTokens drives AI Credit metering (ADR-0017); present only on the
+  // success path — rejected/ai_failure captures are refunded, not billed. A
+  // deterministic rescue after the AI threw carries 0 (bills the floor of 1).
+  | { kind: "ok"; parsed: TextParseSuccess; completionTokens: number }
   | { kind: "rejected"; reason: string | null }
   | { kind: "ai_failure" };
 
@@ -266,22 +266,11 @@ Today: ${today}
 
 User message: ${message}`;
 
-  const result = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 512,
-    system: [
-      // SDK 0.32 doesn't type prompt-caching control yet; runtime accepts it.
-      // deno-lint-ignore no-explicit-any
-      ({
-        type: "text",
-        text: TEXT_STATIC_PROMPT,
-        cache_control: { type: "ephemeral" },
-      } as any),
-    ],
-    messages: [{ role: "user", content: [{ type: "text", text: userBlock }] }],
+  const { text: raw, completionTokens } = await chatComplete({
+    system: TEXT_STATIC_PROMPT,
+    userContent: userBlock,
+    maxTokens: 512,
   });
-
-  const raw = result.content[0]?.type === "text" ? result.content[0].text : "";
   const stripped = raw
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
@@ -293,12 +282,12 @@ User message: ${message}`;
       // Deterministic itemised fallback covers multi-item shopping lists the
       // AI sometimes misclassifies as non-transactions.
       const fb = tryItemizedFallback(message, ctx);
-      if (fb) return { kind: "ok", parsed: fb };
+      if (fb) return { kind: "ok", parsed: fb, completionTokens };
       // Single-item rescue: Haiku occasionally rejects room-targeted
       // messages like "beli daging 237k untuk rumah". When an amount and a
       // known room are both present, route through the confirm flow.
       const roomRescue = tryRoomTargetedRescue(message, ctx);
-      if (roomRescue) return { kind: "ok", parsed: roomRescue };
+      if (roomRescue) return { kind: "ok", parsed: roomRescue, completionTokens };
       return { kind: "rejected", reason: parsed.reason ?? null };
     }
     if (
@@ -351,20 +340,21 @@ User message: ${message}`;
           date,
           confidence,
         },
+        completionTokens,
       };
     }
     // AI couldn't classify or rejected — try a deterministic itemised
     // fallback before giving up.
     const fb = tryItemizedFallback(message, ctx);
-    if (fb) return { kind: "ok", parsed: fb };
+    if (fb) return { kind: "ok", parsed: fb, completionTokens };
     const roomRescue = tryRoomTargetedRescue(message, ctx);
-    if (roomRescue) return { kind: "ok", parsed: roomRescue };
+    if (roomRescue) return { kind: "ok", parsed: roomRescue, completionTokens };
     return { kind: "ai_failure" };
   } catch {
     const fb = tryItemizedFallback(message, ctx);
-    if (fb) return { kind: "ok", parsed: fb };
+    if (fb) return { kind: "ok", parsed: fb, completionTokens };
     const roomRescue = tryRoomTargetedRescue(message, ctx);
-    if (roomRescue) return { kind: "ok", parsed: roomRescue };
+    if (roomRescue) return { kind: "ok", parsed: roomRescue, completionTokens };
     return { kind: "ai_failure" };
   }
 }
@@ -587,21 +577,13 @@ Rooms: ${roomNames || "(none)"}
 Caption: ${caption}`;
 
   try {
-    const result = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 128,
-      system: [
-        // SDK 0.32 doesn't type prompt-caching control yet; runtime accepts it.
-        // deno-lint-ignore no-explicit-any
-        ({
-          type: "text",
-          text: CAPTION_META_PROMPT,
-          cache_control: { type: "ephemeral" },
-        } as any),
-      ],
-      messages: [{ role: "user", content: [{ type: "text", text: userBlock }] }],
+    // Caption metadata is auxiliary to the image capture, not separately
+    // metered, so we ignore its token count.
+    const { text: raw } = await chatComplete({
+      system: CAPTION_META_PROMPT,
+      userContent: userBlock,
+      maxTokens: 128,
     });
-    const raw = result.content[0]?.type === "text" ? result.content[0].text : "";
     const stripped = raw
       .trim()
       .replace(/^```(?:json)?\s*/i, "")
@@ -628,11 +610,11 @@ Caption: ${caption}`;
   }
 }
 
-// Voice path. Claude has no audio input, so Gemini transcribes the note to
-// text first; the transcript then flows through the same Claude text parser
-// as a typed message — voice keeps the deterministic rescues. See
-// docs/adr/0002-telegram-bot-back-to-claude.md. A failed/empty transcription
-// returns ai_failure (no second transcriber).
+// Voice path. Claude has no audio input, so Whisper transcribes the note to
+// text first (OpenRouter STT); the transcript then flows through the same
+// Claude text parser as a typed message — voice keeps the deterministic
+// rescues. See docs/adr/0016-all-ai-through-openrouter.md. A failed/empty
+// transcription returns ai_failure (no second transcriber).
 export async function parseTransactionFromAudio(
   audioBase64: string,
   mimeType: string,
@@ -640,7 +622,7 @@ export async function parseTransactionFromAudio(
 ): Promise<TextParseResult> {
   let transcript: string | null;
   try {
-    transcript = await geminiTranscribe(audioBase64, mimeType);
+    transcript = await transcribeAudio(audioBase64, mimeType);
   } catch {
     return { kind: "ai_failure" };
   }

@@ -68,3 +68,35 @@ export async function refundScanQuota(userId: string): Promise<void> {
   const sb = serviceClient();
   await sb.rpc("refund_scan_quota", { p_user_id: userId });
 }
+
+// --- AI Credits (ADR-0017) ------------------------------------------------
+// One capture costs max(floor, ceil(completion_tokens / 1024)) credits.
+// Output tokens only — they scale with content; the fixed image/prompt input
+// is the floor and is covered by the 1 credit reserved at the gate.
+const TOKENS_PER_CREDIT = 1024;
+
+export function creditsForTokens(completionTokens: number, floor = 1): number {
+  return Math.max(floor, Math.ceil(completionTokens / TOKENS_PER_CREDIT));
+}
+
+// Charge `extra` credits beyond the 1 already reserved at the gate. Allows the
+// monthly count to overshoot the cap (soft cap) — the true cost is only known
+// after the AI responds. No-op when extra <= 0.
+export async function chargeExtraCredits(
+  userId: string,
+  extra: number,
+): Promise<void> {
+  if (extra <= 0) return;
+  const sb = serviceClient();
+  await sb.rpc("add_scan_quota", { p_user_id: userId, p_amount: extra });
+}
+
+// Credits left this month, for user feedback only (not the gate authority).
+// null = unlimited. Clamped at 0 so an overshoot reads as "0 left", not negative.
+export async function creditsRemaining(
+  userId: string,
+  tier: string,
+): Promise<number | null> {
+  const { used, cap } = await readQuotaState(userId, tier);
+  return cap === null ? null : Math.max(0, cap - used);
+}

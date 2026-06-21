@@ -168,53 +168,16 @@ class Txn {
 }
 
 class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
-  RealtimeChannel? _channel;
-
   @override
   Future<List<Txn>> build() async {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const [];
 
-    // Realtime: any insert/update/delete on this user's rows refetches the
-    // feed. Catches bot-originated writes from the messaging pipeline.
-    _channel?.unsubscribe();
-    final channel = Supabase.instance.client
-        .channel('public:transactions:user=${user.id}');
-    for (final ev in const [
-      PostgresChangeEvent.insert,
-      PostgresChangeEvent.update,
-      PostgresChangeEvent.delete,
-    ]) {
-      channel.onPostgresChanges(
-        event: ev,
-        schema: 'public',
-        table: 'transactions',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'user_id',
-          value: user.id,
-        ),
-        callback: (payload) {
-          Log.i(
-            'TransactionsProvider',
-            'realtime event ${payload.eventType.name} '
-                'id=${(payload.newRecord['id'] ?? payload.oldRecord['id'])} '
-                'source=${payload.newRecord['source']}',
-          );
-          ref.invalidateSelf();
-        },
-      );
-    }
-    channel.subscribe((status, err) {
-      Log.i(
-        'TransactionsProvider',
-        'realtime subscribe status=$status err=$err',
-      );
-    });
-    _channel = channel;
-    ref.onDispose(() {
-      channel.unsubscribe();
-    });
+    // Live updates (including bot-originated writes from the messaging
+    // pipeline) arrive via the Broadcast feed in [transactionsRealtimeProvider]
+    // (ADR-0018), which refetches this provider on each change. The realtime
+    // subscription lives there — deliberately decoupled from this build() so a
+    // data refetch never tears down and rejoins the channel.
 
     final rows = await Supabase.instance.client
         .from('transactions')
@@ -495,6 +458,50 @@ final transactionsProvider =
     AsyncNotifierProvider<TransactionsNotifier, List<Txn>>(
       TransactionsNotifier.new,
     );
+
+/// Broadcast-from-database live feed (ADR-0018). Subscribes the signed-in
+/// user's **private** topic `txns:user:<id>` once and refetches
+/// [transactionsProvider] on every `{op, id}` signal — covers bot-originated
+/// inserts/edits/undos that Postgres Changes failed to deliver.
+///
+/// Kept separate from the data provider on purpose: this provider rebuilds only
+/// when the user changes (sign in/out), so the channel survives data refetches
+/// instead of rejoining on each one (no mid-rejoin dropped events). Must be
+/// kept alive by a watcher — `app.dart` watches it app-wide while signed in.
+final transactionsRealtimeProvider = Provider<void>((ref) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return;
+  final client = Supabase.instance.client;
+  // Private channels authorize the join against an RLS policy on
+  // realtime.messages, which needs the user's JWT on the realtime socket.
+  // Without this the join is never acked and subscribe cycles
+  // closed/timedOut forever (ADR-0018). Push the current access token before
+  // subscribing; auth-state changes keep it fresh via supabase_flutter.
+  final token = client.auth.currentSession?.accessToken;
+  if (token != null) client.realtime.setAuth(token);
+  final channel = client.channel(
+    'txns:user:${user.id}',
+    opts: const RealtimeChannelConfig(private: true),
+  );
+  channel
+      .onBroadcast(
+        event: 'tx',
+        callback: (payload) {
+          Log.i('TransactionsProvider', 'broadcast feed event $payload');
+          // Invalidate the data provider directly from this provider's ref —
+          // a watcher (the screen) re-runs build() and gets the new rows. More
+          // reliable than the notifier's own ref.refresh self-call.
+          ref.invalidate(transactionsProvider);
+        },
+      )
+      .subscribe((status, err) {
+        Log.i(
+          'TransactionsProvider',
+          'broadcast subscribe status=$status err=$err',
+        );
+      });
+  ref.onDispose(channel.unsubscribe);
+});
 
 /// All transactions made inside a given room (any member). RLS limits
 /// visibility to room members. Used by the per-room Reports screen.

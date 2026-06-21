@@ -274,6 +274,23 @@ tag yields **Optional** (there is deliberately **no** `-optional` suffix);
 "Blocked" in code, do **not** grep for a `-blocked` tag — it does not exist.
 Thresholds only ever rise (CI `max()`-es each field; lowering is manual SQL only).
 
+### Realtime
+
+**Transaction live feed**:
+The mechanism that updates the app's personal transaction list the moment a row
+changes — including **bot-originated** writes from the messaging pipeline. Driven
+by **Broadcast from the database** (ADR 0018), **not** Postgres Changes: a DB
+trigger on `transactions` (insert/update/delete) sends a lightweight `{op, id}`
+broadcast to the owner's **private** topic `txns:user:<user_id>`; the app, joined
+to its own topic, **refetches over REST** on receipt (the broadcast is a signal,
+never the data). Authorization is a single RLS check on `realtime.messages` **at
+join**, not per event — which is why this is robust where the prior per-row RLS
+path silently dropped events. Distinct from a plain **REST refetch** (what
+restart / pull-to-refresh / reconnect already do); the live feed is what makes
+those unnecessary.
+_Avoid_: realtime subscription, postgres changes, live sync (when meaning this
+specific broadcast-driven path).
+
 ## Example dialogue
 
 > **Dev:** A free user sends three text messages and one 70-item photo to the

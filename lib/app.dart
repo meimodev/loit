@@ -351,29 +351,38 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
 
   void _subscribeUserRow(String userId) {
     _userRowChannel?.unsubscribe();
-    // Realtime UPDATE on the user's own public.users row. Catches any
-    // server-side tier mutation (webhook revoke, admin grant, cron downgrade)
-    // without waiting on the next app resume.
-    _userRowChannel = Supabase.instance.client
-        .channel('user:$userId')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.update,
-          schema: 'public',
-          table: 'users',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'id',
-            value: userId,
-          ),
-          callback: (_) {
+    final client = Supabase.instance.client;
+    // Private Broadcast on the user's own row (ADR-0018). Catches any
+    // server-side tier/credit mutation (webhook revoke, admin grant, cron
+    // downgrade) live, without waiting on the next app resume. Migrated off
+    // Postgres Changes, which silently dropped events. setAuth is required so
+    // the private join passes the realtime.messages RLS check.
+    final token = client.auth.currentSession?.accessToken;
+    if (token != null) client.realtime.setAuth(token);
+    _userRowChannel = client
+        .channel(
+          'user:$userId',
+          opts: const RealtimeChannelConfig(private: true),
+        )
+        .onBroadcast(
+          event: 'profile',
+          callback: (p) {
+            Log.i('App', 'user broadcast feed event $p');
             ref.invalidate(userProfileProvider);
           },
         )
-        .subscribe();
+        .subscribe((status, err) {
+          Log.i('App', 'user broadcast subscribe status=$status err=$err');
+        });
   }
 
   @override
   Widget build(BuildContext context) {
+    // Keep the Broadcast-from-database transaction feed (ADR-0018) alive
+    // app-wide while signed in, so bot-originated writes refresh the list even
+    // when the user isn't on the Transactions tab.
+    ref.watch(transactionsRealtimeProvider);
+
     // Identify/reset PostHog + init push on auth transitions
     ref.listen<AsyncValue<AuthState>>(authStateProvider, (_, next) {
       final event = next.value?.event;

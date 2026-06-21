@@ -8,6 +8,13 @@
 class PricingConstants {
   const PricingConstants._();
 
+  // Monthly AI Credit base caps per tier (ADR-0017). Single source of truth —
+  // `feature_gate.dart` imports these; the Deno server (`quota.ts TIER_CAP`)
+  // hand-copies them, so keep the two in sync.
+  static const int scanCapFree = 5;
+  static const int scanCapLite = 30;
+  static const int scanCapPro = 150;
+
   // Monthly prices (IDR) — Google Play price points
   static const int liteMonthlyIdr = 49000;
   static const int proMonthlyIdr = 99000;

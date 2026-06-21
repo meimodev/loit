@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/config/pricing_constants.dart';
+
 class FeatureFlags {
   final bool unlimitedBudgets;
   final bool customCategories;
@@ -41,7 +43,7 @@ class FeatureFlags {
             pdfExport: true,
             receiptStorage: true,
             fullHistory: true,
-            scanLimitPerMonth: 150,
+            scanLimitPerMonth: PricingConstants.scanCapPro,
             budgetCategoryLimit: 1 << 30,
             roomLimit: null,
           ),
@@ -52,7 +54,7 @@ class FeatureFlags {
             pdfExport: false,
             receiptStorage: true,
             fullHistory: true,
-            scanLimitPerMonth: 30,
+            scanLimitPerMonth: PricingConstants.scanCapLite,
             budgetCategoryLimit: 1 << 30,
             roomLimit: 3,
           ),
@@ -63,7 +65,7 @@ class FeatureFlags {
             pdfExport: false,
             receiptStorage: false,
             fullHistory: false,
-            scanLimitPerMonth: 5,
+            scanLimitPerMonth: PricingConstants.scanCapFree,
             budgetCategoryLimit: 3,
             roomLimit: 1,
           ),

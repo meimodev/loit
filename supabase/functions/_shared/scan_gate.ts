@@ -2,8 +2,8 @@ import {
   chargeExtraCredits,
   consumeScanQuota,
   creditsForTokens,
-  creditsRemaining,
   refundScanQuota,
+  remainingFromUsed,
 } from "./quota.ts";
 import {
   parseReceiptImage,
@@ -41,8 +41,8 @@ export async function gatedScan(args: {
   categories?: Category[];
   accounts?: AccountRef[];
 }): Promise<GatedScanResult> {
-  const used = await consumeScanQuota(args.userId, args.tier);
-  if (used === null) return { kind: "quota_reached" };
+  const reserve = await consumeScanQuota(args.userId, args.tier);
+  if (reserve === null) return { kind: "quota_reached" };
 
   let res: ReceiptParseResult;
   try {
@@ -73,8 +73,13 @@ export async function gatedScan(args: {
   }
 
   // Usable parse — charge any credits beyond the 1 reserved at the gate.
+  // ponytail: this reserve→charge→remaining block is hand-copied in the
+  // telegram text + voice paths. Extract a shared `meterCapture` wrapper when a
+  // 4th capture surface lands or the charge rule changes — not before (the
+  // failure-messaging differs per surface, so only this 3-line tail is shared).
   const credits = creditsForTokens(res.completionTokens, 1);
-  await chargeExtraCredits(args.userId, credits - 1);
-  const remaining = await creditsRemaining(args.userId, args.tier);
+  const usedAfter = await chargeExtraCredits(args.userId, credits - 1) ??
+    reserve.used;
+  const remaining = remainingFromUsed(usedAfter, reserve.cap);
   return { ...res, creditsCharged: credits, creditsRemaining: remaining };
 }

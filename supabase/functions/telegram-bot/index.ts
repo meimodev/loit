@@ -48,8 +48,8 @@ import {
   chargeExtraCredits,
   consumeScanQuota,
   creditsForTokens,
-  creditsRemaining,
   refundScanQuota,
+  remainingFromUsed,
 } from "../_shared/quota.ts";
 import {
   amountBucket,
@@ -1765,8 +1765,8 @@ async function handleTextMessage(
   message: string,
 ): Promise<void> {
   // Reserve one AI Credit before the parse (ADR-0017 — text is now metered).
-  const used = await consumeScanQuota(link.userId, ctx.tier);
-  if (used === null) {
+  const reserve = await consumeScanQuota(link.userId, ctx.tier);
+  if (reserve === null) {
     await sendMessage(link.externalChatId, t(locale, "botQuotaReached"));
     return;
   }
@@ -1814,9 +1814,12 @@ async function handleTextMessage(
     return;
   }
   // Usable parse — charge any credits beyond the reserved 1 (output tokens).
+  // ponytail: copy of gatedScan's charge tail; share via meterCapture only when
+  // a 4th capture surface or rule change forces it (see scan_gate.ts).
   const charged = creditsForTokens(parsed.completionTokens, 1);
-  await chargeExtraCredits(link.userId, charged - 1);
-  const remaining = await creditsRemaining(link.userId, ctx.tier);
+  const usedAfter = await chargeExtraCredits(link.userId, charged - 1) ??
+    reserve.used;
+  const remaining = remainingFromUsed(usedAfter, reserve.cap);
   return handleParsedText(link, ctx, locale, parsed.parsed, { charged, remaining });
 }
 
@@ -1919,8 +1922,8 @@ async function handleVoice(
     await sendMessage(link.externalChatId, t(locale, "botVoiceTooLong"));
     return;
   }
-  const used = await consumeScanQuota(link.userId, ctx.tier);
-  if (used === null) {
+  const reserve = await consumeScanQuota(link.userId, ctx.tier);
+  if (reserve === null) {
     await sendMessage(link.externalChatId, t(locale, "botQuotaReached"));
     return;
   }
@@ -1946,9 +1949,9 @@ async function handleVoice(
       return;
     }
 
-    // Two-step: Gemini transcribes the voice note to text, then the Claude
-    // text parser handles the transcript (voice keeps deterministic rescues).
-    // See docs/adr/0002-telegram-bot-back-to-claude.md.
+    // Two-step: Whisper (via OpenRouter STT) transcribes the voice note to
+    // text, then the text parser handles the transcript (voice keeps
+    // deterministic rescues). See docs/adr/0016-all-ai-through-openrouter.md.
     const b64 = bytesToBase64(audio);
     const parsed = await parseTransactionFromAudio(
       b64,
@@ -1964,9 +1967,12 @@ async function handleVoice(
     const roomId = findRoomByName(ctx, p.destination_room)?.id ?? null;
 
     // Tokens burned regardless of confidence — charge any beyond the reserved 1.
+    // ponytail: copy of gatedScan's charge tail; share via meterCapture only when
+    // a 4th capture surface or rule change forces it (see scan_gate.ts).
     const charged = creditsForTokens(parsed.completionTokens, 1);
-    await chargeExtraCredits(link.userId, charged - 1);
-    const remaining = await creditsRemaining(link.userId, ctx.tier);
+    const usedAfter = await chargeExtraCredits(link.userId, charged - 1) ??
+      reserve.used;
+    const remaining = remainingFromUsed(usedAfter, reserve.cap);
 
     if (p.rescued) {
       logBotEvent({

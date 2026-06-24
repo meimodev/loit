@@ -4331,6 +4331,36 @@ abstract class AppLocalizations {
   /// **'{count, plural, one{1 of {limit} rooms} other{{count} of {limit} rooms}}'**
   String roomMembershipUsageLimited(int count, int limit);
 
+  /// No description provided for @roomSlotTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add another room'**
+  String get roomSlotTitle;
+
+  /// Room slot purchase sheet body
+  ///
+  /// In en, this message translates to:
+  /// **'Pro includes {base} rooms. Add more for {price} each — a one-time purchase, yours to keep.'**
+  String roomSlotBody(int base, String price);
+
+  /// Room slot purchase button
+  ///
+  /// In en, this message translates to:
+  /// **'Buy a room · {price}'**
+  String roomSlotBuyCta(String price);
+
+  /// No description provided for @roomSlotBuyShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Buy a room'**
+  String get roomSlotBuyShort;
+
+  /// No description provided for @roomSlotSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Room added — you can create another room now.'**
+  String get roomSlotSuccess;
+
   /// At room limit message, e.g. 'You've reached the room limit on Free.'
   ///
   /// In en, this message translates to:

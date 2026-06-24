@@ -1177,6 +1177,24 @@
       "limit": {"type": "int"}
     }
   },
+  "roomSlotTitle": "Tambah ruangan lagi",
+  "roomSlotBody": "Pro sudah termasuk {base} ruangan. Tambah lagi {price} per ruangan — pembelian sekali, jadi milikmu selamanya.",
+  "@roomSlotBody": {
+    "description": "Room slot purchase sheet body",
+    "placeholders": {
+      "base": {"type": "int"},
+      "price": {"type": "String"}
+    }
+  },
+  "roomSlotBuyCta": "Beli ruangan · {price}",
+  "@roomSlotBuyCta": {
+    "description": "Room slot purchase button",
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "roomSlotBuyShort": "Beli ruangan",
+  "roomSlotSuccess": "Ruangan ditambahkan — kamu bisa membuat ruangan baru sekarang.",
   "roomMembershipAtLimit": "Kamu telah mencapai batas ruangan di {tier}.",
   "@roomMembershipAtLimit": {
     "description": "At room limit message",

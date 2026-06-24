@@ -30,6 +30,9 @@ import '../../features/room_detail/room_budget_form_screen.dart';
 import '../../features/room_detail/room_budgets_screen.dart';
 import '../../features/room_detail/room_detail_screen.dart';
 import '../../features/rooms/room_create_screen.dart';
+import '../../features/rooms/room_type_chooser_screen.dart';
+import '../../features/rooms/church/church_onboarding_screen.dart';
+import '../../features/rooms/church/church_report_screen.dart';
 import '../../features/rooms/room_invite_screen.dart';
 import '../../features/rooms/room_join_screen.dart';
 import '../../features/rooms/rooms_screen.dart';
@@ -125,7 +128,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   // as a uuid and 22p02 out).
                   GoRoute(
                     path: 'new',
-                    builder: (_, __) => const RoomCreateScreen(),
+                    builder: (_, __) => const RoomTypeChooserScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'general',
+                        builder: (_, __) => const RoomCreateScreen(),
+                      ),
+                      GoRoute(
+                        path: 'church',
+                        builder: (_, __) => const ChurchOnboardingScreen(),
+                      ),
+                    ],
                   ),
                   GoRoute(
                     path: 'join',
@@ -291,6 +304,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/rooms/:roomId/reports/export',
         builder: (_, state) => ExportScreen(
+          roomId: state.pathParameters['roomId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/rooms/:roomId/church-report',
+        builder: (_, state) => ChurchReportScreen(
           roomId: state.pathParameters['roomId']!,
         ),
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/config/pricing_constants.dart';
 import '../../core/services/analytics_service.dart';
 import '../../core/services/interaction_log_service.dart';
 import '../../core/theme/loit_colors.dart';
@@ -18,9 +19,9 @@ import '../../shared/providers/room_providers.dart';
 import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_empty_state.dart';
 import '../../shared/widgets/room_error_state.dart';
-import '../paywall/feature_gate.dart';
 import '../paywall/paywall_screen.dart';
 import 'room_colors.dart';
+import 'room_slot_sheet.dart';
 
 class RoomsScreen extends ConsumerWidget {
   const RoomsScreen({super.key});
@@ -32,26 +33,31 @@ class RoomsScreen extends ConsumerWidget {
     final rooms = ref.watch(myRoomsProvider);
     final invites = ref.watch(pendingInvitesProvider);
 
-    final roomCount = rooms.value?.length ?? 0;
     final hasRooms = rooms.value?.isNotEmpty ?? false;
-    final tier = ref.watch(userProfileProvider).value?.tier ?? 'free';
-    final limit = FeatureFlags.forTier(tier).roomLimit;
-    final atLimit = limit != null && roomCount >= limit;
+    final profile = ref.watch(userProfileProvider).value;
+    final canCreate = profile?.canCreateRoom ?? true;
+    final canBuySlot = profile?.canPurchaseRoomSlot ?? false;
 
     return Scaffold(
       backgroundColor: c.canvas,
       // Persistent create affordance once the user already has a room; the
       // empty state carries its own create CTA, so the FAB stays hidden there.
-      // At the tier room limit the FAB routes to the paywall instead of
-      // create — the create affordance doubles as the upgrade path.
+      // At the room-creation cap (ADR-0020) the FAB does not create: Pro opens
+      // the buy-a-room-slot sheet, Free/Lite open the upgrade paywall.
       floatingActionButton: hasRooms
           ? FloatingActionButton.extended(
               // Theme sets a global CircleBorder for FABs, which clips the
               // extended pill — override to a stadium so the label fits.
               shape: const StadiumBorder(),
-              onPressed: () => atLimit
-                  ? showPaywallSheet(context, feature: 'more_rooms')
-                  : context.push('/rooms/new'),
+              onPressed: () {
+                if (canCreate) {
+                  context.push('/rooms/new');
+                } else if (canBuySlot) {
+                  showRoomSlotSheet(context);
+                } else {
+                  showPaywallSheet(context, feature: 'more_rooms');
+                }
+              },
               icon: const Icon(Icons.add),
               label: Text(l.roomsScreenCreateRoom),
             )
@@ -75,10 +81,8 @@ class RoomsScreen extends ConsumerWidget {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverToBoxAdapter(
-              child: _MembershipCard(
-                roomCount: rooms.value?.length ?? 0,
-              ),
+            const SliverToBoxAdapter(
+              child: _MembershipCard(),
             ),
             SliverToBoxAdapter(
               child: invites.maybeWhen(
@@ -298,8 +302,7 @@ class _RoomTile extends ConsumerWidget {
 }
 
 class _MembershipCard extends ConsumerWidget {
-  const _MembershipCard({required this.roomCount});
-  final int roomCount;
+  const _MembershipCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -307,12 +310,13 @@ class _MembershipCard extends ConsumerWidget {
     final l = context.l10n;
     final profile = ref.watch(userProfileProvider).value;
     final tier = profile?.tier ?? 'free';
-    final flags = FeatureFlags.forTier(tier);
-    final limit = flags.roomLimit;
-    final unlimited = flags.hasUnlimitedRooms;
-    final atLimit = limit != null && roomCount >= limit;
-    final nearLimit =
-        !unlimited && limit != null && limit > 0 && roomCount / limit >= 0.8;
+    // Room-creation cap (ADR-0020): counts lifetime-created rooms, not
+    // membership. Effective cap = base + purchased slots.
+    final created = profile?.roomsCreatedTotal ?? 0;
+    final limit = profile?.effectiveRoomCap ?? PricingConstants.roomCapFree;
+    final atLimit = !(profile?.canCreateRoom ?? true);
+    final canBuySlot = profile?.canPurchaseRoomSlot ?? false;
+    final nearLimit = !atLimit && limit > 0 && created / limit >= 0.8;
     final tierLabel = switch (tier) {
       'pro' => 'Pro',
       'lite' => 'Lite',
@@ -323,9 +327,7 @@ class _MembershipCard extends ConsumerWidget {
       'lite' => c.info,
       _ => c.contentSecondary,
     };
-    final usageText = unlimited
-        ? l.roomMembershipUsageUnlimited(roomCount)
-        : l.roomMembershipUsageLimited(roomCount, limit ?? 0);
+    final usageText = l.roomMembershipUsageLimited(created, limit);
 
     // Quiet by default: the quota is secondary to the rooms list, so it
     // rides as a single slim line. It only earns a full bordered card with
@@ -352,7 +354,7 @@ class _MembershipCard extends ConsumerWidget {
     }
 
     final progress =
-        limit == 0 ? 0.0 : (roomCount / limit).clamp(0.0, 1.0);
+        limit == 0 ? 0.0 : (created / limit).clamp(0.0, 1.0);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(
@@ -407,9 +409,10 @@ class _MembershipCard extends ConsumerWidget {
                   ),
                 ),
                 TextButton(
-                  onPressed: () =>
-                      showPaywallSheet(context, feature: 'more_rooms'),
-                  child: Text(l.roomUpgrade),
+                  onPressed: () => canBuySlot
+                      ? showRoomSlotSheet(context)
+                      : showPaywallSheet(context, feature: 'more_rooms'),
+                  child: Text(canBuySlot ? l.roomSlotBuyShort : l.roomUpgrade),
                 ),
               ],
             ),

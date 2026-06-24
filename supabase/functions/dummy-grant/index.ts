@@ -37,6 +37,7 @@ const ONE_TIME_SKUS = new Set([
   'loit_scan_topup_15',
   'loit_scan_topup_10', // legacy, accepted for historical receipts only
   'loit_storage_ext_6mo',
+  'loit_room_slot', // +1 permanent room slot (ADR-0020)
 ]);
 
 const TOPUP_AMOUNT: Record<string, number> = {
@@ -130,6 +131,8 @@ serve(async (req) => {
         });
       } else if (productId === 'loit_storage_ext_6mo') {
         await supabase.rpc('extend_receipt_expiry', { p_user_id: userId });
+      } else if (productId === 'loit_room_slot') {
+        await supabase.rpc('add_room_slot', { p_user_id: userId, p_amount: 1 });
       }
       await supabase.from('payment_receipts').insert({
         user_id: userId,

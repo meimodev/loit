@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-24T00:00:00Z",
+  "title": "Design System: LOIT",
+  "extensions": {
+    "colorMeta": {
+      "trusted-money-green": {
+        "role": "primary",
+        "displayName": "Trusted Money Green",
+        "canonical": "#1FA871",
+        "tonalRamp": ["#06463B", "#0A5A4B", "#0F6E5C", "#188268", "#1FA871", "#2BC487", "#34E89E", "#5CF2B4"]
+      },
+      "ochre-accent": {
+        "role": "secondary",
+        "displayName": "Ochre Accent",
+        "canonical": "#E8922F",
+        "tonalRamp": ["#4E2D06", "#76460D", "#9E5F14", "#C77A1E", "#E8922F", "#F2A85C", "#F5BC6D", "#F8D29A"]
+      },
+      "canvas-cream": {
+        "role": "neutral",
+        "displayName": "Canvas Cream",
+        "canonical": "#FAFAF7",
+        "tonalRamp": ["#111613", "#2E3230", "#5A6160", "#74787A", "#9AA09E", "#D4D4CE", "#F3F2ED", "#FAFAF7"]
+      },
+      "petrol-canvas": {
+        "role": "neutral",
+        "displayName": "Petrol Canvas",
+        "canonical": "#0D2E33",
+        "tonalRamp": ["#0D2E33", "#123A40", "#16454C", "#1B5159", "#1E4952", "#2C5A64", "#7B9893", "#A9C4BD"]
+      },
+      "danger-red": { "role": "tertiary", "displayName": "Danger Red", "canonical": "#C5443E", "tonalRamp": ["#762622", "#9D332E", "#C5443E", "#D15C55", "#FBEAE9", "#FBEAE9", "#FBEAE9", "#FBEAE9"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "One screen headline or hero number per screen, at most." },
+      "headline": { "displayName": "Headline", "purpose": "Section and screen titles." },
+      "title": { "displayName": "Title", "purpose": "Card headers, sheet titles, list group headers." },
+      "body": { "displayName": "Body", "purpose": "Default reading and input text. Cap measured text at 65-75ch." },
+      "label": { "displayName": "Label", "purpose": "Chip text, eyebrows, metadata, badges." },
+      "amount": { "displayName": "Amount", "purpose": "Every money value. Always tabular figures (tnum)." }
+    },
+    "shadows": [
+      { "name": "e0", "value": "none", "purpose": "Default. Surfaces flat, defined by a 1px border." },
+      { "name": "e1", "value": "0 1px 2px rgba(17,22,19,0.04)", "purpose": "Raised cards, tab bar." },
+      { "name": "e2", "value": "0 4px 12px rgba(17,22,19,0.08)", "purpose": "FAB, toast." },
+      { "name": "e3", "value": "0 12px 32px rgba(17,22,19,0.12)", "purpose": "Bottom sheet, modal." },
+      { "name": "e4", "value": "0 24px 64px rgba(17,22,19,0.16)", "purpose": "Full-screen overlay." }
+    ],
+    "motion": [
+      { "name": "instant", "value": "80ms", "purpose": "Press scale feedback on buttons (scale 0.97)." },
+      { "name": "short", "value": "180ms", "purpose": "Small state transitions." },
+      { "name": "base", "value": "240ms", "purpose": "Default transition duration." },
+      { "name": "emphasized", "value": "320ms", "purpose": "Emphasized transitions." },
+      { "name": "entrance", "value": "520ms", "purpose": "Element entrances." },
+      { "name": "ease-out-quart", "value": "cubic-bezier(0.25, 1, 0.5, 1)", "purpose": "Primary ease-out curve." },
+      { "name": "ease-out-expo", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Strong ease-out for entrances." },
+      { "name": "emphasized-curve", "value": "cubic-bezier(0.2, 0, 0, 1)", "purpose": "Emphasized motion." }
+    ],
+    "breakpoints": [
+      { "name": "phone", "value": "0px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one loud action on a screen. Solid mint fill, scale-on-press.",
+      "html": "<button class=\"ds-btn-primary\">Simpan</button>",
+      "css": ".ds-btn-primary { height: 44px; padding: 0 12px; background: #1FA871; color: #fff; border: none; border-radius: 12px; font-family: Inter, system-ui, sans-serif; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 80ms ease-in-out, background 80ms ease-in-out; } .ds-btn-primary:hover { background: #2BC487; } .ds-btn-primary:active { transform: scale(0.97); } .ds-btn-primary:focus-visible { outline: 2px solid #1FA871; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Quiet alternative: white surface, mint text, strong stone border.",
+      "html": "<button class=\"ds-btn-secondary\">Batal</button>",
+      "css": ".ds-btn-secondary { height: 44px; padding: 0 12px; background: #fff; color: #1FA871; border: 1.5px solid #B0B2AC; border-radius: 12px; font-family: Inter, system-ui, sans-serif; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 80ms ease-in-out; } .ds-btn-secondary:active { transform: scale(0.97); } .ds-btn-secondary:focus-visible { outline: 2px solid #1FA871; outline-offset: 2px; }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Soft-red surface with red text for reversible destructive actions.",
+      "html": "<button class=\"ds-btn-destructive\">Hapus</button>",
+      "css": ".ds-btn-destructive { height: 44px; padding: 0 12px; background: #FBEAE9; color: #C5443E; border: none; border-radius: 12px; font-family: Inter, system-ui, sans-serif; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 80ms ease-in-out; } .ds-btn-destructive:active { transform: scale(0.97); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Border-first field; focus thickens to a 2px mint border.",
+      "html": "<input class=\"ds-input\" placeholder=\"Rp 0\" />",
+      "css": ".ds-input { height: 44px; padding: 12px 14px; background: #fff; color: #111613; border: 1px solid #D4D4CE; border-radius: 12px; font-family: Inter, system-ui, sans-serif; font-size: 16px; font-weight: 400; caret-color: #1FA871; box-sizing: border-box; transition: border-color 180ms ease-out; } .ds-input::placeholder { color: #9AA09E; } .ds-input:focus { outline: none; border: 2px solid #1FA871; }"
+    },
+    {
+      "name": "Selected Chip",
+      "kind": "chip",
+      "refersTo": "chip-selected",
+      "description": "Pill chip in selected state: mint fill, white label.",
+      "html": "<span class=\"ds-chip-selected\">Makanan</span>",
+      "css": ".ds-chip-selected { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; background: #1FA871; color: #fff; border-radius: 999px; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.2px; }"
+    },
+    {
+      "name": "Default Chip",
+      "kind": "chip",
+      "refersTo": "chip-default",
+      "description": "Pill chip at rest: muted stone fill, ink label.",
+      "html": "<span class=\"ds-chip-default\">Semua</span>",
+      "css": ".ds-chip-default { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; background: #F3F2ED; color: #111613; border-radius: 999px; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.2px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Flat surface defined by a 1px hairline border, no shadow at rest.",
+      "html": "<div class=\"ds-card\"><span class=\"ds-card-label\">Saldo</span><span class=\"ds-card-amount\">Rp 1.250.000</span></div>",
+      "css": ".ds-card { display: flex; flex-direction: column; gap: 4px; padding: 16px; background: #fff; border: 1px solid #D4D4CE; border-radius: 16px; } .ds-card-label { font-family: Inter, system-ui, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.2px; color: #5A6160; } .ds-card-amount { font-family: Inter, system-ui, sans-serif; font-size: 28px; font-weight: 600; letter-spacing: -0.2px; color: #111613; font-feature-settings: 'tnum'; }"
+    },
+    {
+      "name": "Bottom Sheet",
+      "kind": "custom",
+      "refersTo": "sheet",
+      "description": "Top-rounded sheet with a drag handle. Primary surface for capture and pickers.",
+      "html": "<div class=\"ds-sheet\"><div class=\"ds-sheet-handle\"></div><div class=\"ds-sheet-title\">Pilih kategori</div><div class=\"ds-sheet-body\">Sheet content</div></div>",
+      "css": ".ds-sheet { display: flex; flex-direction: column; align-items: stretch; width: 100%; max-width: 420px; background: #fff; border-radius: 24px 24px 0 0; box-shadow: 0 12px 32px rgba(17,22,19,0.12); padding: 8px 16px 20px; box-sizing: border-box; font-family: Inter, system-ui, sans-serif; } .ds-sheet-handle { width: 40px; height: 4px; border-radius: 999px; background: #D4D4CE; align-self: center; } .ds-sheet-title { margin: 12px 0 16px; font-size: 20px; font-weight: 600; letter-spacing: -0.1px; color: #111613; } .ds-sheet-body { font-size: 16px; font-weight: 400; color: #111613; }"
+    },
+    {
+      "name": "Bottom Tab Bar",
+      "kind": "nav",
+      "refersTo": "tab-bar",
+      "description": "5-slot primary nav, 64px, with a raised center ochre Scan FAB (the capture hot path). Active tab in mint.",
+      "html": "<nav class=\"ds-tabbar\"><button class=\"ds-tab ds-tab-active\"><span class=\"ds-tab-ico\">◆</span><span class=\"ds-tab-lbl\">Home</span></button><button class=\"ds-tab\"><span class=\"ds-tab-ico\">▤</span><span class=\"ds-tab-lbl\">Tx</span></button><button class=\"ds-scanfab\" aria-label=\"Scan\"><svg width=\"26\" height=\"26\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10\"/></svg></button><button class=\"ds-tab\"><span class=\"ds-tab-ico\">○○</span><span class=\"ds-tab-lbl\">Rooms</span></button><button class=\"ds-tab\"><span class=\"ds-tab-ico\">⚙</span><span class=\"ds-tab-lbl\">Settings</span></button></nav>",
+      "css": ".ds-tabbar { display: flex; align-items: center; height: 64px; background: #fff; border-top: 1px solid #EAEAE4; box-shadow: 0 1px 2px rgba(17,22,19,0.04); font-family: Inter, system-ui, sans-serif; } .ds-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: none; border: none; cursor: pointer; color: #5A6160; } .ds-tab-ico { font-size: 20px; line-height: 1; } .ds-tab-lbl { font-size: 11px; font-weight: 600; letter-spacing: 0.2px; } .ds-tab-active { color: #1FA871; } .ds-scanfab { width: 52px; height: 52px; flex: 0 0 72px; display: inline-flex; align-items: center; justify-content: center; margin: 0 10px; background: #E8922F; border: none; border-radius: 999px; box-shadow: 0 4px 12px rgba(17,22,19,0.08); cursor: pointer; transition: transform 80ms ease-out; } .ds-scanfab:active { transform: scale(0.94); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Fresh Mint Field",
+    "overview": "LOIT looks like spring green growing on warm light ground. Vivid mint ink, the color of the wordmark, sits on a near-white cream canvas tinted faintly green, never pure white, never pure black. The feeling is alive and hopeful: money that breathes, not money that weighs. This is a money smart friend, not a bank. Density is calm; logging a transaction is the act users repeat most, so the common case is uncluttered and one-handed. Surfaces are flat and paper-like, drawn by hair-thin borders, not boxed in shadow. Color is restrained on purpose: the mint accent earns attention precisely because it is rare.",
+    "keyCharacteristics": [
+      "Fresh mint brand on warm tinted-cream (light) and desaturated petrol (dark)",
+      "Border-first surfaces; shadows soft, low, and reserved",
+      "Inter throughout, with tabular figures for every amount",
+      "Restrained accent: mint and ochre appear rarely and mean something",
+      "Calm density: optimize the capture hot path, push everything else back"
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "Mint is the only brand color. On any given screen the mint accent covers well under 10% of the surface. Its rarity is what makes a primary button or a selected chip read instantly. Never tint whole panels mint.", "section": "colors" },
+      { "name": "The No Pure Black/White Rule", "body": "Backgrounds are tinted cream or petrol; text is green-black #111613. Pure #000 and #fff are forbidden; they look cold, which is the one thing LOIT must never be.", "section": "colors" },
+      { "name": "The Tabular Money Rule", "body": "Every numeric money value uses Inter with tnum. Always. A balance that shifts column width as it updates is a bug, not a style choice.", "section": "typography" },
+      { "name": "The Single-Family Rule", "body": "Inter only. No serif display, no second face. Hierarchy comes from size and weight (600 vs 400), not from mixing fonts.", "section": "typography" },
+      { "name": "The Border-Before-Shadow Rule", "body": "Reach for a 1px border first. A shadow is permitted only when an element must visibly lift above the canvas in response to state or stacking (sheet, FAB, modal). Decorative shadows are forbidden.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep mint under ~10% of any screen. One primary action, one selected state.",
+      "Do render every money value in Inter with tabular figures (tnum).",
+      "Do define surfaces with a 1px border first; reserve shadows for things that truly float.",
+      "Do tint neutrals toward the brand hue. Cream #FAFAF7 and ink #111613, not white and black.",
+      "Do keep the capture path uncluttered: a few legible numbers, generous spacing, the next tap obvious one-handed.",
+      "Do use the 8-color room palette for shared-room identity, one stable hue per room."
+    ],
+    "donts": [
+      "Don't ship cold corporate banking: no navy-and-gold, no dense forms, no jargon, no teller-window sterility.",
+      "Don't ship crypto or fintech hype: no neon-on-black, no aggressive gradients, no gamified greed, no fake-urgency copy.",
+      "Don't build a cluttered spreadsheet dashboard: no walls of tiny numbers, no chart overload.",
+      "Don't use pure #000 or #fff anywhere.",
+      "Don't add a drop shadow to make a flat card feel separate; fix the border.",
+      "Don't tint whole panels mint or introduce a second brand color; ochre is an accent, not a co-lead.",
+      "Don't mix in a second font family or a serif display."
+    ]
+  }
+}

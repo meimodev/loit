@@ -80,6 +80,44 @@ localized by key suffix, so `id` locale shows "Lainnya" / "Pemasukan lain"
 despite the stored English name.
 _Avoid_: default category, uncategorized, fallback bucket.
 
+### Church rooms
+
+**Org type**:
+A **Room**'s flavour, stored in `rooms.org_type` (`general` | `church`; `family`
+/ `community` reserved, unused). `general` is the default and unchanged. The
+flavour selects an onboarding flow and a denomination-aware report; it does
+**not** fork the underlying room model — accounts, budgets, transactions,
+balance, and the catch-all categories behave identically across org types.
+_Avoid_: room kind, room category (means a `room_categories` row), room mode.
+
+**Church room**:
+A **Room** with **Org type** `church`, created through a dedicated
+denomination-aware onboarding flow and gated to the **Pro** tier (client-side
+gate only). Its `name` is the jemaat name; currency is fixed to IDR. It is an
+ordinary Room in every mechanical respect — same accounts, budgets,
+transactions, and balance machinery.
+_Avoid_: church account, gereja mode, church ledger (when meaning the Room itself).
+
+**Church profile** (`org_config`):
+The church-specific metadata on a **Church room**, held in `rooms.org_config`
+(JSONB): `denomination`, `jemaat_name`, `kota_kabupaten`, `phone_number`. The
+`phone_number` is the **room owner's contact** (Kontak Pemilik Room) —
+stored/displayed metadata only, it drives no app logic. It
+is **profile only** — the room's **categories are NOT stored here**; they are
+ordinary `room_categories` rows (ADR 0009). The profile feeds category seeding,
+the report header, and the confirmation screen.
+_Avoid_: org config categories, kategori (as a stored `org_config` field).
+
+**Denomination preset**:
+An app-side Dart constant mapping a denomination (GMIM, GBI, Katolik, …)
+to its starting **penerimaan** (income) and **pengeluaran** (expense) category
+names. It only **seeds** a new **Church room**'s `room_categories` at creation
+(income/expense `kind`); thereafter the rows are authoritative and freely
+editable. The picker lists `GMIM, GBI, Katolik, Gereja Baptis, GKI, GPdI, GPIB,
+HKBP, Lainnya`; only GMIM/GBI/Katolik carry dedicated presets — the rest fall
+back to the generic `Lainnya` preset. Not a server resource.
+_Avoid_: category map, denomination categories (when meaning the live rows).
+
 ### Rooms discovery
 
 **Rooms intro**:
@@ -103,11 +141,48 @@ The persistent "New room" floating action button in the Rooms tab, shown only
 once the user already has at least one room (the **Rooms tab empty state**
 carries its own create CTA, so the FAB does not appear there). It is the
 primary create affordance for an existing member and is always visible. At the
-tier **room limit** it does not create — tapping opens the upgrade paywall
-instead, making the create affordance double as the upgrade path. Distinct from
-the **Rooms intro** (discovery for users with no rooms) and the **Rooms tab
-empty state** (the zero-rooms entry point).
+**Room creation cap** it does not create — for Free/Lite it opens the
+upgrade-to-Pro paywall; for Pro it opens the buy-a-**Room slot** purchase. The
+create affordance doubles as the upgrade/expand path. Distinct from the **Rooms
+intro** (discovery for users with no rooms) and the **Rooms tab empty state**
+(the zero-rooms entry point).
 _Avoid_: add-room button, new-room icon.
+
+### Room creation cap
+
+**Room creation cap**:
+The maximum number of rooms a user may ever **create**. Counts rooms where
+`created_by` is the user — **not** membership; joining others' rooms is always
+free and uncapped. The cap is **lifetime and monotonic**: the count never
+decrements, so archiving or deleting a created room does **not** free capacity
+(a destroyed room still counts against you forever). Base cap by tier: **Free 1,
+Lite 3, Pro 7**. Effective cap = base + **Room slots** purchased (Pro only).
+**Server-authoritative**: a `BEFORE INSERT` trigger on `rooms` rejects creation
+past the cap and increments the **Lifetime room count**; the client gate is a UX
+pre-check, never the authority. All **Org types** (general, church) count.
+_Avoid_: room limit (old meaning was membership count — now obsolete),
+rooms-I-belong-to, active room cap.
+
+**Lifetime room count** (`rooms_created_total`):
+The monotonic per-user counter of rooms ever created — the authority behind the
+**Room creation cap**. Incremented by the room-insert trigger on every create;
+**never decremented**, even on archive/delete. Backfilled at migration to each
+user's current created-room count (pre-migration deletes are unrecoverable and
+so are silently forgiven). Existing Pro users already over 7 keep their rooms but
+cannot create more without buying **Room slots** (no grandfathering).
+_Avoid_: active room count, rooms owned, room membership count.
+
+**Room slot**:
+A one-time, **permanent** purchase (consumable SKU `loit_room_slot`, Rp 19,000)
+that raises a **Pro** user's **Room creation cap** by one
+(`room_slots_purchased++`). **Pro-only** — Free/Lite must upgrade to Pro to raise
+their cap, they cannot buy slots. Because both the slot count and the **Lifetime
+room count** are monotonic, each slot pays for exactly **one** additional room
+creation (buy a slot → the next create consumes the headroom → buy again for the
+next). Granted by the RevenueCat webhook, idempotent on
+`payment_receipts.purchase_token`, and survives Pro renewal or lapse.
+_Avoid_: room credit, extra-room subscription, storage extension (a different
+add-on), AI Credit (unrelated).
 
 ### Room balance sheet
 

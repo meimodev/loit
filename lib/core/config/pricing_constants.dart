@@ -15,6 +15,13 @@ class PricingConstants {
   static const int scanCapLite = 30;
   static const int scanCapPro = 150;
 
+  // Room creation caps per tier (ADR-0020). Counts lifetime-created rooms, not
+  // membership. Effective cap = base + purchased room slots (Pro only).
+  // Mirrored server-side by `room_base_cap()` — keep the two in sync.
+  static const int roomCapFree = 1;
+  static const int roomCapLite = 3;
+  static const int roomCapPro = 7;
+
   // Monthly prices (IDR) — Google Play price points
   static const int liteMonthlyIdr = 49000;
   static const int proMonthlyIdr = 99000;
@@ -26,6 +33,10 @@ class PricingConstants {
   // One-time add-ons (Free tier only)
   static const int scanTopUpIdr = 9000; // 15 scans (v2 SKU)
   static const int storageExtensionIdr = 19000; // +6 months
+
+  // Extra room slot (Pro only, ADR-0020) — one-time, permanent.
+  static const int roomSlotIdr = 19000; // +1 room
+  static const double roomSlotUsd = 1.19; // display only
 
   // USD equivalents (display only)
   static const double liteMonthlyUsd = 2.99;
@@ -49,6 +60,9 @@ class PricingConstants {
 
   static const String skuStorageExt = 'loit_storage_ext_6mo';
 
+  /// Extra room slot (Pro only, ADR-0020) — Rp 19,000, +1 permanent room.
+  static const String skuRoomSlot = 'loit_room_slot';
+
   static const Set<String> subscriptionSkus = {
     skuLiteMonthly,
     skuLiteAnnual,
@@ -59,6 +73,7 @@ class PricingConstants {
   static const Set<String> oneTimeSkus = {
     skuScanTopUp,
     skuStorageExt,
+    skuRoomSlot,
   };
 
   static const Set<String> allSkus = {

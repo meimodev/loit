@@ -16,10 +16,6 @@ class FeatureFlags {
   final int? scanLimitPerMonth;
   final int budgetCategoryLimit;
 
-  /// `null` = unlimited rooms. Otherwise the maximum number of rooms the
-  /// user may belong to / create.
-  final int? roomLimit;
-
   const FeatureFlags({
     required this.unlimitedBudgets,
     required this.customCategories,
@@ -29,11 +25,13 @@ class FeatureFlags {
     required this.fullHistory,
     required this.scanLimitPerMonth,
     required this.budgetCategoryLimit,
-    required this.roomLimit,
   });
 
   bool get hasUnlimitedScans => scanLimitPerMonth == null;
-  bool get hasUnlimitedRooms => roomLimit == null;
+
+  // Room creation cap is per-user (base + purchased slots, ADR-0020) and lives
+  // on `UserProfile` (roomsCreatedTotal / effectiveRoomCap), not here — it can't
+  // be a static per-tier flag once slots are buyable.
 
   factory FeatureFlags.forTier(String tier) => switch (tier) {
         'pro' => const FeatureFlags(
@@ -45,7 +43,6 @@ class FeatureFlags {
             fullHistory: true,
             scanLimitPerMonth: PricingConstants.scanCapPro,
             budgetCategoryLimit: 1 << 30,
-            roomLimit: null,
           ),
         'lite' => const FeatureFlags(
             unlimitedBudgets: true,
@@ -56,7 +53,6 @@ class FeatureFlags {
             fullHistory: true,
             scanLimitPerMonth: PricingConstants.scanCapLite,
             budgetCategoryLimit: 1 << 30,
-            roomLimit: 3,
           ),
         _ => const FeatureFlags(
             unlimitedBudgets: false,
@@ -67,7 +63,6 @@ class FeatureFlags {
             fullHistory: false,
             scanLimitPerMonth: PricingConstants.scanCapFree,
             budgetCategoryLimit: 3,
-            roomLimit: 1,
           ),
       };
 }

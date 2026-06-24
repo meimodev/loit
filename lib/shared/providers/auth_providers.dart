@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/config/pricing_constants.dart';
+
 /// Stream of Supabase auth state. Emits on login/logout/session refresh.
 final authStateProvider = StreamProvider<AuthState>((ref) {
   return Supabase.instance.client.auth.onAuthStateChange;
@@ -30,6 +32,13 @@ class UserProfile {
   final String theme; // 'system' | 'light' | 'dark'
   final bool hasSeenRoomsIntro;
 
+  /// Lifetime count of rooms this user has created (ADR-0020). Monotonic —
+  /// never decremented on archive/delete.
+  final int roomsCreatedTotal;
+
+  /// Permanent extra room slots purchased (Pro only, ADR-0020).
+  final int roomSlotsPurchased;
+
   const UserProfile({
     required this.id,
     required this.email,
@@ -46,6 +55,8 @@ class UserProfile {
     this.language = 'id',
     this.theme = 'system',
     this.hasSeenRoomsIntro = false,
+    this.roomsCreatedTotal = 0,
+    this.roomSlotsPurchased = 0,
   });
 
   factory UserProfile.fromRow(Map<String, dynamic> r) => UserProfile(
@@ -69,6 +80,8 @@ class UserProfile {
     language: (r['language'] as String?) ?? 'id',
     theme: (r['theme'] as String?) ?? 'system',
     hasSeenRoomsIntro: (r['has_seen_rooms_intro'] as bool?) ?? false,
+    roomsCreatedTotal: (r['rooms_created_total'] as int?) ?? 0,
+    roomSlotsPurchased: (r['room_slots_purchased'] as int?) ?? 0,
   );
 
   /// Tier base cap. Free 5 / Lite 30 / Pro 150 scans/month.
@@ -91,6 +104,26 @@ class UserProfile {
   /// Scan top-up is a consumable (`loit_scan_topup_15` — 15 scans for Rp 9k).
   /// All tiers may purchase it. v2 scheme retired the previous Free-only gate.
   bool get canPurchaseScanTopUp => true;
+
+  /// Per-tier base room-creation cap (ADR-0020). Mirrors PricingConstants and
+  /// the server `room_base_cap()`.
+  int get baseRoomCap => switch (tier) {
+    'pro' => PricingConstants.roomCapPro,
+    'lite' => PricingConstants.roomCapLite,
+    _ => PricingConstants.roomCapFree,
+  };
+
+  /// Effective room-creation cap = base + permanent slots purchased. Counts
+  /// lifetime-created rooms, not membership.
+  int get effectiveRoomCap => baseRoomCap + roomSlotsPurchased;
+
+  /// Whether the user can still create a room. Authority is server-side
+  /// (trigger); this is the UX pre-check.
+  bool get canCreateRoom => roomsCreatedTotal < effectiveRoomCap;
+
+  /// Extra room slots are Pro-only. Free/Lite must upgrade to raise their cap.
+  bool get canPurchaseRoomSlot => tier == 'pro';
+
   int get budgetLimit => switch (tier) {
     'pro' || 'lite' => 999,
     _ => 3,

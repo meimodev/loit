@@ -1183,6 +1183,24 @@
       "limit": {"type": "int"}
     }
   },
+  "roomSlotTitle": "Add another room",
+  "roomSlotBody": "Pro includes {base} rooms. Add more for {price} each — a one-time purchase, yours to keep.",
+  "@roomSlotBody": {
+    "description": "Room slot purchase sheet body",
+    "placeholders": {
+      "base": {"type": "int"},
+      "price": {"type": "String"}
+    }
+  },
+  "roomSlotBuyCta": "Buy a room · {price}",
+  "@roomSlotBuyCta": {
+    "description": "Room slot purchase button",
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "roomSlotBuyShort": "Buy a room",
+  "roomSlotSuccess": "Room added — you can create another room now.",
   "roomMembershipAtLimit": "You've reached the room limit on {tier}.",
   "@roomMembershipAtLimit": {
     "description": "At room limit message, e.g. 'You've reached the room limit on Free.'",

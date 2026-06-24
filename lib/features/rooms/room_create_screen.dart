@@ -12,13 +12,16 @@ import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
+import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/supported_currencies_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/currency_picker_sheet.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_input.dart';
+import '../paywall/paywall_screen.dart';
 import 'room_colors.dart';
+import 'room_slot_sheet.dart';
 
 class RoomCreateScreen extends ConsumerStatefulWidget {
   const RoomCreateScreen({super.key});
@@ -227,6 +230,21 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
     } on OnlineOnlyActionException {
       if (mounted) showRoomOnlineOnlySnack(context);
     } catch (e) {
+      // Server-side room-creation cap (ADR-0020). The FAB gates this
+      // pre-emptively, so reaching here means a stale/raced client — route to
+      // the same buy-slot / upgrade affordances instead of a raw error.
+      if ('$e'.contains('room_creation_cap_reached')) {
+        if (mounted) {
+          final canBuySlot =
+              ref.read(userProfileProvider).value?.canPurchaseRoomSlot ?? false;
+          if (canBuySlot) {
+            showRoomSlotSheet(context);
+          } else {
+            showPaywallSheet(context, feature: 'more_rooms');
+          }
+        }
+        return;
+      }
       InteractionLog.error(
         action: 'room_create',
         screen: 'create_room',

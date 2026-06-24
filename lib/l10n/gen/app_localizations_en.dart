@@ -2385,6 +2385,25 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get roomSlotTitle => 'Add another room';
+
+  @override
+  String roomSlotBody(int base, String price) {
+    return 'Pro includes $base rooms. Add more for $price each — a one-time purchase, yours to keep.';
+  }
+
+  @override
+  String roomSlotBuyCta(String price) {
+    return 'Buy a room · $price';
+  }
+
+  @override
+  String get roomSlotBuyShort => 'Buy a room';
+
+  @override
+  String get roomSlotSuccess => 'Room added — you can create another room now.';
+
+  @override
   String roomMembershipAtLimit(String tier) {
     return 'You\'ve reached the room limit on $tier.';
   }

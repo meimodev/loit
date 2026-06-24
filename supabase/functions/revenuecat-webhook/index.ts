@@ -48,6 +48,7 @@ const ONE_TIME_SKUS = new Set([
   'loit_scan_topup_15',
   'loit_scan_topup_10',
   'loit_storage_ext_6mo',
+  'loit_room_slot', // +1 permanent room slot, Pro only (ADR-0020)
 ]);
 
 const SKU_TO_TIER: Record<string, 'pro' | 'lite'> = {
@@ -151,6 +152,10 @@ async function grantStorageExtension(userId: string) {
   await supabase.rpc('extend_receipt_expiry', { p_user_id: userId });
 }
 
+async function grantRoomSlot(userId: string) {
+  await supabase.rpc('add_room_slot', { p_user_id: userId, p_amount: 1 });
+}
+
 serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 });
@@ -221,6 +226,9 @@ serve(async (req) => {
           granted = true;
         } else if (sku === 'loit_storage_ext_6mo') {
           await grantStorageExtension(userId);
+          granted = true;
+        } else if (sku === 'loit_room_slot') {
+          await grantRoomSlot(userId);
           granted = true;
         }
       }

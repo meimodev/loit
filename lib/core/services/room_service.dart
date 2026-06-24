@@ -55,8 +55,10 @@ class RoomService {
     required String name,
     String? description,
     String baseCurrency = 'IDR',
+    String orgType = 'general',
+    Map<String, dynamic>? orgConfig,
   }) async {
-    Log.i(_tag, 'Creating room: $name');
+    Log.i(_tag, 'Creating room: $name (org_type=$orgType)');
     // NOTE (ADR 0014): the one non-idempotent room write. A lost response after
     // the insert lands may, on retry, create a duplicate room — accepted limit.
     final row = await _online(() => _client
@@ -66,11 +68,61 @@ class RoomService {
           'description': description,
           'base_currency': baseCurrency,
           'created_by': _uid,
+          'org_type': orgType,
+          if (orgConfig != null) 'org_config': orgConfig,
         })
         .select()
         .single());
     Log.i(_tag, 'Room created: ${row['id']}');
     return row;
+  }
+
+  /// Seeds a church room's denomination preset as ordinary `room_categories`
+  /// rows (ADR 0019) in a single batch insert. [penerimaan] become income
+  /// rows, [pengeluaran] expense rows; the two catch-all rows are already
+  /// seeded by the DB trigger. Keys obey `room_categories_key_format`. Best
+  /// effort: a failure leaves the room with only the catch-all (still
+  /// usable) — the creator can add categories via the normal editor.
+  Future<void> seedChurchCategories({
+    required String roomId,
+    required List<String> penerimaan,
+    required List<String> pengeluaran,
+  }) async {
+    final rows = <Map<String, dynamic>>[];
+    var sort = 0;
+    void add(String name, String kind) {
+      final slug = categorySlug(name, kind);
+      if (slug.isEmpty) return;
+      rows.add({
+        'room_id': roomId,
+        'key': 'room:$roomId:$slug',
+        'name': name,
+        'kind': kind,
+        'sort_order': sort++,
+        'created_by': _uid,
+      });
+    }
+
+    for (final n in penerimaan) {
+      add(n, 'income');
+    }
+    for (final n in pengeluaran) {
+      add(n, 'expense');
+    }
+    if (rows.isEmpty) return;
+    await _online(() =>
+        _client.from('room_categories').upsert(rows, onConflict: 'room_id,key'));
+  }
+
+  /// Mirrors the SQL `room_category_slug(name, kind)`: income prefix +
+  /// lowercased name with non-alphanumerics collapsed to `_`. Output must
+  /// satisfy `room_categories_key_format` once prefixed with `room:<id>:`.
+  static String categorySlug(String name, String kind) {
+    final base = name
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'(^_+|_+$)'), '');
+    return kind == 'income' ? 'income_$base' : base;
   }
 
   Future<void> updateRoom(String roomId, Map<String, dynamic> updates) async {

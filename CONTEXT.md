@@ -104,19 +104,36 @@ The church-specific metadata on a **Church room**, held in `rooms.org_config`
 `phone_number` is the **room owner's contact** (Kontak Pemilik Room) —
 stored/displayed metadata only, it drives no app logic. It
 is **profile only** — the room's **categories are NOT stored here**; they are
-ordinary `room_categories` rows (ADR 0009). The profile feeds category seeding,
-the report header, and the confirmation screen.
+ordinary `room_categories` rows (ADR 0009). The profile feeds the **report
+header** and the confirmation screen. The `denomination` is **metadata only** —
+it no longer drives category seeding (see **Church chart of accounts**).
 _Avoid_: org config categories, kategori (as a stored `org_config` field).
 
-**Denomination preset**:
-An app-side Dart constant mapping a denomination (GMIM, GBI, Katolik, …)
-to its starting **penerimaan** (income) and **pengeluaran** (expense) category
-names. It only **seeds** a new **Church room**'s `room_categories` at creation
-(income/expense `kind`); thereafter the rows are authoritative and freely
-editable. The picker lists `GMIM, GBI, Katolik, Gereja Baptis, GKI, GPdI, GPIB,
-HKBP, Lainnya`; only GMIM/GBI/Katolik carry dedicated presets — the rest fall
-back to the generic `Lainnya` preset. Not a server resource.
-_Avoid_: category map, denomination categories (when meaning the live rows).
+**Church chart of accounts**:
+The single, denomination-independent **Penerimaan** / **Pengeluaran** category
+set seeded into every new **Church room**, regardless of `denomination`. An
+app-side Dart constant carrying each category's name, `icon_name`, and `tint`;
+it only **seeds** `room_categories` at creation (income/expense `kind`),
+thereafter the rows are authoritative and freely editable. The expense
+"Lain-lain" line is omitted in favour of the trigger's catch-all (ADR 0009).
+Supersedes the earlier per-denomination preset map — GMIM/GBI/Katolik no longer
+carry distinct category lists.
+_Avoid_: denomination preset, category map, denomination categories.
+
+**Penerimaan / Pengeluaran**:
+The canonical church-facing terms for **income** / **expense** in a **Church
+room** (report headers, entry sections). `Penerimaan` — not `Pemasukan` — is the
+accounting-standard church term; the income catch-all is shown as "Penerimaan
+lain" inside the church report. The underlying rows still carry `kind` =
+`income` | `expense`.
+_Avoid_: Pemasukan (as the church income header).
+
+**Dana Transit / Titipan**:
+A **Penerimaan** category for funds the church holds **on behalf of others**
+(clearing / liability money passing through), distinct from the church's own
+income. It is a real seeded category, **not** a catch-all — do not conflate with
+the auto "Penerimaan lain".
+_Avoid_: titipan as catch-all, transit as Pemasukan lain.
 
 ### Rooms discovery
 

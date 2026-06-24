@@ -80,8 +80,14 @@ class _ChurchOnboardingScreenState
 
   void _seedCategoriesFromPreset() {
     final preset = presetFor(_denomination ?? kDenominationOther);
-    _penerimaan = [for (final n in preset.penerimaan) _Cat(n)];
-    _pengeluaran = [for (final n in preset.pengeluaran) _Cat(n)];
+    _penerimaan = [
+      for (final c in preset.penerimaan)
+        _Cat(c.name, iconName: c.iconName, tint: c.tint)
+    ];
+    _pengeluaran = [
+      for (final c in preset.pengeluaran)
+        _Cat(c.name, iconName: c.iconName, tint: c.tint)
+    ];
   }
 
   /// Profile step (1) errors surface only after a submit attempt (tap Lanjut).
@@ -496,11 +502,11 @@ class _ChurchOnboardingScreenState
           roomId: _createdRoomId!,
           penerimaan: [
             for (final c in _penerimaan)
-              if (c.checked) c.name
+              if (c.checked) (name: c.name, iconName: c.iconName, tint: c.tint)
           ],
           pengeluaran: [
             for (final c in _pengeluaran)
-              if (c.checked) c.name
+              if (c.checked) (name: c.name, iconName: c.iconName, tint: c.tint)
           ],
         );
       } catch (_) {
@@ -574,8 +580,11 @@ class _PhoneFormatter extends TextInputFormatter {
 }
 
 class _Cat {
-  _Cat(this.name);
+  _Cat(this.name, {this.iconName, this.tint});
   final String name;
+  // Carried from the chart of accounts (ADR 0021); null for user-added rows.
+  final String? iconName;
+  final String? tint;
   bool checked = true;
 }
 

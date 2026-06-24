@@ -147,9 +147,17 @@ class _ChurchReportScreenState extends ConsumerState<ChurchReportScreen> {
       }).toList();
 
       final cats = ref.read(userCategoriesProvider).value ?? const [];
+      // Catch-all rows store English names ("Income other"/"Other") localized
+      // elsewhere by suffix; relabel them report-locally to the church terms
+      // ("Penerimaan lain"/"Lainnya", ADR 0021) so the statement reads right.
       final categoryNames = <String, String>{
         for (final cat in cats)
-          if (cat.roomId == roomId) cat.key: cat.name,
+          if (cat.roomId == roomId)
+            cat.key: cat.key.endsWith(':income_other')
+                ? 'Penerimaan lain'
+                : cat.key.endsWith(':other')
+                    ? 'Lainnya'
+                    : cat.name,
       };
 
       await ChurchReportService().generateAndShare(

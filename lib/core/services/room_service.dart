@@ -2,6 +2,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'log_service.dart';
 import 'reachability_service.dart';
 
+/// One church chart-of-accounts seed row for [RoomService.seedChurchCategories]
+/// (ADR 0021). `iconName`/`tint` are null for user-added free-text categories.
+typedef ChurchSeedCategory = ({String name, String? iconName, String? tint});
+
 class RoomService {
   static const _tag = 'RoomService';
 
@@ -77,37 +81,41 @@ class RoomService {
     return row;
   }
 
-  /// Seeds a church room's denomination preset as ordinary `room_categories`
-  /// rows (ADR 0019) in a single batch insert. [penerimaan] become income
-  /// rows, [pengeluaran] expense rows; the two catch-all rows are already
+  /// Seeds a church room's chart of accounts (ADR 0021) as ordinary
+  /// `room_categories` rows in a single batch insert. [penerimaan] become
+  /// income rows, [pengeluaran] expense rows, each carrying its `icon_name` /
+  /// `tint` when set; the two catch-all rows are already
   /// seeded by the DB trigger. Keys obey `room_categories_key_format`. Best
   /// effort: a failure leaves the room with only the catch-all (still
   /// usable) — the creator can add categories via the normal editor.
   Future<void> seedChurchCategories({
     required String roomId,
-    required List<String> penerimaan,
-    required List<String> pengeluaran,
+    required List<ChurchSeedCategory> penerimaan,
+    required List<ChurchSeedCategory> pengeluaran,
   }) async {
     final rows = <Map<String, dynamic>>[];
     var sort = 0;
-    void add(String name, String kind) {
-      final slug = categorySlug(name, kind);
+    void add(ChurchSeedCategory cat, String kind) {
+      final slug = categorySlug(cat.name, kind);
       if (slug.isEmpty) return;
       rows.add({
         'room_id': roomId,
         'key': 'room:$roomId:$slug',
-        'name': name,
+        'name': cat.name,
         'kind': kind,
+        // null for user-added free-text categories → default style.
+        if (cat.iconName != null) 'icon_name': cat.iconName,
+        if (cat.tint != null) 'tint': cat.tint,
         'sort_order': sort++,
         'created_by': _uid,
       });
     }
 
-    for (final n in penerimaan) {
-      add(n, 'income');
+    for (final c in penerimaan) {
+      add(c, 'income');
     }
-    for (final n in pengeluaran) {
-      add(n, 'expense');
+    for (final c in pengeluaran) {
+      add(c, 'expense');
     }
     if (rows.isEmpty) return;
     await _online(() =>

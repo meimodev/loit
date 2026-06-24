@@ -143,16 +143,16 @@ class _RoomBudgetFormScreenState extends ConsumerState<RoomBudgetFormScreen> {
     final l = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: Text(l.budgetDetailDeleteTitle),
         content: Text(l.txDetailDeleteBody),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogCtx, false),
             child: Text(l.budgetDetailCancel),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogCtx, true),
             child: Text(l.budgetDetailDelete),
           ),
         ],

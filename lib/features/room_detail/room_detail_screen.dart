@@ -358,15 +358,18 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     final l = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      // Pop the dialog's own navigator (root). Using the screen's `context`
+      // here pops the bottom-nav shell branch instead, so the dialog never
+      // closes and underlying routes get popped.
+      builder: (dialogCtx) => AlertDialog(
         title: Text(l.roomArchiveTitle),
         content: Text(l.roomArchiveBody),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(dialogCtx, false),
               child: Text(l.txDetailCancel)),
           FilledButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(dialogCtx, true),
                child: Text(l.roomArchiveConfirm)),
         ],
       ),
@@ -386,15 +389,15 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     final l = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: Text(l.roomDetailLeaveTitle),
         content: Text(l.roomDetailLeaveBody),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(dialogCtx, false),
               child: Text(l.txDetailCancel)),
           FilledButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(dialogCtx, true),
               child: Text(l.roomDetailLeaveConfirm)),
         ],
       ),

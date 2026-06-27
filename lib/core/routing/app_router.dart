@@ -32,7 +32,6 @@ import '../../features/room_detail/room_detail_screen.dart';
 import '../../features/rooms/room_create_screen.dart';
 import '../../features/rooms/room_type_chooser_screen.dart';
 import '../../features/rooms/church/church_onboarding_screen.dart';
-import '../../features/rooms/church/church_report_screen.dart';
 import '../../features/rooms/room_invite_screen.dart';
 import '../../features/rooms/room_join_screen.dart';
 import '../../features/rooms/rooms_screen.dart';
@@ -304,12 +303,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/rooms/:roomId/reports/export',
         builder: (_, state) => ExportScreen(
-          roomId: state.pathParameters['roomId']!,
-        ),
-      ),
-      GoRoute(
-        path: '/rooms/:roomId/church-report',
-        builder: (_, state) => ChurchReportScreen(
           roomId: state.pathParameters['roomId']!,
         ),
       ),

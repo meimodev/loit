@@ -135,6 +135,21 @@ income. It is a real seeded category, **not** a catch-all — do not conflate wi
 the auto "Penerimaan lain".
 _Avoid_: titipan as catch-all, transit as Pemasukan lain.
 
+**Export type**:
+On the **Export** screen, the kind of file produced from a period of
+transactions. The default everywhere is **Daftar Transaksi** — a flat
+transaction listing (CSV or PDF). A **Church room** offers a second type,
+**Laporan Keuangan** — the church financial statement: a category-grouped
+**Penerimaan** / **Pengeluaran** PDF (no CSV variant). The type choice is
+church-only; personal and general rooms export only Daftar Transaksi. The two
+types share the **date-range** controls (preset Bulan Ini / Triwulan Ini /
+Tahun Ini chips plus a custom range), but scope transactions differently:
+Laporan Keuangan counts only pool-funded **Room account** rows and drops
+transfers, where Daftar Transaksi lists every dated row. Laporan Keuangan is no
+longer a separate screen — it is reached as an export type, not a dedicated
+menu.
+_Avoid_: church report screen, Laporan Keuangan menu (it is an export type, not its own screen); financial export (use Laporan Keuangan).
+
 ### Rooms discovery
 
 **Rooms intro**:

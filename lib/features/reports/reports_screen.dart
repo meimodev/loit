@@ -109,14 +109,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         onNext: () => setState(
             () => _month = DateTime(_month.year, _month.month + 1)),
         actions: [
-          if (roomId != null &&
-              ref.watch(roomDetailProvider(roomId)).value?['org_type'] ==
-                  'church')
-            IconButton(
-              icon: const Icon(Icons.description_outlined, size: 20),
-              tooltip: 'Laporan Keuangan',
-              onPressed: () => context.push('/rooms/$roomId/church-report'),
-            ),
           IconButton(
             icon: const Icon(Icons.ios_share, size: 20),
             tooltip: l10n.exportScreenTitle,

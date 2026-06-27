@@ -1859,6 +1859,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exportScreenAllTime => 'All time';
 
   @override
+  String get exportTypeLabel => 'Type';
+
+  @override
+  String get exportTypeTransactions => 'Transaction list';
+
+  @override
+  String get exportTypeStatement => 'Financial statement';
+
+  @override
+  String get exportPresetThisMonth => 'This month';
+
+  @override
+  String get exportPresetThisQuarter => 'This quarter';
+
+  @override
+  String get exportPresetThisYear => 'This year';
+
+  @override
+  String get exportPresetCustom => 'Custom';
+
+  @override
+  String get exportStatementAction => 'Generate statement';
+
+  @override
   String get exportScreenExport => 'Export';
 
   @override

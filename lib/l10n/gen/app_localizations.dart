@@ -3419,6 +3419,54 @@ abstract class AppLocalizations {
   /// **'All time'**
   String get exportScreenAllTime;
 
+  /// No description provided for @exportTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get exportTypeLabel;
+
+  /// No description provided for @exportTypeTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction list'**
+  String get exportTypeTransactions;
+
+  /// No description provided for @exportTypeStatement.
+  ///
+  /// In en, this message translates to:
+  /// **'Financial statement'**
+  String get exportTypeStatement;
+
+  /// No description provided for @exportPresetThisMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'This month'**
+  String get exportPresetThisMonth;
+
+  /// No description provided for @exportPresetThisQuarter.
+  ///
+  /// In en, this message translates to:
+  /// **'This quarter'**
+  String get exportPresetThisQuarter;
+
+  /// No description provided for @exportPresetThisYear.
+  ///
+  /// In en, this message translates to:
+  /// **'This year'**
+  String get exportPresetThisYear;
+
+  /// No description provided for @exportPresetCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get exportPresetCustom;
+
+  /// No description provided for @exportStatementAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate statement'**
+  String get exportStatementAction;
+
   /// No description provided for @exportScreenExport.
   ///
   /// In en, this message translates to:

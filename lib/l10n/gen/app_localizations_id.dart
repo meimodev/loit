@@ -1865,6 +1865,30 @@ class AppLocalizationsId extends AppLocalizations {
   String get exportScreenAllTime => 'Sepanjang waktu';
 
   @override
+  String get exportTypeLabel => 'Jenis';
+
+  @override
+  String get exportTypeTransactions => 'Daftar Transaksi';
+
+  @override
+  String get exportTypeStatement => 'Laporan Keuangan';
+
+  @override
+  String get exportPresetThisMonth => 'Bulan Ini';
+
+  @override
+  String get exportPresetThisQuarter => 'Triwulan Ini';
+
+  @override
+  String get exportPresetThisYear => 'Tahun Ini';
+
+  @override
+  String get exportPresetCustom => 'Kustom';
+
+  @override
+  String get exportStatementAction => 'Buat Laporan';
+
+  @override
   String get exportScreenExport => 'Ekspor';
 
   @override

@@ -66,6 +66,9 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
   Map<String, double>? _usdBaseRates;
   bool _ratesStale = false;
   String? _roomId;
+  // Set when a voice note was re-routed to a room by speech (ADR-0022
+  // amendment) — drives a "routed to {room}" banner so the move is visible.
+  String? _routedRoom;
   // Funding source for room transactions (ADR 0011). roomPool = pool-funded
   // (account pool = room accounts); myMoney = Out-of-pocket room expense
   // (account pool = the payer's personal accounts). Ignored when not in a room.
@@ -109,6 +112,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       _accountId = p['account_id'] as String?;
       _toAccountId = p['to_account_id'] as String?;
       _roomId = p['_room_id'] as String?;
+      _routedRoom = p['_routed_room'] as String?;
       _isManualFallback = (p['_manual_fallback'] as bool?) ?? false;
       _aiParsed = (p['_ai_parsed'] as bool?) ?? false;
       _imagePath = p['_image_path'] as String?;
@@ -116,28 +120,17 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       if (prefillSource == 'scanned' ||
           prefillSource == 'manual' ||
           prefillSource == 'bot_image' ||
-          prefillSource == 'bot_chat') {
+          prefillSource == 'bot_chat' ||
+          prefillSource == 'voice') {
         _source = prefillSource!;
       } else if (_aiParsed) {
         _source = 'scanned';
       } else {
         _source = 'manual';
       }
-      // Scan AI returns separate date (YYYY-MM-DD) and time (HH:MM) fields.
-      final scanDate = p['date'] as String?;
-      final scanTime = p['time'] as String?;
-      if (scanDate != null) {
-        final d = DateTime.tryParse(scanDate);
-        if (d != null) {
-          var h = 0, m = 0;
-          if (scanTime != null) {
-            final parts = scanTime.split(':');
-            h = int.tryParse(parts.elementAtOrNull(0) ?? '') ?? 0;
-            m = int.tryParse(parts.elementAtOrNull(1) ?? '') ?? 0;
-          }
-          _date = DateTime(d.year, d.month, d.day, h, m);
-        }
-      }
+      // AI's parsed date/time is intentionally ignored (ADR-0023): a capture
+      // defaults to `now()` (the `_date` initializer); the user backdates
+      // manually if a receipt is old.
       // Edit mode passes created_at as a full ISO timestamp — takes precedence.
       final rawDate = p['created_at'];
       if (rawDate is String) {
@@ -987,6 +980,15 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
         child: ListView(
           padding: const EdgeInsets.all(LoitSpacing.s5),
           children: [
+            if (_routedRoom != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: LoitSpacing.s4),
+                child: LoitBanner(
+                  kind: LoitBannerKind.warning,
+                  title: l.voiceRoutedToRoom(_routedRoom!),
+                  body: l.voiceRoutedToRoomBody,
+                ),
+              ),
             if (_isManualFallback)
               Padding(
                 padding: const EdgeInsets.only(bottom: LoitSpacing.s4),

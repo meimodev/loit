@@ -20,6 +20,11 @@ export interface RoomRef {
   name: string;
 }
 
+// A Room account (pool) — same shape as a personal AccountRef plus its room.
+export interface RoomAccountRef extends AccountRef {
+  roomId: string;
+}
+
 export interface UserContext {
   userId: string;
   email: string | null;
@@ -33,6 +38,9 @@ export interface UserContext {
   accounts: AccountRef[];
   categories: CategoryRef[];
   rooms: RoomRef[];
+  // Active Room accounts (pools) across the member's active rooms. The default
+  // funding source for a room-targeted capture (ADR-0023).
+  roomAccounts: RoomAccountRef[];
 }
 
 export async function loadUserContext(userId: string): Promise<UserContext | null> {
@@ -68,14 +76,23 @@ export async function loadUserContext(userId: string): Promise<UserContext | nul
   // Rooms via room_members membership.
   const { data: memberships } = await sb
     .from("room_members")
-    .select("room_id, rooms!inner(id, name)")
+    .select("room_id, rooms!inner(id, name, is_archived)")
     .eq("user_id", userId);
-  const rooms: RoomRef[] = (memberships ?? []).map((m: any) => ({
-    id: m.rooms.id,
-    name: m.rooms.name,
-  }));
+  // Active-only, mirroring the accounts filter above: ctx.rooms is the set of
+  // valid transaction targets, so archived rooms drop out of every resolver
+  // (parse-voice destination + telegram-bot pickers). A summary of a tx whose
+  // room was since archived resolves roomName to null and degrades cleanly.
+  // ponytail: add a direct-fetch room fallback (like archived accounts) only if
+  // the bot ever summarizes historical room transactions.
+  const rooms: RoomRef[] = (memberships ?? [])
+    .filter((m: any) => !m.rooms.is_archived)
+    .map((m: any) => ({
+      id: m.rooms.id,
+      name: m.rooms.name,
+    }));
 
   let roomCategories: CategoryRef[] = [];
+  let roomAccounts: RoomAccountRef[] = [];
   if (rooms.length > 0) {
     const roomIds = rooms.map((r) => r.id);
     const { data: rcats } = await sb
@@ -89,6 +106,23 @@ export async function loadUserContext(userId: string): Promise<UserContext | nul
       scope: "room",
       roomId: c.room_id,
     }));
+
+    // Room accounts (pools). Oldest-first so "first active" is deterministic,
+    // matching the client's first-active-pool heuristic (ADR-0023).
+    const { data: raccs } = await sb
+      .from("accounts")
+      .select("id, name, currency, kind, room_id, archived_at")
+      .in("room_id", roomIds)
+      .order("created_at", { ascending: true });
+    roomAccounts = (raccs ?? [])
+      .filter((a: any) => !a.archived_at)
+      .map((a: any) => ({
+        id: a.id,
+        name: a.name,
+        currency: a.currency,
+        kind: a.kind,
+        roomId: a.room_id,
+      }));
   }
 
   return {
@@ -104,6 +138,7 @@ export async function loadUserContext(userId: string): Promise<UserContext | nul
     accounts,
     categories: [...userCategories, ...roomCategories],
     rooms,
+    roomAccounts,
   };
 }
 

@@ -17,6 +17,9 @@ enum ScanErrorType {
   notATransaction,
   rateLimited,
   qualityGate,
+  // Voice only: the transcript addressed a room the user isn't a member of
+  // (parity with the Telegram bot's room-not-found reply, ADR-0022 amendment).
+  roomNotFound,
 }
 
 enum ConfidenceBucket { high, medium, low }
@@ -37,6 +40,14 @@ class ScanResult {
   final bool totalComputed;
   final double confidence;
 
+  /// Voice only: the transcribed text. Surfaced on failed parses so the user
+  /// can see what was heard. Null for image scans.
+  final String? transcript;
+
+  /// Voice only ([ScanErrorType.roomNotFound]): the room name the user
+  /// addressed in speech that doesn't match any room they belong to.
+  final String? notFoundRoom;
+
   const ScanResult._({
     required this.success,
     this.parsedData,
@@ -46,6 +57,8 @@ class ScanResult {
     this.reconciliationWarning = false,
     this.totalComputed = false,
     this.confidence = 0.0,
+    this.transcript,
+    this.notFoundRoom,
   });
 
   ConfidenceBucket get confidenceBucket => bucketFor(confidence);
@@ -55,52 +68,61 @@ class ScanResult {
     bool reconciliationWarning = false,
     bool totalComputed = false,
     double confidence = 0.0,
-  }) =>
-      ScanResult._(
-        success: true,
-        parsedData: data,
-        reconciliationWarning: reconciliationWarning,
-        totalComputed: totalComputed,
-        confidence: confidence,
-      );
+  }) => ScanResult._(
+    success: true,
+    parsedData: data,
+    reconciliationWarning: reconciliationWarning,
+    totalComputed: totalComputed,
+    confidence: confidence,
+  );
 
-  factory ScanResult.aiFailure(Map<String, dynamic> partial) => ScanResult._(
-        success: false,
-        partialFields: partial,
-        errorType: ScanErrorType.aiFailure,
-      );
+  factory ScanResult.aiFailure(
+    Map<String, dynamic> partial, {
+    String? transcript,
+  }) => ScanResult._(
+    success: false,
+    partialFields: partial,
+    errorType: ScanErrorType.aiFailure,
+    transcript: transcript,
+  );
 
   factory ScanResult.quotaExceeded() => const ScanResult._(
-        success: false,
-        errorType: ScanErrorType.quotaExceeded,
-      );
+    success: false,
+    errorType: ScanErrorType.quotaExceeded,
+  );
 
   factory ScanResult.connectionError() => const ScanResult._(
-        success: false,
-        errorType: ScanErrorType.connectionError,
-      );
+    success: false,
+    errorType: ScanErrorType.connectionError,
+  );
 
-  factory ScanResult.serverError() => const ScanResult._(
-        success: false,
-        errorType: ScanErrorType.serverError,
-      );
+  factory ScanResult.serverError() =>
+      const ScanResult._(success: false, errorType: ScanErrorType.serverError);
 
-  factory ScanResult.notATransaction({String? reason}) => ScanResult._(
+  factory ScanResult.notATransaction({String? reason, String? transcript}) =>
+      ScanResult._(
         success: false,
         errorType: ScanErrorType.notATransaction,
         notATransactionReason: reason,
+        transcript: transcript,
       );
 
-  factory ScanResult.rateLimited() => const ScanResult._(
+  factory ScanResult.roomNotFound({String? room, String? transcript}) =>
+      ScanResult._(
         success: false,
-        errorType: ScanErrorType.rateLimited,
+        errorType: ScanErrorType.roomNotFound,
+        notFoundRoom: room,
+        transcript: transcript,
       );
+
+  factory ScanResult.rateLimited() =>
+      const ScanResult._(success: false, errorType: ScanErrorType.rateLimited);
 
   factory ScanResult.qualityGate(String reason) => ScanResult._(
-        success: false,
-        errorType: ScanErrorType.qualityGate,
-        notATransactionReason: reason,
-      );
+    success: false,
+    errorType: ScanErrorType.qualityGate,
+    notATransactionReason: reason,
+  );
 }
 
 class ScannerService {
@@ -196,6 +218,122 @@ class ScannerService {
     }
 
     return result;
+  }
+
+  /// Voice Capture (ADR-0022). Records → uploads the audio to `parse-voice`,
+  /// which transcribes (Whisper) + parses (Haiku) server-side and gates AI
+  /// Credits through the same shared helper as scan. Returns a [ScanResult] so
+  /// the caller reuses scan's quota/ai-failure/error handling verbatim. Audio
+  /// is discarded server-side, never stored.
+  Future<ScanResult> transcribeAndParse(
+    File audioFile, {
+    String mimeType = 'audio/m4a',
+    List<Map<String, String>>? categories,
+    List<String>? accountNames,
+    String? roomId,
+  }) async {
+    Log.i(
+      _tag,
+      'Voice parse (cats=${categories?.length ?? 0}, accts=${accountNames?.length ?? 0}, room=${roomId != null})',
+    );
+
+    final Uint8List audioBytes;
+    try {
+      audioBytes = await audioFile.readAsBytes();
+    } catch (e, st) {
+      Log.e(_tag, 'Audio read failed', error: e, stack: st);
+      return ScanResult.serverError();
+    }
+    final base64Audio = base64Encode(audioBytes);
+
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      Log.w(_tag, 'No session, aborting voice parse');
+      return ScanResult.serverError();
+    }
+
+    final accountsPayload =
+        accountNames?.map((n) => {'name': n}).toList(growable: false) ?? [];
+
+    final body = <String, dynamic>{
+      'audio': base64Audio,
+      'mimeType': mimeType,
+      if (categories != null) 'categories': categories,
+      'accounts': accountsPayload,
+      if (roomId != null) 'roomId': roomId,
+    };
+
+    var result = await _callParseApi('parse-voice', session, body);
+    // Network failure never reached the server → never charged. Retry once.
+    if (result.errorType == ScanErrorType.connectionError) {
+      Log.w(_tag, 'Retrying voice after 1s (network)');
+      await Future<void>.delayed(const Duration(seconds: 1));
+      result = await _callParseApi('parse-voice', session, body);
+    }
+    return result;
+  }
+
+  /// Shared response mapping for parse Edge Functions (scan-receipt /
+  /// parse-voice) — identical status contract (200 / 402 / 422 / 500).
+  Future<ScanResult> _callParseApi(
+    String fn,
+    Session session,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${Env.supabaseUrl}/functions/v1/$fn'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${session.accessToken}',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      Log.d(_tag, '$fn status=${response.statusCode}');
+
+      switch (response.statusCode) {
+        case 200:
+          final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+          return _postProcess(parsed);
+        case 422:
+          final b = jsonDecode(response.body) as Map<String, dynamic>;
+          final transcript = b['transcript'] as String?;
+          if (b['room_not_found'] == true) {
+            return ScanResult.roomNotFound(
+              room: b['room'] as String?,
+              transcript: transcript,
+            );
+          }
+          if (b['not_a_transaction'] == true) {
+            return ScanResult.notATransaction(
+              reason: b['reason'] as String?,
+              transcript: transcript,
+            );
+          }
+          final partial = (b['partial_fields'] as Map<String, dynamic>?) ?? {};
+          return ScanResult.aiFailure(partial, transcript: transcript);
+        case 402:
+          return ScanResult.quotaExceeded();
+        default:
+          Log.e(_tag, '$fn server error: ${response.statusCode}');
+          return ScanResult.serverError();
+      }
+    } on SocketException catch (e) {
+      Log.w(_tag, 'Connection error', error: e);
+      return ScanResult.connectionError();
+    } on http.ClientException catch (e) {
+      Log.w(_tag, 'Connection error', error: e);
+      return ScanResult.connectionError();
+    } on TimeoutException {
+      Log.w(_tag, 'Request timed out');
+      return ScanResult.connectionError();
+    } catch (e, st) {
+      Log.e(_tag, 'Unexpected $fn error', error: e, stack: st);
+      return ScanResult.serverError();
+    }
   }
 
   Future<ScanResult> _callApi({

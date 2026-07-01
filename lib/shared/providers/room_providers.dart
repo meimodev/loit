@@ -26,6 +26,15 @@ final myRoomsProvider =
   return ref.watch(roomServiceProvider).listMyRooms();
 });
 
+// Active (non-archived) rooms — the correct source for any "pick a room as a
+// transaction target" surface. myRoomsProvider stays unfiltered so rooms_screen
+// can still render archived rooms with their badge. Mirrors activeRoomAccountsProvider.
+final activeRoomsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final rooms = await ref.watch(myRoomsProvider.future);
+  return rooms.where((r) => r['is_archived'] != true).toList();
+});
+
 // Single room detail
 final roomDetailProvider =
     FutureProvider.family<Map<String, dynamic>, String>((ref, roomId) async {

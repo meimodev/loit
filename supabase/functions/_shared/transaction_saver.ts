@@ -69,15 +69,28 @@ export async function saveTransaction(
 ): Promise<SaveTransactionResult | SaveTransactionError> {
   const sb = serviceClient();
 
-  const account = ctx.accounts.find(
-    (a) => a.name.toLowerCase() === input.accountName.toLowerCase(),
-  );
-  if (!account) return { ok: false, reason: "account_not_found" };
-
   let roomId: string | null = input.roomId ?? null;
   if (roomId) {
     const isMember = ctx.rooms.some((r) => r.id === roomId);
     if (!isMember) return { ok: false, reason: "not_room_member" };
+  }
+
+  // Funding (ADR-0023): a room capture defaults to the room's pool — the first
+  // active Room account, booked as a Room-account movement. Fall back to the
+  // parsed personal account (an Out-of-pocket room expense) only when the room
+  // has no Room account. Personal captures use the parsed personal account.
+  let accountId: string;
+  const pool = roomId
+    ? ctx.roomAccounts.find((a) => a.roomId === roomId)
+    : undefined;
+  if (pool) {
+    accountId = pool.id;
+  } else {
+    const account = ctx.accounts.find(
+      (a) => a.name.toLowerCase() === input.accountName.toLowerCase(),
+    );
+    if (!account) return { ok: false, reason: "account_not_found" };
+    accountId = account.id;
   }
 
   // Category scope guard — personal txns must use user-scoped categories,
@@ -135,7 +148,7 @@ export async function saveTransaction(
   const insertRow: Record<string, unknown> = {
     user_id: input.userId,
     room_id: roomId,
-    account_id: account.id,
+    account_id: accountId,
     type: input.type,
     amount: signed,
     currency: input.currency,
@@ -200,7 +213,7 @@ export async function saveTransaction(
     transactionId: data.id,
     signedAmount: signed,
     roomId,
-    accountId: account.id,
+    accountId,
   };
 }
 

@@ -231,7 +231,7 @@
   "txFormFromAccount": "From account",
   "txFormPaidFrom": "Paid from",
   "txFormPaidFromRoomPool": "Room pool",
-  "txFormPaidFromMyMoney": "My money",
+  "txFormPaidFromMyMoney": "Personal money",
   "txFormPaidFromNoPoolHint": "Add a room account to pay from the shared pool",
   "txListFundingPoolExplainer": "Paid from the room's shared pool — doesn't touch your money.",
   "txListFundingMyMoneyExplainer": "You paid from your own account. Leaves your cash balance, but counts as room spend, not personal spend.",
@@ -674,6 +674,40 @@
   "scanSaved": "Saved",
   "scanNoRooms": "No rooms yet — create one before scanning to a room.",
   "scanSendToRoom": "Send to room",
+  "captureSheetTitle": "Add transaction",
+  "captureScan": "Scan document",
+  "captureVoice": "Voice note",
+  "captureManual": "Enter manually",
+  "voiceTitle": "Voice note",
+  "voiceHint": "Hold to record, release to send",
+  "voiceRecording": "Listening… release to send",
+  "voiceProcessing": "Reading your note…",
+  "voiceTooShort": "Hold a little longer to record",
+  "voiceMicDenied": "Microphone access is needed to record voice notes",
+  "voiceError": "Couldn't understand that — try again",
+  "voiceHeard": "Heard",
+  "undo": "Undo",
+  "voiceSavedToRoom": "Saved to {room}",
+  "@voiceSavedToRoom": {
+    "placeholders": { "room": {"type": "String"} }
+  },
+  "voiceRoutedToRoom": "Routed to {room}",
+  "@voiceRoutedToRoom": {
+    "placeholders": { "room": {"type": "String"} }
+  },
+  "voiceRoutedToRoomBody": "Your voice note named this room. Change it below if that's wrong.",
+  "voiceRoomNotFound": "Room ‘{room}’ not found",
+  "@voiceRoomNotFound": {
+    "placeholders": { "room": {"type": "String"} }
+  },
+  "voiceRoomNotFoundNoRooms": "Room ‘{room}’ not found — you're not in any rooms yet",
+  "@voiceRoomNotFoundNoRooms": {
+    "placeholders": { "room": {"type": "String"} }
+  },
+  "voiceYourRooms": "Your rooms: {rooms}",
+  "@voiceYourRooms": {
+    "placeholders": { "rooms": {"type": "String"} }
+  },
   "scanLimitReached": "AI credits used up",
   "scanReviewTitle": "Review scan",
   "scanConfidenceHigh": "Looks good",

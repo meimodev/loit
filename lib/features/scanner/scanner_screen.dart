@@ -506,13 +506,21 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           _phase = _ScanPhase.error;
         });
         break;
+      case ScanErrorType.roomNotFound:
+        // Voice-only result; image scans never return it. Defensive only.
+        Log.w(_tag, 'Unexpected roomNotFound on image scan');
+        setState(() {
+          _errorKind = 'server';
+          _phase = _ScanPhase.error;
+        });
+        break;
     }
   }
 
   /// Bottom sheet — list rooms, return selected room id or null on cancel.
   Future<String?> _pickRoom() async {
     final l = context.l10n;
-    final rooms = await ref.read(myRoomsProvider.future);
+    final rooms = await ref.read(activeRoomsProvider.future);
     if (!mounted) return null;
     if (rooms.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

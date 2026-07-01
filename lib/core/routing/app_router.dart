@@ -36,6 +36,7 @@ import '../../features/rooms/room_invite_screen.dart';
 import '../../features/rooms/room_join_screen.dart';
 import '../../features/rooms/rooms_screen.dart';
 import '../../features/scanner/scanner_screen.dart';
+import '../../features/scanner/voice_capture_screen.dart';
 import '../../features/settings/about_screen.dart';
 import '../../features/settings/notifications_screen.dart';
 import '../../features/settings/preferences_screen.dart';
@@ -338,6 +339,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/scan',
         builder: (_, state) => ScannerScreen(
+          roomId: state.uri.queryParameters['roomId'],
+        ),
+      ),
+      GoRoute(
+        path: '/voice',
+        builder: (_, state) => VoiceCaptureScreen(
           roomId: state.uri.queryParameters['roomId'],
         ),
       ),

@@ -53,6 +53,17 @@ A low-confidence parse held for explicit user confirmation before it becomes a
 confirming or discarding it does not change the balance.
 _Avoid_: draft, unconfirmed scan.
 
+**High trust**:
+A parse the model is confident enough in to skip review — the `high`
+**confidence bucket** (`confidence ≥ 0.80`) with no reconciliation mismatch and
+no computed total. For **voice Capture** only, a High-trust parse is committed
+straight to a **Transaction** with no review step (the `autoConfirmEnabled`
+scan setting does not gate voice). Scan still shows a cancelable review even at
+High trust. A High-trust **Transaction** always uses the **current server/client
+time** as its timestamp, never the AI's parsed date (a receipt's printed date is
+ignored on the auto-commit path).
+_Avoid_: high confidence (the bucket), auto-confirm (the scan-only setting).
+
 ### Categories
 
 **Category style**:
@@ -239,11 +250,21 @@ The umbrella for **any** transaction carrying a `room_id` — it shows in the
 room feed. Two species, distinguished only by which account funds them: a
 **Room-account movement** (pool-funded) or an **Out-of-pocket room expense**
 (personal-funded). Only the **pool** species counts toward **Room budgets** /
-room spend / room balance; the My-money species is the *payer's* spend (ADR
+room spend / room balance; the Personal-money species is the *payer's* spend (ADR
 0013) and is visible-but-uncounted in the room. All Room
 transactions are **online-only** (any `room_id` row is shared; offline-queuing
 one makes it invisible in every room surface — which read the DB by `room_id` —
 until sync). _Avoid_: room movement (when meaning the umbrella), shared txn.
+
+**Archived room**:
+A **Room** soft-retired via `rooms.is_archived` (`archived_at` stamped). Archive
+is a **target** block, not a hide: the room still appears in the rooms list (with
+an "ARCHIVED" badge), its history, balances, and existing **Room transaction**s
+render unchanged. What archiving forbids is being chosen as the destination of a
+**new** transaction — manual or AI (image / voice / text), client picker or
+server-side resolver. Mirrors the **Room account** archive (`archived_at`),
+which already drops out of every active picker. _Avoid_: deleted room, closed
+room, hidden room.
 
 **Online-only room operation**:
 **Any** read or write touching a `room_id` — room list/feed/detail/budget/
@@ -288,40 +309,45 @@ membership), but counts toward **none** of the room's totals — not room
 expense/income, not **Room budgets**, not the **balance sheet** (it touches no
 Room account). It stays **visible** in the room Feed (members see who fronted
 the cash) but renders **de-emphasised** there: amount in `contentDisabled` with
-a leading sign, carrying a **My money** chip. It is **account-only**, not a
+a leading sign, carrying a **Personal money** chip. It is **account-only**, not a
 settlement: the room implicitly owes the payer, but that debt is **not tracked**
 (no who-owes-whom, no settle-up — that would be a separate Settlement ledger).
-The UI surfaces it as **Paid from: Room pool | My money** on the add form,
-quick-add, scanner, and transaction detail; default is **Room pool** (My money
-when the room has no Room account yet). _Avoid_: personal mirror (the dead
+The UI surfaces it as **Paid from: Room pool | Personal money** on the add form,
+quick-add, scanner, and transaction detail; default is **Room pool** (Personal money
+when the room has no Room account yet). Every **AI Capture** routed to a room
+(scan, in-app voice, Telegram bot) follows the same default: it funds the room's
+**Room account** (a **Room-account movement**) when one exists, and only books a
+Personal-money **Out-of-pocket room expense** when the room has none. (ADR 0023
+reversed the earlier ADR-0022 stance that voice/bot room captures were always
+Out-of-pocket.) The room's funding account is the **first active Room account**. _Avoid_: personal mirror (the dead
 dual-write transfer), split, reimbursement.
 
 **Personal cash-flow total**:
 The income / expense / net summary on the **Transactions** tab. Sums **what
-moved through the user's own wallet** — every personal row, plus the **My money**
+moved through the user's own wallet** — every personal row, plus the **Personal money**
 leg of an **Out-of-pocket room expense** (real cash left the wallet). A
 **Room-account movement** (pool) has **no personal leg** and so contributes
 **nothing**, even when shown in the list under the *all* lens. Close to the
 **Personal spend aggregate** (dashboard MTD) since ADR 0013 — both now include
-**My money** out-of-pocket rows and exclude **pool**. They still differ in
+**Personal money** out-of-pocket rows and exclude **pool**. They still differ in
 scope: cash-flow is the Tx-tab triple over the selected lens; the aggregate is
 the dashboard MTD spend metric.
 _Avoid_: spend total, monthly spend (when meaning the tx-tab triple).
 
 **Personal spend aggregate**:
 A "what I spent on my own life" total (dashboard month-to-date). Excludes
-**pool** rows (Room-account movements) but **includes** **My money**
+**pool** rows (Room-account movements) but **includes** **Personal money**
 out-of-pocket room rows (ADR 0013 flipped this — that spend is the payer's).
 _Avoid_: cash flow, wallet total.
 
 **Out-of-pocket invariant** (funding decides ownership):
 A rupiah of spend has exactly **one** owner, set by funding. **Pool** money is
-the **room's** spend (room totals, room budget, room balance). **My money** is
+the **room's** spend (room totals, room budget, room balance). **Personal money** is
 the **payer's** spend (personal spend aggregate, personal budget, personal cash
 balance) — and counts toward **none** of the room's totals, though it stays
 visible (de-emphasised) in the room Feed. Counting one rupiah in both ledgers'
 *spend* is the double-count ADR 0007 warned of; ADR 0013 resolves it by giving
-each rupiah a single owner. Mutating a My-money row moves the payer's real cash,
+each rupiah a single owner. Mutating a Personal-money row moves the payer's real cash,
 so it is **payer-editable only** — the room-admin override on Room transactions
 applies to Room-account movements, never to Out-of-pocket room expenses.
 

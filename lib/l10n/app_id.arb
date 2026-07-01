@@ -231,7 +231,7 @@
   "txFormFromAccount": "Dari akun",
   "txFormPaidFrom": "Dibayar dari",
   "txFormPaidFromRoomPool": "Kas ruangan",
-  "txFormPaidFromMyMoney": "Uang saya",
+  "txFormPaidFromMyMoney": "Uang pribadi",
   "txFormPaidFromNoPoolHint": "Tambahkan akun ruangan untuk membayar dari kas bersama",
   "txListFundingPoolExplainer": "Dibayar dari kas bersama ruangan — tidak memengaruhi uangmu.",
   "txListFundingMyMoneyExplainer": "Kamu bayar dari akunmu sendiri. Mengurangi saldomu, tapi dihitung sebagai pengeluaran ruangan, bukan pribadi.",
@@ -674,6 +674,40 @@
   "scanSaved": "Tersimpan",
   "scanNoRooms": "Belum ada ruangan — buat ruangan sebelum memindai ke ruangan.",
   "scanSendToRoom": "Kirim ke ruangan",
+  "captureSheetTitle": "Tambah transaksi",
+  "captureScan": "Pindai dokumen",
+  "captureVoice": "Catatan suara",
+  "captureManual": "Isi manual",
+  "voiceTitle": "Catatan suara",
+  "voiceHint": "Tahan untuk merekam, lepas untuk kirim",
+  "voiceRecording": "Mendengarkan… lepas untuk kirim",
+  "voiceProcessing": "Membaca catatanmu…",
+  "voiceTooShort": "Tahan sedikit lebih lama untuk merekam",
+  "voiceMicDenied": "Akses mikrofon diperlukan untuk merekam catatan suara",
+  "voiceError": "Tidak terdengar jelas — coba lagi",
+  "voiceHeard": "Terdengar",
+  "undo": "Urungkan",
+  "voiceSavedToRoom": "Disimpan ke {room}",
+  "@voiceSavedToRoom": {
+    "placeholders": { "room": {"type": "String"} }
+  },
+  "voiceRoutedToRoom": "Diarahkan ke {room}",
+  "@voiceRoutedToRoom": {
+    "placeholders": { "room": {"type": "String"} }
+  },
+  "voiceRoutedToRoomBody": "Catatan suaramu menyebut room ini. Ubah di bawah jika keliru.",
+  "voiceRoomNotFound": "Room ‘{room}’ tidak ditemukan",
+  "@voiceRoomNotFound": {
+    "placeholders": { "room": {"type": "String"} }
+  },
+  "voiceRoomNotFoundNoRooms": "Room ‘{room}’ tidak ditemukan — kamu belum punya room",
+  "@voiceRoomNotFoundNoRooms": {
+    "placeholders": { "room": {"type": "String"} }
+  },
+  "voiceYourRooms": "Room kamu: {rooms}",
+  "@voiceYourRooms": {
+    "placeholders": { "rooms": {"type": "String"} }
+  },
   "scanLimitReached": "Kredit AI habis",
   "scanReviewTitle": "Tinjau pindaian",
   "scanConfidenceHigh": "Terlihat oke",

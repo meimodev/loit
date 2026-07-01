@@ -555,7 +555,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get txFormPaidFromRoomPool => 'Room pool';
 
   @override
-  String get txFormPaidFromMyMoney => 'My money';
+  String get txFormPaidFromMyMoney => 'Personal money';
 
   @override
   String get txFormPaidFromNoPoolHint =>
@@ -1370,6 +1370,75 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scanSendToRoom => 'Send to room';
+
+  @override
+  String get captureSheetTitle => 'Add transaction';
+
+  @override
+  String get captureScan => 'Scan document';
+
+  @override
+  String get captureVoice => 'Voice note';
+
+  @override
+  String get captureManual => 'Enter manually';
+
+  @override
+  String get voiceTitle => 'Voice note';
+
+  @override
+  String get voiceHint => 'Hold to record, release to send';
+
+  @override
+  String get voiceRecording => 'Listening… release to send';
+
+  @override
+  String get voiceProcessing => 'Reading your note…';
+
+  @override
+  String get voiceTooShort => 'Hold a little longer to record';
+
+  @override
+  String get voiceMicDenied =>
+      'Microphone access is needed to record voice notes';
+
+  @override
+  String get voiceError => 'Couldn\'t understand that — try again';
+
+  @override
+  String get voiceHeard => 'Heard';
+
+  @override
+  String get undo => 'Undo';
+
+  @override
+  String voiceSavedToRoom(String room) {
+    return 'Saved to $room';
+  }
+
+  @override
+  String voiceRoutedToRoom(String room) {
+    return 'Routed to $room';
+  }
+
+  @override
+  String get voiceRoutedToRoomBody =>
+      'Your voice note named this room. Change it below if that\'s wrong.';
+
+  @override
+  String voiceRoomNotFound(String room) {
+    return 'Room ‘$room’ not found';
+  }
+
+  @override
+  String voiceRoomNotFoundNoRooms(String room) {
+    return 'Room ‘$room’ not found — you\'re not in any rooms yet';
+  }
+
+  @override
+  String voiceYourRooms(String rooms) {
+    return 'Your rooms: $rooms';
+  }
 
   @override
   String get scanLimitReached => 'AI credits used up';

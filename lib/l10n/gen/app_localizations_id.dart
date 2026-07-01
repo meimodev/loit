@@ -559,7 +559,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get txFormPaidFromRoomPool => 'Kas ruangan';
 
   @override
-  String get txFormPaidFromMyMoney => 'Uang saya';
+  String get txFormPaidFromMyMoney => 'Uang pribadi';
 
   @override
   String get txFormPaidFromNoPoolHint =>
@@ -1377,6 +1377,75 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get scanSendToRoom => 'Kirim ke ruangan';
+
+  @override
+  String get captureSheetTitle => 'Tambah transaksi';
+
+  @override
+  String get captureScan => 'Pindai dokumen';
+
+  @override
+  String get captureVoice => 'Catatan suara';
+
+  @override
+  String get captureManual => 'Isi manual';
+
+  @override
+  String get voiceTitle => 'Catatan suara';
+
+  @override
+  String get voiceHint => 'Tahan untuk merekam, lepas untuk kirim';
+
+  @override
+  String get voiceRecording => 'Mendengarkan… lepas untuk kirim';
+
+  @override
+  String get voiceProcessing => 'Membaca catatanmu…';
+
+  @override
+  String get voiceTooShort => 'Tahan sedikit lebih lama untuk merekam';
+
+  @override
+  String get voiceMicDenied =>
+      'Akses mikrofon diperlukan untuk merekam catatan suara';
+
+  @override
+  String get voiceError => 'Tidak terdengar jelas — coba lagi';
+
+  @override
+  String get voiceHeard => 'Terdengar';
+
+  @override
+  String get undo => 'Urungkan';
+
+  @override
+  String voiceSavedToRoom(String room) {
+    return 'Disimpan ke $room';
+  }
+
+  @override
+  String voiceRoutedToRoom(String room) {
+    return 'Diarahkan ke $room';
+  }
+
+  @override
+  String get voiceRoutedToRoomBody =>
+      'Catatan suaramu menyebut room ini. Ubah di bawah jika keliru.';
+
+  @override
+  String voiceRoomNotFound(String room) {
+    return 'Room ‘$room’ tidak ditemukan';
+  }
+
+  @override
+  String voiceRoomNotFoundNoRooms(String room) {
+    return 'Room ‘$room’ tidak ditemukan — kamu belum punya room';
+  }
+
+  @override
+  String voiceYourRooms(String rooms) {
+    return 'Room kamu: $rooms';
+  }
 
   @override
   String get scanLimitReached => 'Kredit AI habis';

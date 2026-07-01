@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/rooms/room_colors.dart';
 import '../../l10n/l10n_x.dart';
+import 'loit_sheet.dart';
 import 'loit_tab_bar.dart';
 
 /// LOIT bottom-nav shell. Backed by `StatefulShellRoute.indexedStack` so each
@@ -40,6 +41,53 @@ class _ShellScaffoldState extends State<ShellScaffold> {
     );
   }
 
+  // Center FAB opens a capture-mode chooser (ADR-0022): scan, voice, or manual.
+  void _showCaptureSheet(String? roomId) {
+    final l = context.l10n;
+    final roomQuery = roomId != null ? '?roomId=$roomId' : '';
+    showLoitSheet<void>(
+      context,
+      builder: (sheetCtx) => LoitSheet(
+        title: l.captureSheetTitle,
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.document_scanner_outlined),
+                title: Text(l.captureScan),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  context.push('/scan$roomQuery');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.mic_none_rounded),
+                title: Text(l.captureVoice),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  context.push('/voice$roomQuery');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: Text(l.captureManual),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  context.push(
+                    '/transactions/new',
+                    extra: roomId != null ? {'_room_id': roomId} : null,
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _handleRootBack() {
     final now = DateTime.now();
     final last = _lastBackPress;
@@ -60,11 +108,9 @@ class _ShellScaffoldState extends State<ShellScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    final activeSlot =
-        _branchToSlot[widget.navigationShell.currentIndex] ?? 0;
+    final activeSlot = _branchToSlot[widget.navigationShell.currentIndex] ?? 0;
     final loc = GoRouterState.of(context).uri.path;
-    final activeRoomId =
-        RegExp(r'^/rooms/([^/]+)$').firstMatch(loc)?.group(1);
+    final activeRoomId = RegExp(r'^/rooms/([^/]+)$').firstMatch(loc)?.group(1);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -75,14 +121,11 @@ class _ShellScaffoldState extends State<ShellScaffold> {
         body: widget.navigationShell,
         bottomNavigationBar: LoitTabBar(
           currentIndex: activeSlot,
-          scanRoomAccent:
-              activeRoomId != null ? RoomColors.forId(activeRoomId) : null,
+          scanRoomAccent: activeRoomId != null
+              ? RoomColors.forId(activeRoomId)
+              : null,
           onTap: _onTap,
-          onScan: () {
-            context.push(
-              activeRoomId != null ? '/scan?roomId=$activeRoomId' : '/scan',
-            );
-          },
+          onScan: () => _showCaptureSheet(activeRoomId),
         ),
       ),
     );

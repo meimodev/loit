@@ -1139,7 +1139,7 @@ abstract class AppLocalizations {
   /// No description provided for @txFormPaidFromMyMoney.
   ///
   /// In en, this message translates to:
-  /// **'My money'**
+  /// **'Personal money'**
   String get txFormPaidFromMyMoney;
 
   /// No description provided for @txFormPaidFromNoPoolHint.
@@ -2608,6 +2608,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Send to room'**
   String get scanSendToRoom;
+
+  /// No description provided for @captureSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add transaction'**
+  String get captureSheetTitle;
+
+  /// No description provided for @captureScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan document'**
+  String get captureScan;
+
+  /// No description provided for @captureVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice note'**
+  String get captureVoice;
+
+  /// No description provided for @captureManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter manually'**
+  String get captureManual;
+
+  /// No description provided for @voiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice note'**
+  String get voiceTitle;
+
+  /// No description provided for @voiceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold to record, release to send'**
+  String get voiceHint;
+
+  /// No description provided for @voiceRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening… release to send'**
+  String get voiceRecording;
+
+  /// No description provided for @voiceProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your note…'**
+  String get voiceProcessing;
+
+  /// No description provided for @voiceTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold a little longer to record'**
+  String get voiceTooShort;
+
+  /// No description provided for @voiceMicDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone access is needed to record voice notes'**
+  String get voiceMicDenied;
+
+  /// No description provided for @voiceError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t understand that — try again'**
+  String get voiceError;
+
+  /// No description provided for @voiceHeard.
+  ///
+  /// In en, this message translates to:
+  /// **'Heard'**
+  String get voiceHeard;
+
+  /// No description provided for @undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get undo;
+
+  /// No description provided for @voiceSavedToRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to {room}'**
+  String voiceSavedToRoom(String room);
+
+  /// No description provided for @voiceRoutedToRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Routed to {room}'**
+  String voiceRoutedToRoom(String room);
+
+  /// No description provided for @voiceRoutedToRoomBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your voice note named this room. Change it below if that\'s wrong.'**
+  String get voiceRoutedToRoomBody;
+
+  /// No description provided for @voiceRoomNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Room ‘{room}’ not found'**
+  String voiceRoomNotFound(String room);
+
+  /// No description provided for @voiceRoomNotFoundNoRooms.
+  ///
+  /// In en, this message translates to:
+  /// **'Room ‘{room}’ not found — you\'re not in any rooms yet'**
+  String voiceRoomNotFoundNoRooms(String room);
+
+  /// No description provided for @voiceYourRooms.
+  ///
+  /// In en, this message translates to:
+  /// **'Your rooms: {rooms}'**
+  String voiceYourRooms(String rooms);
 
   /// No description provided for @scanLimitReached.
   ///

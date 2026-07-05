@@ -612,6 +612,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get txFormTotal => 'Total';
 
   @override
+  String get txFormNote => 'Note';
+
+  @override
+  String get txFormNoteHint => 'Purpose or context';
+
+  @override
+  String txRowItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get txFormSelectAccount => 'Select account';
 
   @override
@@ -1403,6 +1420,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Microphone access is needed to record voice notes';
 
   @override
+  String get voiceMicTitle => 'Turn on the microphone';
+
+  @override
+  String get voiceMicGrant => 'Allow microphone';
+
+  @override
+  String get voiceMicOpenSettings => 'Open Settings';
+
+  @override
   String get voiceError => 'Couldn\'t understand that — try again';
 
   @override
@@ -1464,6 +1490,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scanFieldCategory => 'Category';
+
+  @override
+  String get scanNoteLabel => 'Note (optional)';
+
+  @override
+  String get scanNoteHint => 'e.g. for the office meeting';
 
   @override
   String scanItemsCount(int count) {
@@ -2443,6 +2475,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get roomTileYouOwn => 'You own this';
+
+  @override
+  String get roomTileTypeChurch => 'Church';
+
+  @override
+  String get roomsSectionActive => 'Active Rooms';
+
+  @override
+  String get roomsSectionArchived => 'Archived Rooms';
+
+  @override
+  String get roomsSectionActiveEmpty => 'No active rooms yet';
+
+  @override
+  String get roomsSectionActiveEmptyAction =>
+      'Create or join a room above to get started.';
 
   @override
   String get roomOnlineStatus => 'Online';

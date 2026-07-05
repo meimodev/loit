@@ -18,7 +18,6 @@ import '../../shared/utils/locale_date_format.dart';
 import '../../shared/widgets/currency_picker_sheet.dart';
 import '../../shared/widgets/loit_input.dart';
 import '../../shared/widgets/loit_tx_row.dart';
-import '../transactions/notes_breakdown.dart';
 
 class AccountFormScreen extends ConsumerStatefulWidget {
   const AccountFormScreen({super.key, this.account});
@@ -531,7 +530,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
         : null;
 
     return LoitTxRow(
-      title: breakdownTitle(t.notes),
+      title: t.displayTitle ?? '',
       amount: formatMoney(t.amount, t.currency),
       subAmount: subAmount,
       categoryKey: t.isTransfer ? null : t.category,

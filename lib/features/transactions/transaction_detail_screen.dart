@@ -141,11 +141,13 @@ class _DetailBody extends ConsumerWidget {
   // editor (single owner of amount). Gated on breakdown presence, not origin:
   // scanned, bot, or manually entered breakdowns are treated identically.
   // `aiParsed` is provenance only and never gates editing.
+  // Structured items first (ADR-0025), legacy canonical notes second. A row
+  // with no items must NOT hand amount/date ownership to the breakdown editor.
   bool get _hasBreakdown =>
       t.id != null &&
       !isUnsynced &&
       !t.isTransfer &&
-      parseBreakdown(t.notes) != null;
+      t.displayItems.isNotEmpty;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -305,11 +307,13 @@ class _DetailBody extends ConsumerWidget {
     LoitColors c,
     AppLocalizations l,
   ) {
-    final parsed = parseBreakdown(t.notes);
     // Any breakdown-bearing row (scanned, bot, or manual) routes through the
     // breakdown editor, which self-gates its edit affordance on `canEdit` — a
-    // non-Payer / unsynced viewer sees the same widget read-only.
-    if (_hasBreakdown && parsed != null) {
+    // non-Payer / unsynced viewer sees the same widget read-only. The view is
+    // built from structured columns (ADR-0025); legacy canonical rows arrive
+    // through the same display getters.
+    if (_hasBreakdown) {
+      final legacyTotal = parseBreakdown(t.notes)?.total;
       return [
         const SizedBox(height: LoitSpacing.s4),
         LoitGroupLabel(label: l.txDetailNotes),
@@ -317,7 +321,15 @@ class _DetailBody extends ConsumerWidget {
           txn: t,
           roomId: roomId,
           canEdit: canEdit,
-          parsed: parsed,
+          parsed: NotesBreakdown(
+            merchant: t.merchant?.trim().isNotEmpty == true
+                ? t.merchant!.trim()
+                : (parseBreakdown(t.notes)?.merchant ?? ''),
+            items: t.displayItems,
+            total: legacyTotal ?? t.absAmount,
+            currency: t.currency,
+            note: t.displayNote,
+          ),
         ),
       ];
     }
@@ -521,7 +533,7 @@ class _DetailBody extends ConsumerWidget {
                   children: [
                     Builder(
                       builder: (_) {
-                        final t0 = breakdownTitle(t.notes);
+                        final t0 = t.displayTitle ?? '';
                         final fallback = t.isTransfer
                             ? l.txDetailFallbackTransfer
                             : l.txDetailTitle;
@@ -1006,7 +1018,10 @@ class _NotesRowState extends ConsumerState<_NotesRow> {
   Widget build(BuildContext context) {
     final c = context.loitColors;
     final l = context.l10n;
-    final notes = widget.t.notes ?? '';
+    final raw = widget.t.notes ?? '';
+    // Note-only canonical (`merchant\nCatatan: …`, ADR-0024): display just the
+    // note — the merchant already heads the screen. Editing edits the raw text.
+    final notes = parseBreakdown(raw)?.note ?? raw;
     final canEdit = widget.canEdit && widget.t.id != null;
     return Container(
       padding: const EdgeInsets.all(LoitSpacing.s4),
@@ -1263,6 +1278,7 @@ class _BreakdownEditorState extends ConsumerState<_BreakdownEditor> {
   bool _editing = false;
   bool _saving = false;
   late TextEditingController _merchantCtl;
+  late TextEditingController _noteCtl;
   late TextEditingController _totalCtl;
   late List<_ItemDraft> _items;
 
@@ -1275,6 +1291,7 @@ class _BreakdownEditorState extends ConsumerState<_BreakdownEditor> {
   void _hydrate() {
     final p = widget.parsed;
     _merchantCtl = TextEditingController(text: p.merchant);
+    _noteCtl = TextEditingController(text: p.note ?? '');
     final total = p.total ?? widget.txn.absAmount;
     _totalCtl = TextEditingController(text: _fmt(total));
     _items = [
@@ -1300,6 +1317,7 @@ class _BreakdownEditorState extends ConsumerState<_BreakdownEditor> {
   @override
   void dispose() {
     _merchantCtl.dispose();
+    _noteCtl.dispose();
     _totalCtl.dispose();
     for (final i in _items) {
       i.dispose();
@@ -1310,6 +1328,7 @@ class _BreakdownEditorState extends ConsumerState<_BreakdownEditor> {
   void _toggleEdit(bool on) {
     setState(() {
       _merchantCtl.dispose();
+      _noteCtl.dispose();
       _totalCtl.dispose();
       for (final i in _items) {
         i.dispose();
@@ -1343,13 +1362,8 @@ class _BreakdownEditorState extends ConsumerState<_BreakdownEditor> {
           ),
       ];
       final totalParsed = _parseNum(_totalCtl.text);
-      final breakdown = NotesBreakdown(
-        merchant: _merchantCtl.text.trim(),
-        items: items,
-        total: totalParsed,
-        currency: widget.txn.currency,
-      );
-      final notes = formatBreakdown(breakdown);
+      final noteText = _noteCtl.text.trim();
+      final merchantText = _merchantCtl.text.trim();
       final itemsPayload = [
         for (final it in items)
           if (it.name.isNotEmpty ||
@@ -1363,7 +1377,14 @@ class _BreakdownEditorState extends ConsumerState<_BreakdownEditor> {
               if (it.totalPrice != null) 'total_price': it.totalPrice,
             },
       ];
-      final payload = <String, dynamic>{'notes': notes, 'items': itemsPayload};
+      // Structured storage (ADR-0025): saving a legacy canonical row through
+      // this editor migrates it — merchant/note/items land in their columns
+      // and notes stops carrying the encoded text.
+      final payload = <String, dynamic>{
+        'merchant': merchantText.isEmpty ? null : merchantText,
+        'notes': noteText.isEmpty ? null : noteText,
+        'items': itemsPayload,
+      };
       if (totalParsed != null) {
         payload['amount'] = widget.txn.type == 'expense'
             ? -totalParsed.abs()
@@ -1497,6 +1518,38 @@ class _BreakdownEditorState extends ConsumerState<_BreakdownEditor> {
             ),
           ),
         ],
+        if (widget.parsed.note != null &&
+            widget.parsed.note!.trim().isNotEmpty) ...[
+          const SizedBox(height: LoitSpacing.s3),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(LoitSpacing.s3),
+            decoration: BoxDecoration(
+              color: c.canvas,
+              borderRadius: LoitRadius.brS,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.chat_bubble_outline,
+                  size: 16,
+                  color: c.contentSecondary,
+                ),
+                const SizedBox(width: LoitSpacing.s2),
+                Expanded(
+                  child: Text(
+                    widget.parsed.note!,
+                    style: LoitTypography.bodyM.copyWith(
+                      color: c.contentSecondary,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1556,6 +1609,15 @@ class _BreakdownEditorState extends ConsumerState<_BreakdownEditor> {
           decoration: InputDecoration(
             labelText: l.txFormTotal,
             prefixText: '${currencySymbol(widget.txn.currency)} ',
+            isDense: true,
+          ),
+        ),
+        const SizedBox(height: LoitSpacing.s3),
+        TextField(
+          controller: _noteCtl,
+          decoration: InputDecoration(
+            labelText: l.txFormNote,
+            hintText: l.txFormNoteHint,
             isDense: true,
           ),
         ),

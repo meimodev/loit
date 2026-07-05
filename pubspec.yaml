@@ -105,6 +105,9 @@ dependencies:
 
   # Voice capture (in-app voice transaction, ADR-0022)
   record: ^6.0.0
+  # Mic permission requested on screen load — granular status + openAppSettings
+  # for the permanently-denied path (ADR-0022 UX amendment).
+  permission_handler: ^11.3.1
 
   # Scanner hardware + QR
   camera: ^0.11.0+2

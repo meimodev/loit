@@ -249,6 +249,12 @@
   "txFormQty": "Qty",
   "txFormUnitPrice": "Unit price",
   "txFormTotal": "Total",
+  "txFormNote": "Note",
+  "txFormNoteHint": "Purpose or context",
+  "txRowItemCount": "{count, plural, one{1 item} other{{count} items}}",
+  "@txRowItemCount": {
+    "placeholders": { "count": {"type": "int"} }
+  },
   "txFormSelectAccount": "Select account",
   "txFormSelectDestination": "Select destination",
   "txFormTabText": "Text",
@@ -684,6 +690,9 @@
   "voiceProcessing": "Reading your note…",
   "voiceTooShort": "Hold a little longer to record",
   "voiceMicDenied": "Microphone access is needed to record voice notes",
+  "voiceMicTitle": "Turn on the microphone",
+  "voiceMicGrant": "Allow microphone",
+  "voiceMicOpenSettings": "Open Settings",
   "voiceError": "Couldn't understand that — try again",
   "voiceHeard": "Heard",
   "undo": "Undo",
@@ -716,6 +725,8 @@
   "scanTotalComputed": "Total computed from line items.",
   "scanFieldAccount": "Account",
   "scanFieldCategory": "Category",
+  "scanNoteLabel": "Note (optional)",
+  "scanNoteHint": "e.g. for the office meeting",
   "scanItemsCount": "{count, plural, one{1 item} other{{count} items}}",
   "@scanItemsCount": {
     "placeholders": { "count": {"type": "int"} }
@@ -1201,6 +1212,11 @@
   "roomTileUntitled": "Untitled",
   "roomTileArchivedLabel": "Archived",
   "roomTileYouOwn": "You own this",
+  "roomTileTypeChurch": "Church",
+  "roomsSectionActive": "Active Rooms",
+  "roomsSectionArchived": "Archived Rooms",
+  "roomsSectionActiveEmpty": "No active rooms yet",
+  "roomsSectionActiveEmptyAction": "Create or join a room above to get started.",
   "roomOnlineStatus": "Online",
   "roomOnlineOthers": "{count} online",
   "@roomOnlineOthers": {

@@ -29,7 +29,6 @@ import '../../shared/widgets/loit_room_origin_badge.dart';
 import '../../shared/widgets/loit_sheet.dart';
 import '../../shared/widgets/loit_tx_row.dart';
 import '../rooms/room_colors.dart';
-import 'notes_breakdown.dart';
 
 enum _SourceFilter { all, personal, rooms }
 
@@ -378,6 +377,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
                       final dimPool = isRoomTx &&
                           !isMyMoney &&
                           _sourceFilter != _SourceFilter.rooms;
+                      // Flag only the surprising funding species for the
+                      // current lens: rooms lens = room-flow (pool expected,
+                      // flag Personal money); all lens = personal-cash (own
+                      // wallet expected, flag pool via dimPool). Room-origin
+                      // badge always stays so the row still reads as a room tx.
+                      final showFunding =
+                          _sourceFilter == _SourceFilter.rooms
+                              ? isMyMoney
+                              : dimPool;
                       final roomBadge = isRoomTx
                           ? Wrap(
                               spacing: 6,
@@ -390,19 +398,20 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
                                       roomNameById[t.roomId!] ??
                                       l.txListRoom,
                                 ),
-                                LoitFundingBadge(
-                                  species: isMyMoney
-                                      ? FundingSpecies.myMoney
-                                      : FundingSpecies.pool,
-                                  label: isMyMoney
-                                      ? l.txFormPaidFromMyMoney
-                                      : l.txFormPaidFromRoomPool,
-                                ),
+                                if (showFunding)
+                                  LoitFundingBadge(
+                                    species: isMyMoney
+                                        ? FundingSpecies.myMoney
+                                        : FundingSpecies.pool,
+                                    label: isMyMoney
+                                        ? l.txFormPaidFromMyMoney
+                                        : l.txFormPaidFromRoomPool,
+                                  ),
                               ],
                             )
                           : null;
                       final row = LoitTxRow(
-                        title: breakdownTitle(t.notes),
+                        title: t.displayTitle ?? '',
                         categoryKey: t.isTransfer ? null : t.category,
                         subtitle: _txSubtitle(t),
                         amount: dimPool && !t.isTransfer
@@ -636,6 +645,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
   }
 
   String _txSubtitle(Txn t) {
+    // Row hierarchy (ADR-0025): note beats item count beats category · time —
+    // the remark is the human context; items live one tap away in detail.
+    final note = t.displayNote?.trim();
+    // A titleless row already shows the note as its title — don't repeat it.
+    final noteIsTitle = note != null && note == t.displayTitle;
+    if (note != null && note.isNotEmpty && !noteIsTitle) return '💬 $note';
+    if (t.displayItems.isNotEmpty) {
+      return context.l10n.txRowItemCount(t.displayItems.length);
+    }
     final time = jm(context).format(t.createdAt.toLocal());
     final label = ref.read(categoryLabelProvider(
         CategoryLabelKey(key: t.category)));

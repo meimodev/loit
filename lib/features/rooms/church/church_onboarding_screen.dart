@@ -495,6 +495,21 @@ class _ChurchOnboardingScreenState
       );
       _createdRoomId = room['id'] as String;
 
+      // Best-effort: seed Default room accounts (ADR 0024). A failure leaves
+      // the room with zero accounts — still usable, the admin can add manually.
+      try {
+        await svc.seedDefaultAccounts(
+          roomId: _createdRoomId!,
+          currency: 'IDR',
+        );
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Akun default gagal dimuat — tambah manual di room.'),
+          ));
+        }
+      }
+
       // Best effort (ADR 0019): a failed batch leaves the room with only the
       // catch-all — still usable. Land on the room anyway with a soft warning.
       try {

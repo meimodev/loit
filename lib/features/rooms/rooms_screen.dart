@@ -118,41 +118,100 @@ class RoomsScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              data: (list) => list.isEmpty
-                  ? SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Padding(
-                        padding: const EdgeInsets.all(LoitSpacing.s5),
-                        child: LoitEmptyState(
-                          icon: Icons.group_outlined,
-                          title: l.roomsScreenNoRooms,
-                          body: l.roomsScreenEmptyBody,
-                          primaryCta: l.roomsScreenCreateRoom,
-                          onPrimaryCta: () => context.push('/rooms/new'),
-                          secondaryCta: l.roomsScreenJoinRoom,
-                          onSecondaryCta: () => context.push('/rooms/join'),
-                        ),
-                      ),
-                    )
-                  : SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(
-                          LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, 96),
-                      sliver: SliverList.builder(
-                        itemCount: list.length,
-                        itemBuilder: (_, i) {
-                          final id = list[i]['id'] as String? ?? 'idx-$i';
-                          return Padding(
-                            padding:
-                                const EdgeInsets.only(bottom: LoitSpacing.s2),
-                            child: LoitFadeSlideIn(
-                              key: ValueKey('room-$id'),
-                              delay: LoitMotion.staggerStep * i,
-                              child: _RoomTile(room: list[i]),
-                            ),
-                          );
-                        },
+              data: (list) {
+                if (list.isEmpty) {
+                  return SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Padding(
+                      padding: const EdgeInsets.all(LoitSpacing.s5),
+                      child: LoitEmptyState(
+                        icon: Icons.group_outlined,
+                        title: l.roomsScreenNoRooms,
+                        body: l.roomsScreenEmptyBody,
+                        primaryCta: l.roomsScreenCreateRoom,
+                        onPrimaryCta: () => context.push('/rooms/new'),
+                        secondaryCta: l.roomsScreenJoinRoom,
+                        onSecondaryCta: () => context.push('/rooms/join'),
                       ),
                     ),
+                  );
+                }
+
+                final activeRooms = list.where((r) => r['is_archived'] != true).toList();
+                final archivedRooms = list.where((r) => r['is_archived'] == true).toList();
+
+                final hasActive = activeRooms.isNotEmpty;
+                final hasArchived = archivedRooms.isNotEmpty;
+
+                final activeCount = hasActive ? activeRooms.length : (hasArchived ? 1 : 0);
+                final extraCount = hasArchived ? 1 : 0;
+                final totalItems = activeCount + extraCount;
+
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                      LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, 96),
+                  sliver: SliverList.builder(
+                    itemCount: totalItems,
+                    itemBuilder: (context, index) {
+                      if (index < activeCount) {
+                        if (!hasActive) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: LoitSpacing.s4),
+                            child: Container(
+                              padding: const EdgeInsets.all(LoitSpacing.s4),
+                              decoration: BoxDecoration(
+                                color: c.surface,
+                                border: Border.all(color: c.borderSubtle),
+                                borderRadius: LoitRadius.brM,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.info_outline, color: c.contentSecondary, size: 20),
+                                  const SizedBox(width: LoitSpacing.s3),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          l.roomsSectionActiveEmpty,
+                                          style: LoitTypography.bodyM.copyWith(
+                                            color: c.contentPrimary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          l.roomsSectionActiveEmptyAction,
+                                          style: LoitTypography.bodyS.copyWith(
+                                            color: c.contentSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
+                        final room = activeRooms[index];
+                        final id = room['id'] as String? ?? 'idx-$index';
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: LoitSpacing.s2),
+                          child: LoitFadeSlideIn(
+                            key: ValueKey('room-$id'),
+                            delay: LoitMotion.staggerStep * index,
+                            child: _RoomTile(room: room),
+                          ),
+                        );
+                      } else {
+                        return _ArchivedRoomsSection(rooms: archivedRooms);
+                      }
+                    },
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -177,6 +236,8 @@ class _RoomTile extends ConsumerWidget {
         (room['room_members'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final memberCount = members.length;
     final isArchived = room['is_archived'] as bool? ?? false;
+    final orgType = room['org_type'] as String? ?? 'general';
+    final isChurch = orgType == 'church';
     final color = RoomColors.forId(id);
 
     final currentUserId = ref.watch(currentUserProvider)?.id;
@@ -219,11 +280,18 @@ class _RoomTile extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   alignment: Alignment.center,
-                  child: Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : 'R',
-                    style: LoitTypography.titleM.copyWith(
-                        color: Colors.white, fontWeight: FontWeight.w600),
-                  ),
+                  child: isChurch
+                      ? Icon(
+                          Icons.church,
+                          color: isArchived ? c.contentDisabled : Colors.white,
+                          size: 24,
+                        )
+                      : Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : 'R',
+                          style: LoitTypography.titleM.copyWith(
+                              color: isArchived ? c.contentDisabled : Colors.white,
+                              fontWeight: FontWeight.w600),
+                        ),
                 ),
                 if (othersOnline > 0 && !isArchived)
                   Positioned(
@@ -261,6 +329,12 @@ class _RoomTile extends ConsumerWidget {
                                 fontWeight: FontWeight.w600),
                             overflow: TextOverflow.ellipsis),
                       ),
+                      if (isChurch) ...[
+                        const SizedBox(width: LoitSpacing.s2),
+                        _Pill(
+                            label: l.roomTileTypeChurch.toUpperCase(),
+                            color: c.success),
+                      ],
                       if (baseCurrency != 'IDR') ...[
                         const SizedBox(width: LoitSpacing.s2),
                         _Pill(
@@ -553,5 +627,93 @@ class _InvitesBanner extends ConsumerWidget {
             .showSnackBar(SnackBar(content: Text(l.roomJoinFailed)));
       }
     }
+  }
+}
+
+class _ArchivedRoomsSection extends StatefulWidget {
+  const _ArchivedRoomsSection({required this.rooms});
+  final List<Map<String, dynamic>> rooms;
+
+  @override
+  State<_ArchivedRoomsSection> createState() => _ArchivedRoomsSectionState();
+}
+
+class _ArchivedRoomsSectionState extends State<_ArchivedRoomsSection> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.rooms.isEmpty) return const SizedBox.shrink();
+
+    final c = context.loitColors;
+    final l = context.l10n;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: LoitSpacing.s3),
+        InkWell(
+          onTap: () {
+            setState(() {
+              _isExpanded = !_isExpanded;
+            });
+          },
+          borderRadius: LoitRadius.brM,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              vertical: LoitSpacing.s3,
+              horizontal: LoitSpacing.s4,
+            ),
+            decoration: BoxDecoration(
+              color: c.surface,
+              border: Border.all(color: c.borderSubtle),
+              borderRadius: LoitRadius.brM,
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.archive_outlined, size: 18, color: c.contentSecondary),
+                const SizedBox(width: LoitSpacing.s2),
+                Expanded(
+                  child: Text(
+                    '${l.roomsSectionArchived} (${widget.rooms.length})',
+                    style: LoitTypography.bodyM.copyWith(
+                      color: c.contentSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Icon(
+                  _isExpanded ? Icons.expand_less : Icons.expand_more,
+                  size: 20,
+                  color: c.contentSecondary,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_isExpanded) ...[
+          const SizedBox(height: LoitSpacing.s2),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: widget.rooms.length,
+            padding: EdgeInsets.zero,
+            itemBuilder: (_, i) {
+              final id = widget.rooms[i]['id'] as String? ?? 'idx-$i';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: LoitSpacing.s2),
+                child: LoitFadeSlideIn(
+                  key: ValueKey('room-$id'),
+                  child: Opacity(
+                    opacity: 0.5,
+                    child: _RoomTile(room: widget.rooms[i]),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ],
+    );
   }
 }

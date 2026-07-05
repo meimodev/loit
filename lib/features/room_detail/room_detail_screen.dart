@@ -27,7 +27,6 @@ import '../../shared/widgets/loit_empty_state.dart';
 import '../../shared/widgets/loit_funding_badge.dart';
 import '../../shared/widgets/room_error_state.dart';
 import '../../shared/widgets/loit_tx_row.dart';
-import '../transactions/notes_breakdown.dart';
 import '../rooms/room_colors.dart';
 import 'room_balance_tab.dart';
 
@@ -1465,8 +1464,10 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
             .toSet();
     final isMyMoney =
         !isTransfer && !roomAccountIds.contains(tx['account_id'] as String?);
-    final notes = (tx['notes'] as String?)?.trim();
-    final parsedTitle = breakdownTitle(notes);
+    // Structured-first display (ADR-0025) with legacy canonical-notes
+    // fallback, via the Txn display getters.
+    final txnView = Txn.fromRow(tx);
+    final parsedTitle = txnView.displayTitle ?? '';
     final merchant = parsedTitle.isNotEmpty
         ? parsedTitle
         : (isTransfer
@@ -1495,12 +1496,24 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
 
     final txId = tx['id'] as String?;
 
+    // Row hierarchy (ADR-0025): the note beats category \u00b7 time in the
+    // subtitle; the payer always stays first in a shared room.
+    final note = txnView.displayNote?.trim();
+    final noteIsTitle = note != null && note == txnView.displayTitle;
+    final String detailPart;
+    if (note != null && note.isNotEmpty && !noteIsTitle) {
+      detailPart = '\ud83d\udcac $note';
+    } else if (txnView.displayItems.isNotEmpty) {
+      detailPart = context.l10n.txRowItemCount(txnView.displayItems.length);
+    } else {
+      detailPart =
+          timeText != null ? '$catLabel \u00b7 $timeText' : catLabel;
+    }
+
     final row = LoitTxRow(
       categoryKey: cat,
       title: merchant,
-      subtitle: timeText != null
-          ? '$payer \u00b7 $catLabel \u00b7 $timeText'
-          : '$payer \u00b7 $catLabel',
+      subtitle: '$payer \u00b7 $detailPart',
       amount: isMyMoney
           ? formatMoney(isIncome ? amount.abs() : -amount.abs(), txCurrency,
               showSign: true)
@@ -1512,12 +1525,14 @@ class _RoomTxRowState extends ConsumerState<_RoomTxRow>
       isIncome: isIncome,
       isTransfer: isTransfer,
       showDivider: !isLast,
-      roomBadge: LoitFundingBadge(
-        species: isMyMoney ? FundingSpecies.myMoney : FundingSpecies.pool,
-        label: isMyMoney
-            ? context.l10n.txFormPaidFromMyMoney
-            : context.l10n.txFormPaidFromRoomPool,
-      ),
+      // Room-flow view: pool is the expected default, so no badge. Only flag
+      // the surprising Out-of-pocket (Personal money) rows.
+      roomBadge: isMyMoney
+          ? LoitFundingBadge(
+              species: FundingSpecies.myMoney,
+              label: context.l10n.txFormPaidFromMyMoney,
+            )
+          : null,
       leadingBadge: user != null
           ? _PayerBadge(member: {
               'user_id': tx['user_id'],

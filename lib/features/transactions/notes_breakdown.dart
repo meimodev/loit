@@ -22,11 +22,16 @@ class NotesBreakdown {
     required this.items,
     this.total,
     this.currency,
+    this.note,
   });
 
   final String merchant;
   final List<NotesBreakdownItem> items;
   final double? total;
+
+  /// The user's free-text remark (Catatan) — ADR-0024. Rides the canonical
+  /// notes text as a trailing `Catatan:` line, distinct from merchant/items.
+  final String? note;
 
   /// ISO-4217 code for prices in this breakdown. When set, `formatBreakdown`
   /// prefixes price tokens with the currency symbol (e.g. `Rp`, `$`). Qty
@@ -119,6 +124,8 @@ String formatBreakdown(NotesBreakdown b) {
     lines.add(buf.toString());
   }
   if (b.total != null) lines.add('Total: ${_fmtMoney(b.total!, cur)}');
+  final note = b.note?.replaceAll('\n', ' ').trim() ?? '';
+  if (note.isNotEmpty) lines.add('Catatan: $note');
   return lines.join('\n');
 }
 
@@ -126,6 +133,9 @@ final RegExp _kBulletItem = RegExp(r'^\s*[-•*]\s+(.*)$');
 final RegExp _kTotalLine = RegExp(r'^\s*Total\s*:\s*(.+)$', caseSensitive: false);
 final RegExp _kSubtotalLine =
     RegExp(r'^\s*Subtotal\s*:\s*(.+)$', caseSensitive: false);
+// Writer emits `Catatan:`; parser also accepts `Note:`/`Notes:` (ADR-0024).
+final RegExp _kNoteLine =
+    RegExp(r'^\s*(?:Catatan|Notes?)\s*:\s*(.+)$', caseSensitive: false);
 
 NotesBreakdownItem? _parseItemLine(String body) {
   // Body shape: "<name> : <rest>" or "<name>" only.
@@ -201,19 +211,26 @@ NotesBreakdown? parseBreakdown(String? text) {
   }
   if (i >= allLines.length) return null;
   final merchant = allLines[i].trim();
-  // First line cannot itself be a bullet/total.
+  // First line cannot itself be a bullet/total/note.
   if (_kBulletItem.hasMatch(allLines[i]) ||
       _kTotalLine.hasMatch(allLines[i]) ||
-      _kSubtotalLine.hasMatch(allLines[i])) {
+      _kSubtotalLine.hasMatch(allLines[i]) ||
+      _kNoteLine.hasMatch(allLines[i])) {
     return null;
   }
   i++;
 
   final items = <NotesBreakdownItem>[];
   double? total;
+  String? note;
   for (; i < allLines.length; i++) {
     final ln = allLines[i];
     if (ln.trim().isEmpty) continue;
+    final noteMatch = _kNoteLine.firstMatch(ln);
+    if (noteMatch != null) {
+      note = noteMatch.group(1)!.trim();
+      continue;
+    }
     final totalMatch = _kTotalLine.firstMatch(ln);
     if (totalMatch != null) {
       total = _parseLooseNumber(totalMatch.group(1)!);
@@ -221,15 +238,22 @@ NotesBreakdown? parseBreakdown(String? text) {
     }
     final m = _kBulletItem.firstMatch(ln);
     if (m == null) {
-      // Non-bullet, non-total line breaks the breakdown.
+      // Non-bullet, non-total, non-note line breaks the breakdown.
       return null;
     }
     final parsed = _parseItemLine(m.group(1)!);
     if (parsed == null) return null;
     items.add(parsed);
   }
-  if (items.isEmpty) return null;
-  return NotesBreakdown(merchant: merchant, items: items, total: total);
+  // Canonical whenever items OR a note exist (ADR-0024) — a lone
+  // `merchant\nCatatan: …` is a recognizable structure.
+  if (items.isEmpty && (note == null || note.isEmpty)) return null;
+  return NotesBreakdown(
+    merchant: merchant,
+    items: items,
+    total: total,
+    note: note,
+  );
 }
 
 bool looksLikeBreakdown(String? text) {

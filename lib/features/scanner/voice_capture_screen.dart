@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
 import '../../core/config/pricing_constants.dart';
@@ -12,6 +14,7 @@ import '../../core/services/dummy_payment_service.dart';
 import '../../core/services/log_service.dart';
 import '../../core/services/scanner_service.dart';
 import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../shared/providers/accounts_provider.dart';
@@ -19,10 +22,10 @@ import '../../shared/providers/room_accounts_provider.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/providers/services_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
+import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_sheet.dart';
 import '../../l10n/l10n_x.dart';
-import '../transactions/notes_breakdown.dart';
 
 /// In-app voice Capture (ADR-0022). Hold the mic to record, release to send.
 /// The clip is uploaded to `parse-voice` (transcribe + parse, AI Credit gated),
@@ -39,15 +42,17 @@ class VoiceCaptureScreen extends ConsumerStatefulWidget {
   ConsumerState<VoiceCaptureScreen> createState() => _VoiceCaptureScreenState();
 }
 
-enum _VoicePhase { idle, recording, processing, error, roomNotFound }
+enum _VoicePhase { idle, recording, processing, error, roomNotFound, permissionDenied }
 
-class _VoiceCaptureScreenState extends ConsumerState<VoiceCaptureScreen> {
+class _VoiceCaptureScreenState extends ConsumerState<VoiceCaptureScreen>
+    with WidgetsBindingObserver {
   static const _tag = 'VoiceCaptureScreen';
   static const _maxDuration = Duration(seconds: 60);
   static const _minMillis = 800; // too-short release → discard, no charge
 
   final _recorder = AudioRecorder();
   _VoicePhase _phase = _VoicePhase.idle;
+  bool _permanentlyDenied = false; // OS won't re-prompt → deep-link to settings
   String? _transcript; // what was heard, shown on a failed parse
   String? _notFoundRoom; // room named in speech but not a member (parity)
   DateTime? _startedAt;
@@ -58,22 +63,58 @@ class _VoiceCaptureScreenState extends ConsumerState<VoiceCaptureScreen> {
   StreamSubscription<Amplitude>? _ampSub;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _requestMic();
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _ticker?.cancel();
     _ampSub?.cancel();
     _recorder.dispose();
     super.dispose();
   }
 
+  /// Mic permission is requested on load (ADR-0022 UX amendment) rather than on
+  /// first record press: this screen's sole purpose is voice, so arriving here
+  /// is already the intent. `_phase` stays idle (the mic backdrop sits behind
+  /// the OS dialog); denial flips to a dedicated view before any interaction.
+  Future<void> _requestMic() async {
+    final status = await Permission.microphone.request();
+    if (!mounted || status.isGranted) return;
+    setState(() {
+      _phase = _VoicePhase.permissionDenied;
+      _permanentlyDenied = status.isPermanentlyDenied || status.isRestricted;
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Returning from Settings (or foregrounding after a mid-session grant/
+    // revoke): re-check and recover to the record UI without a tap.
+    if (state != AppLifecycleState.resumed) return;
+    if (_phase != _VoicePhase.permissionDenied) return;
+    Permission.microphone.status.then((s) {
+      if (!mounted || !s.isGranted) return;
+      setState(() => _phase = _VoicePhase.idle);
+    });
+  }
+
+  /// Denied-view button: re-request while still askable; once permanently
+  /// denied the OS suppresses the dialog, so deep-link to app settings instead.
+  Future<void> _onMicAction() async {
+    if (_permanentlyDenied) {
+      await openAppSettings();
+    } else {
+      await _requestMic();
+    }
+  }
+
   Future<void> _start() async {
     if (_phase == _VoicePhase.processing) return;
-    if (!await _recorder.hasPermission()) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(context.l10n.voiceMicDenied)));
-      return;
-    }
     final dir = await getTemporaryDirectory();
     final path =
         '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
@@ -255,9 +296,8 @@ class _VoiceCaptureScreenState extends ConsumerState<VoiceCaptureScreen> {
     return null;
   }
 
-  /// High-trust direct commit. Mirrors `scan_review_screen._save`: merchant +
-  /// items fold into the notes breakdown (with the parser's raw `notes` as the
-  /// fallback, since voice often has only that), then `addTransaction`. On
+  /// High-trust direct commit. Mirrors `scan_review_screen._save`: merchant,
+  /// note, and items persist structured (ADR-0025), then `addTransaction`. On
   /// success land on the detail screen with the context-aware list underneath,
   /// so back reveals where the row lives. `date` is intentionally omitted — the
   /// table has no date column; `created_at` carries the timestamp.
@@ -267,32 +307,11 @@ class _VoiceCaptureScreenState extends ConsumerState<VoiceCaptureScreen> {
     String? roomId, {
     String? routedRoomName,
   }) async {
+    // Structured storage (ADR-0025): merchant / note / items each land in
+    // their own column — the AI's structure is persisted as-is.
     final merchant = (p['merchant'] as String?)?.trim() ?? '';
-    final itemsRaw = (p['items'] as List?) ?? const [];
-    final breakdownItems = <NotesBreakdownItem>[
-      for (final it in itemsRaw.whereType<Map>())
-        NotesBreakdownItem(
-          name: (it['name'] as String?) ?? '',
-          qty: (it['qty'] as num?)?.toDouble(),
-          unitPrice: (it['unit_price'] as num?)?.toDouble(),
-          totalPrice: (it['total_price'] as num?)?.toDouble(),
-        ),
-    ];
     final currency = (p['currency'] as String?) ?? 'IDR';
-    final breakdownText = (merchant.isEmpty && breakdownItems.isEmpty)
-        ? null
-        : formatBreakdown(
-            NotesBreakdown(
-              merchant: merchant,
-              items: breakdownItems,
-              total: (p['total'] as num?)?.toDouble(),
-              currency: currency,
-            ),
-          ).trim();
     final rawNotes = (p['notes'] as String?)?.trim();
-    final notesText = (breakdownText != null && breakdownText.isNotEmpty)
-        ? breakdownText
-        : (rawNotes != null && rawNotes.isNotEmpty ? rawNotes : null);
 
     try {
       final insertedId = await ref
@@ -301,7 +320,8 @@ class _VoiceCaptureScreenState extends ConsumerState<VoiceCaptureScreen> {
             'type': p['type'] ?? 'expense',
             'amount': p['total'],
             'currency': currency,
-            if (notesText != null && notesText.isNotEmpty) 'notes': notesText,
+            if (merchant.isNotEmpty) 'merchant': merchant,
+            if (rawNotes != null && rawNotes.isNotEmpty) 'notes': rawNotes,
             'category': p['category'] ?? 'other',
             'account_id': accountId,
             'ai_parsed': true,
@@ -383,6 +403,108 @@ class _VoiceCaptureScreenState extends ConsumerState<VoiceCaptureScreen> {
     );
   }
 
+  // Collapses idle+recording into one key so the record orb animates in place
+  // rather than the whole control re-fading when a hold begins.
+  String get _phaseGroup => switch (_phase) {
+    _VoicePhase.idle || _VoicePhase.recording => 'record',
+    _VoicePhase.processing => 'processing',
+    _VoicePhase.error => 'error',
+    _VoicePhase.roomNotFound => 'roomNotFound',
+    _VoicePhase.permissionDenied => 'denied',
+  };
+
+  List<Widget> _deniedContent(BuildContext context) {
+    final c = context.loitColors;
+    final l = context.l10n;
+    return [
+      Text(
+        l.voiceMicTitle,
+        textAlign: TextAlign.center,
+        style: LoitTypography.titleM.copyWith(color: c.contentInverse),
+      ),
+      const SizedBox(height: LoitSpacing.s2),
+      Text(
+        l.voiceMicDenied,
+        textAlign: TextAlign.center,
+        style: LoitTypography.bodyM.copyWith(
+          color: c.contentInverse.withValues(alpha: 0.7),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _roomNotFoundContent(BuildContext context) {
+    final c = context.loitColors;
+    final l = context.l10n;
+    final room = _notFoundRoom ?? '';
+    final rooms = (ref.watch(activeRoomsProvider).value ?? const [])
+        .map((r) => r['name'] as String? ?? '')
+        .where((n) => n.isNotEmpty)
+        .toList();
+    final heard = _transcript?.trim();
+    return [
+      Text(
+        rooms.isEmpty
+            ? l.voiceRoomNotFoundNoRooms(room)
+            : l.voiceRoomNotFound(room),
+        textAlign: TextAlign.center,
+        style: LoitTypography.bodyM.copyWith(color: c.contentInverse),
+      ),
+      if (rooms.isNotEmpty) ...[
+        const SizedBox(height: LoitSpacing.s3),
+        Text(
+          l.voiceYourRooms(rooms.join(', ')),
+          textAlign: TextAlign.center,
+          style: LoitTypography.bodyS.copyWith(
+            color: c.contentInverse.withValues(alpha: 0.7),
+          ),
+        ),
+      ],
+      if (heard != null && heard.isNotEmpty) ...[
+        const SizedBox(height: LoitSpacing.s5),
+        Text(
+          '"$heard"',
+          textAlign: TextAlign.center,
+          style: LoitTypography.bodyM.copyWith(
+            color: c.contentInverse,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+    ];
+  }
+
+  List<Widget> _errorContent(BuildContext context) {
+    final c = context.loitColors;
+    final l = context.l10n;
+    final heard = _transcript?.trim();
+    return [
+      Text(
+        l.voiceError,
+        textAlign: TextAlign.center,
+        style: LoitTypography.bodyM.copyWith(color: c.contentInverse),
+      ),
+      if (heard != null && heard.isNotEmpty) ...[
+        const SizedBox(height: LoitSpacing.s5),
+        Text(
+          l.voiceHeard,
+          style: LoitTypography.labelS.copyWith(
+            color: c.contentInverse.withValues(alpha: 0.6),
+          ),
+        ),
+        const SizedBox(height: LoitSpacing.s2),
+        Text(
+          '"$heard"',
+          textAlign: TextAlign.center,
+          style: LoitTypography.bodyM.copyWith(
+            color: c.contentInverse,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
@@ -396,36 +518,51 @@ class _VoiceCaptureScreenState extends ConsumerState<VoiceCaptureScreen> {
         title: Text(l.voiceTitle),
       ),
       body: SafeArea(
+        // Phases cross-fade instead of snapping. idle+recording share one
+        // subtree key so pressing record animates the orb, not the whole view.
         child: Center(
-          child: switch (_phase) {
-            _VoicePhase.processing => _Processing(label: l.voiceProcessing),
-            _VoicePhase.roomNotFound => _RoomNotFoundView(
-              room: _notFoundRoom ?? '',
-              transcript: _transcript,
-              rooms: (ref.watch(activeRoomsProvider).value ?? const [])
-                  .map((r) => r['name'] as String? ?? '')
-                  .where((n) => n.isNotEmpty)
-                  .toList(),
-              onRetry: () => setState(() => _phase = _VoicePhase.idle),
+          child: AnimatedSwitcher(
+            duration: LoitMotion.base,
+            switchInCurve: LoitMotion.easeOutQuint,
+            switchOutCurve: LoitMotion.easeOutQuart,
+            child: KeyedSubtree(
+              key: ValueKey(_phaseGroup),
+              child: switch (_phase) {
+                _VoicePhase.permissionDenied => _MessageView(
+                  icon: Icons.mic_off_rounded,
+                  buttonLabel: _permanentlyDenied
+                      ? l.voiceMicOpenSettings
+                      : l.voiceMicGrant,
+                  onPressed: _onMicAction,
+                  children: _deniedContent(context),
+                ),
+                _VoicePhase.processing => _Processing(label: l.voiceProcessing),
+                _VoicePhase.roomNotFound => _MessageView(
+                  icon: Icons.meeting_room_outlined,
+                  buttonLabel: MaterialLocalizations.of(context).okButtonLabel,
+                  onPressed: () => setState(() => _phase = _VoicePhase.idle),
+                  children: _roomNotFoundContent(context),
+                ),
+                _VoicePhase.error => _MessageView(
+                  icon: Icons.error_outline,
+                  buttonLabel: MaterialLocalizations.of(context).okButtonLabel,
+                  onPressed: () => setState(() => _phase = _VoicePhase.idle),
+                  children: _errorContent(context),
+                ),
+                _ => _RecordControl(
+                  recording: _phase == _VoicePhase.recording,
+                  amplitude: _amplitude,
+                  elapsed: _elapsed,
+                  hint: _phase == _VoicePhase.recording
+                      ? l.voiceRecording
+                      : l.voiceHint,
+                  onStart: _start,
+                  onStop: _stopAndSend,
+                  onCancel: _cancel,
+                ),
+              },
             ),
-            _VoicePhase.error => _ErrorView(
-              message: l.voiceError,
-              transcript: _transcript,
-              heardLabel: l.voiceHeard,
-              onRetry: () => setState(() => _phase = _VoicePhase.idle),
-            ),
-            _ => _RecordControl(
-              recording: _phase == _VoicePhase.recording,
-              amplitude: _amplitude,
-              elapsed: _elapsed,
-              hint: _phase == _VoicePhase.recording
-                  ? l.voiceRecording
-                  : l.voiceHint,
-              onStart: _start,
-              onStop: _stopAndSend,
-              onCancel: _cancel,
-            ),
-          },
+          ),
         ),
       ),
     );
@@ -454,56 +591,199 @@ class _RecordControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    final ringSize = 140.0 + (recording ? amplitude * 80 : 0);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (recording)
-          Text(
-            '0:${elapsed.toString().padLeft(2, '0')}',
-            style: LoitTypography.displayM.copyWith(color: c.contentInverse),
-          ),
-        const SizedBox(height: LoitSpacing.s6),
-        GestureDetector(
-          onLongPressStart: (_) => onStart(),
-          onLongPressEnd: (_) => onStop(),
-          onLongPressCancel: onCancel,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            width: ringSize,
-            height: ringSize,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: recording
-                  ? c.brand.withValues(alpha: 0.18)
-                  : c.muted.withValues(alpha: 0.12),
-            ),
-            child: Center(
-              child: Container(
-                width: 96,
-                height: 96,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: c.brand,
-                ),
-                child: Icon(
-                  recording ? Icons.mic : Icons.mic_none_rounded,
-                  color: Colors.white,
-                  size: 40,
-                ),
+        // Timer slot is always reserved so the orb never jumps when a hold
+        // starts — the digits just fade in. Tabular figures hold the width
+        // steady as the seconds tick (DESIGN: the Tabular Money Rule).
+        SizedBox(
+          height: 48,
+          child: AnimatedOpacity(
+            opacity: recording ? 1 : 0,
+            duration: LoitMotion.short,
+            curve: LoitMotion.easeOutQuart,
+            child: Text(
+              '0:${elapsed.toString().padLeft(2, '0')}',
+              style: LoitTypography.displayM.copyWith(
+                color: c.contentInverse,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
           ),
         ),
-        const SizedBox(height: LoitSpacing.s6),
-        Text(
-          hint,
-          textAlign: TextAlign.center,
-          style: LoitTypography.bodyM.copyWith(
-            color: c.contentInverse.withValues(alpha: 0.7),
+        // Tight to the orb, generous below it: rhythm, not monotone padding.
+        const SizedBox(height: LoitSpacing.s7),
+        GestureDetector(
+          onLongPressStart: (_) => onStart(),
+          onLongPressEnd: (_) => onStop(),
+          onLongPressCancel: onCancel,
+          // Fixed box holds the largest halo/ring so nothing reflows as the
+          // orb breathes or reacts to the voice.
+          child: SizedBox(
+            width: 240,
+            height: 240,
+            child: Center(
+              child: _MicOrb(recording: recording, amplitude: amplitude),
+            ),
+          ),
+        ),
+        const SizedBox(height: LoitSpacing.s8),
+        AnimatedSwitcher(
+          duration: LoitMotion.short,
+          child: Text(
+            hint,
+            key: ValueKey(hint),
+            textAlign: TextAlign.center,
+            style: LoitTypography.bodyM.copyWith(
+              color: c.contentInverse.withValues(alpha: 0.7),
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The capture hero. At rest it breathes with a slow expanding halo — the same
+/// living quality as the Scan FAB — to invite the hold. While recording, a ring
+/// tracks the mic amplitude so the user sees their voice land.
+class _MicOrb extends StatefulWidget {
+  const _MicOrb({required this.recording, required this.amplitude});
+
+  final bool recording;
+  final double amplitude;
+
+  @override
+  State<_MicOrb> createState() => _MicOrbState();
+}
+
+class _MicOrbState extends State<_MicOrb> with SingleTickerProviderStateMixin {
+  late final AnimationController _idle = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2400),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _idle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    final core = Container(
+      width: 96,
+      height: 96,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: c.brand,
+        boxShadow: [
+          BoxShadow(
+            color: c.brand.withValues(alpha: 0.4),
+            blurRadius: 28,
+            spreadRadius: widget.recording ? 6 : 2,
+          ),
+        ],
+      ),
+      child: Icon(
+        widget.recording ? Icons.mic : Icons.mic_none_rounded,
+        color: Colors.white,
+        size: 40,
+      ),
+    );
+
+    if (widget.recording) {
+      final ring = 150.0 + widget.amplitude * 78;
+      return Stack(
+        alignment: Alignment.center,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            curve: LoitMotion.easeOutQuart,
+            width: ring,
+            height: ring,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: c.brand.withValues(alpha: 0.14 + widget.amplitude * 0.12),
+            ),
+          ),
+          core,
+        ],
+      );
+    }
+
+    if (MediaQuery.of(context).disableAnimations) return core;
+
+    return AnimatedBuilder(
+      animation: _idle,
+      builder: (_, __) {
+        final t = _idle.value;
+        final breathe = 1 + 0.03 * math.sin(t * 2 * math.pi);
+        final halo = 96 + 96 * Curves.easeOut.transform(t);
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: halo,
+              height: halo,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: c.brand.withValues(alpha: (1 - t) * 0.16),
+              ),
+            ),
+            Transform.scale(scale: breathe, child: core),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Shared scaffold for the three terminal states — permission denied, room not
+/// found, parse error. Each is an icon, a middle block, and a single action;
+/// the icon scales in and the button trails it so the state lands with intent
+/// rather than snapping into place. (Permission denied: a dead mic-hold UI on a
+/// single-purpose screen would be dishonest, so we show this instead.)
+class _MessageView extends StatelessWidget {
+  const _MessageView({
+    required this.icon,
+    required this.children,
+    required this.buttonLabel,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final List<Widget> children;
+  final String buttonLabel;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    return Padding(
+      padding: const EdgeInsets.all(LoitSpacing.s6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LoitScaleIn(
+            from: 0.8,
+            child: Icon(
+              icon,
+              color: c.contentInverse.withValues(alpha: 0.7),
+              size: 48,
+            ),
+          ),
+          const SizedBox(height: LoitSpacing.s5),
+          ...children,
+          const SizedBox(height: LoitSpacing.s7),
+          LoitFadeSlideIn(
+            delay: const Duration(milliseconds: 120),
+            child: LoitButton.primary(label: buttonLabel, onPressed: onPressed),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -529,133 +809,3 @@ class _Processing extends StatelessWidget {
   }
 }
 
-/// Parity with the Telegram bot's room-not-found reply (ADR-0022 amendment):
-/// the transcript addressed a room the user isn't a member of. Inform-only — no
-/// "log as personal" escape, matching the bot 1:1.
-class _RoomNotFoundView extends StatelessWidget {
-  const _RoomNotFoundView({
-    required this.room,
-    required this.rooms,
-    required this.onRetry,
-    this.transcript,
-  });
-  final String room;
-  final List<String> rooms;
-  final String? transcript;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.loitColors;
-    final l = context.l10n;
-    final heard = transcript?.trim();
-    return Padding(
-      padding: const EdgeInsets.all(LoitSpacing.s6),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.meeting_room_outlined,
-            color: c.contentInverse.withValues(alpha: 0.7),
-            size: 48,
-          ),
-          const SizedBox(height: LoitSpacing.s5),
-          Text(
-            rooms.isEmpty
-                ? l.voiceRoomNotFoundNoRooms(room)
-                : l.voiceRoomNotFound(room),
-            textAlign: TextAlign.center,
-            style: LoitTypography.bodyM.copyWith(color: c.contentInverse),
-          ),
-          if (rooms.isNotEmpty) ...[
-            const SizedBox(height: LoitSpacing.s3),
-            Text(
-              l.voiceYourRooms(rooms.join(', ')),
-              textAlign: TextAlign.center,
-              style: LoitTypography.bodyS.copyWith(
-                color: c.contentInverse.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
-          if (heard != null && heard.isNotEmpty) ...[
-            const SizedBox(height: LoitSpacing.s5),
-            Text(
-              '"$heard"',
-              textAlign: TextAlign.center,
-              style: LoitTypography.bodyM.copyWith(
-                color: c.contentInverse,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-          const SizedBox(height: LoitSpacing.s6),
-          LoitButton.primary(
-            label: MaterialLocalizations.of(context).okButtonLabel,
-            onPressed: onRetry,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({
-    required this.message,
-    required this.onRetry,
-    required this.heardLabel,
-    this.transcript,
-  });
-  final String message;
-  final String heardLabel;
-  final String? transcript;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.loitColors;
-    final heard = transcript?.trim();
-    return Padding(
-      padding: const EdgeInsets.all(LoitSpacing.s6),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.error_outline,
-            color: c.contentInverse.withValues(alpha: 0.7),
-            size: 48,
-          ),
-          const SizedBox(height: LoitSpacing.s5),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: LoitTypography.bodyM.copyWith(color: c.contentInverse),
-          ),
-          if (heard != null && heard.isNotEmpty) ...[
-            const SizedBox(height: LoitSpacing.s5),
-            Text(
-              heardLabel,
-              style: LoitTypography.labelS.copyWith(
-                color: c.contentInverse.withValues(alpha: 0.6),
-              ),
-            ),
-            const SizedBox(height: LoitSpacing.s2),
-            Text(
-              '"$heard"',
-              textAlign: TextAlign.center,
-              style: LoitTypography.bodyM.copyWith(
-                color: c.contentInverse,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-          const SizedBox(height: LoitSpacing.s6),
-          LoitButton.primary(
-            label: MaterialLocalizations.of(context).okButtonLabel,
-            onPressed: onRetry,
-          ),
-        ],
-      ),
-    );
-  }
-}

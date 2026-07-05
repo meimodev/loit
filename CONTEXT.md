@@ -64,6 +64,35 @@ time** as its timestamp, never the AI's parsed date (a receipt's printed date is
 ignored on the auto-commit path).
 _Avoid_: high confidence (the bucket), auto-confirm (the scan-only setting).
 
+### Notes & item breakdown
+
+**Note** (_Catatan_):
+The user's free-text remark on a transaction — its purpose or context ("buat
+meeting kantor"), never a restatement of merchant, amounts, or items. Sourced
+per Capture kind: AI-extracted from the message/transcript (text, voice),
+the photo caption (Telegram image), or typed in the scan-review note field
+(in-app image). Since ADR 0025 it **is** the `notes` column — stored pure,
+with no structural encoding.
+_Avoid_: description, caption (a Telegram-only source, not the concept),
+canonical notes (the legacy encoding).
+
+**Item breakdown**:
+The structured line items of one Capture — per line: name and whichever of
+qty / unit price / total price are known. Stored as `transaction_items` rows
+(ADR 0025) — the AI extracts them server-side; the app only renders. One
+Capture yields at most one Transaction regardless of item count.
+_Avoid_: items list, receipt lines, sub-transactions, notes breakdown (the
+legacy string form).
+
+**Canonical notes text** (legacy):
+The **superseded** string encoding (ADR 0024 → 0025) that packed merchant,
+item bullets, `Total:`, and a `Catatan:` note line into `transactions.notes`.
+**Read-only**: `parseBreakdown` still recognises it so pre-pivot rows render,
+but nothing writes it anymore — new rows store merchant / items / Note in
+their own columns. Editing a legacy row re-saves it structured.
+_Avoid_: writing it, extending it, treating a parse failure as an error (it
+just renders as plain text).
+
 ### Categories
 
 **Category style**:
@@ -245,6 +274,17 @@ A **Room account** lives in the same `accounts` table as a personal **Account**;
 exactly one of `user_id` / `room_id` is set. Personal screens must filter
 `room_id IS NULL` so room accounts never leak into a user's own balance sheet.
 
+**Default room account**:
+The three convenience **Room accounts** — "Tunai", "Bank 1", "Bank 2" —
+seeded into every new Room at creation so the room has an immediate funding
+source for **Room-account movements**. Created client-side, best-effort; a
+seeding failure leaves the room usable (the admin can add accounts manually).
+"Tunai" is inserted first so it becomes the **first active Room account** and
+the default funding source for **AI Captures** routed to the room. Guaranteed
+at creation **only** — the admin may later rename, archive, or add more. Not
+pinned, not backfilled to existing rooms.
+_Avoid_: starter account, auto-account, required account.
+
 **Room transaction**:
 The umbrella for **any** transaction carrying a `room_id` — it shows in the
 room feed. Two species, distinguished only by which account funds them: a
@@ -260,11 +300,12 @@ until sync). _Avoid_: room movement (when meaning the umbrella), shared txn.
 A **Room** soft-retired via `rooms.is_archived` (`archived_at` stamped). Archive
 is a **target** block, not a hide: the room still appears in the rooms list (with
 an "ARCHIVED" badge), its history, balances, and existing **Room transaction**s
-render unchanged. What archiving forbids is being chosen as the destination of a
-**new** transaction — manual or AI (image / voice / text), client picker or
-server-side resolver. Mirrors the **Room account** archive (`archived_at`),
-which already drops out of every active picker. _Avoid_: deleted room, closed
-room, hidden room.
+render unchanged. In the rooms list screen, archived rooms are grouped in a
+collapsed section at the bottom to minimize visual prominence. What archiving forbids
+is being chosen as the destination of a **new** transaction — manual or AI (image /
+voice / text), client picker or server-side resolver. Mirrors the **Room account**
+archive (`archived_at`), which already drops out of every active picker. _Avoid_:
+deleted room, closed room, hidden room.
 
 **Online-only room operation**:
 **Any** read or write touching a `room_id` — room list/feed/detail/budget/

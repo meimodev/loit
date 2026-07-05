@@ -168,7 +168,7 @@ serve(async (req) => {
       return jsonResponse({ error: "Credit cap reached" }, 402);
     }
     if (res.kind === "ok") {
-      const notes = transcript.trim();
+      const heardOk = transcript.trim();
       const dest = resolveDestination(
         res.parsed,
         ctx,
@@ -178,8 +178,10 @@ serve(async (req) => {
         {
           ...res.parsed,
           category: dest.category,
-          // Full transcript as notes — complete, not the parser's short phrasing.
-          notes: notes.length > 0 ? notes : res.parsed.notes,
+          // `notes` is the parser's remark (Catatan, ADR-0024) — it rides the
+          // canonical notes text client-side. The verbatim transcript travels
+          // separately so nothing heard is lost to the UI.
+          transcript: heardOk,
           destination_room: dest.roomName,
           destination_room_id: dest.roomId,
           routed_by_speech: dest.routedBySpeech,

@@ -8,6 +8,7 @@ import '../../core/services/reachability_service.dart';
 // here so existing call sites importing it from this provider keep working.
 export '../../core/services/reachability_service.dart'
     show OnlineOnlyActionException;
+import '../../features/transactions/notes_breakdown.dart';
 import '../widgets/connectivity_banner.dart';
 import 'auth_providers.dart';
 import 'services_providers.dart';
@@ -57,6 +58,12 @@ class Txn {
   final String currency;
   final Map<String, double> fxSnapshot;
   final String? category;
+  // Structured capture storage (ADR-0025): merchant is a real column, notes is
+  // the pure Note (remark), items come from the `transaction_items` join.
+  // Legacy rows keep the canonical text inside `notes`; use the display
+  // getters below rather than reading these raw.
+  final String? merchant;
+  final List<NotesBreakdownItem> items;
   final String? notes;
   final String? receiptUrl;
   final bool aiParsed;
@@ -83,6 +90,8 @@ class Txn {
     required this.category,
     required this.notes,
     required this.receiptUrl,
+    this.merchant,
+    this.items = const [],
     required this.aiParsed,
     required this.isManualFallback,
     required this.createdAt,
@@ -97,6 +106,26 @@ class Txn {
     this.payerEmail,
     this.payerAvatarUrl,
   });
+
+  static List<NotesBreakdownItem> _itemsFromRaw(Object? raw) {
+    if (raw is! List || raw.isEmpty) return const [];
+    double? toD(Object? v) {
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v);
+      return null;
+    }
+
+    return [
+      for (final e in raw)
+        if (e is Map)
+          NotesBreakdownItem(
+            name: (e['name'] as String?)?.trim() ?? '',
+            qty: toD(e['qty']),
+            unitPrice: toD(e['unit_price']),
+            totalPrice: toD(e['total_price']),
+          ),
+    ];
+  }
 
   factory Txn.fromRow(Map<String, dynamic> r) {
     final rawType = r['type'] as String?;
@@ -122,6 +151,10 @@ class Txn {
       currency: (r['currency'] as String?) ?? 'IDR',
       fxSnapshot: snapshot,
       category: r['category'] as String?,
+      merchant: r['merchant'] as String?,
+      // Server join key (`transaction_items`) or the queued payload key
+      // (`items`) — both carry {name, qty, unit_price, total_price} maps.
+      items: _itemsFromRaw(r['transaction_items'] ?? r['items']),
       notes: r['notes'] as String?,
       receiptUrl: r['receipt_url'] as String?,
       aiParsed: aiParsed,
@@ -154,6 +187,33 @@ class Txn {
   bool get isIncome => type == 'income';
   double get absAmount => amount.abs();
 
+  /// Legacy view of the canonical notes text (pre-ADR-0025 rows). Null for
+  /// structured rows whose notes is a pure Note.
+  NotesBreakdown? get _legacyBreakdown => parseBreakdown(notes);
+
+  /// Row/detail title: merchant column first, legacy notes merchant second.
+  String? get displayTitle {
+    final m = merchant?.trim();
+    if (m != null && m.isNotEmpty) return m;
+    final legacy = _legacyBreakdown?.merchant.trim();
+    if (legacy != null && legacy.isNotEmpty) return legacy;
+    final first = notes?.trim().split('\n').first.trim();
+    return (first != null && first.isNotEmpty) ? first : null;
+  }
+
+  /// The pure Note (Catatan). Structured rows store it directly in `notes`;
+  /// legacy canonical rows carry it on the `Catatan:` line.
+  String? get displayNote {
+    final legacy = _legacyBreakdown;
+    if (legacy != null) return legacy.note;
+    final n = notes?.trim();
+    return (n == null || n.isEmpty) ? null : n;
+  }
+
+  /// Item breakdown: structured rows first, legacy canonical text second.
+  List<NotesBreakdownItem> get displayItems =>
+      items.isNotEmpty ? items : (_legacyBreakdown?.items ?? const []);
+
   /// Signed amount converted to [target] currency via the frozen snapshot.
   /// Falls back to raw [amount] if the target is missing from the snapshot
   /// (legacy rows; should not happen for txns created post-migration).
@@ -181,7 +241,8 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
 
     final rows = await Supabase.instance.client
         .from('transactions')
-        .select('*, rooms(id, name)')
+        .select(
+            '*, rooms(id, name), transaction_items(name, qty, unit_price, total_price)')
         .eq('user_id', user.id)
         .order('created_at', ascending: false)
         .limit(200);
@@ -316,7 +377,9 @@ class TransactionsNotifier extends AsyncNotifier<List<Txn>> {
           ]);
         } catch (_) {/* best-effort */}
       }
-      // Prepend the canonical row now that the insert has resolved.
+      // Prepend the fresh row now that the insert has resolved; attach the
+      // just-written items so the breakdown renders without a refetch.
+      if (items.isNotEmpty) inserted['transaction_items'] = items;
       final current = state.value ?? const [];
       state = AsyncData([Txn.fromRow(inserted), ...current]);
       return newId;
@@ -512,7 +575,8 @@ final roomTransactionsProvider =
   if (user == null) return const [];
   final rows = await Supabase.instance.client
       .from('transactions')
-      .select('*, rooms(id, name)')
+      .select(
+          '*, rooms(id, name), transaction_items(name, qty, unit_price, total_price)')
       .eq('room_id', roomId)
       .order('created_at', ascending: false)
       .limit(1000);

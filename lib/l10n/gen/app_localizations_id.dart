@@ -616,6 +616,22 @@ class AppLocalizationsId extends AppLocalizations {
   String get txFormTotal => 'Total';
 
   @override
+  String get txFormNote => 'Catatan';
+
+  @override
+  String get txFormNoteHint => 'Tujuan atau konteks';
+
+  @override
+  String txRowItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count item',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get txFormSelectAccount => 'Pilih akun';
 
   @override
@@ -1410,6 +1426,15 @@ class AppLocalizationsId extends AppLocalizations {
       'Akses mikrofon diperlukan untuk merekam catatan suara';
 
   @override
+  String get voiceMicTitle => 'Aktifkan mikrofon';
+
+  @override
+  String get voiceMicGrant => 'Izinkan mikrofon';
+
+  @override
+  String get voiceMicOpenSettings => 'Buka Pengaturan';
+
+  @override
   String get voiceError => 'Tidak terdengar jelas — coba lagi';
 
   @override
@@ -1471,6 +1496,12 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get scanFieldCategory => 'Kategori';
+
+  @override
+  String get scanNoteLabel => 'Catatan (opsional)';
+
+  @override
+  String get scanNoteHint => 'cth. buat meeting kantor';
 
   @override
   String scanItemsCount(int count) {
@@ -2451,6 +2482,22 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get roomTileYouOwn => 'Kamu pemiliknya';
+
+  @override
+  String get roomTileTypeChurch => 'Gereja';
+
+  @override
+  String get roomsSectionActive => 'Ruangan Aktif';
+
+  @override
+  String get roomsSectionArchived => 'Ruangan Diarsipkan';
+
+  @override
+  String get roomsSectionActiveEmpty => 'Belum ada ruangan aktif';
+
+  @override
+  String get roomsSectionActiveEmptyAction =>
+      'Buat atau gabung ruangan di atas untuk memulai.';
 
   @override
   String get roomOnlineStatus => 'Online';

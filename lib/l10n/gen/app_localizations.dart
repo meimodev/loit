@@ -1244,6 +1244,24 @@ abstract class AppLocalizations {
   /// **'Total'**
   String get txFormTotal;
 
+  /// No description provided for @txFormNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get txFormNote;
+
+  /// No description provided for @txFormNoteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Purpose or context'**
+  String get txFormNoteHint;
+
+  /// No description provided for @txRowItemCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 item} other{{count} items}}'**
+  String txRowItemCount(int count);
+
   /// No description provided for @txFormSelectAccount.
   ///
   /// In en, this message translates to:
@@ -2669,6 +2687,24 @@ abstract class AppLocalizations {
   /// **'Microphone access is needed to record voice notes'**
   String get voiceMicDenied;
 
+  /// No description provided for @voiceMicTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on the microphone'**
+  String get voiceMicTitle;
+
+  /// No description provided for @voiceMicGrant.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow microphone'**
+  String get voiceMicGrant;
+
+  /// No description provided for @voiceMicOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get voiceMicOpenSettings;
+
   /// No description provided for @voiceError.
   ///
   /// In en, this message translates to:
@@ -2770,6 +2806,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Category'**
   String get scanFieldCategory;
+
+  /// No description provided for @scanNoteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Note (optional)'**
+  String get scanNoteLabel;
+
+  /// No description provided for @scanNoteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. for the office meeting'**
+  String get scanNoteHint;
 
   /// No description provided for @scanItemsCount.
   ///
@@ -4462,6 +4510,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You own this'**
   String get roomTileYouOwn;
+
+  /// No description provided for @roomTileTypeChurch.
+  ///
+  /// In en, this message translates to:
+  /// **'Church'**
+  String get roomTileTypeChurch;
+
+  /// No description provided for @roomsSectionActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Rooms'**
+  String get roomsSectionActive;
+
+  /// No description provided for @roomsSectionArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived Rooms'**
+  String get roomsSectionArchived;
+
+  /// No description provided for @roomsSectionActiveEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No active rooms yet'**
+  String get roomsSectionActiveEmpty;
+
+  /// No description provided for @roomsSectionActiveEmptyAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Create or join a room above to get started.'**
+  String get roomsSectionActiveEmptyAction;
 
   /// No description provided for @roomOnlineStatus.
   ///

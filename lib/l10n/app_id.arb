@@ -249,6 +249,12 @@
   "txFormQty": "Jml",
   "txFormUnitPrice": "Harga satuan",
   "txFormTotal": "Total",
+  "txFormNote": "Catatan",
+  "txFormNoteHint": "Tujuan atau konteks",
+  "txRowItemCount": "{count, plural, other{{count} item}}",
+  "@txRowItemCount": {
+    "placeholders": { "count": {"type": "int"} }
+  },
   "txFormSelectAccount": "Pilih akun",
   "txFormSelectDestination": "Pilih tujuan",
   "txFormTabText": "Teks",
@@ -684,6 +690,9 @@
   "voiceProcessing": "Membaca catatanmu…",
   "voiceTooShort": "Tahan sedikit lebih lama untuk merekam",
   "voiceMicDenied": "Akses mikrofon diperlukan untuk merekam catatan suara",
+  "voiceMicTitle": "Aktifkan mikrofon",
+  "voiceMicGrant": "Izinkan mikrofon",
+  "voiceMicOpenSettings": "Buka Pengaturan",
   "voiceError": "Tidak terdengar jelas — coba lagi",
   "voiceHeard": "Terdengar",
   "undo": "Urungkan",
@@ -716,6 +725,8 @@
   "scanTotalComputed": "Total dihitung dari item.",
   "scanFieldAccount": "Akun",
   "scanFieldCategory": "Kategori",
+  "scanNoteLabel": "Catatan (opsional)",
+  "scanNoteHint": "cth. buat meeting kantor",
   "scanItemsCount": "{count, plural, other{{count} item}}",
   "@scanItemsCount": {
     "placeholders": { "count": {"type": "int"} }
@@ -1195,6 +1206,11 @@
   "roomTileUntitled": "Tanpa Judul",
   "roomTileArchivedLabel": "Diarsipkan",
   "roomTileYouOwn": "Kamu pemiliknya",
+  "roomTileTypeChurch": "Gereja",
+  "roomsSectionActive": "Ruangan Aktif",
+  "roomsSectionArchived": "Ruangan Diarsipkan",
+  "roomsSectionActiveEmpty": "Belum ada ruangan aktif",
+  "roomsSectionActiveEmptyAction": "Buat atau gabung ruangan di atas untuk memulai.",
   "roomOnlineStatus": "Online",
   "roomOnlineOthers": "{count} online",
   "@roomOnlineOthers": {

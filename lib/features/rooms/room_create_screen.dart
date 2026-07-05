@@ -215,6 +215,22 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
         name: name,
         baseCurrency: _currency,
       );
+
+      // Best-effort: seed Default room accounts (ADR 0024). A failure leaves
+      // the room with zero accounts — still usable, the admin can add manually.
+      try {
+        await ref.read(roomServiceProvider).seedDefaultAccounts(
+              roomId: room['id'] as String,
+              currency: _currency,
+            );
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Akun default gagal dimuat — tambah manual di room.'),
+          ));
+        }
+      }
+
       Analytics.roomCreated();
       InteractionLog.success(
         action: 'room_created',

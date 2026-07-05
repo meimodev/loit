@@ -81,6 +81,9 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
   // Notes breakdown editor state.
   _NotesMode _notesMode = _NotesMode.text;
   final _merchant = TextEditingController();
+  // Note (Catatan, ADR-0024) — rides the canonical notes text as the trailing
+  // `Catatan:` line; kept distinct so items-mode round trips never drop it.
+  final _breakdownNote = TextEditingController();
   final List<_ItemRowControllers> _itemRows = [];
   late final TabController _notesTabController;
   bool _breakdownHintDismissed = false;
@@ -146,6 +149,12 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       if (hasScanItems) {
         _notesMode = _NotesMode.items;
         _merchant.text = merchantPrefill ?? '';
+        // Prefill note: canonical notes carry it on the Catatan line; a plain
+        // notes prefill (voice remark, scan-review typed note) IS the note.
+        if (notesPrefill != null && notesPrefill.isNotEmpty) {
+          _breakdownNote.text =
+              parseBreakdown(notesPrefill)?.note ?? notesPrefill;
+        }
         for (final raw in rawItems) {
           if (raw is! Map) continue;
           final m = Map<String, dynamic>.from(raw);
@@ -174,49 +183,31 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
           }
           if (sum > 0) _amount.text = formatAmountInput(sum);
         }
-        // Seed canonical text so saving without further edits writes structured notes.
-        _notes.text = formatBreakdown(_collectBreakdown());
+        // Text tab mirrors the pure Note (ADR-0025) — never canonical text.
+        _notes.text = _breakdownNote.text;
       } else {
-        // Parse stored notes directly first. Telegram canonical notes already
-        // embed merchant + items, so composing them with a separate
-        // `merchantPrefill` would corrupt the breakdown shape that
-        // `parseBreakdown` recognises.
+        // Legacy canonical notes (pre-ADR-0025 rows) still hydrate the items
+        // editor; the Note is whatever their Catatan line carried.
         final parsedFromNotes = (notesPrefill != null && notesPrefill.isNotEmpty)
             ? parseBreakdown(notesPrefill)
             : null;
         if (parsedFromNotes != null) {
-          _notes.text = notesPrefill!;
           _notesMode = _NotesMode.items;
           _hydrateFromBreakdown(parsedFromNotes);
+          _notes.text = _breakdownNote.text;
         } else {
-          final notesHasMerchantHead = notesPrefill != null &&
-              merchantPrefill != null &&
-              merchantPrefill.isNotEmpty &&
-              notesPrefill
-                      .split('\n')
-                      .map((l) => l.trim())
-                      .firstWhere((l) => l.isNotEmpty, orElse: () => '')
-                      .toLowerCase() ==
-                  merchantPrefill.toLowerCase();
-          final composed = [
-            if (merchantPrefill != null &&
-                merchantPrefill.isNotEmpty &&
-                !notesHasMerchantHead)
-              merchantPrefill,
-            if (notesPrefill != null && notesPrefill.isNotEmpty) notesPrefill,
-          ].join('\n');
-          if (composed.isNotEmpty) _notes.text = composed;
+          // Structured prefill (ADR-0025): merchant has its own field; notes
+          // is the pure Note.
+          _merchant.text = merchantPrefill ?? '';
+          if (notesPrefill != null && notesPrefill.isNotEmpty) {
+            _notes.text = notesPrefill;
+            _breakdownNote.text = notesPrefill;
+          }
 
-          if (_editId != null) {
-            // Plain Telegram chatbot notes stay in the Text tab. Items mode
-            // only kicks in when the stored notes parse as a canonical
-            // breakdown — handled in the branch above.
-          } else if (_isManualFallback || _aiParsed) {
+          if (_editId == null && (_isManualFallback || _aiParsed)) {
             // New AI-origin transaction with no parsed items: open Items tab
-            // so user can add items manually. Merchant belongs in the items
-            // editor header.
+            // so user can add items manually.
             _notesMode = _NotesMode.items;
-            _merchant.text = merchantPrefill ?? '';
           }
         }
       }
@@ -252,6 +243,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
     _notes.removeListener(_onNotesTextChanged);
     _notes.dispose();
     _merchant.dispose();
+    _breakdownNote.dispose();
     _notesTabController.dispose();
     for (final r in _itemRows) {
       r.dispose();
@@ -291,11 +283,13 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
         totalPrice: total,
       ));
     }
+    final note = _breakdownNote.text.trim();
     return NotesBreakdown(
       merchant: _merchant.text.trim(),
       items: items,
       total: null,
       currency: _currency,
+      note: note.isEmpty ? null : note,
     );
   }
 
@@ -307,6 +301,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
     }
     _itemRows.clear();
     _merchant.text = parsed.merchant;
+    _breakdownNote.text = parsed.note ?? '';
     for (final it in parsed.items) {
       _addRow(_ItemRowControllers(
         name: it.name,
@@ -324,25 +319,20 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       _notesTabController.index = targetIndex;
     }
     if (next == _NotesMode.items) {
-      // Try parse current notes text into editor.
+      // Legacy canonical text still hydrates the editor once; anything else
+      // is a pure Note (ADR-0025) and just moves into the note field.
       final parsed = parseBreakdown(_notes.text);
       if (parsed != null) {
         _hydrateFromBreakdown(parsed);
       } else {
-        if (_notes.text.trim().isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.txFormExistingNotes),
-            ),
-          );
-        }
+        _breakdownNote.text = _notes.text.trim();
       }
       setState(() {
         _notesMode = next;
       });
     } else {
-      // Items → Text: serialize.
-      _notes.text = formatBreakdown(_collectBreakdown());
+      // Items → Text: the text tab mirrors the pure Note.
+      _notes.text = _breakdownNote.text;
       setState(() {
         _notesMode = next;
       });
@@ -364,6 +354,13 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
             controller: _merchant,
             label: context.l10n.txFormMerchant,
             placeholder: context.l10n.txFormStoreOrPayer,
+            size: LoitInputSize.s,
+          ),
+          const SizedBox(height: LoitSpacing.s2),
+          LoitInput(
+            controller: _breakdownNote,
+            label: context.l10n.txFormNote,
+            placeholder: context.l10n.txFormNoteHint,
             size: LoitInputSize.s,
           ),
           const SizedBox(height: LoitSpacing.s3),
@@ -630,14 +627,24 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       } else {
         fxSnapshot = {_currency: 1.0};
       }
-      final String? notesPayload;
-      if (_notesMode == _NotesMode.items) {
-        final formatted = formatBreakdown(_collectBreakdown()).trim();
-        notesPayload = formatted.isEmpty ? null : formatted;
-      } else {
-        final t = _notes.text.trim();
-        notesPayload = t.isEmpty ? null : t;
-      }
+      // Structured storage (ADR-0025): the Note, merchant, and items each go
+      // to their own column — nothing is serialized into notes.
+      final noteText =
+          (_notesMode == _NotesMode.items ? _breakdownNote.text : _notes.text)
+              .trim();
+      final merchantText = _merchant.text.trim();
+      final breakdown = _collectBreakdown();
+      final itemsPayload = _notesMode == _NotesMode.items
+          ? [
+              for (final it in breakdown.items)
+                {
+                  'name': it.name,
+                  if (it.qty != null) 'qty': it.qty,
+                  if (it.unitPrice != null) 'unit_price': it.unitPrice,
+                  if (it.totalPrice != null) 'total_price': it.totalPrice,
+                },
+            ]
+          : null;
       final payload = <String, dynamic>{
         'amount': amount,
         'currency': _currency,
@@ -646,7 +653,9 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
         'account_id': _accountId,
         if (_type == 'transfer') 'to_account_id': _toAccountId,
         'category': _type == 'transfer' ? null : _category,
-        'notes': notesPayload,
+        'notes': noteText.isEmpty ? null : noteText,
+        'merchant': merchantText.isEmpty ? null : merchantText,
+        if (itemsPayload != null) 'items': itemsPayload,
         'ai_parsed': _aiParsed,
         'is_manual_fallback': _isManualFallback,
         'source': _source,
@@ -710,9 +719,9 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
               .read(roomServiceProvider)
               .notifyRoomTransaction(
                 roomId: _roomId!,
-                title: (notesPayload == null || notesPayload.isEmpty)
-                    ? null
-                    : breakdownTitle(notesPayload),
+                title: merchantText.isNotEmpty
+                    ? merchantText
+                    : (noteText.isEmpty ? null : noteText),
                 amount: amount,
                 currency: _currency,
                 isIncome: _type == 'income',

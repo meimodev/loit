@@ -1,5 +1,4 @@
 import type { UserContext } from "./user_context.ts";
-import { formatBreakdownNotes } from "./notes_breakdown.ts";
 import { chatComplete, transcribeAudio } from "./openrouter.ts";
 
 const TEXT_STATIC_PROMPT = `You are LOIT's transaction parser for chat messages. Read the user's message and return ONLY valid JSON — no prose, no markdown fences.
@@ -36,7 +35,7 @@ Return when is_transaction is true:
   "category": "exact key",
   "account": "exact name",
   "destination_room": "exact room name or null",
-  "notes": "short, original phrasing if useful, else null",
+  "notes": "the user's remark/purpose only (e.g. 'buat meeting kantor') — NEVER a restatement of merchant, amounts, or the items; null when the message carries no remark beyond the purchase itself",
   "items": [ { "name": "string", "qty": 0, "unit_price": 0, "total_price": 0 } ],
   "date": "YYYY-MM-DD",
   "confidence": 0.00
@@ -484,18 +483,6 @@ export function tryItemizedFallback(
   const account = pickFallbackAccount(ctx);
   if (!category || !account) return null;
 
-  const notes = formatBreakdownNotes({
-    merchant: null,
-    items: items.map((it) => ({
-      name: it.name,
-      qty: it.qty,
-      unit_price: it.unit_price,
-      total_price: it.total_price,
-    })),
-    total: runningTotal,
-    currency: ctx.homeCurrency,
-  });
-
   return {
     is_transaction: true,
     type: "expense",
@@ -505,7 +492,9 @@ export function tryItemizedFallback(
     category,
     account,
     destination_room: null,
-    notes,
+    // Structured storage (ADR-0025): items carry the breakdown; a rescue has
+    // no user remark, so notes stays empty.
+    notes: null,
     items,
     date: null,
     // Low confidence so caller routes through pending-confirm flow.
@@ -554,16 +543,20 @@ export function tryRoomTargetedRescue(
 export interface CaptionMetadata {
   date: string | null;
   destination_room: string | null;
+  // The caption's free-text remark after date/room markers are removed —
+  // becomes the transaction's Note (Catatan, ADR-0024).
+  note: string | null;
 }
 
-const CAPTION_META_PROMPT = `You are LOIT's image-caption metadata parser. The caption accompanies a receipt photo. Extract ONLY two fields and return strict JSON — no prose, no markdown.
+const CAPTION_META_PROMPT = `You are LOIT's image-caption metadata parser. The caption accompanies a receipt photo. Extract ONLY three fields and return strict JSON — no prose, no markdown.
 
 Fields:
 - "date": YYYY-MM-DD. Resolve relative wording ("yesterday", "kemarin", "last Friday", "May 1") against the "Today" value in the user message. If the caption does not mention or imply a date, return null. Do NOT guess.
 - "destination_room": exact room name from the rooms list when the caption clearly names one of them. Otherwise null. Do NOT invent room names.
+- "note": the caption's remaining free-text remark once date wording and the room name (plus its destination marker like "untuk"/"buat"/"ke"/"for"/"to") are removed — the user's annotation about the purchase ("buat meeting kantor", "patungan sama Andi"). Keep the user's original wording. Return null when nothing remains.
 
 Return:
-{ "date": "YYYY-MM-DD" | null, "destination_room": "exact room name" | null }`;
+{ "date": "YYYY-MM-DD" | null, "destination_room": "exact room name" | null, "note": "remark" | null }`;
 
 export async function parseCaptionMetadata(
   caption: string,
@@ -604,9 +597,13 @@ Caption: ${caption}`;
     const roomRaw =
       typeof parsed?.destination_room === "string" ? parsed.destination_room : null;
     const destination_room = findRoomByName(ctx, roomRaw)?.name ?? null;
-    return { date, destination_room };
+    const note =
+      typeof parsed?.note === "string" && parsed.note.trim()
+        ? parsed.note.trim()
+        : null;
+    return { date, destination_room, note };
   } catch {
-    return { date: null, destination_room: null };
+    return { date: null, destination_room: null, note: null };
   }
 }
 

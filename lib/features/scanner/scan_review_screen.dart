@@ -21,12 +21,12 @@ import '../../shared/providers/services_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../paywall/feature_gate.dart';
-import '../transactions/notes_breakdown.dart';
 import '../../shared/widgets/loit_amount_text.dart';
 import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_confidence_banner.dart';
 import '../../shared/widgets/loit_countdown_button.dart';
+import '../../shared/widgets/loit_input.dart';
 import '../../shared/utils/amount_input.dart';
 import '../../shared/utils/locale_date_format.dart';
 
@@ -69,8 +69,17 @@ class ScanReviewData {
 class _ScanReviewScreenState extends ConsumerState<ScanReviewScreen> {
   bool _itemsExpanded = false;
   bool _saving = false;
+  // Optional Note (Catatan, ADR-0024) — the receipt itself carries no remark,
+  // so review is the natural moment to add one.
+  final TextEditingController _noteCtrl = TextEditingController();
 
   ConfidenceBucket get _bucket => bucketFor(widget.scan.confidence);
+
+  @override
+  void dispose() {
+    _noteCtrl.dispose();
+    super.dispose();
+  }
 
   String? _accountIdFromName(String? name, List<Account> accounts) {
     if (name == null) return null;
@@ -126,36 +135,17 @@ class _ScanReviewScreenState extends ConsumerState<ScanReviewScreen> {
     }
 
     try {
-      // `merchant` column was dropped (migration 20260501000002). Scanner
-      // output is mapped into `notes` via `formatBreakdown` so the detail
-      // screen can round-trip merchant + items the same way as the manual
-      // form's items-mode notes.
+      // Structured storage (ADR-0025): merchant / note / items each land in
+      // their own column — the AI's structure is persisted as-is.
       final merchant = (p['merchant'] as String?)?.trim() ?? '';
-      final itemsRaw = (p['items'] as List?) ?? const [];
-      final breakdownItems = <NotesBreakdownItem>[
-        for (final it in itemsRaw.whereType<Map>())
-          NotesBreakdownItem(
-            name: (it['name'] as String?) ?? '',
-            qty: (it['qty'] as num?)?.toDouble(),
-            unitPrice: (it['unit_price'] as num?)?.toDouble(),
-            totalPrice: (it['total_price'] as num?)?.toDouble(),
-          ),
-      ];
-      final currency = (p['currency'] as String?) ?? 'IDR';
-      final notesText = (merchant.isEmpty && breakdownItems.isEmpty)
-          ? null
-          : formatBreakdown(NotesBreakdown(
-              merchant: merchant,
-              items: breakdownItems,
-              total: (p['total'] as num?)?.toDouble(),
-              currency: currency,
-            )).trim();
+      final note = _noteCtrl.text.trim();
       final insertedId =
           await ref.read(transactionsProvider.notifier).addTransaction({
         'type': p['type'] ?? 'expense',
         'amount': p['total'],
         'currency': p['currency'] ?? 'IDR',
-        if (notesText != null && notesText.isNotEmpty) 'notes': notesText,
+        if (merchant.isNotEmpty) 'merchant': merchant,
+        if (note.isNotEmpty) 'notes': note,
         'category': p['category'] ?? 'other',
         'account_id': accountId,
         'ai_parsed': true,
@@ -215,6 +205,8 @@ class _ScanReviewScreenState extends ConsumerState<ScanReviewScreen> {
 
   void _editManually() {
     final p = Map<String, dynamic>.from(widget.scan.parsed);
+    final note = _noteCtrl.text.trim();
+    if (note.isNotEmpty) p['notes'] = note;
     p['_ai_parsed'] = true;
     p['_source'] = 'scanned';
     p['_image_path'] = widget.scan.imagePath;
@@ -354,6 +346,15 @@ class _ScanReviewScreenState extends ConsumerState<ScanReviewScreen> {
                   LoitFadeSlideIn(
                     delay: const Duration(milliseconds: 360),
                     child: _row(l.scanFieldCategory, catName, c),
+                  ),
+                  const SizedBox(height: LoitSpacing.s3),
+                  LoitFadeSlideIn(
+                    delay: const Duration(milliseconds: 400),
+                    child: LoitInput(
+                      controller: _noteCtrl,
+                      label: l.scanNoteLabel,
+                      placeholder: l.scanNoteHint,
+                    ),
                   ),
                   if (items.isNotEmpty) ...[
                     const SizedBox(height: LoitSpacing.s4),

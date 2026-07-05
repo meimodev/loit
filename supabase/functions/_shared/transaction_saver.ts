@@ -1,8 +1,14 @@
 import { serviceClient } from "./supabase.ts";
 import { findCategoryInScope, type UserContext } from "./user_context.ts";
-import { looksLikeCanonicalBreakdown } from "./notes_breakdown.ts";
 
 export type TransactionSource = "manual" | "scanned" | "bot_image" | "bot_chat";
+
+export interface SaveTransactionItem {
+  name?: string | null;
+  qty?: number | null;
+  unit_price?: number | null;
+  total_price?: number | null;
+}
 
 export interface SaveTransactionInput {
   userId: string;
@@ -11,8 +17,11 @@ export interface SaveTransactionInput {
   currency: string;
   category: string;
   accountName: string;
+  // Structured capture output (ADR-0025): merchant is a real column, notes is
+  // the pure Note (remark), items land in `transaction_items`.
   merchant?: string | null;
   notes?: string | null;
+  items?: SaveTransactionItem[] | null;
   roomId?: string | null;
   aiParsed?: boolean;
   // Canonical origin (matches `transactions.source`). Defaults to `bot_chat`
@@ -117,30 +126,10 @@ export async function saveTransaction(
       ? -Math.abs(input.totalPositive)
       : Math.abs(input.totalPositive);
 
-  // Merchant column was dropped (migration 20260501000002). Preserve merchant
-  // context by appending into notes — same convention scan-receipt uses.
-  // When notes already carry the canonical breakdown shape (merchant on the
-  // first line, bullet rows below — produced by Telegram image saves), keep
-  // them verbatim so the app's `parseBreakdown` still recognises the
-  // structure and renders the item-breakdown UI.
+  // Structured storage (ADR-0025): merchant and the pure Note each get their
+  // own column — no string merging, no canonical encoding.
   const merchantTrim = input.merchant?.trim() ?? "";
   const notesTrim = input.notes?.trim() ?? "";
-  const notesAlreadyCanonical =
-    notesTrim.length > 0 && looksLikeCanonicalBreakdown(notesTrim);
-  const firstNoteLine = notesTrim
-    .split("\n")
-    .map((l) => l.trim())
-    .find((l) => l.length > 0) ?? "";
-  const firstLineIsMerchant =
-    merchantTrim.length > 0 &&
-    firstNoteLine.toLowerCase() === merchantTrim.toLowerCase();
-  const mergedNotes = notesAlreadyCanonical || firstLineIsMerchant
-    ? notesTrim
-    : merchantTrim
-      ? notesTrim
-        ? `${merchantTrim} — ${notesTrim}`
-        : merchantTrim
-      : notesTrim || null;
 
   // Persisted timestamp comes from the database default (`now()`). Telegram
   // never sets `created_at`, so parser/caption dates do not override the
@@ -153,7 +142,8 @@ export async function saveTransaction(
     amount: signed,
     currency: input.currency,
     category: input.category,
-    notes: mergedNotes,
+    merchant: merchantTrim || null,
+    notes: notesTrim || null,
     ai_parsed: input.aiParsed ?? true,
     source: input.source ?? "bot_chat",
     fx_snapshot: fx,
@@ -166,6 +156,36 @@ export async function saveTransaction(
     .single();
   if (error || !data) {
     return { ok: false, reason: "insert_failed", details: error?.message };
+  }
+
+  // Item breakdown → transaction_items (ADR-0025). Best-effort: a failed
+  // items insert leaves a valid transaction, so log and continue.
+  const items = (input.items ?? []).filter((it) =>
+    ((it?.name ?? "").toString().trim().length > 0) ||
+    typeof it?.qty === "number" ||
+    typeof it?.unit_price === "number" ||
+    typeof it?.total_price === "number"
+  );
+  if (items.length > 0) {
+    const { error: itemsError } = await sb.from("transaction_items").insert(
+      items.map((it) => ({
+        transaction_id: data.id,
+        name: ((it.name ?? "") as string).toString().trim(),
+        qty: typeof it.qty === "number" ? it.qty : null,
+        unit_price: typeof it.unit_price === "number" ? it.unit_price : null,
+        total_price: typeof it.total_price === "number" ? it.total_price : null,
+      })),
+    );
+    if (itemsError) {
+      console.error(
+        JSON.stringify({
+          kind: "bot_items_insert_failed",
+          transaction_id: data.id,
+          user_id: input.userId,
+          error: itemsError.message,
+        }),
+      );
+    }
   }
 
   // Fan-out room notifications (best-effort). Server-trusted invocation: pass

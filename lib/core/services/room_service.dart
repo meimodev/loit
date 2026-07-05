@@ -133,6 +133,32 @@ class RoomService {
     return kind == 'income' ? 'income_$base' : base;
   }
 
+  /// Seeds the three **Default room accounts** ("Tunai", "Bank 1", "Bank 2")
+  /// into a newly created Room in a single batch insert. Best-effort: a
+  /// failure leaves the room with zero accounts (still usable — the admin can
+  /// add accounts manually). "Tunai" is inserted first so it becomes the
+  /// **first active Room account** and the default funding source for AI
+  /// Captures routed to this room.
+  Future<void> seedDefaultAccounts({
+    required String roomId,
+    required String currency,
+  }) async {
+    const names = ['Tunai', 'Bank 1', 'Bank 2'];
+    final now = DateTime.now().toUtc().toIso8601String();
+    final rows = <Map<String, dynamic>>[
+      for (final name in names)
+        {
+          'room_id': roomId,
+          'name': name,
+          'kind': 'asset',
+          'currency': currency,
+          'initial_balance': 0,
+          'client_updated_at': now,
+        },
+    ];
+    await _online(() => _client.from('accounts').insert(rows));
+  }
+
   Future<void> updateRoom(String roomId, Map<String, dynamic> updates) async {
     await _online(
         () => _client.from('rooms').update(updates).eq('id', roomId));

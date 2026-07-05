@@ -113,7 +113,8 @@ final myRoomsTransactionsProvider =
   if (roomIds.isEmpty) return const [];
   final rows = await Supabase.instance.client
       .from('transactions')
-      .select('*, rooms(id, name)')
+      .select(
+          '*, rooms(id, name), transaction_items(name, qty, unit_price, total_price)')
       .inFilter('room_id', roomIds)
       .order('created_at', ascending: false)
       .limit(500);
@@ -138,7 +139,7 @@ final roomFeedProvider = FutureProvider.family<List<Map<String, dynamic>>, Strin
   final initial = await supabase
       .from('transactions')
       .select(
-          '*, users:room_member_profile(name, email, avatar_url)')
+          '*, users:room_member_profile(name, email, avatar_url), transaction_items(name, qty, unit_price, total_price)')
       .eq('room_id', roomId)
       .order('created_at', ascending: false)
       .limit(50);
@@ -189,7 +190,7 @@ final roomTransactionProvider =
   final row = await supabase
       .from('transactions')
       .select(
-          '*, users:room_member_profile(name, email, avatar_url)')
+          '*, users:room_member_profile(name, email, avatar_url), transaction_items(name, qty, unit_price, total_price)')
       .eq('room_id', key.roomId)
       .eq('id', key.txId)
       .maybeSingle();

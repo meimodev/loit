@@ -39,7 +39,6 @@ import {
   stashPendingReceipt,
   storeReceiptForTxn,
 } from "../_shared/receipt_storage.ts";
-import { formatBreakdownNotes } from "../_shared/notes_breakdown.ts";
 import {
   saveTransaction,
   deleteTransaction,
@@ -526,6 +525,12 @@ async function commitAndReply(args: {
   category: string;
   accountName: string;
   notes: string | null;
+  items?: Array<{
+    name?: string | null;
+    qty?: number | null;
+    unit_price?: number | null;
+    total_price?: number | null;
+  }> | null;
   roomId: string | null;
   confidence: number | null;
   sourceType: "text" | "voice" | "image";
@@ -561,6 +566,7 @@ async function commitAndReply(args: {
       accountName: args.accountName,
       merchant: args.merchant,
       notes: args.notes,
+      items: args.items ?? null,
       roomId: args.roomId,
       aiParsed: true,
       source: canonicalSource,
@@ -722,6 +728,12 @@ async function offerInvalidCategoryPicker(args: {
   category: string;
   accountName: string;
   notes: string | null;
+  items?: Array<{
+    name?: string | null;
+    qty?: number | null;
+    unit_price?: number | null;
+    total_price?: number | null;
+  }> | null;
   roomId: string | null;
   sourceType: "text" | "voice" | "image";
 }): Promise<void> {
@@ -1668,11 +1680,11 @@ async function handleToday(link: MessagingLink, ctx: UserContext, locale: Locale
   const sb = serviceClient();
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
-  // Merchant column was dropped (migration 20260501000002); the post-drop card
-  // convention shows notes first, falling back to category.
+  // Card label: merchant column (ADR-0025), else first notes line (legacy
+  // canonical rows packed merchant there), else category.
   const { data, error } = await sb
     .from("transactions")
-    .select("amount, currency, notes, category, type")
+    .select("amount, currency, merchant, notes, category, type")
     .eq("user_id", link.userId)
     .gte("created_at", startOfDay.toISOString())
     .order("created_at", { ascending: false });
@@ -1697,11 +1709,20 @@ async function handleToday(link: MessagingLink, ctx: UserContext, locale: Locale
       locale,
     });
     const sign = signedAmt < 0 ? "-" : "+";
-    const noteTrim = typeof r.notes === "string" ? r.notes.trim() : "";
+    const merchantTrim =
+      typeof r.merchant === "string" ? r.merchant.trim() : "";
+    const noteFirstLine = typeof r.notes === "string"
+      ? (r.notes.split("\n").find((l: string) => l.trim().length > 0) ?? "")
+        .trim()
+      : "";
     // Resolve category key → display name. Personal vs room scope isn't
     // stored on this projection — fall back through any scope.
     const catName = categoryDisplayName(ctx, r.category as string, null);
-    const label = noteTrim.length > 0 ? noteTrim : catName;
+    const label = merchantTrim.length > 0
+      ? merchantTrim
+      : noteFirstLine.length > 0
+      ? noteFirstLine
+      : catName;
     lines.push(`• <b>${sign}${htmlEscape(amt)}</b> — ${htmlEscape(label)}`);
   }
   await sendMessage(link.externalChatId, lines.join("\n"), undefined, { html: true });
@@ -1823,27 +1844,6 @@ async function handleTextMessage(
   return handleParsedText(link, ctx, locale, parsed.parsed, { charged, remaining });
 }
 
-// Itemised parse: stamp canonical notes once so confirm/picker paths show
-// the breakdown and the eventual save persists it.
-function stampCanonicalNotes(
-  parsedArg: import("../_shared/text_parser.ts").TextParseSuccess,
-): import("../_shared/text_parser.ts").TextParseSuccess {
-  if (!parsedArg.items || parsedArg.items.length === 0) return parsedArg;
-  const canonical = formatBreakdownNotes({
-    merchant: parsedArg.merchant,
-    items: parsedArg.items.map((it) => ({
-      name: it.name,
-      qty: it.qty,
-      unit_price: it.unit_price,
-      total_price: it.total_price,
-    })),
-    total: parsedArg.total,
-    currency: parsedArg.currency,
-  });
-  if (!canonical) return parsedArg;
-  return { ...parsedArg, notes: canonical };
-}
-
 async function handleParsedText(
   link: MessagingLink,
   ctx: UserContext,
@@ -1851,7 +1851,7 @@ async function handleParsedText(
   parsedArg: import("../_shared/text_parser.ts").TextParseSuccess,
   credits?: { charged: number; remaining: number | null },
 ): Promise<void> {
-  const p = stampCanonicalNotes(parsedArg);
+  const p = parsedArg;
   const roomId = findRoomByName(ctx, p.destination_room)?.id ?? null;
 
   if (p.rescued) {
@@ -1879,6 +1879,7 @@ async function handleParsedText(
       category: p.category,
       accountName: p.account,
       notes: p.notes,
+      items: p.items ?? null,
       roomId,
       confidence: p.confidence,
       sourceType: "text",
@@ -1963,7 +1964,7 @@ async function handleVoice(
       await sendMessage(link.externalChatId, t(locale, "botParseFailed"));
       return;
     }
-    const p = stampCanonicalNotes(parsed.parsed);
+    const p = parsed.parsed;
     const roomId = findRoomByName(ctx, p.destination_room)?.id ?? null;
 
     // Tokens burned regardless of confidence — charge any beyond the reserved 1.
@@ -1996,6 +1997,7 @@ async function handleVoice(
         category: p.category,
         accountName: p.account,
         notes: p.notes,
+        items: p.items ?? null,
         roomId,
         confidence: p.confidence,
         sourceType: "voice",
@@ -2046,16 +2048,20 @@ async function handleVoice(
 async function detectCaptionMetadata(
   caption: string | null,
   ctx: UserContext,
-): Promise<{ roomId: string | null; captionDate: string | null }> {
+): Promise<{
+  roomId: string | null;
+  captionDate: string | null;
+  captionNote: string | null;
+}> {
   if (!caption || caption.trim().length === 0) {
-    return { roomId: null, captionDate: null };
+    return { roomId: null, captionDate: null, captionNote: null };
   }
   try {
     const meta = await parseCaptionMetadata(caption, ctx);
     const roomId = findRoomByName(ctx, meta.destination_room)?.id ?? null;
-    return { roomId, captionDate: meta.date };
+    return { roomId, captionDate: meta.date, captionNote: meta.note };
   } catch {
-    return { roomId: null, captionDate: null };
+    return { roomId: null, captionDate: null, captionNote: null };
   }
 }
 
@@ -2095,7 +2101,10 @@ async function handlePhoto(
     // Extract caption metadata. Receipts default to personal unless the user
     // names a room in the caption. The image transaction date comes from the
     // caption only — OCR `date` is ignored for Telegram image transactions.
-    const { roomId: captionRoomId } = await detectCaptionMetadata(caption, ctx);
+    const { roomId: captionRoomId, captionNote } = await detectCaptionMetadata(
+      caption,
+      ctx,
+    );
 
     // Single gated pipeline shared with the in-app scanner: consume quota →
     // parse (with internal strict-retry) → refund only on AI failure. Quota
@@ -2128,12 +2137,9 @@ async function handlePhoto(
     const confidence = typeof p.confidence === "number" ? p.confidence : 0.5;
     // Image transactions persist `created_at` from the database default
     // (`now()`); caption/OCR dates are display-only and never persisted.
-    const canonicalNotes = formatBreakdownNotes({
-      merchant: typeof p.merchant === "string" ? p.merchant : null,
-      items: Array.isArray(p.items) ? p.items : null,
-      total: typeof p.total === "number" ? p.total : Number(p.total),
-      currency,
-    });
+    // Structured storage (ADR-0025): merchant/items land in their own
+    // columns; notes is the caption remark (minus room/date markers).
+    const scanItems = Array.isArray(p.items) ? p.items : null;
 
     const storeReceipt = canStoreReceipt(ctx.tier);
 
@@ -2150,7 +2156,8 @@ async function handlePhoto(
         merchant: p.merchant ?? null,
         category: p.category,
         accountName: p.account,
-        notes: canonicalNotes,
+        notes: captionNote,
+        items: scanItems,
         roomId: captionRoomId,
         confidence,
         sourceType: "image",
@@ -2188,7 +2195,8 @@ async function handlePhoto(
         category: p.category,
         account: p.account,
         roomId: captionRoomId,
-        notes: canonicalNotes,
+        notes: captionNote,
+        items: scanItems,
       },
       confidence,
       summary,
@@ -2313,6 +2321,7 @@ async function handleCallback(
         category: p.category,
         accountName: p.account,
         notes: p.notes ?? null,
+        items: Array.isArray(p.items) ? p.items : null,
         roomId: p.roomId ?? null,
         confidence:
           typeof row.confidence === "number" ? row.confidence : null,

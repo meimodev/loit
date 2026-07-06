@@ -178,17 +178,58 @@ _Avoid_: titipan as catch-all, transit as Pemasukan lain.
 **Export type**:
 On the **Export** screen, the kind of file produced from a period of
 transactions. The default everywhere is **Daftar Transaksi** — a flat
-transaction listing (CSV or PDF). A **Church room** offers a second type,
+transaction listing (CSV or PDF). A **Church room** offers two more types:
 **Laporan Keuangan** — the church financial statement: a category-grouped
-**Penerimaan** / **Pengeluaran** PDF (no CSV variant). The type choice is
-church-only; personal and general rooms export only Daftar Transaksi. The two
-types share the **date-range** controls (preset Bulan Ini / Triwulan Ini /
+**Penerimaan** / **Pengeluaran** report — and **Laporan Realisasi
+Mata Anggaran** (the only AI/credit-consuming type). **All three types offer
+both CSV and PDF**; the format selector is shown for every church type (it was
+transactions-only before). CSV of a **report** (Laporan Keuangan / Realisasi)
+carries the report's **summary rows** — grouped category / Mata-Anggaran-code
+subtotals — **not** a transaction listing; amounts are raw integer rupiah (no
+symbol / separators, spreadsheet-summable) under Indonesian headers, preceded
+by a light jemaat + period metadata block. Report-CSV respects the
+**csvExport** feature flag exactly like Daftar (moot in practice — church is
+Pro). The type choice is
+church-only; personal and general rooms export only Daftar Transaksi. The types
+share the **date-range** controls (preset Bulan Ini / Triwulan Ini /
 Tahun Ini chips plus a custom range), but scope transactions differently:
 Laporan Keuangan counts only pool-funded **Room account** rows and drops
 transfers, where Daftar Transaksi lists every dated row. Laporan Keuangan is no
 longer a separate screen — it is reached as an export type, not a dedicated
 menu.
-_Avoid_: church report screen, Laporan Keuangan menu (it is an export type, not its own screen); financial export (use Laporan Keuangan).
+_Avoid_: church report screen, Laporan Keuangan menu (it is an export type, not its own screen); financial export (use Laporan Keuangan); PDF-only report (all types now export CSV too).
+
+**Mata Anggaran** (GMIM budget-line code):
+A node in GMIM's fixed, denomination-specific chart of ~300 income + expense
+codes (`gmim_mata_anggaran.md`) — a three-level hierarchy: group (`1.0.00.00`) ›
+line (`1.3.50.00`) › leaf (`1.3.50.01`). It is a **report-time projection
+target only**, never a room's working category: a **Church room** keeps its
+universal **Church chart of accounts** for entry, and **Laporan Realisasi Mata
+Anggaran** re-maps that room's transactions onto Mata Anggaran codes at
+generation time (ADR 0026). Income and expense codes are separate trees; a
+transaction maps only within its own `kind`.
+_Avoid_: kategori / room category (a `room_categories` row), Church chart of
+accounts (means the universal working seed), denomination preset.
+
+**Laporan Realisasi Mata Anggaran**:
+The AI-generated **Church room** report — the canonical name for what a user may
+call "financial condition" — that projects a period's transactions onto the
+**Mata Anggaran** chart and totals realized amounts per code. A third **Export
+type**, and the **only** one that consumes **AI Credits** (token-metered per
+ADR 0017, charged to the treasurer who generates it). Exports as **CSV or PDF**
+— the format is chosen **before** generation, so a single classify call (one
+credit charge) backs either output; the CSV walks the same code tree as the PDF
+(rows where subtotal ≠ 0) and appends **Belum Terklasifikasi** as one lump total
+row. **Stateless**:
+re-generating re-classifies and re-charges — there is no stored classification;
+a wrong code is corrected by improving the source transaction's **Note** and
+regenerating, not by an override. Transactions the AI cannot place land in a
+**Belum Terklasifikasi** section of the PDF. **Actuals only** — no
+anggaran/budget column.
+_Avoid_: Laporan Keuangan (the free, non-AI statement grouped by working
+categories), realisasi anggaran (implies a budget column), financial condition
+report (use this term), GMIM report (over-narrow — the mechanism is
+denomination-agnostic).
 
 ### Rooms discovery
 

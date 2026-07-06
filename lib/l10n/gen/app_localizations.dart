@@ -3599,6 +3599,12 @@ abstract class AppLocalizations {
   /// **'Financial statement'**
   String get exportTypeStatement;
 
+  /// No description provided for @exportTypeRealisasi.
+  ///
+  /// In en, this message translates to:
+  /// **'Budget realization'**
+  String get exportTypeRealisasi;
+
   /// No description provided for @exportPresetThisMonth.
   ///
   /// In en, this message translates to:

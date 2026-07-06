@@ -1974,6 +1974,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get exportTypeStatement => 'Laporan Keuangan';
 
   @override
+  String get exportTypeRealisasi => 'Realisasi Anggaran';
+
+  @override
   String get exportPresetThisMonth => 'Bulan Ini';
 
   @override

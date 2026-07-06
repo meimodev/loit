@@ -1969,6 +1969,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exportTypeStatement => 'Financial statement';
 
   @override
+  String get exportTypeRealisasi => 'Budget realization';
+
+  @override
   String get exportPresetThisMonth => 'This month';
 
   @override

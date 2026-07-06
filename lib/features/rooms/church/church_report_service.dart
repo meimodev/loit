@@ -4,7 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../../../shared/providers/transactions_provider.dart';
-import '../../reports/export_service.dart' show formatMoney;
+import '../../reports/export_service.dart' show formatMoney, shareCsvRows;
 
 /// Church financial statement (ADR 0019) — a category-grouped Penerimaan /
 /// Pengeluaran statement built on top of the room's ordinary transactions.
@@ -26,6 +26,7 @@ class ChurchReportService {
     required DateTime end,
     required List<Txn> txns,
     required Map<String, String> categoryNames,
+    bool asCsv = false,
   }) async {
     final penerimaan = <String, double>{};
     final pengeluaran = <String, double>{};
@@ -36,6 +37,11 @@ class ChurchReportService {
       final amt = t.absAmountIn(baseCurrency);
       (t.isIncome ? penerimaan : pengeluaran)
           .update(name, (v) => v + amt, ifAbsent: () => amt);
+    }
+
+    if (asCsv) {
+      await _shareCsv(orgConfig, start, end, penerimaan, pengeluaran);
+      return;
     }
 
     final font = await PdfGoogleFonts.notoSansRegular();
@@ -75,6 +81,43 @@ class ChurchReportService {
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9]+'), '_');
     await Printing.sharePdf(bytes: bytes, filename: 'laporan_$slug.pdf');
+  }
+
+  /// Summary-row CSV twin of the statement PDF: Indonesian headers, raw integer
+  /// rupiah (spreadsheet-summable), a jemaat + period metadata block, then one
+  /// row per category with per-section totals and the period saldo.
+  Future<void> _shareCsv(
+    Map<String, dynamic> orgConfig,
+    DateTime start,
+    DateTime end,
+    Map<String, double> penerimaan,
+    Map<String, double> pengeluaran,
+  ) async {
+    final jemaat = (orgConfig['jemaat_name'] as String?)?.trim();
+    final name = jemaat == null || jemaat.isEmpty ? 'Gereja' : jemaat;
+    final totalPen = penerimaan.values.fold<double>(0, (s, v) => s + v);
+    final totalPeng = pengeluaran.values.fold<double>(0, (s, v) => s + v);
+
+    List<MapEntry<String, double>> sorted(Map<String, double> m) =>
+        m.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+
+    final rows = <List<dynamic>>[
+      ['Laporan Keuangan', name],
+      ['Periode', _periodLabel(start, end)],
+      [],
+      ['Bagian', 'Kategori', 'Jumlah'],
+      for (final e in sorted(penerimaan)) ['Penerimaan', e.key, e.value.round()],
+      ['Penerimaan', 'Total Penerimaan', totalPen.round()],
+      for (final e in sorted(pengeluaran))
+        ['Pengeluaran', e.key, e.value.round()],
+      ['Pengeluaran', 'Total Pengeluaran', totalPeng.round()],
+      ['Saldo', 'Saldo Periode', (totalPen - totalPeng).round()],
+    ];
+
+    final slug = name
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_');
+    await shareCsvRows(rows, 'laporan_$slug');
   }
 
   static pw.Widget _header(

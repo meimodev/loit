@@ -977,6 +977,7 @@
   "exportTypeLabel": "Type",
   "exportTypeTransactions": "Transaction list",
   "exportTypeStatement": "Financial statement",
+  "exportTypeRealisasi": "Budget realization",
   "exportPresetThisMonth": "This month",
   "exportPresetThisQuarter": "This quarter",
   "exportPresetThisYear": "This year",

@@ -977,6 +977,7 @@
   "exportTypeLabel": "Jenis",
   "exportTypeTransactions": "Daftar Transaksi",
   "exportTypeStatement": "Laporan Keuangan",
+  "exportTypeRealisasi": "Realisasi Anggaran",
   "exportPresetThisMonth": "Bulan Ini",
   "exportPresetThisQuarter": "Triwulan Ini",
   "exportPresetThisYear": "Tahun Ini",

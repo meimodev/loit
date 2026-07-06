@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/transactions_provider.dart';
@@ -94,6 +95,21 @@ String formatMoney(num value, String code, {bool showCode = false}) {
   return showCode && sym.toUpperCase() != code.toUpperCase()
       ? '$base $code'
       : base;
+}
+
+/// Writes summary [rows] to a temp `.csv` and opens the share sheet. Used by the
+/// church report CSV exports (Laporan Keuangan / Realisasi) — their CSV carries
+/// grouped summary rows, not the flat per-transaction schema [ExportService]
+/// produces, so they build their own rows and share through here.
+Future<void> shareCsvRows(List<List<dynamic>> rows, String filenameStem) async {
+  final dir = await getTemporaryDirectory();
+  final stamp = DateTime.now().millisecondsSinceEpoch;
+  final path = '${dir.path}/${filenameStem}_$stamp.csv';
+  await File(path).writeAsString(const ListToCsvConverter().convert(rows));
+  await Share.shareXFiles(
+    [XFile(path, mimeType: 'text/csv')],
+    subject: 'LOIT export',
+  );
 }
 
 class _PdfFontBytes {

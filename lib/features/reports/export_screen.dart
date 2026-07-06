@@ -21,16 +21,18 @@ import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import '../paywall/feature_gate.dart';
+import '../rooms/church/church_realisasi_service.dart';
 import '../rooms/church/church_report_service.dart';
 import 'export_range.dart';
 import 'export_service.dart';
 
 enum _ExportFormat { csv, pdf }
 
-/// What a church room produces: the default flat transaction listing, or the
-/// church financial statement (Laporan Keuangan). Non-church surfaces only ever
+/// What a church room produces: the default flat transaction listing, the
+/// church financial statement (Laporan Keuangan), or the AI-classified
+/// Laporan Realisasi Mata Anggaran (ADR 0026). Non-church surfaces only ever
 /// produce [transactions]; the selector is church-only (ADR 0019).
-enum _ExportType { transactions, statement }
+enum _ExportType { transactions, statement, realisasi }
 
 class ExportScreen extends ConsumerStatefulWidget {
   const ExportScreen({super.key, this.roomId});
@@ -85,6 +87,10 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         ? (_pickedType ?? _ExportType.statement)
         : _ExportType.transactions;
     final isStatement = type == _ExportType.statement;
+    final isRealisasi = type == _ExportType.realisasi;
+    // Both church PDF reports (statement + realisasi) share pool+period scoping;
+    // only the flat listing keeps the raw format/CSV controls.
+    final isPdfReport = isStatement || isRealisasi;
 
     final rangeEnd = DateTime(
         _range.end.year, _range.end.month, _range.end.day, 23, 59, 59);
@@ -99,7 +105,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         ? (ref.watch(roomAccountsProvider(roomId!)).value ?? const [])
         : const [];
     final roomAccountIds = <String>{for (final a in roomAccounts) a.id as String};
-    final statementTxns = isStatement
+    final statementTxns = isPdfReport
         ? statementScopedTxns(
             all: txns,
             roomAccountIds: roomAccountIds,
@@ -150,32 +156,34 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           if (isChurch) ...[
             LoitGroupLabel(label: l10n.exportTypeLabel),
             Container(
-              padding: const EdgeInsets.fromLTRB(LoitSpacing.s4,
-                  LoitSpacing.s3, LoitSpacing.s4, LoitSpacing.s4),
               decoration: BoxDecoration(
                 color: c.surface,
                 border: Border(bottom: BorderSide(color: c.borderSubtle)),
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  Expanded(
-                    child: _FormatTile(
-                      label: l10n.exportTypeTransactions,
-                      sub: 'CSV / PDF',
-                      selected: !isStatement,
-                      onTap: () => setState(
-                          () => _pickedType = _ExportType.transactions),
-                    ),
+                  _TypeRow(
+                    label: l10n.exportTypeTransactions,
+                    selected: type == _ExportType.transactions,
+                    onTap: () => setState(
+                        () => _pickedType = _ExportType.transactions),
                   ),
-                  const SizedBox(width: LoitSpacing.s3),
-                  Expanded(
-                    child: _FormatTile(
-                      label: l10n.exportTypeStatement,
-                      sub: 'PDF',
-                      selected: isStatement,
-                      onTap: () => setState(
-                          () => _pickedType = _ExportType.statement),
-                    ),
+                  Divider(
+                      height: 1, indent: LoitSpacing.s4, color: c.borderSubtle),
+                  _TypeRow(
+                    label: l10n.exportTypeStatement,
+                    selected: isStatement,
+                    onTap: () =>
+                        setState(() => _pickedType = _ExportType.statement),
+                  ),
+                  Divider(
+                      height: 1, indent: LoitSpacing.s4, color: c.borderSubtle),
+                  _TypeRow(
+                    label: l10n.exportTypeRealisasi,
+                    badge: 'AI',
+                    selected: isRealisasi,
+                    onTap: () =>
+                        setState(() => _pickedType = _ExportType.realisasi),
                   ),
                 ],
               ),
@@ -193,40 +201,40 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                 '${yMMMd(context).format(_range.start)} — ${yMMMd(context).format(_range.end)}',
             onTap: _pickRange,
           ),
-          if (!isStatement) ...[
-            LoitGroupLabel(label: l10n.exportScreenFormat),
-            Container(
-              padding: const EdgeInsets.fromLTRB(LoitSpacing.s4,
-                  LoitSpacing.s3, LoitSpacing.s4, LoitSpacing.s4),
-              decoration: BoxDecoration(
-                color: c.surface,
-                border: Border(bottom: BorderSide(color: c.borderSubtle)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _FormatTile(
-                      label: 'CSV',
-                      sub: 'data',
-                      selected: _format == _ExportFormat.csv,
-                      onTap: () =>
-                          setState(() => _format = _ExportFormat.csv),
-                    ),
-                  ),
-                  const SizedBox(width: LoitSpacing.s3),
-                  Expanded(
-                    child: _FormatTile(
-                      label: 'PDF',
-                      sub: flags.pdfExport ? 'report' : 'Pro',
-                      selected: _format == _ExportFormat.pdf,
-                      onTap: () =>
-                          setState(() => _format = _ExportFormat.pdf),
-                    ),
-                  ),
-                ],
-              ),
+          // Format selector shows for every type now — the two church reports
+          // gained CSV twins, so CSV/PDF is a choice for all of them.
+          LoitGroupLabel(label: l10n.exportScreenFormat),
+          Container(
+            padding: const EdgeInsets.fromLTRB(LoitSpacing.s4,
+                LoitSpacing.s3, LoitSpacing.s4, LoitSpacing.s4),
+            decoration: BoxDecoration(
+              color: c.surface,
+              border: Border(bottom: BorderSide(color: c.borderSubtle)),
             ),
-          ],
+            child: Row(
+              children: [
+                Expanded(
+                  child: _FormatTile(
+                    label: 'CSV',
+                    sub: 'data',
+                    selected: _format == _ExportFormat.csv,
+                    onTap: () =>
+                        setState(() => _format = _ExportFormat.csv),
+                  ),
+                ),
+                const SizedBox(width: LoitSpacing.s3),
+                Expanded(
+                  child: _FormatTile(
+                    label: 'PDF',
+                    sub: flags.pdfExport ? 'report' : 'Pro',
+                    selected: _format == _ExportFormat.pdf,
+                    onTap: () =>
+                        setState(() => _format = _ExportFormat.pdf),
+                  ),
+                ),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
                 LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4, 0),
@@ -268,25 +276,30 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
               LoitButton.primary(
                 size: LoitButtonSize.l,
                 fullWidth: true,
-                loading: isStatement ? _statementBusy : isBusy,
-                label: isStatement
-                    ? '${l10n.exportStatementAction} (${statementTxns.length} ${l10n.exportScreenTransactions})'
-                    : '${l10n.exportScreenExport} ${filtered.length} ${l10n.exportScreenTransactions}',
-                onPressed: (isStatement
-                        ? _statementBusy
+                loading: isPdfReport ? _statementBusy : isBusy,
+                label: isRealisasi
+                    ? '${l10n.exportStatementAction} · ${l10n.exportTypeRealisasi} (${statementTxns.length} ${l10n.exportScreenTransactions})'
+                    : isStatement
+                        ? '${l10n.exportStatementAction} (${statementTxns.length} ${l10n.exportScreenTransactions})'
+                        : '${l10n.exportScreenExport} ${filtered.length} ${l10n.exportScreenTransactions}',
+                onPressed: (isPdfReport
+                        ? (_statementBusy || statementTxns.isEmpty)
                         : (filtered.isEmpty || isBusy))
                     ? null
-                    : () => isStatement
-                        ? _generateStatement(roomDetail, statementTxns)
-                        : _doExport(
-                            filtered,
-                            profile?.homeCurrency ?? 'IDR',
-                            flags,
-                            roomName,
-                            accountSnapshots,
-                          ),
+                    : () => isRealisasi
+                        ? _generateRealisasi(roomDetail, statementTxns, flags)
+                        : isStatement
+                            ? _generateStatement(
+                                roomDetail, statementTxns, flags)
+                            : _doExport(
+                                filtered,
+                                profile?.homeCurrency ?? 'IDR',
+                                flags,
+                                roomName,
+                                accountSnapshots,
+                              ),
               ),
-              if (!isStatement && isBusy) ...[
+              if (type == _ExportType.transactions && isBusy) ...[
                 const SizedBox(height: LoitSpacing.s2),
                 Text(
                   l10n.exportScreenExporting,
@@ -333,10 +346,23 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
 
   /// Church financial statement (Laporan Keuangan). Reuses [ChurchReportService]
   /// verbatim; [statementTxns] is already period- and pool-scoped by the caller.
+  /// Report-CSV respects the [FeatureFlags.csvExport] gate exactly like Daftar
+  /// Transaksi (moot for church — Pro has it — but kept consistent). Returns
+  /// true (and opens the paywall) when a CSV export is not allowed.
+  Future<bool> _csvGateBlocked(FeatureFlags flags) async {
+    if (_format != _ExportFormat.csv || flags.csvExport) return false;
+    await Analytics.paywallSeen('export');
+    if (mounted) context.push('/paywall', extra: 'export');
+    return true;
+  }
+
   Future<void> _generateStatement(
     Map<String, dynamic>? roomDetail,
     List<Txn> statementTxns,
+    FeatureFlags flags,
   ) async {
+    if (await _csvGateBlocked(flags)) return;
+    final asCsv = _format == _ExportFormat.csv;
     setState(() => _statementBusy = true);
     try {
       final orgConfig =
@@ -363,8 +389,94 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         end: _range.end,
         txns: statementTxns,
         categoryNames: categoryNames,
+        asCsv: asCsv,
       );
       if (mounted) context.pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal membuat laporan: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _statementBusy = false);
+    }
+  }
+
+  /// Laporan Realisasi Mata Anggaran (ADR 0026). Confirms the (estimated) AI
+  /// Credit cost, runs the server classifier, then builds the PDF from the
+  /// returned mapping. Stateless: every run re-classifies and re-charges.
+  Future<void> _generateRealisasi(
+    Map<String, dynamic>? roomDetail,
+    List<Txn> statementTxns,
+    FeatureFlags flags,
+  ) async {
+    if (await _csvGateBlocked(flags)) return;
+    final asCsv = _format == _ExportFormat.csv;
+    final nonTransfer =
+        statementTxns.where((t) => !t.isTransfer && t.id != null).toList();
+    if (nonTransfer.isEmpty) return;
+    // Pre-call estimate only (~15 completion tokens/item / 1024 per credit).
+    // The real charge is token-metered server-side and may differ (ADR 0017).
+    final estCredits = (nonTransfer.length * 15 / 1024).ceil().clamp(1, 999);
+
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Buat Laporan Realisasi?'),
+        content: Text(
+          'AI akan memetakan ${nonTransfer.length} transaksi ke mata anggaran '
+          'GMIM. Perkiraan biaya ≈ $estCredits Kredit AI (biaya sebenarnya '
+          'dihitung setelah AI selesai).',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Buat')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _statementBusy = true);
+    try {
+      final service = ChurchRealisasiService();
+      final result = await service.classify(nonTransfer);
+
+      final orgConfig =
+          (roomDetail?['org_config'] as Map?)?.cast<String, dynamic>() ?? {};
+      final baseCurrency = (roomDetail?['base_currency'] as String?) ?? 'IDR';
+      await service.generateAndShare(
+        orgConfig: orgConfig,
+        baseCurrency: baseCurrency,
+        start: _range.start,
+        end: _range.end,
+        txns: nonTransfer,
+        mapping: result.mapping,
+        asCsv: asCsv,
+      );
+
+      // Refresh the credits meter (the classifier spent the user's credits).
+      ref.invalidate(userProfileProvider);
+      if (mounted) {
+        final remaining = result.creditsRemaining;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(remaining == null
+              ? '${result.creditsCharged} Kredit AI terpakai.'
+              : '${result.creditsCharged} Kredit AI terpakai · $remaining tersisa.'),
+        ));
+        context.pop();
+      }
+    } on RealisasiQuotaException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Kredit AI habis. Isi ulang untuk membuat laporan.')));
+        await Analytics.paywallSeen('scan');
+        if (mounted) context.push('/paywall', extra: 'scan');
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -550,6 +662,65 @@ class _LineRow extends StatelessWidget {
               Icon(Icons.chevron_right,
                   size: 18, color: c.contentTertiary),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Single-select row for the church report type. A stacked list reads cleaner
+/// one-handed than three cramped column tiles, and lets the long labels breathe
+/// without wrapping. Format (CSV/PDF) is chosen separately below, so no sub.
+class _TypeRow extends StatelessWidget {
+  const _TypeRow({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.badge,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final String? badge;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: LoitSpacing.s4, vertical: LoitSpacing.s4),
+        child: Row(
+          children: [
+            Icon(
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              size: 20,
+              color: selected ? c.brand : c.contentTertiary,
+            ),
+            const SizedBox(width: LoitSpacing.s3),
+            Expanded(
+              child: Text(label,
+                  style: LoitTypography.bodyM.copyWith(
+                    color: selected ? c.brand : c.contentPrimary,
+                    fontWeight: FontWeight.w600,
+                  )),
+            ),
+            if (badge != null)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: LoitSpacing.s2, vertical: 2),
+                decoration: BoxDecoration(
+                  color: c.muted,
+                  borderRadius: LoitRadius.brS,
+                ),
+                child: Text(badge!,
+                    style: LoitTypography.labelS
+                        .copyWith(color: c.contentSecondary)),
+              ),
           ],
         ),
       ),

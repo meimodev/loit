@@ -48,6 +48,7 @@ supabase secrets set KEY=value
   - `scan-receipt` — Claude vision OCR via OpenRouter (ADR-0016). Token-metered AI Credits (ADR-0017): all AI captures cost `max(1, ceil(completion_tokens/1024))` credits; per-tier caps free 5 / lite 30 / pro 150 (unknown tier = unlimited). Reserves 1 credit before the call, charges overshoot after (soft cap), refunds on no usable parse.
   - `revenuecat-webhook` — only place flipping `users.tier` / `tier_expires_at` for live purchases. Auths via shared `REVENUECAT_WEBHOOK_AUTH` bearer. Idempotent on `payment_receipts.purchase_token` (RC `event.id`). Grant: `INITIAL_PURCHASE`, `RENEWAL`, `PRODUCT_CHANGE`, `NON_RENEWING_PURCHASE`, `UNCANCELLATION`. Revoke: `EXPIRATION`, `BILLING_ISSUE`, `REFUND`, post-grace `CANCELLATION`.
   - `dummy-grant` — stub mirror of webhook, server-gated by `STUB_MODE=true`. Used while `Env.paymentStub=true` and Play Console SKUs not provisioned.
+  - `classify-taxonomy` — generic AI classifier: maps caller-supplied items (ADR-0025 txn signals) onto a caller-supplied code list. Powers **Laporan Realisasi Mata Anggaran** (ADR-0026) — projects a church room's period txns onto GMIM's ~300-code chart (client sends the chart; fn is denomination-agnostic). Metered as one Capture via shared `gatedCapture` (ADR-0017), charged to the generating treasurer.
   - `create-room-invite`, `room-transaction-notify` (FCM fan-out), `recurring-bills-cron`, `receipt-expiry-cron`, `subscription-downgrade-cron`.
 
 ### Payment flow invariants

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -9,7 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/config/env.dart';
 import '../../../shared/providers/transactions_provider.dart';
-import '../../reports/export_service.dart' show formatMoney, shareCsvRows;
+import '../../reports/export_service.dart';
 import 'mata_anggaran.dart';
 
 const String kUnclassified = 'UNCLASSIFIED';
@@ -153,41 +154,104 @@ class ChurchRealisasiService {
 
     final font = await PdfGoogleFonts.notoSansRegular();
     final bold = await PdfGoogleFonts.notoSansBold();
-    String money(num v) => formatMoney(v, baseCurrency);
+    final bytes = await buildRealisasiPdf(
+      orgConfig: orgConfig,
+      baseCurrency: baseCurrency,
+      start: start,
+      end: end,
+      incomeDirect: incomeDirect,
+      expenseDirect: expenseDirect,
+      unclassified: unclassified,
+      font: font,
+      bold: bold,
+    );
+    final jemaat = (orgConfig['jemaat_name'] as String?)?.trim();
+    final slug = (jemaat == null || jemaat.isEmpty ? 'gereja' : jemaat)
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_');
+    await Printing.sharePdf(bytes: bytes, filename: 'realisasi_$slug.pdf');
+  }
 
+  /// Renders the Realisasi PDF to bytes, share/preview agnostic. Inputs are the
+  /// per-kode direct amounts + unplaceable transactions. [font]/[bold] optional
+  /// — omit them (tests/preview) to fall back to built-in fonts.
+  Future<Uint8List> buildRealisasiPdf({
+    required Map<String, dynamic> orgConfig,
+    required String baseCurrency,
+    required DateTime start,
+    required DateTime end,
+    required Map<String, double> incomeDirect,
+    required Map<String, double> expenseDirect,
+    required List<Txn> unclassified,
+    pw.Font? font,
+    pw.Font? bold,
+  }) async {
+    String money(num v) => formatMoney(v, baseCurrency);
+    final periodLabel = _periodLabel(start, end);
+    final jemaat = (orgConfig['jemaat_name'] as String?)?.trim();
+    final jemaatName = jemaat == null || jemaat.isEmpty ? 'Gereja' : jemaat;
     final incomeTotal = incomeDirect.values.fold<double>(0, (s, v) => s + v);
     final expenseTotal = expenseDirect.values.fold<double>(0, (s, v) => s + v);
+    final saldo = incomeTotal - expenseTotal;
+    final unclTotal = unclassified.fold<double>(
+        0, (s, t) => s + t.absAmountIn(baseCurrency));
+    final hasUncl = unclassified.isNotEmpty;
 
-    final doc = pw.Document();
+    final theme = font != null && bold != null
+        ? pw.ThemeData.withFont(base: font, bold: bold)
+        : null;
+    final doc = pw.Document(theme: theme);
     doc.addPage(
       pw.MultiPage(
-        theme: pw.ThemeData.withFont(base: font, bold: bold),
+        theme: theme,
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(36),
+        margin: const pw.EdgeInsets.fromLTRB(32, 36, 32, 36),
+        header: (ctx) => pdfReportRunningHeader(ctx, jemaatName, periodLabel),
+        footer: (ctx) => pdfReportPageFooter(ctx, label: 'Halaman'),
         build: (context) => [
-          _header(orgConfig, _periodLabel(start, end), bold),
+          pdfReportCover(
+            title: 'Laporan Realisasi Mata Anggaran',
+            subtitle: jemaatName,
+            fields: [('Periode', periodLabel)],
+          ),
           pw.SizedBox(height: 18),
-          _treeSection('PENERIMAAN', gmimIncome, incomeDirect, incomeTotal,
-              money, bold, totalLabel: 'TOTAL PENERIMAAN'),
+          pdfReportSectionTitle('Ringkasan'),
+          pw.SizedBox(height: 6),
+          pw.Row(children: [
+            pw.Expanded(
+                child: pdfReportSummaryCard(
+                    'Penerimaan', money(incomeTotal), pdfReportSuccess)),
+            pw.SizedBox(width: 8),
+            pw.Expanded(
+                child: pdfReportSummaryCard(
+                    'Pengeluaran', money(expenseTotal), pdfReportDanger)),
+            pw.SizedBox(width: 8),
+            pw.Expanded(
+                child: pdfReportSummaryCard('Saldo', money(saldo),
+                    saldo >= 0 ? pdfReportSuccess : pdfReportDanger)),
+            pw.SizedBox(width: 8),
+            pw.Expanded(
+                child: pdfReportSummaryCard(
+                    'Belum Terklasifikasi',
+                    hasUncl ? '${unclassified.length} · ${money(unclTotal)}' : '—',
+                    hasUncl ? pdfReportWarning : pdfReportMuted,
+                    surface: hasUncl ? pdfReportWarningSurface : pdfReportSurface,
+                    border: hasUncl ? pdfReportWarning : pdfReportSubtle)),
+          ]),
+          pw.SizedBox(height: 18),
+          _treeSection('Penerimaan', gmimIncome, incomeDirect, incomeTotal,
+              money, bold, totalLabel: 'Total Penerimaan'),
           pw.SizedBox(height: 16),
-          _treeSection('PENGELUARAN', gmimExpense, expenseDirect, expenseTotal,
-              money, bold, totalLabel: 'TOTAL PENGELUARAN'),
-          pw.SizedBox(height: 16),
-          _saldoRow(incomeTotal - expenseTotal, money, bold),
-          if (unclassified.isNotEmpty) ...[
+          _treeSection('Pengeluaran', gmimExpense, expenseDirect, expenseTotal,
+              money, bold, totalLabel: 'Total Pengeluaran'),
+          if (hasUncl) ...[
             pw.SizedBox(height: 20),
             _unclassifiedSection(unclassified, baseCurrency, money, bold),
           ],
         ],
       ),
     );
-
-    final bytes = await doc.save();
-    final jemaat = (orgConfig['jemaat_name'] as String?)?.trim();
-    final slug = (jemaat == null || jemaat.isEmpty ? 'gereja' : jemaat)
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '_');
-    await Printing.sharePdf(bytes: bytes, filename: 'realisasi_$slug.pdf');
+    return doc.save();
   }
 
   /// Summary-row CSV twin of the Realisasi PDF: walks both Mata Anggaran trees
@@ -248,7 +312,7 @@ class ChurchRealisasiService {
     Map<String, double> direct,
     double grandTotal,
     String Function(num) money,
-    pw.Font bold, {
+    pw.Font? bold, {
     required String totalLabel,
   }) {
     final subtree = subtreeTotals(tree, direct);
@@ -258,21 +322,31 @@ class ChurchRealisasiService {
       if (subtree[i] == 0) continue;
       final node = tree[i];
       final isGroup = node.depth == 0;
-      rows.add(pw.Padding(
+      // depth-0 group rows get a tinted band so the outline hierarchy reads at
+      // a glance; deeper lines/leaves are plain and indented.
+      rows.add(pw.Container(
+        color: isGroup ? pdfReportSurface : null,
         padding: pw.EdgeInsets.only(
-            left: node.depth * 12.0, top: 1.5, bottom: 1.5),
+            left: node.depth * 12.0 + (isGroup ? 4 : 0),
+            right: isGroup ? 4 : 0,
+            top: 1.5,
+            bottom: 1.5),
         child: pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Expanded(
               child: pw.Text('${node.kode}  ${node.name}',
                   style: pw.TextStyle(
-                      font: isGroup ? bold : null, fontSize: isGroup ? 10 : 9)),
+                      font: isGroup ? bold : null,
+                      color: pdfReportInk,
+                      fontSize: isGroup ? 10 : 9)),
             ),
             pw.SizedBox(width: 8),
             pw.Text(money(subtree[i]),
                 style: pw.TextStyle(
-                    font: isGroup ? bold : null, fontSize: isGroup ? 10 : 9)),
+                    font: isGroup ? bold : null,
+                    color: pdfReportInk,
+                    fontSize: isGroup ? 10 : 9)),
           ],
         ),
       ));
@@ -281,12 +355,7 @@ class ChurchRealisasiService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
-        pw.Container(
-          padding: const pw.EdgeInsets.only(bottom: 4),
-          decoration:
-              const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(width: 1))),
-          child: pw.Text(title, style: pw.TextStyle(font: bold, fontSize: 11)),
-        ),
+        pdfReportSectionTitle(title),
         pw.SizedBox(height: 6),
         if (rows.isEmpty)
           pw.Padding(
@@ -295,11 +364,12 @@ class ChurchRealisasiService {
           )
         else
           ...rows,
-        pw.SizedBox(height: 4),
+        pw.SizedBox(height: 6),
         pw.Container(
           padding: const pw.EdgeInsets.only(top: 4),
           decoration: const pw.BoxDecoration(
-              border: pw.Border(top: pw.BorderSide(width: 0.5))),
+              border: pw.Border(
+                  top: pw.BorderSide(color: pdfReportSubtle, width: 0.5))),
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
@@ -317,48 +387,54 @@ class ChurchRealisasiService {
     List<Txn> txns,
     String baseCurrency,
     String Function(num) money,
-    pw.Font bold,
+    pw.Font? bold,
   ) {
     final fmt = DateFormat('d MMM', 'id');
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-      children: [
-        pw.Container(
-          padding: const pw.EdgeInsets.only(bottom: 4),
-          decoration:
-              const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(width: 1))),
-          child: pw.Text('BELUM TERKLASIFIKASI (${txns.length})',
-              style: pw.TextStyle(font: bold, fontSize: 11)),
-        ),
-        pw.SizedBox(height: 4),
-        pw.Text(
-          'Transaksi berikut belum dapat dipetakan ke mata anggaran. '
-          'Perjelas catatannya lalu buat ulang laporan.',
-          style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
-        ),
-        pw.SizedBox(height: 6),
-        for (final t in txns)
-          pw.Padding(
-            padding: const pw.EdgeInsets.symmetric(vertical: 1.5),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Expanded(
-                  child: pw.Text(
-                    '${fmt.format(t.createdAt.toLocal())}  '
-                    '${_txnTitle(t)}',
-                    style: const pw.TextStyle(fontSize: 9),
-                  ),
-                ),
-                pw.SizedBox(width: 8),
-                pw.Text(
-                  '${t.isIncome ? '+' : '-'}${money(t.absAmountIn(baseCurrency))}',
-                  style: const pw.TextStyle(fontSize: 9),
-                ),
-              ],
-            ),
+    // Warning-tinted panel: an incomplete report the treasurer should fix, not
+    // a quiet footnote. Mirrors the amber summary card up top.
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(10),
+      decoration: pw.BoxDecoration(
+        color: pdfReportWarningSurface,
+        border: pw.Border.all(color: pdfReportWarning),
+        borderRadius: pw.BorderRadius.circular(6),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+        children: [
+          pw.Text('BELUM TERKLASIFIKASI (${txns.length})',
+              style: pw.TextStyle(
+                  font: bold, fontSize: 11, color: pdfReportWarning)),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            'Transaksi berikut belum dapat dipetakan ke mata anggaran. '
+            'Perjelas catatannya lalu buat ulang laporan.',
+            style: pw.TextStyle(fontSize: 8, color: pdfReportWarning),
           ),
-      ],
+          pw.SizedBox(height: 6),
+          for (final t in txns)
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(vertical: 1.5),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Expanded(
+                    child: pw.Text(
+                      '${fmt.format(t.createdAt.toLocal())}  '
+                      '${_txnTitle(t)}',
+                      style: pw.TextStyle(fontSize: 9, color: pdfReportInk),
+                    ),
+                  ),
+                  pw.SizedBox(width: 8),
+                  pw.Text(
+                    '${t.isIncome ? '+' : '-'}${money(t.absAmountIn(baseCurrency))}',
+                    style: pw.TextStyle(fontSize: 9, color: pdfReportInk),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -368,54 +444,6 @@ class ChurchRealisasiService {
     final n = (t.notes ?? '').trim();
     if (n.isNotEmpty) return n;
     return t.category ?? 'Transaksi';
-  }
-
-  static pw.Widget _header(
-      Map<String, dynamic> cfg, String period, pw.Font bold) {
-    String? f(String k) {
-      final v = cfg[k];
-      if (v is String && v.trim().isNotEmpty) return v.trim();
-      return null;
-    }
-
-    final jemaat = f('jemaat_name') ?? 'Gereja';
-    final kota = f('kota_kabupaten');
-    final phone = f('phone_number');
-    final subLine = kota == null ? period : '$kota — $period';
-
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.center,
-      children: [
-        pw.Text('LAPORAN REALISASI MATA ANGGARAN',
-            style: pw.TextStyle(font: bold, fontSize: 15)),
-        pw.SizedBox(height: 4),
-        pw.Text(jemaat, style: pw.TextStyle(font: bold, fontSize: 13)),
-        pw.SizedBox(height: 2),
-        pw.Text(subLine, style: const pw.TextStyle(fontSize: 10)),
-        if (phone != null) ...[
-          pw.SizedBox(height: 2),
-          pw.Text('Kontak: $phone', style: const pw.TextStyle(fontSize: 10)),
-        ],
-      ],
-    );
-  }
-
-  static pw.Widget _saldoRow(
-      double saldo, String Function(num) money, pw.Font bold) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(8),
-      decoration: pw.BoxDecoration(
-        color: PdfColors.grey200,
-        borderRadius: pw.BorderRadius.circular(4),
-      ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text('Saldo Periode', style: pw.TextStyle(font: bold, fontSize: 11)),
-          pw.Text(money(saldo), style: pw.TextStyle(font: bold, fontSize: 11)),
-        ],
-      ),
-    );
   }
 
   static String _periodLabel(DateTime start, DateTime end) {

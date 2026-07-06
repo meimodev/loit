@@ -97,6 +97,158 @@ String formatMoney(num value, String code, {bool showCode = false}) {
       : base;
 }
 
+// ── Shared PDF report look ────────────────────────────────────────────────
+// Palette + primitives used by the personal/room report (below) and the two
+// church reports (Laporan Keuangan / Realisasi) so all three share one look —
+// one source instead of copy-pasting the cover banner and metric cards.
+const pdfReportBrand = PdfColor.fromInt(0xFF0E6B5C);
+const pdfReportInk = PdfColor.fromInt(0xFF101418);
+const pdfReportMuted = PdfColor.fromInt(0xFF6B7280);
+const pdfReportSubtle = PdfColor.fromInt(0xFFE5E7EB);
+const pdfReportSurface = PdfColor.fromInt(0xFFF9FAFB);
+const pdfReportDanger = PdfColor.fromInt(0xFFB42318);
+const pdfReportSuccess = PdfColor.fromInt(0xFF067647);
+const pdfReportWarning = PdfColor.fromInt(0xFFB45309);
+const pdfReportWarningSurface = PdfColor.fromInt(0xFFFEF3C7);
+
+/// Branded teal cover banner: wordmark, big report [title], [subtitle], and a
+/// row of label/value [fields] ((label, value) pairs).
+pw.Widget pdfReportCover({
+  required String title,
+  required String subtitle,
+  List<(String, String)> fields = const [],
+  String wordmark = 'LOIT',
+}) {
+  return pw.Container(
+    padding: const pw.EdgeInsets.all(20),
+    decoration: pw.BoxDecoration(
+      color: pdfReportBrand,
+      borderRadius: pw.BorderRadius.circular(8),
+    ),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(wordmark,
+            style: pw.TextStyle(
+                color: PdfColors.white,
+                fontSize: 18,
+                fontWeight: pw.FontWeight.bold,
+                letterSpacing: 2)),
+        pw.SizedBox(height: 4),
+        pw.Text(title,
+            style: pw.TextStyle(
+                color: PdfColors.white,
+                fontSize: 22,
+                fontWeight: pw.FontWeight.bold)),
+        if (subtitle.isNotEmpty) ...[
+          pw.SizedBox(height: 6),
+          pw.Text(subtitle,
+              style: pw.TextStyle(color: PdfColors.white, fontSize: 12)),
+        ],
+        if (fields.isNotEmpty) ...[
+          pw.SizedBox(height: 14),
+          pw.Row(
+            children: [
+              for (var i = 0; i < fields.length; i++) ...[
+                if (i > 0) pw.SizedBox(width: 24),
+                _pdfCoverField(fields[i].$1, fields[i].$2),
+              ],
+            ],
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+pw.Widget _pdfCoverField(String label, String value) {
+  return pw.Column(
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      pw.Text(label.toUpperCase(),
+          style: pw.TextStyle(
+              color: PdfColors.white, fontSize: 8, letterSpacing: 1)),
+      pw.SizedBox(height: 2),
+      pw.Text(value,
+          style: pw.TextStyle(
+              color: PdfColors.white,
+              fontSize: 11,
+              fontWeight: pw.FontWeight.bold)),
+    ],
+  );
+}
+
+/// Metric card: uppercase [label] over an [accent]-coloured [value]. Tint via
+/// [surface]/[border] (e.g. warning surface for an alerting stat).
+pw.Widget pdfReportSummaryCard(
+  String label,
+  String value,
+  PdfColor accent, {
+  PdfColor surface = pdfReportSurface,
+  PdfColor border = pdfReportSubtle,
+}) {
+  return pw.Container(
+    padding: const pw.EdgeInsets.all(10),
+    decoration: pw.BoxDecoration(
+      color: surface,
+      border: pw.Border.all(color: border),
+      borderRadius: pw.BorderRadius.circular(6),
+    ),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(label.toUpperCase(),
+            style: pw.TextStyle(
+                color: pdfReportMuted, fontSize: 8, letterSpacing: 1)),
+        pw.SizedBox(height: 4),
+        pw.Text(value,
+            style: pw.TextStyle(
+                color: accent, fontSize: 14, fontWeight: pw.FontWeight.bold)),
+      ],
+    ),
+  );
+}
+
+/// Underlined section heading.
+pw.Widget pdfReportSectionTitle(String text, {PdfColor color = pdfReportInk}) {
+  return pw.Container(
+    padding: const pw.EdgeInsets.only(bottom: 4),
+    decoration: const pw.BoxDecoration(
+      border: pw.Border(
+        bottom: pw.BorderSide(color: pdfReportSubtle, width: 1),
+      ),
+    ),
+    child: pw.Text(text,
+        style: pw.TextStyle(
+            color: color, fontSize: 12, fontWeight: pw.FontWeight.bold)),
+  );
+}
+
+/// Running page header (blank on page 1): [left]/[right] muted captions.
+pw.Widget pdfReportRunningHeader(pw.Context ctx, String left, String right) {
+  if (ctx.pageNumber == 1) return pw.SizedBox();
+  return pw.Container(
+    margin: const pw.EdgeInsets.only(bottom: 12),
+    child: pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(left, style: pw.TextStyle(color: pdfReportMuted, fontSize: 9)),
+        pw.Text(right, style: pw.TextStyle(color: pdfReportMuted, fontSize: 9)),
+      ],
+    ),
+  );
+}
+
+/// Right-aligned page footer: "[label] x / y".
+pw.Widget pdfReportPageFooter(pw.Context ctx, {String label = 'Page'}) {
+  return pw.Container(
+    alignment: pw.Alignment.centerRight,
+    margin: const pw.EdgeInsets.only(top: 12),
+    child: pw.Text('$label ${ctx.pageNumber} / ${ctx.pagesCount}',
+        style: pw.TextStyle(color: pdfReportMuted, fontSize: 9)),
+  );
+}
+
 /// Writes summary [rows] to a temp `.csv` and opens the share sheet. Used by the
 /// church report CSV exports (Laporan Keuangan / Realisasi) — their CSV carries
 /// grouped summary rows, not the flat per-transaction schema [ExportService]
@@ -591,50 +743,13 @@ class ExportService {
     );
   }
 
-  static pw.Widget _summaryCard(String label, String value,
-      PdfColor accent, PdfColor surface, PdfColor border) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(10),
-      decoration: pw.BoxDecoration(
-        color: surface,
-        border: pw.Border.all(color: border),
-        borderRadius: pw.BorderRadius.circular(6),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(label.toUpperCase(),
-              style: pw.TextStyle(
-                  color: const PdfColor.fromInt(0xFF6B7280),
-                  fontSize: 8,
-                  letterSpacing: 1)),
-          pw.SizedBox(height: 4),
-          pw.Text(value,
-              style: pw.TextStyle(
-                  color: accent,
-                  fontSize: 14,
-                  fontWeight: pw.FontWeight.bold)),
-        ],
-      ),
-    );
-  }
+  static pw.Widget _summaryCard(String label, String value, PdfColor accent,
+          PdfColor surface, PdfColor border) =>
+      pdfReportSummaryCard(label, value, accent,
+          surface: surface, border: border);
 
-  static pw.Widget _sectionTitle(String text, PdfColor color) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.only(bottom: 4),
-      decoration: const pw.BoxDecoration(
-        border: pw.Border(
-          bottom: pw.BorderSide(
-              color: PdfColor.fromInt(0xFFE5E7EB), width: 1),
-        ),
-      ),
-      child: pw.Text(text,
-          style: pw.TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: pw.FontWeight.bold)),
-    );
-  }
+  static pw.Widget _sectionTitle(String text, PdfColor color) =>
+      pdfReportSectionTitle(text, color: color);
 
   static List<pw.Widget> _accountsBlock(
     List<AccountSnapshot> accounts,

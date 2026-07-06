@@ -1,10 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../../../shared/providers/transactions_provider.dart';
-import '../../reports/export_service.dart' show formatMoney, shareCsvRows;
+import '../../reports/export_service.dart';
 
 /// Church financial statement (ADR 0019) — a category-grouped Penerimaan /
 /// Pengeluaran statement built on top of the room's ordinary transactions.
@@ -46,41 +48,84 @@ class ChurchReportService {
 
     final font = await PdfGoogleFonts.notoSansRegular();
     final bold = await PdfGoogleFonts.notoSansBold();
-
-    String money(num v) => formatMoney(v, baseCurrency);
-    final periodLabel = _periodLabel(start, end);
-
-    final doc = pw.Document();
-    doc.addPage(
-      pw.MultiPage(
-        theme: pw.ThemeData.withFont(base: font, bold: bold),
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(36),
-        build: (context) => [
-          _header(orgConfig, periodLabel, bold),
-          pw.SizedBox(height: 20),
-          _section('PENERIMAAN', penerimaan, money, bold,
-              totalLabel: 'Total Penerimaan'),
-          pw.SizedBox(height: 16),
-          _section('PENGELUARAN', pengeluaran, money, bold,
-              totalLabel: 'Total Pengeluaran'),
-          pw.SizedBox(height: 16),
-          _saldoRow(
-            penerimaan.values.fold<double>(0, (s, v) => s + v) -
-                pengeluaran.values.fold<double>(0, (s, v) => s + v),
-            money,
-            bold,
-          ),
-        ],
-      ),
+    final bytes = await buildStatementPdf(
+      orgConfig: orgConfig,
+      baseCurrency: baseCurrency,
+      start: start,
+      end: end,
+      penerimaan: penerimaan,
+      pengeluaran: pengeluaran,
+      font: font,
+      bold: bold,
     );
-
-    final bytes = await doc.save();
     final jemaat = (orgConfig['jemaat_name'] as String?)?.trim();
     final slug = (jemaat == null || jemaat.isEmpty ? 'gereja' : jemaat)
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9]+'), '_');
     await Printing.sharePdf(bytes: bytes, filename: 'laporan_$slug.pdf');
+  }
+
+  /// Renders the statement PDF to bytes, share/preview agnostic. [font]/[bold]
+  /// are optional — omit them (tests/preview) to fall back to built-in fonts.
+  Future<Uint8List> buildStatementPdf({
+    required Map<String, dynamic> orgConfig,
+    required String baseCurrency,
+    required DateTime start,
+    required DateTime end,
+    required Map<String, double> penerimaan,
+    required Map<String, double> pengeluaran,
+    pw.Font? font,
+    pw.Font? bold,
+  }) async {
+    String money(num v) => formatMoney(v, baseCurrency);
+    final periodLabel = _periodLabel(start, end);
+    final jemaat = (orgConfig['jemaat_name'] as String?)?.trim();
+    final jemaatName = jemaat == null || jemaat.isEmpty ? 'Gereja' : jemaat;
+    final totalPen = penerimaan.values.fold<double>(0, (s, v) => s + v);
+    final totalPeng = pengeluaran.values.fold<double>(0, (s, v) => s + v);
+    final saldo = totalPen - totalPeng;
+
+    final theme = font != null && bold != null
+        ? pw.ThemeData.withFont(base: font, bold: bold)
+        : null;
+    final doc = pw.Document(theme: theme);
+    doc.addPage(
+      pw.MultiPage(
+        theme: theme,
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.fromLTRB(32, 36, 32, 36),
+        header: (ctx) => pdfReportRunningHeader(ctx, jemaatName, periodLabel),
+        footer: (ctx) => pdfReportPageFooter(ctx, label: 'Halaman'),
+        build: (context) => [
+          pdfReportCover(
+            title: 'Laporan Keuangan',
+            subtitle: jemaatName,
+            fields: [('Periode', periodLabel)],
+          ),
+          pw.SizedBox(height: 18),
+          pdfReportSectionTitle('Ringkasan'),
+          pw.SizedBox(height: 6),
+          pw.Row(children: [
+            pw.Expanded(
+                child: pdfReportSummaryCard(
+                    'Penerimaan', money(totalPen), pdfReportSuccess)),
+            pw.SizedBox(width: 8),
+            pw.Expanded(
+                child: pdfReportSummaryCard(
+                    'Pengeluaran', money(totalPeng), pdfReportDanger)),
+            pw.SizedBox(width: 8),
+            pw.Expanded(
+                child: pdfReportSummaryCard('Saldo', money(saldo),
+                    saldo >= 0 ? pdfReportSuccess : pdfReportDanger)),
+          ]),
+          pw.SizedBox(height: 18),
+          _statementTable('Penerimaan', penerimaan, totalPen, money),
+          pw.SizedBox(height: 16),
+          _statementTable('Pengeluaran', pengeluaran, totalPeng, money),
+        ],
+      ),
+    );
+    return doc.save();
   }
 
   /// Summary-row CSV twin of the statement PDF: Indonesian headers, raw integer
@@ -120,112 +165,69 @@ class ChurchReportService {
     await shareCsvRows(rows, 'laporan_$slug');
   }
 
-  static pw.Widget _header(
-      Map<String, dynamic> cfg, String period, pw.Font bold) {
-    String? f(String k) {
-      final v = cfg[k];
-      if (v is String && v.trim().isNotEmpty) return v.trim();
-      return null;
-    }
-
-    final jemaat = f('jemaat_name') ?? 'Gereja';
-    final kota = f('kota_kabupaten');
-    final phone = f('phone_number');
-    final subLine = kota == null ? period : '$kota — $period';
-
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.center,
-      children: [
-        pw.Text('LAPORAN KEUANGAN',
-            style: pw.TextStyle(font: bold, fontSize: 16)),
-        pw.SizedBox(height: 4),
-        pw.Text(jemaat, style: pw.TextStyle(font: bold, fontSize: 13)),
-        pw.SizedBox(height: 2),
-        pw.Text(subLine, style: const pw.TextStyle(fontSize: 10)),
-        if (phone != null) ...[
-          pw.SizedBox(height: 2),
-          pw.Text('Kontak: $phone',
-              style: const pw.TextStyle(fontSize: 10)),
-        ],
-      ],
-    );
-  }
-
-  static pw.Widget _section(
+  /// One statement section: an underlined title, a styled two-column table
+  /// (Kategori / Jumlah, biggest first), then a bold total line.
+  static pw.Widget _statementTable(
     String title,
     Map<String, double> rows,
+    double total,
     String Function(num) money,
-    pw.Font bold, {
-    required String totalLabel,
-  }) {
+  ) {
     final entries = rows.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    final total = rows.values.fold<double>(0, (s, v) => s + v);
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
-        pw.Container(
-          padding: const pw.EdgeInsets.only(bottom: 4),
-          decoration: const pw.BoxDecoration(
-            border: pw.Border(bottom: pw.BorderSide(width: 1)),
-          ),
-          child: pw.Text(title, style: pw.TextStyle(font: bold, fontSize: 11)),
-        ),
+        pdfReportSectionTitle(title),
         pw.SizedBox(height: 6),
         if (entries.isEmpty)
           pw.Padding(
             padding: const pw.EdgeInsets.symmetric(vertical: 2),
             child: pw.Text('—', style: const pw.TextStyle(fontSize: 10)),
-          ),
-        for (final e in entries)
-          pw.Padding(
-            padding: const pw.EdgeInsets.symmetric(vertical: 2),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Expanded(
-                    child: pw.Text(e.key,
-                        style: const pw.TextStyle(fontSize: 10))),
-                pw.Text(money(e.value),
-                    style: const pw.TextStyle(fontSize: 10)),
-              ],
+          )
+        else
+          pw.TableHelper.fromTextArray(
+            cellAlignments: {
+              0: pw.Alignment.centerLeft,
+              1: pw.Alignment.centerRight,
+            },
+            headerStyle: pw.TextStyle(
+                color: pdfReportMuted,
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold),
+            headerDecoration: const pw.BoxDecoration(color: pdfReportSurface),
+            cellStyle: pw.TextStyle(color: pdfReportInk, fontSize: 10),
+            cellPadding:
+                const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            border: pw.TableBorder(
+              horizontalInside:
+                  pw.BorderSide(color: pdfReportSubtle, width: 0.5),
+              top: pw.BorderSide(color: pdfReportSubtle, width: 0.5),
+              bottom: pw.BorderSide(color: pdfReportSubtle, width: 0.5),
             ),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(3),
+              1: const pw.FlexColumnWidth(1.4),
+            },
+            headers: const ['Kategori', 'Jumlah'],
+            data: [for (final e in entries) [e.key, money(e.value)]],
           ),
-        pw.SizedBox(height: 4),
-        pw.Container(
-          padding: const pw.EdgeInsets.only(top: 4),
-          decoration: const pw.BoxDecoration(
-            border: pw.Border(top: pw.BorderSide(width: 0.5)),
-          ),
+        pw.SizedBox(height: 6),
+        pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(horizontal: 8),
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text(totalLabel, style: pw.TextStyle(font: bold, fontSize: 10)),
+              pw.Text('Total $title',
+                  style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold, fontSize: 10)),
               pw.Text(money(total),
-                  style: pw.TextStyle(font: bold, fontSize: 10)),
+                  style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold, fontSize: 10)),
             ],
           ),
         ),
       ],
-    );
-  }
-
-  static pw.Widget _saldoRow(
-      double saldo, String Function(num) money, pw.Font bold) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(8),
-      decoration: pw.BoxDecoration(
-        color: PdfColors.grey200,
-        borderRadius: pw.BorderRadius.circular(4),
-      ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text('Saldo Periode',
-              style: pw.TextStyle(font: bold, fontSize: 11)),
-          pw.Text(money(saldo), style: pw.TextStyle(font: bold, fontSize: 11)),
-        ],
-      ),
     );
   }
 

@@ -1977,6 +1977,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get exportTypeRealisasi => 'Realisasi Anggaran';
 
   @override
+  String get exportTypeCashJournal => 'Buku Kas Umum';
+
+  @override
   String get exportPresetThisMonth => 'Bulan Ini';
 
   @override
@@ -1990,6 +1993,9 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get exportStatementAction => 'Buat Laporan';
+
+  @override
+  String get exportCashJournalAction => 'Buat Buku Kas';
 
   @override
   String get exportScreenExport => 'Ekspor';
@@ -3059,7 +3065,10 @@ class AppLocalizationsId extends AppLocalizations {
   String get commonSave => 'Simpan';
 
   @override
-  String get roomBalanceTab => 'Saldo';
+  String get roomAccountTab => 'Rekening';
+
+  @override
+  String get reportsBalanceSection => 'Saldo';
 
   @override
   String get roomBalanceNet => 'Saldo bersih';
@@ -3069,9 +3078,6 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get roomBalanceLiabilities => 'Kewajiban';
-
-  @override
-  String get roomBalanceAccountsLabel => 'Akun';
 
   @override
   String get roomAccountsEmptyTitle => 'Belum ada akun ruang';

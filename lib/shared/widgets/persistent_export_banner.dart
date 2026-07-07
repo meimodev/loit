@@ -37,9 +37,15 @@ class PersistentExportBanner extends ConsumerWidget {
           opacity: running ? 1.0 : 0.0,
           duration: LoitMotion.short,
           curve: LoitMotion.emphasizedCurve,
-          child: SafeArea(
-            top: false,
-            child: _ExportCard(label: label, formatLabel: fmt),
+          // Banner sits in MaterialApp.builder Stack as a sibling of the router
+          // child, with no Scaffold/Material ancestor. Without this Material the
+          // Text falls back to the default yellow-underlined debug style.
+          child: Material(
+            type: MaterialType.transparency,
+            child: SafeArea(
+              top: false,
+              child: _ExportCard(label: label, formatLabel: fmt),
+            ),
           ),
         ),
       ),

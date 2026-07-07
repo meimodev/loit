@@ -178,14 +178,18 @@ _Avoid_: titipan as catch-all, transit as Pemasukan lain.
 **Export type**:
 On the **Export** screen, the kind of file produced from a period of
 transactions. The default everywhere is **Daftar Transaksi** — a flat
-transaction listing (CSV or PDF). A **Church room** offers two more types:
+transaction listing (CSV or PDF). A **Church room** offers three more types:
 **Laporan Keuangan** — the church financial statement: a category-grouped
-**Penerimaan** / **Pengeluaran** report — and **Laporan Realisasi
-Mata Anggaran** (the only AI/credit-consuming type). **All three types offer
-both CSV and PDF**; the format selector is shown for every church type (it was
-transactions-only before). CSV of a **report** (Laporan Keuangan / Realisasi)
-carries the report's **summary rows** — grouped category / Mata-Anggaran-code
-subtotals — **not** a transaction listing; amounts are raw integer rupiah (no
+**Penerimaan** / **Pengeluaran** report — **Laporan Realisasi
+Mata Anggaran** (the only AI/credit-consuming type), and **Buku Kas Umum** —
+the per-account chronological cash book with running saldo. **All four types
+offer both CSV and PDF**; the format selector is shown for every church type (it
+was transactions-only before). CSV of a **summary report** (Laporan Keuangan /
+Realisasi) carries the report's **summary rows** — grouped category /
+Mata-Anggaran-code subtotals — **not** a transaction listing; **Buku Kas Umum**
+is the exception — a *listing*-style report, its CSV carries the **journal
+rows** (one per movement leg, with Saldo Awal / Saldo Akhir marker rows), not
+subtotals. Amounts are raw integer rupiah (no
 symbol / separators, spreadsheet-summable) under Indonesian headers, preceded
 by a light jemaat + period metadata block. Report-CSV respects the
 **csvExport** feature flag exactly like Daftar (moot in practice — church is
@@ -194,7 +198,9 @@ church-only; personal and general rooms export only Daftar Transaksi. The types
 share the **date-range** controls (preset Bulan Ini / Triwulan Ini /
 Tahun Ini chips plus a custom range), but scope transactions differently:
 Laporan Keuangan counts only pool-funded **Room account** rows and drops
-transfers, where Daftar Transaksi lists every dated row. Laporan Keuangan is no
+transfers; **Buku Kas Umum** also scopes to Room-account rows but **keeps
+transfers** (as two legs) and reads **pre-range** rows too (for carry-forward
+opening saldo); Daftar Transaksi lists every dated row. Laporan Keuangan is no
 longer a separate screen — it is reached as an export type, not a dedicated
 menu.
 _Avoid_: church report screen, Laporan Keuangan menu (it is an export type, not its own screen); financial export (use Laporan Keuangan); PDF-only report (all types now export CSV too).
@@ -230,6 +236,28 @@ _Avoid_: Laporan Keuangan (the free, non-AI statement grouped by working
 categories), realisasi anggaran (implies a budget column), financial condition
 report (use this term), GMIM report (over-narrow — the mechanism is
 denomination-agnostic).
+
+**Buku Kas Umum** (BKU — the general cash book):
+The chronological **Export type** for a **Church room**: a treasurer's cash
+book that lists every **Room account** movement in date order with a **running
+saldo**, one section **per Room account**. Each section opens with a **Saldo
+Awal** (carry-forward: the account's `initial_balance` plus all its movements
+**before** the range) and closes with a **Saldo Akhir** equal to the account's
+real balance at range-end. Unlike **Laporan Keuangan**, it **keeps transfers** —
+a room-account transfer renders as two legs, an outgoing (Pengeluaran) row in
+the source account and an incoming (Penerimaan) row in the destination — and it
+reads **pre-range** rows to seed the opening saldo. Scoped to **Room-account
+rows only**: an **Out-of-pocket room expense** (personal-funded) touches no Room
+account and never appears. A section is emitted only when the account has
+in-range movement, a nonzero opening, or a nonzero closing (archived accounts
+included for history; never-funded seeded accounts omitted). Rows are terse —
+Tanggal / Uraian (merchant-or-category, or "Transfer ke/dari X") / Penerimaan /
+Pengeluaran / Saldo — **no payer, no category grouping**. **Mechanical, not
+AI** — consumes **no AI Credits** (only **Laporan Realisasi Mata Anggaran**
+does). English internal gloss: *General Cash Journal*.
+_Avoid_: General Cash Journal (as the user-facing name — it is Buku Kas Umum),
+Jurnal Kas, buku bank (a single-account view), Laporan Keuangan (the
+category-grouped statement that drops transfers).
 
 ### Rooms discovery
 

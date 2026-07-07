@@ -17,11 +17,11 @@ import '../../shared/widgets/loit_input.dart';
 import '../../shared/widgets/loit_sheet.dart';
 import '../../shared/widgets/room_error_state.dart';
 
-/// Room balance-sheet tab: the room's shared accounts, their balances, and the
+/// Room account tab: the room's shared accounts, their balances, and the
 /// net total (ADR 0007). Account CRUD is admin-only via the tab FAB; members add
 /// transactions from the Feed tab (pool-only, room-scoped form).
-class RoomBalanceTab extends ConsumerWidget {
-  const RoomBalanceTab({
+class RoomAccountTab extends ConsumerWidget {
+  const RoomAccountTab({
     super.key,
     required this.roomId,
     required this.currency,
@@ -36,7 +36,6 @@ class RoomBalanceTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.loitColors;
     final l = context.l10n;
     final accountsAsync = ref.watch(roomAccountsProvider(roomId));
     final balances = ref.watch(roomAccountBalancesProvider(roomId)).value ?? const {};
@@ -74,10 +73,6 @@ class RoomBalanceTab extends ConsumerWidget {
               currency: currency,
             ),
             const SizedBox(height: LoitSpacing.s4),
-            Text(l.roomBalanceAccountsLabel,
-                style:
-                    LoitTypography.bodyS.copyWith(color: c.contentSecondary)),
-            const SizedBox(height: LoitSpacing.s2),
             if (active.isEmpty)
               _Empty(
                   title: l.roomAccountsEmptyTitle,

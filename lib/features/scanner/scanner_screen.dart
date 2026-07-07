@@ -30,7 +30,7 @@ import '../../shared/utils/invite_token.dart';
 import '../../shared/widgets/loit_banner.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_sheet.dart';
-import '../paywall/paywall_screen.dart';
+import '../paywall/scan_topup_sheet.dart';
 import '../../l10n/l10n_x.dart';
 
 /// LOIT scanner flow.
@@ -555,14 +555,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   Future<void> _showQuotaSheet() async {
-    final l = context.l10n;
-    await showLoitSheet<void>(
-      context,
-      builder: (_) => LoitSheet(
-        title: l.scanLimitReached,
-        child: _QuotaExceededSheet(onTopUp: _handleTopUp),
-      ),
-    );
+    await showScanTopUpSheet(context, onTopUp: _handleTopUp);
   }
 
   Future<void> _handleTopUp() async {
@@ -1213,63 +1206,6 @@ class _ErrorView extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _QuotaExceededSheet extends ConsumerWidget {
-  const _QuotaExceededSheet({required this.onTopUp});
-  final Future<void> Function() onTopUp;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.loitColors;
-    final l = context.l10n;
-    final profile = ref.watch(userProfileProvider).value;
-    final canTopUp = profile?.canPurchaseScanTopUp ?? true;
-    return Padding(
-      padding: const EdgeInsets.all(LoitSpacing.s5),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Icon(Icons.lock_outline, size: 48, color: c.brand),
-          const SizedBox(height: LoitSpacing.s3),
-          Text(
-            profile == null
-                ? l.scanQuotaDefault
-                : l.scanUsedAllScans('${profile.scanQuota ?? '0'}', profile.tier.toUpperCase()),
-            textAlign: TextAlign.center,
-            style: LoitTypography.bodyM.copyWith(color: c.contentSecondary),
-          ),
-          const SizedBox(height: LoitSpacing.s5),
-          if (canTopUp) ...[
-            LoitButton.primary(
-              label: l.scanTopUp,
-              onPressed: () {
-                Navigator.of(context).pop();
-                onTopUp();
-              },
-              fullWidth: true,
-            ),
-            const SizedBox(height: LoitSpacing.s2),
-          ],
-          LoitButton.secondary(
-            label: l.scanUpgrade,
-            onPressed: () {
-              Navigator.of(context).pop();
-              showPaywallSheet(context, feature: 'more_scan_quota');
-            },
-            fullWidth: true,
-          ),
-          const SizedBox(height: LoitSpacing.s2),
-          LoitButton.tertiary(
-            label: l.scanNotNow,
-            onPressed: () => Navigator.of(context).pop(),
-            fullWidth: true,
-          ),
-        ],
       ),
     );
   }

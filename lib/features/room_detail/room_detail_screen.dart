@@ -28,7 +28,7 @@ import '../../shared/widgets/loit_funding_badge.dart';
 import '../../shared/widgets/room_error_state.dart';
 import '../../shared/widgets/loit_tx_row.dart';
 import '../rooms/room_colors.dart';
-import 'room_balance_tab.dart';
+import 'room_account_tab.dart';
 
 class RoomDetailScreen extends ConsumerStatefulWidget {
   const RoomDetailScreen({
@@ -280,10 +280,10 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       );
     }
     if (_tab == 3 && isAdmin) {
-      // Balance tab: admins add room accounts here; members add transactions
+      // Account tab: admins add room accounts here; members add transactions
       // from the Feed tab. Pool-only entry — see ADR 0007.
       return FloatingActionButton(
-        key: const ValueKey('fab-balance'),
+        key: const ValueKey('fab-account'),
         backgroundColor: accent,
         foregroundColor: Colors.white,
         onPressed: () => showRoomAccountForm(context, ref,
@@ -320,7 +320,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
             isCreator: isCreator,
             isArchived: isArchived);
       case 3:
-        return RoomBalanceTab(
+        return RoomAccountTab(
             roomId: widget.roomId,
             currency: currency,
             isAdmin: isAdmin,
@@ -785,7 +785,7 @@ class _TabStrip extends StatelessWidget {
       l.roomDetailFeedTab,
       l.roomDetailBudgets,
       l.roomDetailCategoriesTab,
-      l.roomBalanceTab,
+      l.roomAccountTab,
     ];
     return Container(
       margin: const EdgeInsets.fromLTRB(

@@ -269,7 +269,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     }
 
     return [
-      SliverToBoxAdapter(child: LoitGroupLabel(label: l10n.roomBalanceTab)),
+      SliverToBoxAdapter(child: LoitGroupLabel(label: l10n.reportsBalanceSection)),
       SliverToBoxAdapter(
         child: LoitFadeSlideIn(
           child: Container(

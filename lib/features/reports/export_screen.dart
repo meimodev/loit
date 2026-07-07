@@ -5,8 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../shared/utils/locale_date_format.dart';
 
+import '../../core/config/pricing_constants.dart';
 import '../../core/services/analytics_service.dart';
+import '../../core/services/dummy_payment_service.dart';
 import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
@@ -16,11 +19,14 @@ import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/export_task_provider.dart';
 import '../../shared/providers/room_accounts_provider.dart';
 import '../../shared/providers/room_providers.dart';
+import '../../shared/providers/services_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/providers/user_categories_provider.dart';
 import '../../shared/widgets/loit_button.dart';
 import '../../shared/widgets/loit_group_label.dart';
 import '../paywall/feature_gate.dart';
+import '../paywall/scan_topup_sheet.dart';
+import '../rooms/church/church_cash_journal_service.dart';
 import '../rooms/church/church_realisasi_service.dart';
 import '../rooms/church/church_report_service.dart';
 import 'export_range.dart';
@@ -29,10 +35,11 @@ import 'export_service.dart';
 enum _ExportFormat { csv, pdf }
 
 /// What a church room produces: the default flat transaction listing, the
-/// church financial statement (Laporan Keuangan), or the AI-classified
-/// Laporan Realisasi Mata Anggaran (ADR 0026). Non-church surfaces only ever
-/// produce [transactions]; the selector is church-only (ADR 0019).
-enum _ExportType { transactions, statement, realisasi }
+/// church financial statement (Laporan Keuangan), the AI-classified Laporan
+/// Realisasi Mata Anggaran (ADR 0026), or the Buku Kas Umum general cash book
+/// (ADR 0027). Non-church surfaces only ever produce [transactions]; the
+/// selector is church-only (ADR 0019).
+enum _ExportType { transactions, statement, realisasi, cashJournal }
 
 class ExportScreen extends ConsumerStatefulWidget {
   const ExportScreen({super.key, this.roomId});
@@ -88,9 +95,12 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         : _ExportType.transactions;
     final isStatement = type == _ExportType.statement;
     final isRealisasi = type == _ExportType.realisasi;
-    // Both church PDF reports (statement + realisasi) share pool+period scoping;
-    // only the flat listing keeps the raw format/CSV controls.
+    final isCashJournal = type == _ExportType.cashJournal;
+    // statement + realisasi share pool+period scoping (drop transfers, period
+    // only). Buku Kas Umum scopes differently (keeps transfers, reads pre-range
+    // for carry-forward saldo — ADR 0027) so it does NOT use statementTxns.
     final isPdfReport = isStatement || isRealisasi;
+    final isChurchReport = isPdfReport || isCashJournal;
 
     final rangeEnd = DateTime(
         _range.end.year, _range.end.month, _range.end.day, 23, 59, 59);
@@ -113,6 +123,45 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
             end: _range.end,
           )
         : const <Txn>[];
+
+    // Buku Kas Umum (ADR 0027): in-range Room-account legs (transfers kept), for
+    // the count caption + empty check only — the service reads the full
+    // unfiltered [txns] itself (opening saldo needs pre-range rows).
+    final journalTxns = isCashJournal
+        ? txns
+            .where((t) =>
+                !t.createdAt.isBefore(_range.start) &&
+                !t.createdAt.isAfter(rangeEnd) &&
+                (roomAccountIds.contains(t.accountId) ||
+                    roomAccountIds.contains(t.toAccountId)))
+            .toList()
+        : const <Txn>[];
+
+    // AI Credit meter (church rooms, ADR 0017/0026). Only the Realisasi report
+    // spends credits; the estimate mirrors [_generateRealisasi] exactly so the
+    // client pre-check matches the real (soft-capped) server charge.
+    final creditCap = profile?.scanQuota; // null = unlimited tier
+    final creditsUsed = profile?.scansUsedThisMonth ?? 0;
+    final creditsRemaining = creditCap == null
+        ? null
+        : (creditCap - creditsUsed < 0 ? 0 : creditCap - creditsUsed);
+    final realisasiTxns = isRealisasi
+        ? statementTxns.where((t) => !t.isTransfer && t.id != null).toList()
+        : const <Txn>[];
+    final estCredits = realisasiTxns.isEmpty
+        ? 0
+        : (realisasiTxns.length * 15 / 1024).ceil().clamp(1, 999);
+    final creditInsufficient =
+        isRealisasi && creditCap != null && creditsRemaining! < estCredits;
+    final creditLow = isRealisasi &&
+        creditCap != null &&
+        !creditInsufficient &&
+        (creditsRemaining! - estCredits) < 5;
+    final creditState = creditInsufficient
+        ? _CreditState.insufficient
+        : creditLow
+            ? _CreditState.low
+            : _CreditState.neutral;
 
     final accounts = ref.watch(accountsProvider).value ?? const [];
     final balances = ref.watch(accountBalancesProvider);
@@ -153,6 +202,14 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         padding: const EdgeInsets.only(bottom: 120),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
+          if (isChurch)
+            _CreditMeterCard(
+              remaining: creditsRemaining,
+              used: creditsUsed,
+              cap: creditCap,
+              state: creditState,
+              onTopUp: creditState == _CreditState.neutral ? null : _topUp,
+            ),
           if (isChurch) ...[
             LoitGroupLabel(label: l10n.exportTypeLabel),
             Container(
@@ -184,6 +241,14 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                     selected: isRealisasi,
                     onTap: () =>
                         setState(() => _pickedType = _ExportType.realisasi),
+                  ),
+                  Divider(
+                      height: 1, indent: LoitSpacing.s4, color: c.borderSubtle),
+                  _TypeRow(
+                    label: l10n.exportTypeCashJournal,
+                    selected: isCashJournal,
+                    onTap: () =>
+                        setState(() => _pickedType = _ExportType.cashJournal),
                   ),
                 ],
               ),
@@ -272,32 +337,49 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Count (+ report type for church PDFs) as a quiet caption, pulled
+              // out of the CTA so the button stays a short, stable verb rather
+              // than a long label that ellipsis-truncates and drops the count.
+              Text(
+                isChurchReport
+                    ? '${(isCashJournal ? journalTxns.length : statementTxns.length)} ${l10n.exportScreenTransactions.toLowerCase()} · ${isRealisasi ? l10n.exportTypeRealisasi : isCashJournal ? l10n.exportTypeCashJournal : l10n.exportTypeStatement}'
+                    : '${filtered.length} ${l10n.exportScreenTransactions.toLowerCase()}',
+                style: LoitTypography.bodyS.copyWith(color: c.contentSecondary),
+              ),
+              const SizedBox(height: LoitSpacing.s2),
               LoitButton.primary(
                 size: LoitButtonSize.l,
                 fullWidth: true,
-                loading: isPdfReport ? _statementBusy : isBusy,
-                label: isRealisasi
-                    ? '${l10n.exportStatementAction} · ${l10n.exportTypeRealisasi} (${statementTxns.length} ${l10n.exportScreenTransactions})'
-                    : isStatement
-                        ? '${l10n.exportStatementAction} (${statementTxns.length} ${l10n.exportScreenTransactions})'
-                        : '${l10n.exportScreenExport} ${filtered.length} ${l10n.exportScreenTransactions}',
-                onPressed: (isPdfReport
-                        ? (_statementBusy || statementTxns.isEmpty)
+                loading: isChurchReport ? _statementBusy : isBusy,
+                label: isCashJournal
+                    ? l10n.exportCashJournalAction
+                    : isChurchReport
+                        ? l10n.exportStatementAction
+                        : l10n.exportScreenExport,
+                onPressed: (isChurchReport
+                        ? (_statementBusy ||
+                            (isCashJournal
+                                ? journalTxns.isEmpty
+                                : statementTxns.isEmpty) ||
+                            creditInsufficient)
                         : (filtered.isEmpty || isBusy))
                     ? null
                     : () => isRealisasi
                         ? _generateRealisasi(roomDetail, statementTxns, flags)
-                        : isStatement
-                            ? _generateStatement(
-                                roomDetail, statementTxns, flags)
-                            : _doExport(
-                                filtered,
-                                profile?.homeCurrency ?? 'IDR',
-                                flags,
-                                roomName,
-                                accountSnapshots,
-                              ),
+                        : isCashJournal
+                            ? _generateCashJournal(roomDetail, flags)
+                            : isStatement
+                                ? _generateStatement(
+                                    roomDetail, statementTxns, flags)
+                                : _doExport(
+                                    filtered,
+                                    profile?.homeCurrency ?? 'IDR',
+                                    flags,
+                                    roomName,
+                                    accountSnapshots,
+                                  ),
               ),
               if (type == _ExportType.transactions && isBusy) ...[
                 const SizedBox(height: LoitSpacing.s2),
@@ -402,6 +484,59 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     }
   }
 
+  /// Buku Kas Umum (ADR 0027) — the per-account chronological cash book. Reads
+  /// the room's full unfiltered transaction set + accounts (archived included,
+  /// for carry-forward opening saldo) and hands them to
+  /// [ChurchCashJournalService], which does the pre-range/in-range split. No AI,
+  /// no credits. CSV respects the [FeatureFlags.csvExport] gate like the others.
+  Future<void> _generateCashJournal(
+    Map<String, dynamic>? roomDetail,
+    FeatureFlags flags,
+  ) async {
+    if (await _csvGateBlocked(flags)) return;
+    final roomId = widget.roomId;
+    if (roomId == null) return;
+    final asCsv = _format == _ExportFormat.csv;
+    setState(() => _statementBusy = true);
+    try {
+      final orgConfig =
+          (roomDetail?['org_config'] as Map?)?.cast<String, dynamic>() ?? {};
+      final baseCurrency = (roomDetail?['base_currency'] as String?) ?? 'IDR';
+      final accounts = await ref.read(roomAccountsProvider(roomId).future);
+      final allTxns = await ref.read(roomTransactionsProvider(roomId).future);
+
+      final cats = ref.read(userCategoriesProvider).value ?? const [];
+      final categoryNames = <String, String>{
+        for (final cat in cats)
+          if (cat.roomId == roomId)
+            cat.key: cat.key.endsWith(':income_other')
+                ? 'Penerimaan lain'
+                : cat.key.endsWith(':other')
+                    ? 'Lainnya'
+                    : cat.name,
+      };
+
+      await ChurchCashJournalService().generateAndShare(
+        orgConfig: orgConfig,
+        baseCurrency: baseCurrency,
+        start: _range.start,
+        end: _range.end,
+        accounts: accounts,
+        allTxns: allTxns,
+        categoryNames: categoryNames,
+        asCsv: asCsv,
+      );
+      if (mounted) context.pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal membuat laporan: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _statementBusy = false);
+    }
+  }
+
   /// Laporan Realisasi Mata Anggaran (ADR 0026). Confirms the (estimated) AI
   /// Credit cost, runs the server classifier, then builds the PDF from the
   /// returned mapping. Stateless: every run re-classifies and re-charges.
@@ -418,6 +553,10 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     // Pre-call estimate only (~15 completion tokens/item / 1024 per credit).
     // The real charge is token-metered server-side and may differ (ADR 0017).
     final estCredits = (nonTransfer.length * 15 / 1024).ceil().clamp(1, 999);
+    final profile = ref.read(userProfileProvider).value;
+    final remainingAfter = profile?.scanQuota == null
+        ? null
+        : (profile!.scanQuota! - profile.scansUsedThisMonth - estCredits);
 
     if (!mounted) return;
     final confirmed = await showDialog<bool>(
@@ -427,7 +566,8 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         content: Text(
           'AI akan memetakan ${nonTransfer.length} transaksi ke mata anggaran '
           'GMIM. Perkiraan biaya ≈ $estCredits Kredit AI (biaya sebenarnya '
-          'dihitung setelah AI selesai).',
+          'dihitung setelah AI selesai).'
+          '${remainingAfter == null ? '' : '\n\nSisa setelah ini ≈ ${remainingAfter < 0 ? 0 : remainingAfter} Kredit AI.'}',
         ),
         actions: [
           TextButton(
@@ -471,11 +611,11 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         context.pop();
       }
     } on RealisasiQuotaException {
+      // Safety net — the on-screen meter normally blocks Generate before this
+      // fires. Surface the shared top-up sheet, not the tier paywall.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Kredit AI habis. Isi ulang untuk membuat laporan.')));
-        await Analytics.paywallSeen('scan');
-        if (mounted) context.push('/paywall', extra: 'scan');
+        await Analytics.scanTopupPromptShown();
+        await _topUp();
       }
     } catch (e) {
       if (mounted) {
@@ -485,6 +625,21 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     } finally {
       if (mounted) setState(() => _statementBusy = false);
     }
+  }
+
+  /// Shared AI-Credit top-up. Buys the `skuScanTopUp` consumable, then refreshes
+  /// the profile so the meter + Generate gate recompute without leaving the
+  /// screen (ADR 0017).
+  Future<void> _topUp() async {
+    await showScanTopUpSheet(context, onTopUp: () async {
+      if (!mounted) return;
+      final pay = ref.read(paymentServiceProvider);
+      if (pay is DummyPaymentService) pay.bindContext(context);
+      try {
+        await pay.purchaseOneTime(PricingConstants.skuScanTopUp);
+      } catch (_) {}
+      ref.invalidate(userProfileProvider);
+    });
   }
 
   Future<void> _doExport(
@@ -530,6 +685,111 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           ),
     );
     if (mounted) context.pop();
+  }
+}
+
+enum _CreditState { neutral, low, insufficient }
+
+/// AI-Credit balance meter for church exports (ADR 0017/0026). Always shows
+/// remaining + used/cap; when the selected Realisasi report can't be covered
+/// ([_CreditState.insufficient]) or would leave <5 credits ([_CreditState.low]),
+/// it tints and surfaces an in-card top-up CTA. Unlimited tier shows "Tak
+/// terbatas" with no CTA. Statement selection stays [_CreditState.neutral]
+/// because that report spends nothing.
+class _CreditMeterCard extends StatelessWidget {
+  const _CreditMeterCard({
+    required this.remaining,
+    required this.used,
+    required this.cap,
+    required this.state,
+    this.onTopUp,
+  });
+
+  final int? remaining; // null = unlimited
+  final int used;
+  final int? cap; // null = unlimited
+  final _CreditState state;
+  final VoidCallback? onTopUp;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    final unlimited = cap == null;
+    final warn = state != _CreditState.neutral;
+    final accent = state == _CreditState.insufficient ? c.danger : c.warning;
+    return AnimatedContainer(
+      duration: LoitMotion.short,
+      curve: LoitMotion.easeOutQuart,
+      padding: const EdgeInsets.all(LoitSpacing.s4),
+      decoration: BoxDecoration(
+        color: !warn
+            ? c.surface
+            : (state == _CreditState.insufficient
+                ? c.dangerSurface
+                : c.warningSurface),
+        border: Border(bottom: BorderSide(color: c.borderSubtle)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.bolt, size: 20, color: warn ? accent : c.brand),
+              const SizedBox(width: LoitSpacing.s3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      unlimited
+                          ? 'Kredit AI: Tak terbatas'
+                          : 'Kredit AI: $remaining tersisa',
+                      style: LoitTypography.bodyM.copyWith(
+                        color: c.contentPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (!unlimited) ...[
+                      const SizedBox(height: 2),
+                      Text('$used / $cap terpakai bulan ini',
+                          style: LoitTypography.bodyS
+                              .copyWith(color: c.contentSecondary)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          // Grows/collapses the top-up prompt as the selected report crosses
+          // the credit threshold, instead of the block snapping in.
+          AnimatedSize(
+            duration: LoitMotion.short,
+            curve: LoitMotion.easeOutQuart,
+            alignment: Alignment.topCenter,
+            child: (warn && onTopUp != null)
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: LoitSpacing.s3),
+                      Text(
+                        state == _CreditState.insufficient
+                            ? 'Kredit tidak cukup untuk laporan ini.'
+                            : 'Kredit AI menipis.',
+                        style: LoitTypography.bodyS.copyWith(color: accent),
+                      ),
+                      const SizedBox(height: LoitSpacing.s2),
+                      LoitButton.primary(
+                        label: 'Isi Ulang Kredit AI',
+                        onPressed: onTopUp,
+                        fullWidth: true,
+                      ),
+                    ],
+                  )
+                : const SizedBox(width: double.infinity),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -602,7 +862,9 @@ class _PresetChip extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: LoitRadius.brM,
-      child: Container(
+      child: AnimatedContainer(
+        duration: LoitMotion.short,
+        curve: LoitMotion.easeOutQuart,
         padding: const EdgeInsets.symmetric(
             horizontal: LoitSpacing.s3, vertical: LoitSpacing.s2),
         decoration: BoxDecoration(
@@ -694,20 +956,28 @@ class _TypeRow extends StatelessWidget {
             horizontal: LoitSpacing.s4, vertical: LoitSpacing.s4),
         child: Row(
           children: [
-            Icon(
-              selected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              size: 20,
-              color: selected ? c.brand : c.contentTertiary,
+            AnimatedSwitcher(
+              duration: LoitMotion.short,
+              child: Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                key: ValueKey(selected),
+                size: 20,
+                color: selected ? c.brand : c.contentTertiary,
+              ),
             ),
             const SizedBox(width: LoitSpacing.s3),
             Expanded(
-              child: Text(label,
-                  style: LoitTypography.bodyM.copyWith(
-                    color: selected ? c.brand : c.contentPrimary,
-                    fontWeight: FontWeight.w600,
-                  )),
+              child: AnimatedDefaultTextStyle(
+                duration: LoitMotion.short,
+                curve: LoitMotion.easeOutQuart,
+                style: LoitTypography.bodyM.copyWith(
+                  color: selected ? c.brand : c.contentPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+                child: Text(label),
+              ),
             ),
             if (badge != null)
               Container(
@@ -746,7 +1016,9 @@ class _FormatTile extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: LoitRadius.brM,
-      child: Container(
+      child: AnimatedContainer(
+        duration: LoitMotion.short,
+        curve: LoitMotion.easeOutQuart,
         padding: const EdgeInsets.symmetric(vertical: LoitSpacing.s4),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFFE6F4F0) : c.canvas,

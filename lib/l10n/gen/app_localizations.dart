@@ -3605,6 +3605,12 @@ abstract class AppLocalizations {
   /// **'Budget realization'**
   String get exportTypeRealisasi;
 
+  /// No description provided for @exportTypeCashJournal.
+  ///
+  /// In en, this message translates to:
+  /// **'General cash journal'**
+  String get exportTypeCashJournal;
+
   /// No description provided for @exportPresetThisMonth.
   ///
   /// In en, this message translates to:
@@ -3634,6 +3640,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Generate statement'**
   String get exportStatementAction;
+
+  /// No description provided for @exportCashJournalAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate cash book'**
+  String get exportCashJournalAction;
 
   /// No description provided for @exportScreenExport.
   ///
@@ -5477,11 +5489,17 @@ abstract class AppLocalizations {
   /// **'Save'**
   String get commonSave;
 
-  /// No description provided for @roomBalanceTab.
+  /// No description provided for @roomAccountTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get roomAccountTab;
+
+  /// No description provided for @reportsBalanceSection.
   ///
   /// In en, this message translates to:
   /// **'Balance'**
-  String get roomBalanceTab;
+  String get reportsBalanceSection;
 
   /// No description provided for @roomBalanceNet.
   ///
@@ -5500,12 +5518,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Liabilities'**
   String get roomBalanceLiabilities;
-
-  /// No description provided for @roomBalanceAccountsLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Accounts'**
-  String get roomBalanceAccountsLabel;
 
   /// No description provided for @roomAccountsEmptyTitle.
   ///

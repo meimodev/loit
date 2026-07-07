@@ -24,7 +24,7 @@ import '../../shared/providers/services_providers.dart';
 import '../../shared/providers/transactions_provider.dart';
 import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_button.dart';
-import '../../shared/widgets/loit_sheet.dart';
+import '../paywall/scan_topup_sheet.dart';
 import '../../l10n/l10n_x.dart';
 
 /// In-app voice Capture (ADR-0022). Hold the mic to record, release to send.
@@ -373,34 +373,15 @@ class _VoiceCaptureScreenState extends ConsumerState<VoiceCaptureScreen>
     }
   }
 
-  // ponytail: small top-up sheet inlined rather than extracting scanner's
-  // private _QuotaExceededSheet. Promote to a shared widget if a 3rd surface
-  // needs it.
   Future<void> _showQuotaSheet() async {
-    final l = context.l10n;
-    await showLoitSheet<void>(
-      context,
-      builder: (sheetCtx) => LoitSheet(
-        title: l.scanLimitReached,
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.all(LoitSpacing.s4),
-            child: LoitButton.primary(
-              label: l.scanTopUpPrice,
-              onPressed: () async {
-                Navigator.pop(sheetCtx);
-                final pay = ref.read(paymentServiceProvider);
-                if (pay is DummyPaymentService) pay.bindContext(context);
-                try {
-                  await pay.purchaseOneTime(PricingConstants.skuScanTopUp);
-                } catch (_) {}
-              },
-            ),
-          ),
-        ),
-      ),
-    );
+    await showScanTopUpSheet(context, onTopUp: () async {
+      if (!mounted) return;
+      final pay = ref.read(paymentServiceProvider);
+      if (pay is DummyPaymentService) pay.bindContext(context);
+      try {
+        await pay.purchaseOneTime(PricingConstants.skuScanTopUp);
+      } catch (_) {}
+    });
   }
 
   // Collapses idle+recording into one key so the record orb animates in place

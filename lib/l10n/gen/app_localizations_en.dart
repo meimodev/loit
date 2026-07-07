@@ -1972,6 +1972,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exportTypeRealisasi => 'Budget realization';
 
   @override
+  String get exportTypeCashJournal => 'General cash journal';
+
+  @override
   String get exportPresetThisMonth => 'This month';
 
   @override
@@ -1985,6 +1988,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exportStatementAction => 'Generate statement';
+
+  @override
+  String get exportCashJournalAction => 'Generate cash book';
 
   @override
   String get exportScreenExport => 'Export';
@@ -3051,7 +3057,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonSave => 'Save';
 
   @override
-  String get roomBalanceTab => 'Balance';
+  String get roomAccountTab => 'Account';
+
+  @override
+  String get reportsBalanceSection => 'Balance';
 
   @override
   String get roomBalanceNet => 'Net balance';
@@ -3061,9 +3070,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get roomBalanceLiabilities => 'Liabilities';
-
-  @override
-  String get roomBalanceAccountsLabel => 'Accounts';
 
   @override
   String get roomAccountsEmptyTitle => 'No room accounts yet';

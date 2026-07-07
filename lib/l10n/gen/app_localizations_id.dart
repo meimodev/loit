@@ -1366,14 +1366,14 @@ class AppLocalizationsId extends AppLocalizations {
   String get scanAlignHint => 'Posisikan dokumen dalam bingkai';
 
   @override
-  String get scanReadingTitle => 'Membaca dokumen';
+  String get scanPreparingBody => 'Menyiapkan foto…';
 
   @override
-  String get scanReadingBody => 'Membaca dokumen Anda…';
+  String get scanReadingBody => 'Membaca dokumen…';
 
   @override
   String get scanReadingSubtitle =>
-      'Biasanya sekitar 2 detik. Mengekstrak toko, total, akun, dan item.';
+      'Mengambil toko, total, akun, dan item. Bisa memakan waktu beberapa detik.';
 
   @override
   String get scanPersonal => 'Pribadi';

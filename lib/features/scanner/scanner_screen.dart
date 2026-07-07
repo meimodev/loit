@@ -56,10 +56,19 @@ class ScannerScreen extends ConsumerStatefulWidget {
 
 enum _ScanPhase { capture, processing, error }
 
+/// Sub-phase within [_ScanPhase.processing]. Event-driven off the real
+/// pipeline: [preparing] covers local preprocess + quality gate; [reading]
+/// covers the AI vision round-trip (the long, variable step).
+enum _ProcStage { preparing, reading }
+
 class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   static const _tag = 'ScannerScreen';
   final _picker = ImagePicker();
   _ScanPhase _phase = _ScanPhase.capture;
+  _ProcStage _procStage = _ProcStage.preparing;
+  /// Incremented on each scan start and on cancel; a mismatch after an await
+  /// means this run was superseded/cancelled and must not touch the UI.
+  int _scanGen = 0;
   String? _errorKind;
   File? _lastFile;
 
@@ -297,8 +306,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   Future<void> _scan(File file) async {
+    // Bump generation so a cancel (which also bumps) invalidates this run's
+    // downstream result handling — the in-flight AI call still completes
+    // server-side, but its result is discarded.
+    final gen = ++_scanGen;
     setState(() {
       _phase = _ScanPhase.processing;
+      _procStage = _ProcStage.preparing;
       _errorKind = null;
       _lastFile = file;
     });
@@ -370,6 +384,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         .where((a) => a.archivedAt == null)
         .map((a) => a.name)
         .toList(growable: false);
+    // Local prep done — enter the long AI read phase.
+    if (mounted) setState(() => _procStage = _ProcStage.reading);
     Log.d(_tag,
         'Sending to scan-receipt (cats=${catList.length}, accts=${activeAccounts.length}, roomScoped=${widget.roomId != null})');
     // Rough token estimate: image vision tokens scale ~ pixels/750; static
@@ -384,7 +400,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       accountNames: activeAccounts.isNotEmpty ? activeAccounts : null,
     );
 
-    if (!mounted) return;
+    // Cancelled mid-flight (user popped back to capture) → drop the result.
+    if (!mounted || gen != _scanGen) return;
 
     final bucket = bucketFor(result.confidence).name;
     await Analytics.scanApiReturned(
@@ -554,6 +571,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     );
   }
 
+  /// Abandon the in-flight scan and return to capture. Bumps the generation
+  /// so the awaiting [_scan] discards its result (the AI call still completes
+  /// server-side — the reserved credit is spent, no refund).
+  void _cancelScan() {
+    _scanGen++;
+    setState(() => _phase = _ScanPhase.capture);
+  }
+
   Future<void> _showQuotaSheet() async {
     await showScanTopUpSheet(context, onTopUp: _handleTopUp);
   }
@@ -579,7 +604,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           lockedToRoom: widget.roomId != null,
           onUseRoomChanged: (v) => setState(() => _useRoom = v),
         ),
-      _ScanPhase.processing => const _ProcessingView(),
+      _ScanPhase.processing => _ProcessingView(
+          stage: _procStage,
+          onCancel: _cancelScan,
+        ),
       _ScanPhase.error => _ErrorView(
           kind: _errorKind!,
           onRetry: _lastFile == null ? null : () => _scan(_lastFile!),
@@ -956,7 +984,9 @@ class _CornerPainter extends CustomPainter {
 }
 
 class _ProcessingView extends StatefulWidget {
-  const _ProcessingView();
+  const _ProcessingView({required this.stage, required this.onCancel});
+  final _ProcStage stage;
+  final VoidCallback onCancel;
   @override
   State<_ProcessingView> createState() => _ProcessingViewState();
 }
@@ -971,7 +1001,7 @@ class _ProcessingViewState extends State<_ProcessingView>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
-    )..repeat();
+    )..repeat(reverse: true);
   }
 
   @override
@@ -984,13 +1014,14 @@ class _ProcessingViewState extends State<_ProcessingView>
   Widget build(BuildContext context) {
     final c = context.loitColors;
     final l = context.l10n;
+    final isReading = widget.stage == _ProcStage.reading;
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: Text(l.scanReadingTitle),
+        title: Text(l.scanReceiptTitle),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () {},
+          onPressed: widget.onCancel,
         ),
       ),
       body: Center(
@@ -1001,21 +1032,32 @@ class _ProcessingViewState extends State<_ProcessingView>
             children: [
               _ReceiptSkeleton(controller: _ctrl),
               const SizedBox(height: LoitSpacing.s6),
-              Text(
-                l.scanReadingBody,
-                style: LoitTypography.titleM.copyWith(color: c.contentPrimary),
-              ),
-              const SizedBox(height: LoitSpacing.s2),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 260),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
                 child: Text(
-                  l.scanReadingSubtitle,
-                  textAlign: TextAlign.center,
-                  style: LoitTypography.bodyS.copyWith(color: c.contentSecondary),
+                  isReading ? l.scanReadingBody : l.scanPreparingBody,
+                  key: ValueKey(widget.stage),
+                  style:
+                      LoitTypography.titleM.copyWith(color: c.contentPrimary),
                 ),
               ),
-              const SizedBox(height: LoitSpacing.s5),
-              _IndeterminateBar(controller: _ctrl),
+              const SizedBox(height: LoitSpacing.s2),
+              // Subtitle (with the soft duration hint) only during the AI read;
+              // prep is near-instant and needs no explanation.
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 260),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  child: isReading
+                      ? Text(
+                          l.scanReadingSubtitle,
+                          textAlign: TextAlign.center,
+                          style: LoitTypography.bodyS
+                              .copyWith(color: c.contentSecondary),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ),
             ],
           ),
         ),
@@ -1028,65 +1070,92 @@ class _ReceiptSkeleton extends StatelessWidget {
   const _ReceiptSkeleton({required this.controller});
   final AnimationController controller;
 
+  static const double _w = 176;
+  static const double _h = 236;
+
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
-    return Container(
-      width: 160,
-      height: 220,
-      decoration: BoxDecoration(
+    // Ease the sweep at both ends so the beam decelerates at the edges and
+    // turns over calmly instead of snapping back — no hard reset flicker.
+    final sweep = CurvedAnimation(parent: controller, curve: Curves.easeInOut);
+    return SizedBox(
+      width: _w,
+      height: _h,
+      // The receipt is the subject being read, so a soft low lift is earned
+      // (subject float, not decorative). Torn silhouette + shadow define the
+      // edge against the cream canvas — no boxed border needed.
+      child: PhysicalShape(
+        clipper: _ReceiptClipper(),
         color: c.surface,
-        borderRadius: LoitRadius.brM,
-        border: Border.all(color: c.borderDefault),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            offset: const Offset(0, 4),
-            blurRadius: 12,
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: LoitRadius.brM,
+        shadowColor: c.contentPrimary.withValues(alpha: 0.10),
+        elevation: 3,
         child: Stack(
           children: [
             Padding(
-              padding: const EdgeInsets.all(LoitSpacing.s3),
+              padding: const EdgeInsets.fromLTRB(
+                LoitSpacing.s4,
+                LoitSpacing.s4,
+                LoitSpacing.s4,
+                LoitSpacing.s5,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _SkelLine(width: 100, height: 8, color: c.muted),
-                  const SizedBox(height: 8),
-                  _SkelLine(width: 70, height: 6, color: c.muted),
-                  const SizedBox(height: 14),
-                  for (final w in [60.0, 80.0, 70.0, 90.0, 50.0]) ...[
+                  _SkelLine(width: 92, height: 9, color: c.muted),
+                  const SizedBox(height: 10),
+                  _SkelLine(width: 58, height: 6, color: c.muted),
+                  const SizedBox(height: LoitSpacing.s4),
+                  for (final lw in const [64.0, 90.0, 72.0, 96.0, 56.0]) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _SkelLine(width: w, height: 5, color: c.muted),
-                        _SkelLine(width: 24, height: 5, color: c.muted),
+                        _SkelLine(width: lw, height: 6, color: c.muted),
+                        _SkelLine(width: 26, height: 6, color: c.muted),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 9),
                   ],
+                  const Spacer(),
+                  // Total row — faintly mint, the value the scan is really after.
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _SkelLine(
+                          width: 40,
+                          height: 8,
+                          color: c.brand.withValues(alpha: 0.30)),
+                      _SkelLine(
+                          width: 56,
+                          height: 8,
+                          color: c.brand.withValues(alpha: 0.30)),
+                    ],
+                  ),
                 ],
               ),
             ),
             AnimatedBuilder(
-              animation: controller,
+              animation: sweep,
               builder: (_, __) => Positioned(
-                top: controller.value * 220 - 6,
+                top: sweep.value * (_h - 44),
                 left: 0,
                 right: 0,
-                child: Container(
-                  height: 6,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.transparent,
-                        c.brand,
-                        Colors.transparent,
-                      ],
+                height: 44,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          c.brand.withValues(alpha: 0.0),
+                          c.brand.withValues(alpha: 0.14),
+                          c.brand,
+                          c.brand.withValues(alpha: 0.14),
+                          c.brand.withValues(alpha: 0.0),
+                        ],
+                        stops: const [0.0, 0.42, 0.5, 0.58, 1.0],
+                      ),
                     ),
                   ),
                 ),
@@ -1097,6 +1166,29 @@ class _ReceiptSkeleton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Receipt silhouette: flat top, serrated (torn) bottom edge — the single
+/// clearest "this is a receipt" cue, keeps the loading state from reading as a
+/// generic card.
+class _ReceiptClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    const tooth = 11.0;
+    final path = Path()
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height - tooth);
+    final teeth = (size.width / tooth).floor();
+    for (var i = teeth; i >= 0; i--) {
+      final x = i * tooth;
+      final y = size.height - (i.isEven ? 0.0 : tooth);
+      path.lineTo(x, y);
+    }
+    return path..close();
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
 class _SkelLine extends StatelessWidget {
@@ -1111,39 +1203,6 @@ class _SkelLine extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
-    );
-  }
-}
-
-class _IndeterminateBar extends StatelessWidget {
-  const _IndeterminateBar({required this.controller});
-  final AnimationController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.loitColors;
-    return SizedBox(
-      width: 200,
-      height: 6,
-      child: ClipRRect(
-        borderRadius: LoitRadius.brFull,
-        child: Stack(
-          children: [
-            Container(color: c.muted),
-            AnimatedBuilder(
-              animation: controller,
-              builder: (_, __) => FractionallySizedBox(
-                alignment: Alignment.centerLeft,
-                widthFactor: 0.4,
-                child: Transform.translate(
-                  offset: Offset(controller.value * 300 - 80, 0),
-                  child: Container(color: c.brand),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

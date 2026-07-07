@@ -1360,14 +1360,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanAlignHint => 'Position document within frame';
 
   @override
-  String get scanReadingTitle => 'Reading document';
+  String get scanPreparingBody => 'Preparing photo…';
 
   @override
-  String get scanReadingBody => 'Reading your document…';
+  String get scanReadingBody => 'Reading document…';
 
   @override
   String get scanReadingSubtitle =>
-      'Usually takes about 2 seconds. Extracting merchant, total, account, and items.';
+      'Pulling out merchant, total, account, and items. This can take a few seconds.';
 
   @override
   String get scanPersonal => 'Personal';

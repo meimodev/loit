@@ -2573,22 +2573,22 @@ abstract class AppLocalizations {
   /// **'Position document within frame'**
   String get scanAlignHint;
 
-  /// No description provided for @scanReadingTitle.
+  /// No description provided for @scanPreparingBody.
   ///
   /// In en, this message translates to:
-  /// **'Reading document'**
-  String get scanReadingTitle;
+  /// **'Preparing photo…'**
+  String get scanPreparingBody;
 
   /// No description provided for @scanReadingBody.
   ///
   /// In en, this message translates to:
-  /// **'Reading your document…'**
+  /// **'Reading document…'**
   String get scanReadingBody;
 
   /// No description provided for @scanReadingSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Usually takes about 2 seconds. Extracting merchant, total, account, and items.'**
+  /// **'Pulling out merchant, total, account, and items. This can take a few seconds.'**
   String get scanReadingSubtitle;
 
   /// No description provided for @scanPersonal.

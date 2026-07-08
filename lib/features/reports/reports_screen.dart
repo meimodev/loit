@@ -299,7 +299,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                     child: Row(
                       children: [
                         Icon(
-                            a.kind == AccountKind.liability
+                            a.kind == AccountKind.debt
                                 ? Icons.trending_down
                                 : Icons.account_balance_wallet,
                             size: 16,

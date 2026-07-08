@@ -420,7 +420,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get dashboardAssets => 'Aset';
 
   @override
-  String get dashboardLiabilities => 'Liabilitas';
+  String get dashboardLiabilities => 'Hutang';
 
   @override
   String get dashboardNetWorth => 'Kekayaan bersih';
@@ -1223,7 +1223,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get accountsScreenAssets => 'Aset';
 
   @override
-  String get accountsScreenLiabilities => 'Liabilitas';
+  String get accountsScreenLiabilities => 'Hutang';
 
   @override
   String get accountsScreenAddAccount => 'Tambah akun';
@@ -1242,7 +1242,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String accountsScreenLiabilityType(String currency) {
-    return 'Liabilitas · $currency';
+    return 'Hutang · $currency';
   }
 
   @override
@@ -1264,7 +1264,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get accountFormAsset => 'Aset';
 
   @override
-  String get accountFormLiability => 'Liabilitas';
+  String get accountFormLiability => 'Hutang';
 
   @override
   String get accountFormCurrency => 'Mata uang';
@@ -1351,7 +1351,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get accountFormLiabilityInfo =>
-      'Untuk pinjaman, buat Transfer dari akun liabilitas ini ke akun aset.';
+      'Untuk pinjaman, buat Transfer dari akun hutang ini ke akun aset.';
 
   @override
   String get accountFormRecentTransactions => 'Transaksi terbaru';
@@ -3077,7 +3077,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get roomBalanceAssets => 'Aset';
 
   @override
-  String get roomBalanceLiabilities => 'Kewajiban';
+  String get roomBalanceLiabilities => 'Hutang';
 
   @override
   String get roomAccountsEmptyTitle => 'Belum ada akun ruang';
@@ -3106,7 +3106,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get roomAccountKindAsset => 'Aset';
 
   @override
-  String get roomAccountKindLiability => 'Kewajiban';
+  String get roomAccountKindLiability => 'Hutang';
 
   @override
   String get roomAccountInitialBalance => 'Saldo awal';

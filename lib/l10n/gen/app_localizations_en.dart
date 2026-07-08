@@ -416,7 +416,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashboardAssets => 'Assets';
 
   @override
-  String get dashboardLiabilities => 'Liabilities';
+  String get dashboardLiabilities => 'Debt';
 
   @override
   String get dashboardNetWorth => 'Net worth';
@@ -1217,7 +1217,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountsScreenAssets => 'Assets';
 
   @override
-  String get accountsScreenLiabilities => 'Liabilities';
+  String get accountsScreenLiabilities => 'Debt';
 
   @override
   String get accountsScreenAddAccount => 'Add account';
@@ -1236,7 +1236,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String accountsScreenLiabilityType(String currency) {
-    return 'Liability · $currency';
+    return 'Debt · $currency';
   }
 
   @override
@@ -1258,7 +1258,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountFormAsset => 'Asset';
 
   @override
-  String get accountFormLiability => 'Liability';
+  String get accountFormLiability => 'Debt';
 
   @override
   String get accountFormCurrency => 'Currency';
@@ -1345,7 +1345,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get accountFormLiabilityInfo =>
-      'For loans, create a Transfer from this liability account to an asset account.';
+      'For loans, create a Transfer from this debt account to an asset account.';
 
   @override
   String get accountFormRecentTransactions => 'Recent transactions';
@@ -3069,7 +3069,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomBalanceAssets => 'Assets';
 
   @override
-  String get roomBalanceLiabilities => 'Liabilities';
+  String get roomBalanceLiabilities => 'Debt';
 
   @override
   String get roomAccountsEmptyTitle => 'No room accounts yet';
@@ -3098,7 +3098,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomAccountKindAsset => 'Asset';
 
   @override
-  String get roomAccountKindLiability => 'Liability';
+  String get roomAccountKindLiability => 'Debt';
 
   @override
   String get roomAccountInitialBalance => 'Initial balance';

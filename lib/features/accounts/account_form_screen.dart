@@ -77,7 +77,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
     try {
       final notifier = ref.read(accountsProvider.notifier);
       final raw = parseAmountInput(_balanceCtrl.text) ?? 0;
-      final initial = _kind == AccountKind.liability ? -raw.abs() : raw;
+      final initial = _kind == AccountKind.debt ? -raw.abs() : raw;
 
       if (widget.account == null) {
         await notifier.addAccount(
@@ -91,7 +91,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
       }
 
       final old = widget.account!;
-      final kindStr = _kind == AccountKind.asset ? 'asset' : 'liability';
+      final kindStr = _kind == AccountKind.asset ? 'asset' : 'debt';
       final kindUnchanged = old.kind == _kind;
 
       // Asset balance edits go through an Adjustment transaction so the
@@ -298,7 +298,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
       // Liability balance is read-only — always reflect computed value.
       // Asset balance seeds once with computed value; further updates pause
       // the moment the user edits the field.
-      if (_kind == AccountKind.liability) {
+      if (_kind == AccountKind.debt) {
         _balanceCtrl.text = formatAmountInput(balance.abs());
       } else if (!_balanceUserEdited) {
         final next = balance != 0 ? formatAmountInput(balance.abs()) : '';
@@ -362,14 +362,14 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
                 child: _KindOption(
                   label: l.accountFormLiability,
                   icon: Icons.credit_card_outlined,
-                  selected: _kind == AccountKind.liability,
+                  selected: _kind == AccountKind.debt,
                   color: c.danger,
-                  onTap: () => setState(() => _kind = AccountKind.liability),
+                  onTap: () => setState(() => _kind = AccountKind.debt),
                 ),
               ),
             ],
           ),
-          if (_kind == AccountKind.liability) ...[
+          if (_kind == AccountKind.debt) ...[
             const SizedBox(height: LoitSpacing.s4),
             _liabilityInfoBox(),
           ],
@@ -383,7 +383,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
           LoitInput(
             controller: _balanceCtrl,
             label: isEdit ? l.accountFormCurrentBalance : l.accountFormOpeningBalance,
-            enabled: _kind != AccountKind.liability,
+            enabled: _kind != AccountKind.debt,
             placeholder: '0',
             leading: Padding(
               padding: const EdgeInsets.only(right: LoitSpacing.s2),

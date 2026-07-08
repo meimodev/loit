@@ -875,7 +875,7 @@ abstract class AppLocalizations {
   /// No description provided for @dashboardLiabilities.
   ///
   /// In en, this message translates to:
-  /// **'Liabilities'**
+  /// **'Debt'**
   String get dashboardLiabilities;
 
   /// No description provided for @dashboardNetWorth.
@@ -2333,7 +2333,7 @@ abstract class AppLocalizations {
   /// No description provided for @accountsScreenLiabilities.
   ///
   /// In en, this message translates to:
-  /// **'Liabilities'**
+  /// **'Debt'**
   String get accountsScreenLiabilities;
 
   /// No description provided for @accountsScreenAddAccount.
@@ -2363,7 +2363,7 @@ abstract class AppLocalizations {
   /// Account row subtitle, e.g. 'Liability · IDR'
   ///
   /// In en, this message translates to:
-  /// **'Liability · {currency}'**
+  /// **'Debt · {currency}'**
   String accountsScreenLiabilityType(String currency);
 
   /// No description provided for @accountFormNewAccount.
@@ -2405,7 +2405,7 @@ abstract class AppLocalizations {
   /// No description provided for @accountFormLiability.
   ///
   /// In en, this message translates to:
-  /// **'Liability'**
+  /// **'Debt'**
   String get accountFormLiability;
 
   /// No description provided for @accountFormCurrency.
@@ -2546,7 +2546,7 @@ abstract class AppLocalizations {
   /// No description provided for @accountFormLiabilityInfo.
   ///
   /// In en, this message translates to:
-  /// **'For loans, create a Transfer from this liability account to an asset account.'**
+  /// **'For loans, create a Transfer from this debt account to an asset account.'**
   String get accountFormLiabilityInfo;
 
   /// No description provided for @accountFormRecentTransactions.
@@ -5516,7 +5516,7 @@ abstract class AppLocalizations {
   /// No description provided for @roomBalanceLiabilities.
   ///
   /// In en, this message translates to:
-  /// **'Liabilities'**
+  /// **'Debt'**
   String get roomBalanceLiabilities;
 
   /// No description provided for @roomAccountsEmptyTitle.
@@ -5570,7 +5570,7 @@ abstract class AppLocalizations {
   /// No description provided for @roomAccountKindLiability.
   ///
   /// In en, this message translates to:
-  /// **'Liability'**
+  /// **'Debt'**
   String get roomAccountKindLiability;
 
   /// No description provided for @roomAccountInitialBalance.

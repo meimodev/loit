@@ -80,7 +80,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final balances = ref.watch(accountBalancesProvider);
     final nativeBalances = ref.watch(accountNativeBalancesProvider);
     final totalAssets = ref.watch(totalAssetsProvider);
-    final totalLiabilities = ref.watch(totalLiabilitiesProvider);
+    final totalLiabilities = ref.watch(totalDebtProvider);
     final netWorth = ref.watch(netWorthProvider);
     final c = context.loitColors;
     final l = context.l10n;

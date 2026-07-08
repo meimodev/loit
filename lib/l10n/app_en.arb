@@ -171,7 +171,7 @@
     }
   },
   "dashboardAssets": "Assets",
-  "dashboardLiabilities": "Liabilities",
+  "dashboardLiabilities": "Debt",
   "dashboardNetWorth": "Net worth",
   "dashboardAccounts": "Accounts",
   "dashboardBudgets": "Budgets",
@@ -583,7 +583,7 @@
 
   "accountsScreenTitle": "Accounts",
   "accountsScreenAssets": "Assets",
-  "accountsScreenLiabilities": "Liabilities",
+  "accountsScreenLiabilities": "Debt",
   "accountsScreenAddAccount": "Add account",
   "accountsScreenNoAccounts": "No accounts yet",
   "accountsScreenEmptyBody": "Add your cash, bank accounts, and cards to track balances.",
@@ -594,7 +594,7 @@
       "currency": {"type": "String"}
     }
   },
-  "accountsScreenLiabilityType": "Liability · {currency}",
+  "accountsScreenLiabilityType": "Debt · {currency}",
   "@accountsScreenLiabilityType": {
     "description": "Account row subtitle, e.g. 'Liability · IDR'",
     "placeholders": {
@@ -608,7 +608,7 @@
   "accountFormNamePlaceholder": "e.g. BCA Savings",
   "accountFormType": "Type",
   "accountFormAsset": "Asset",
-  "accountFormLiability": "Liability",
+  "accountFormLiability": "Debt",
   "accountFormCurrency": "Currency",
   "accountFormCurrentBalance": "Current balance",
   "accountFormOpeningBalance": "Opening balance",
@@ -665,7 +665,7 @@
       "error": {"type": "String"}
     }
   },
-  "accountFormLiabilityInfo": "For loans, create a Transfer from this liability account to an asset account.",
+  "accountFormLiabilityInfo": "For loans, create a Transfer from this debt account to an asset account.",
   "accountFormRecentTransactions": "Recent transactions",
 
   "scanReceiptTitle": "Scan document",
@@ -1484,7 +1484,7 @@
   "reportsBalanceSection": "Balance",
   "roomBalanceNet": "Net balance",
   "roomBalanceAssets": "Assets",
-  "roomBalanceLiabilities": "Liabilities",
+  "roomBalanceLiabilities": "Debt",
   "roomAccountsEmptyTitle": "No room accounts yet",
   "roomAccountsEmptyBody": "Admins can add a shared cash pool or debt to track together.",
   "roomAccountAdd": "Add account",
@@ -1493,7 +1493,7 @@
   "roomAccountNameRequired": "Enter a name",
   "roomAccountNameTaken": "An account with that name already exists in this room.",
   "roomAccountKindAsset": "Asset",
-  "roomAccountKindLiability": "Liability",
+  "roomAccountKindLiability": "Debt",
   "roomAccountInitialBalance": "Initial balance",
   "roomAccountArchive": "Archive account",
   "roomMovementNoAccounts": "Add a room account first to log a movement.",

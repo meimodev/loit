@@ -171,7 +171,7 @@
     }
   },
   "dashboardAssets": "Aset",
-  "dashboardLiabilities": "Liabilitas",
+  "dashboardLiabilities": "Hutang",
   "dashboardNetWorth": "Kekayaan bersih",
   "dashboardAccounts": "Akun",
   "dashboardBudgets": "Anggaran",
@@ -583,7 +583,7 @@
 
   "accountsScreenTitle": "Akun",
   "accountsScreenAssets": "Aset",
-  "accountsScreenLiabilities": "Liabilitas",
+  "accountsScreenLiabilities": "Hutang",
   "accountsScreenAddAccount": "Tambah akun",
   "accountsScreenNoAccounts": "Belum ada akun",
   "accountsScreenEmptyBody": "Tambahkan uang tunai, rekening bank, dan kartu untuk melacak saldo.",
@@ -594,7 +594,7 @@
       "currency": {"type": "String"}
     }
   },
-  "accountsScreenLiabilityType": "Liabilitas · {currency}",
+  "accountsScreenLiabilityType": "Hutang · {currency}",
   "@accountsScreenLiabilityType": {
     "description": "Account row subtitle, e.g. 'Liability · IDR'",
     "placeholders": {
@@ -608,7 +608,7 @@
   "accountFormNamePlaceholder": "mis. BCA Tabungan",
   "accountFormType": "Tipe",
   "accountFormAsset": "Aset",
-  "accountFormLiability": "Liabilitas",
+  "accountFormLiability": "Hutang",
   "accountFormCurrency": "Mata uang",
   "accountFormCurrentBalance": "Saldo saat ini",
   "accountFormOpeningBalance": "Saldo awal",
@@ -665,7 +665,7 @@
       "error": {"type": "String"}
     }
   },
-  "accountFormLiabilityInfo": "Untuk pinjaman, buat Transfer dari akun liabilitas ini ke akun aset.",
+  "accountFormLiabilityInfo": "Untuk pinjaman, buat Transfer dari akun hutang ini ke akun aset.",
   "accountFormRecentTransactions": "Transaksi terbaru",
 
   "scanReceiptTitle": "Pindai dokumen",
@@ -1478,7 +1478,7 @@
   "reportsBalanceSection": "Saldo",
   "roomBalanceNet": "Saldo bersih",
   "roomBalanceAssets": "Aset",
-  "roomBalanceLiabilities": "Kewajiban",
+  "roomBalanceLiabilities": "Hutang",
   "roomAccountsEmptyTitle": "Belum ada akun ruang",
   "roomAccountsEmptyBody": "Admin bisa menambah kas bersama atau utang untuk dikelola bareng.",
   "roomAccountAdd": "Tambah akun",
@@ -1487,7 +1487,7 @@
   "roomAccountNameRequired": "Masukkan nama",
   "roomAccountNameTaken": "Akun dengan nama itu sudah ada di ruang ini.",
   "roomAccountKindAsset": "Aset",
-  "roomAccountKindLiability": "Kewajiban",
+  "roomAccountKindLiability": "Hutang",
   "roomAccountInitialBalance": "Saldo awal",
   "roomAccountArchive": "Arsipkan akun",
   "roomMovementNoAccounts": "Tambah akun ruang dulu untuk mencatat transaksi.",

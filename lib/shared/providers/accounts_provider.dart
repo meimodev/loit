@@ -13,7 +13,7 @@ final usdBaseRatesProvider = FutureProvider<Map<String, double>>((ref) async {
   return ref.watch(currencyServiceProvider).loadUsdBaseRates();
 });
 
-enum AccountKind { asset, liability }
+enum AccountKind { asset, debt }
 
 /// Thrown when inserting an account whose name already exists for the user
 /// (Postgres unique_violation code 23505 on accounts_name_lower_user_idx).
@@ -60,8 +60,8 @@ class Account {
         userId: r['user_id'] as String?,
         roomId: r['room_id'] as String?,
         name: r['name'] as String,
-        kind: (r['kind'] as String?) == 'liability'
-            ? AccountKind.liability
+        kind: (r['kind'] as String?) == 'debt'
+            ? AccountKind.debt
             : AccountKind.asset,
         currency: (r['currency'] as String?) ?? 'IDR',
         initialBalance: ((r['initial_balance'] as num?) ?? 0).toDouble(),
@@ -133,7 +133,7 @@ class AccountsNotifier extends AsyncNotifier<List<Account>> {
     final payload = {
       'user_id': user.id,
       'name': name,
-      'kind': kind == AccountKind.asset ? 'asset' : 'liability',
+      'kind': kind == AccountKind.asset ? 'asset' : 'debt',
       'currency': currency,
       'initial_balance': initialBalance,
       if (icon != null) 'icon': icon,
@@ -214,7 +214,7 @@ final activeAccountsProvider = Provider<List<Account>>((ref) {
 /// best-effort approximation (rates load async; before they arrive the
 /// initial balance is treated as already-in-home, matching prior behaviour).
 ///
-/// Liability convention: initial stored negative, income adds (pay debt),
+/// Debt convention: initial stored negative, income adds (pay debt),
 /// expense subtracts. Asset convention: income adds, expense subtracts.
 final accountBalancesProvider = Provider<Map<String, double>>((ref) {
   final accounts = ref.watch(accountsProvider).value ?? const [];
@@ -306,11 +306,11 @@ final totalAssetsProvider = Provider<double>((ref) {
   return balances.values.where((v) => v > 0).fold(0.0, (s, v) => s + v);
 });
 
-final totalLiabilitiesProvider = Provider<double>((ref) {
+final totalDebtProvider = Provider<double>((ref) {
   final balances = ref.watch(accountBalancesProvider);
   return balances.values.where((v) => v < 0).fold(0.0, (s, v) => s + v);
 });
 
 final netWorthProvider = Provider<double>((ref) {
-  return ref.watch(totalAssetsProvider) + ref.watch(totalLiabilitiesProvider);
+  return ref.watch(totalAssetsProvider) + ref.watch(totalDebtProvider);
 });

@@ -12,7 +12,7 @@ export interface AccountRef {
   id: string;
   name: string;
   currency: string;
-  kind: "asset" | "liability";
+  kind: "asset" | "debt";
 }
 
 export interface RoomRef {

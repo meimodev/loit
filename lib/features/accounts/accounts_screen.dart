@@ -47,7 +47,7 @@ class AccountsScreen extends ConsumerWidget {
           final assets =
               accounts.where((a) => a.kind == AccountKind.asset).toList();
           final liabilities =
-              accounts.where((a) => a.kind == AccountKind.liability).toList();
+              accounts.where((a) => a.kind == AccountKind.debt).toList();
 
           if (accounts.isEmpty) {
             return ListView(

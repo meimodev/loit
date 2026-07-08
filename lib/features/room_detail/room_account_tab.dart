@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/reachability_service.dart'
     show OnlineOnlyActionException;
 import '../../core/theme/loit_colors.dart';
+import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
@@ -189,6 +190,9 @@ class _AccountRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.loitColors;
+    final l = context.l10n;
+    final isAsset = account.kind == AccountKind.asset;
+    final iconColor = isAsset ? c.info : c.danger;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -197,11 +201,42 @@ class _AccountRow extends StatelessWidget {
             vertical: LoitSpacing.s3, horizontal: LoitSpacing.s1),
         child: Row(
           children: [
-            Expanded(
-              child: Text(account.name,
-                  style: LoitTypography.bodyM
-                      .copyWith(color: c.contentPrimary, fontWeight: FontWeight.w600)),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: LoitRadius.brM,
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                isAsset
+                    ? Icons.account_balance_wallet_outlined
+                    : Icons.credit_card_outlined,
+                size: 18,
+                color: iconColor,
+              ),
             ),
+            const SizedBox(width: LoitSpacing.s4),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(account.name,
+                      style: LoitTypography.bodyM.copyWith(
+                          color: c.contentPrimary,
+                          fontWeight: FontWeight.w600)),
+                  Text(
+                    isAsset
+                        ? l.roomAccountKindAsset
+                        : l.roomAccountKindLiability,
+                    style: LoitTypography.bodyS
+                        .copyWith(color: c.contentTertiary),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: LoitSpacing.s2),
             Text(formatMoney(balance, currency),
                 style: LoitTypography.bodyM.copyWith(
                     color: balance < 0 ? c.danger : c.contentPrimary,

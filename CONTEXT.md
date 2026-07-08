@@ -329,8 +329,8 @@ add-on), AI Credit (unrelated).
 
 **Room account**:
 A balance-bearing account **owned by a Room**, not a user — the shared analogue
-of a personal **Account**. Its **kind** (asset/liability) is **derived from its
-balance**, not chosen: a Room account is a *liability* while its balance is
+of a personal **Account**. Its **kind** (asset/debt) is **derived from its
+balance**, not chosen: a Room account is a *debt* while its balance is
 negative and an *asset* otherwise — maintained automatically (see ADR 0008), so
 the admin add/edit form has no kind switch. (Personal **Account**s keep a manual
 kind.) Its **opening balance** is **0 at creation** — the admin sets a starting
@@ -338,7 +338,10 @@ figure only by editing afterwards, where a negative value marks a debt. A Room
 account's currency is fixed to the Room's `base_currency`. A Room may have **multiple**.
 Room accounts give a Room its own balance sheet (shared cash pools, shared
 debts) — distinct from **Room budgets**, which only cap shared *spending*.
-_Avoid_: shared account, group wallet, room wallet.
+The **debt** kind is labeled **Debt** / **Hutang** in the UI (personal and room
+alike) and stored as `kind='debt'` (renamed from `liability`, see ADR 0028).
+_Avoid_: shared account, group wallet, room wallet; Liability / Liabilitas /
+Kewajiban / Utang (the debt kind is *Debt* / *Hutang*, never these).
 A **Room account** lives in the same `accounts` table as a personal **Account**;
 exactly one of `user_id` / `room_id` is set. Personal screens must filter
 `room_id IS NULL` so room accounts never leak into a user's own balance sheet.

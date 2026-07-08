@@ -324,7 +324,7 @@ class RoomService {
   Future<Map<String, dynamic>> createRoomAccount({
     required String roomId,
     required String name,
-    required String kind, // 'asset' | 'liability'
+    required String kind, // 'asset' | 'debt'
     required String currency,
     double initialBalance = 0,
     String? icon,

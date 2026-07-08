@@ -185,9 +185,9 @@ function categoryDisplayName(
 
 // Localized label for account kind. Inline (vs. i18n strings) because the
 // canonical account line composes them with the account name + currency.
-function accountKindLabel(locale: Locale, kind: "asset" | "liability"): string {
-  if (locale === "id") return kind === "asset" ? "Aset" : "Liabilitas";
-  return kind === "asset" ? "Asset" : "Liability";
+function accountKindLabel(locale: Locale, kind: "asset" | "debt"): string {
+  if (locale === "id") return kind === "asset" ? "Aset" : "Hutang";
+  return kind === "asset" ? "Asset" : "Debt";
 }
 
 // Resolve the canonical account display for a transaction summary. Prefers
@@ -1189,7 +1189,7 @@ async function summarizeSavedTransaction(
         id: dbAcc.id as string,
         name: dbAcc.name as string,
         currency: dbAcc.currency as string,
-        kind: dbAcc.kind as "asset" | "liability",
+        kind: dbAcc.kind as "asset" | "debt",
       };
     }
   }

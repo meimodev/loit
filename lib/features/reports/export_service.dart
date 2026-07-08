@@ -329,7 +329,7 @@ Future<void> _writeCsvIsolate(
     for (final a in scope.accounts) {
       rows.add([
         a.name,
-        a.kind == AccountKind.asset ? 'asset' : 'liability',
+        a.kind == AccountKind.asset ? 'asset' : 'debt',
         a.balanceHome,
         scope.homeCurrency,
         formatMoney(a.balanceHome, scope.homeCurrency),
@@ -764,7 +764,7 @@ class ExportService {
     final assets = accounts.where((a) => a.kind == AccountKind.asset).toList()
       ..sort((a, b) => b.balanceHome.compareTo(a.balanceHome));
     final liabilities = accounts
-        .where((a) => a.kind == AccountKind.liability)
+        .where((a) => a.kind == AccountKind.debt)
         .toList()
       ..sort((a, b) => a.balanceHome.compareTo(b.balanceHome));
     final assetTotal =
@@ -783,7 +783,7 @@ class ExportService {
                   'Assets', fmt(assetTotal), success, surface, border)),
           pw.SizedBox(width: 8),
           pw.Expanded(
-              child: _summaryCard('Liabilities', fmt(liabTotal),
+              child: _summaryCard('Debt', fmt(liabTotal),
                   danger, surface, border)),
           pw.SizedBox(width: 8),
           pw.Expanded(
@@ -825,7 +825,7 @@ class ExportService {
           for (final a in [...assets, ...liabilities])
             [
               a.name,
-              a.kind == AccountKind.asset ? 'Asset' : 'Liability',
+              a.kind == AccountKind.asset ? 'Asset' : 'Debt',
               fmt(a.balanceHome),
             ],
         ],

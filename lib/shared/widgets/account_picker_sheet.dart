@@ -116,7 +116,7 @@ class _AccountPickerSheet extends ConsumerWidget {
                                 Text(
                                   a.kind == AccountKind.asset
                                       ? 'Asset'
-                                      : 'Liability',
+                                      : 'Debt',
                                   style: LoitTypography.bodyS
                                       .copyWith(color: c.contentTertiary),
                                 ),

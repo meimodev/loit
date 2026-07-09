@@ -553,11 +553,15 @@ version string with proper version ordering (`1.0.9 < 1.0.10`). The semver
 **not** the build number: CI overrides the pubspec `+N` (`versionCode`) with a
 timestamp, so the build number is unknowable ahead of a release, whereas the
 semver is human-controlled and bumped each release by `push-deploy`.
-The gate is **fail-open**: a fetch failure reuses the last cached gate (so a
-Blocked user can't dodge by going offline), but a client with **no cache**
-(first launch, or a reinstall) while offline resolves to **Current** — a
-deliberate ADR-0015 choice, since a breaking client's backend calls fail anyway,
-so the backend stays the real gate in that window.
+The gate is **fail-open**: a fetch failure reuses the last cached gate, so the
+*thresholds* survive going offline; a client with **no cache** (first launch, or
+a reinstall) while offline resolves to **Current** — a deliberate ADR-0015 choice,
+since a breaking client's backend calls fail anyway, so the backend stays the real
+gate in that window. Note the cache preserves the thresholds, **not** the verdict:
+an offline below-floor client remembers it is below the floor but has no **remedy**
+(Play cannot install to a disconnected device), so it resolves to **Stranded**, not
+**Blocked**. That is not a dodge — it reconnects into **Blocked**, and offline it
+can neither sync nor corrupt anything.
 _Avoid_: version check, force-update flag (the gate is five states, not a boolean);
 build number (the gate ignores it).
 

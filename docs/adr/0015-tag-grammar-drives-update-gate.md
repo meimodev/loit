@@ -1,5 +1,15 @@
 # Git tag grammar drives the Update gate
 
+> **Amended by [ADR-0030](0030-stranded-state-play-is-the-remedy-oracle.md).**
+> The tag grammar below stands unchanged. Two claims in it do not: that an old
+> client can be "forced to update *before* it keeps talking to the backend", and
+> that raising `min` at tag time is safe because the in-app-update + store-URL
+> fallback tolerates the window before Play serves the build. Neither holds — CI
+> raises `min` hours to days before Play delivers, and the fallback opens a store
+> page for the version already installed. `min_version` is a **declared** floor;
+> the device decides when it is reachable. Below-floor clients land in **Stranded**
+> until Play offers a remedy, then in **Blocked**.
+
 ## Context
 
 Some releases are **breaking** — an old client must be forced to update before it

@@ -2367,6 +2367,16 @@ class AppLocalizationsId extends AppLocalizations {
   String get updatePromptLater => 'Nanti';
 
   @override
+  String get updateStrandedTitle => 'Pembaruan sedang dalam perjalanan';
+
+  @override
+  String get updateStrandedBody =>
+      'Pembaruan wajib sedang dalam perjalanan. Play Store belum mengirimkannya ke perangkat ini — biasanya butuh beberapa jam. Kamu masih bisa memakai LOIT, tapi beberapa hal mungkin gagal tersimpan.';
+
+  @override
+  String get updateStrandedOk => 'Mengerti';
+
+  @override
   String get roomArchiveTitle => 'Arsipkan ruangan?';
 
   @override

@@ -4301,6 +4301,24 @@ abstract class AppLocalizations {
   /// **'Later'**
   String get updatePromptLater;
 
+  /// No description provided for @updateStrandedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update on the way'**
+  String get updateStrandedTitle;
+
+  /// No description provided for @updateStrandedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A required update is on its way. Play Store hasn\'t delivered it to this device yet — this usually takes a few hours. You can keep using LOIT in the meantime, though some things may not save.'**
+  String get updateStrandedBody;
+
+  /// No description provided for @updateStrandedOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get updateStrandedOk;
+
   /// No description provided for @roomArchiveTitle.
   ///
   /// In en, this message translates to:

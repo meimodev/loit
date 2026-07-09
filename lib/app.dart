@@ -305,14 +305,16 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
     }
   }
 
-  /// Surface the dismissible update sheet for the Recommended / Optional states
-  /// (ADR-0015). Recommended re-nags every launch; Optional shows once per
-  /// release (persisted by `latest_version`). Blocked is handled by the overlay
-  /// in [build], not here. Idempotent — all guards bail cheaply.
+  /// Surface the dismissible update sheet for the Recommended / Optional /
+  /// Stranded states (ADR-0015, ADR-0030). Recommended and Stranded re-nag every
+  /// launch; Optional shows once per release (persisted by `latest_version`).
+  /// Blocked is handled by the overlay in [build], not here. Idempotent — all
+  /// guards bail cheaply.
   Future<void> _maybeShowUpdatePrompt(UpdateGateStatus status) async {
     if (_updatePromptShown) return;
     if (status.state != UpdateState.recommended &&
-        status.state != UpdateState.optional) {
+        status.state != UpdateState.optional &&
+        status.state != UpdateState.stranded) {
       return;
     }
     if (ref.read(appLockedProvider)) return; // don't stack over the lock screen
@@ -339,8 +341,12 @@ class _LoitAppState extends ConsumerState<LoitApp> with WidgetsBindingObserver {
       await prefs.setString(
           updateOptionalDismissedKey, status.gate.latestVersion);
     }
-    // ignore: use_build_context_synchronously
-    final wantsUpdate = await showUpdatePromptSheet(ctx);
+    // Stranded resolves `false` always — the sheet offers no update action.
+    final wantsUpdate = await showUpdatePromptSheet(
+      // ignore: use_build_context_synchronously
+      ctx,
+      stranded: status.state == UpdateState.stranded,
+    );
     if (wantsUpdate == true) {
       await appUpdateService.performUpdate(
         immediate: false,

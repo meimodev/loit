@@ -558,22 +558,54 @@ Blocked user can't dodge by going offline), but a client with **no cache**
 (first launch, or a reinstall) while offline resolves to **Current** — a
 deliberate ADR-0015 choice, since a breaking client's backend calls fail anyway,
 so the backend stays the real gate in that window.
-_Avoid_: version check, force-update flag (the gate is four states, not a boolean);
+_Avoid_: version check, force-update flag (the gate is five states, not a boolean);
 build number (the gate ignores it).
+
+**Remedy**:
+An update this **device** can actually install **right now** — Play has reviewed,
+published, rolled out to this device's cohort, and refreshed its on-device cache.
+Answered per-device by `InAppUpdate.checkForUpdate()`, never by the server: Play
+availability is not global (staged rollout, region, Play Store version), so no
+server-side flag can know it. `min_version` rising means the floor was *declared*;
+a remedy existing means the floor is *reachable*. The two are hours to days apart.
+_Avoid_: "released", "live on Play" (both global; the device is what matters).
 
 **Update state**:
 The client's standing against the **Update gate**, derived by comparing the
-device version to the thresholds. Exactly one of four:
-- **Blocked** — `version < minimum`. Non-dismissible; the app is unusable once
-  the gate resolves (a brief post-launch window aside — the gate fetch is async,
-  so frame one paints before the overlay). Used only for **breaking** releases,
-  where the backend is the real gate during that window anyway.
+device version to the thresholds — and, below the floor, by whether a **remedy**
+exists. Exactly one of five:
+- **Blocked** — `version < minimum` **and** a remedy exists. Non-dismissible; the
+  app is unusable once the gate resolves (a brief post-launch window aside — the
+  gate fetch is async, so frame one paints before the overlay). Used only for
+  **breaking** releases, where the backend is the real gate during that window
+  anyway.
+- **Stranded** — `version < minimum` and **no** remedy. Below the floor with no way
+  up: the release is declared but Play has not delivered it here yet. Dismissible,
+  nagged **every launch**, and offers *no action* — there is nothing to tap. Resolves
+  on its own when Play's on-device cache turns over; the resume-invalidate promotes
+  **Stranded → Blocked** with a working update button. Writes made while Stranded are
+  rejected by the backend and trap in the offline queue, then drain after the update
+  (see **Breaking migration**). See ADR-0030.
 - **Recommended** — `minimum <= version < recommended`. A dismissible prompt shown
   on **every launch** until updated.
 - **Optional** — `recommended <= version < latest`. Prompted **once**, then
   reduced to a passive marker; not re-nagged.
 - **Current** — `version >= latest`. No prompt.
-_Avoid_: outdated, stale (ambiguous about which of the three lower states).
+_Avoid_: outdated, stale (ambiguous about which of the four lower states). Do not
+say a Stranded user is "blocked" — they are still using the app.
+
+**Breaking migration**:
+A schema or backend change shipped behind a `-breaking` tag. Constrained by an
+invariant that the whole Update-gate design rests on: a breaking migration must
+make an old client's writes **fail loudly** (`CHECK` violation, missing RPC, RLS
+denial) and must **never accept them with a changed meaning**. Rejection is safe —
+the row traps in the offline queue and is repaired on a later drain. Silent
+reinterpretation is corruption, and it would make **Stranded** illegal.
+Corollary (the price of Stranded): every breaking migration must ship its inverse
+rewrite in the drain-time self-heal ladder in `sync_service.dart`, or rows queued
+by below-floor clients never drain. See ADR-0030.
+_Avoid_: "breaking change" for a release that merely fixes a bad bug — that is a
+`-recommended` release. `-breaking` means old writes must fail.
 
 **Tag → threshold → state** (the whole chain in one place — it lives split
 across the CI step, the migration, and `update_gate_provider.dart` otherwise):
@@ -582,13 +614,16 @@ across the CI step, the migration, and `update_gate_provider.dart` otherwise):
 |---|---|---|
 | `v1.2.0` *(plain)* | `latest` | **Optional** |
 | `v1.2.0-recommended` | `recommended` (+`latest`) | **Recommended** |
-| `v1.2.0-breaking` | `min` (+`recommended`+`latest`) | **Blocked** |
+| `v1.2.0-breaking` | `min` (+`recommended`+`latest`) | **Stranded**, then **Blocked** once Play delivers |
 
 _Flagged ambiguity_: the tag suffix names **neither** the threshold it sets
 **nor** the state it produces. Only `-recommended` is self-consistent. A plain
 tag yields **Optional** (there is deliberately **no** `-optional` suffix);
 `-breaking` sets `min` and yields **Blocked** (no `-blocked` suffix). Seeing
 "Blocked" in code, do **not** grep for a `-blocked` tag — it does not exist.
+Note the last row is a *sequence*, not a choice: CI raises `min` at tag time,
+hours before Play serves the build, so every below-floor client passes through
+**Stranded** first and reaches **Blocked** only once it has a **remedy**.
 Thresholds only ever rise (CI `max()`-es each field; lowering is manual SQL only).
 
 ### Realtime

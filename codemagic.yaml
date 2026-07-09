@@ -93,9 +93,12 @@ workflows:
         # after v1.1.0) must never regress the gate. Each field is max()-ed
         # against its current value; lowering a threshold is a deliberate manual
         # SQL override only (ADR-0015).
-        # Runs pre-publish; the in-app-update + store_url fallback tolerates the
-        # brief window before the new AAB propagates on Play. Best-effort:
-        # never fails the build.
+        # Runs pre-publish, so `min_version` rises hours-to-days before Play
+        # actually serves the build. The row is a DECLARED floor, not an enforced
+        # one: below-floor clients land in Stranded (dismissible) until the device
+        # reports an installable update, then in Blocked (ADR-0030). Do not read
+        # min_version as "users currently locked out". Best-effort: never fails
+        # the build.
         script: |
           set -uo pipefail
           : "${SUPABASE_GATE_URL:?missing}"

@@ -185,7 +185,17 @@ class SyncService {
           await _db.markSynced(item.id);
           Log.d(_tag, 'Synced item ${item.id}');
         } catch (e, st) {
-          Log.e(_tag, 'Sync failed for item ${item.id}', error: e, stack: st);
+          // A below-floor (Stranded, ADR-0030) client writes rows the migrated
+          // backend rejects: Postgres class 23 = integrity constraint violation.
+          // Expected, self-healing (the row stays queued and drains after the
+          // update rewrites it), and it repeats every drain — warn, don't page
+          // Sentry once per row per reconnect.
+          if (e is PostgrestException && (e.code?.startsWith('23') ?? false)) {
+            Log.w(_tag, 'Item ${item.id} rejected by constraint, will retry '
+                'after update: ${e.code}');
+          } else {
+            Log.e(_tag, 'Sync failed for item ${item.id}', error: e, stack: st);
+          }
         }
       }
       Log.i(_tag, 'Sync complete');

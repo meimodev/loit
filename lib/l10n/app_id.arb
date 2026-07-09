@@ -1118,6 +1118,9 @@
   "updatePromptBody": "Versi baru LOIT sudah siap. Perbarui untuk fitur dan perbaikan terbaru.",
   "updatePromptUpdate": "Perbarui sekarang",
   "updatePromptLater": "Nanti",
+  "updateStrandedTitle": "Pembaruan sedang dalam perjalanan",
+  "updateStrandedBody": "Pembaruan wajib sedang dalam perjalanan. Play Store belum mengirimkannya ke perangkat ini — biasanya butuh beberapa jam. Kamu masih bisa memakai LOIT, tapi beberapa hal mungkin gagal tersimpan.",
+  "updateStrandedOk": "Mengerti",
 
   "roomArchiveTitle": "Arsipkan ruangan?",
   "roomArchiveConfirm": "Arsipkan",

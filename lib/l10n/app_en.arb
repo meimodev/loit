@@ -1124,6 +1124,9 @@
   "updatePromptBody": "A new version of LOIT is ready. Update for the latest features and fixes.",
   "updatePromptUpdate": "Update now",
   "updatePromptLater": "Later",
+  "updateStrandedTitle": "Update on the way",
+  "updateStrandedBody": "A required update is on its way. Play Store hasn't delivered it to this device yet — this usually takes a few hours. You can keep using LOIT in the meantime, though some things may not save.",
+  "updateStrandedOk": "Got it",
 
   "roomArchiveTitle": "Archive room?",
   "roomArchiveConfirm": "Archive",

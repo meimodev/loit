@@ -11,6 +11,25 @@ import 'log_service.dart';
 class AppUpdateService {
   const AppUpdateService();
 
+  /// Whether this device has a **remedy** — an update Play can install right now
+  /// (CONTEXT.md → Remedy). Below-floor clients hard-block only when one exists;
+  /// otherwise they land in Stranded (ADR-0030). Play availability is per-device
+  /// (staged rollout, region, Play Store version, on-device cache), so this is
+  /// the only oracle that answers it. Failure or `unknown` => no remedy: fail
+  /// toward usable, legal because a breaking migration rejects old writes rather
+  /// than misreading them.
+  Future<bool> hasRemedy() async {
+    try {
+      final info = await InAppUpdate.checkForUpdate();
+      return info.updateAvailability == UpdateAvailability.updateAvailable ||
+          info.updateAvailability ==
+              UpdateAvailability.developerTriggeredUpdateInProgress;
+    } catch (e) {
+      Log.w('AppUpdate', 'remedy check failed, treating as Stranded', error: e);
+      return false;
+    }
+  }
+
   /// [immediate] true for Blocked (Play's full-screen blocking flow); false for
   /// Recommended/Optional (flexible background download).
   Future<void> performUpdate({

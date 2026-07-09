@@ -5,11 +5,13 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/services/app_update_service.dart';
 import '../../core/services/log_service.dart';
 
 /// The client's standing against the [UpdateGate] (CONTEXT.md → Update state).
-/// Exactly one of four, derived by comparing the device version to the
-/// thresholds. See ADR-0015.
+/// Exactly one of five, derived by comparing the device version to the
+/// thresholds and — below the floor — by whether a remedy exists. See ADR-0015,
+/// ADR-0030.
 enum UpdateState {
   /// `version >= latest` — no prompt.
   current,
@@ -20,9 +22,15 @@ enum UpdateState {
   /// `min <= version < recommended` — dismissible prompt every launch.
   recommended,
 
-  /// `version < min` — non-dismissible overlay; the app is unusable until
-  /// updated. Breaking releases only.
+  /// `version < min` **and** a remedy exists — non-dismissible overlay; the app
+  /// is unusable until updated. Breaking releases only.
   blocked,
+
+  /// `version < min` and **no** remedy — the floor is declared but Play hasn't
+  /// delivered the build to this device yet (review, staged rollout, on-device
+  /// cache). Dismissible, nagged every launch, no action to offer. Promotes to
+  /// [blocked] on resume once a remedy appears. See ADR-0030.
+  stranded,
 }
 
 /// The server-side authority deciding whether a running client build is too old
@@ -63,9 +71,21 @@ class UpdateGate {
         'store_url': storeUrl,
       };
 
+  /// True when [deviceVersion] sits below the declared floor. The floor being
+  /// declared does not mean it is reachable — see [stateFor].
+  bool isBelowFloor(String deviceVersion) =>
+      _compare(deviceVersion, minVersion) < 0;
+
   /// Resolve the [UpdateState] for [deviceVersion] against these thresholds.
-  UpdateState stateFor(String deviceVersion) {
-    if (_compare(deviceVersion, minVersion) < 0) return UpdateState.blocked;
+  /// Pure — [remedyAvailable] is the caller's answer to "can this device install
+  /// the update right now" (ADR-0030); it only matters below the floor.
+  UpdateState stateFor(
+    String deviceVersion, {
+    required bool remedyAvailable,
+  }) {
+    if (isBelowFloor(deviceVersion)) {
+      return remedyAvailable ? UpdateState.blocked : UpdateState.stranded;
+    }
     if (_compare(deviceVersion, recommendedVersion) < 0) {
       return UpdateState.recommended;
     }
@@ -130,8 +150,14 @@ final updateGateProvider = FutureProvider<UpdateGateStatus>((ref) async {
     }
   }
 
+  // Ask Play only when the thresholds already say blocked. `checkForUpdate` is a
+  // Play IPC that throws on emulators and sideloads, and the happy path must
+  // never pay for it (ADR-0030).
+  final remedyAvailable =
+      gate.isBelowFloor(deviceVersion) ? await appUpdateService.hasRemedy() : false;
+
   return UpdateGateStatus(
-    state: gate.stateFor(deviceVersion),
+    state: gate.stateFor(deviceVersion, remedyAvailable: remedyAvailable),
     gate: gate,
     deviceVersion: deviceVersion,
   );

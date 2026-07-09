@@ -2359,6 +2359,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updatePromptLater => 'Later';
 
   @override
+  String get updateStrandedTitle => 'Update on the way';
+
+  @override
+  String get updateStrandedBody =>
+      'A required update is on its way. Play Store hasn\'t delivered it to this device yet — this usually takes a few hours. You can keep using LOIT in the meantime, though some things may not save.';
+
+  @override
+  String get updateStrandedOk => 'Got it';
+
+  @override
   String get roomArchiveTitle => 'Archive room?';
 
   @override

@@ -30,7 +30,7 @@ import '../../shared/widgets/loit_sheet.dart';
 import '../../shared/widgets/loit_tx_row.dart';
 import '../rooms/room_colors.dart';
 
-enum _SourceFilter { all, personal, rooms }
+enum _ScopeFilter { all, personal, rooms }
 
 class TransactionsScreen extends ConsumerStatefulWidget {
   const TransactionsScreen({super.key, this.highlightTxId});
@@ -42,7 +42,7 @@ class TransactionsScreen extends ConsumerStatefulWidget {
 
 class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
     with TickerProviderStateMixin {
-  _SourceFilter _sourceFilter = _SourceFilter.all;
+  _ScopeFilter _scopeFilter = _ScopeFilter.all;
 
   String? _pendingScrollTxId;
   bool _scrollScheduled = false;
@@ -221,12 +221,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
               return d.year == month.year && d.month == month.month;
             }).toList();
             final filtered = monthItems.where((t) {
-              switch (_sourceFilter) {
-                case _SourceFilter.all:
+              switch (_scopeFilter) {
+                case _ScopeFilter.all:
                   return true;
-                case _SourceFilter.personal:
+                case _ScopeFilter.personal:
                   return t.roomId == null;
-                case _SourceFilter.rooms:
+                case _ScopeFilter.rooms:
                   return t.roomId != null;
               }
             }).toList();
@@ -236,7 +236,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
             // movement) has no personal-cash leg, so it contributes nothing
             // under the all/personal lenses — even though it's listed. Under the
             // rooms lens the triple is a room-flow total and counts both species.
-            final inRoomsLens = _sourceFilter == _SourceFilter.rooms;
+            final inRoomsLens = _scopeFilter == _ScopeFilter.rooms;
             var incomeSum = 0.0, expenseSum = 0.0;
             var hasExcludedPool = false;
             for (final t in filtered) {
@@ -270,7 +270,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
             );
 
             if (filtered.isEmpty) {
-              final isFiltered = _sourceFilter != _SourceFilter.all;
+              final isFiltered = _scopeFilter != _ScopeFilter.all;
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
@@ -291,7 +291,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
                           : l.txListNewTransaction,
                       onPrimaryCta: isFiltered
                           ? () => setState(
-                              () => _sourceFilter = _SourceFilter.all)
+                              () => _scopeFilter = _ScopeFilter.all)
                           : () => context.push('/transactions/new'),
                       secondaryCta:
                           isFiltered ? null : l.txListEmptyScanReceipt,
@@ -376,14 +376,14 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
                       // Under the rooms lens pool is the relevant money — normal.
                       final dimPool = isRoomTx &&
                           !isMyMoney &&
-                          _sourceFilter != _SourceFilter.rooms;
+                          _scopeFilter != _ScopeFilter.rooms;
                       // Flag only the surprising funding species for the
                       // current lens: rooms lens = room-flow (pool expected,
                       // flag Personal money); all lens = personal-cash (own
                       // wallet expected, flag pool via dimPool). Room-origin
                       // badge always stays so the row still reads as a room tx.
                       final showFunding =
-                          _sourceFilter == _SourceFilter.rooms
+                          _scopeFilter == _ScopeFilter.rooms
                               ? isMyMoney
                               : dimPool;
                       final roomBadge = isRoomTx
@@ -599,7 +599,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
               if (t.notes != null) 'notes': t.notes,
               'ai_parsed': t.aiParsed,
               'is_manual_fallback': t.isManualFallback,
-              'source': txnSourceToString(t.source),
+              'source': t.sourceRaw,
               'created_at': t.createdAt.toUtc().toIso8601String(),
               if (t.roomId != null) 'room_id': t.roomId,
             };
@@ -679,7 +679,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
   Widget _buildFilterAction(BuildContext context) {
     final c = context.loitColors;
     final l = context.l10n;
-    final isActive = _sourceFilter != _SourceFilter.all;
+    final isActive = _scopeFilter != _ScopeFilter.all;
     final dur = _reduceMotion ? Duration.zero : LoitMotion.emphasized;
     return Stack(
       clipBehavior: Clip.none,
@@ -701,7 +701,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
               ),
             ),
           ),
-          tooltip: l.txListFilterSource,
+          tooltip: l.txListFilterScope,
           onPressed: _openFilterSheet,
         ),
         Positioned(
@@ -730,7 +730,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
 
   Future<void> _openFilterSheet() async {
     final l = context.l10n;
-    final picked = await showLoitSheet<_SourceFilter>(
+    final picked = await showLoitSheet<_ScopeFilter>(
       context,
       builder: (sheetCtx) => LoitSheet(
         title: l.txListFilterTransactions,
@@ -741,26 +741,26 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
               sheetCtx,
               icon: Icons.all_inclusive,
               label: l.txListAll,
-              value: _SourceFilter.all,
+              value: _ScopeFilter.all,
             ),
             _filterTile(
               sheetCtx,
               icon: Icons.person_outline,
               label: l.txListPersonal,
-              value: _SourceFilter.personal,
+              value: _ScopeFilter.personal,
             ),
             _filterTile(
               sheetCtx,
               icon: Icons.groups_outlined,
               label: l.txListRooms,
-              value: _SourceFilter.rooms,
+              value: _ScopeFilter.rooms,
             ),
           ],
         ),
       ),
     );
     if (picked != null && mounted) {
-      setState(() => _sourceFilter = picked);
+      setState(() => _scopeFilter = picked);
     }
   }
 
@@ -768,10 +768,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
     BuildContext sheetCtx, {
     required IconData icon,
     required String label,
-    required _SourceFilter value,
+    required _ScopeFilter value,
   }) {
     final c = context.loitColors;
-    final selected = _sourceFilter == value;
+    final selected = _scopeFilter == value;
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Icon(icon, color: selected ? c.accent : c.contentSecondary),

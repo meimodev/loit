@@ -511,9 +511,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get txFormNewTransaction => 'New transaction';
 
   @override
-  String get txFormEditTransaction => 'Edit transaction';
-
-  @override
   String get txFormManualEntry => 'Manual entry';
 
   @override
@@ -756,13 +753,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get txDetailSourceManual => 'Manual';
 
   @override
-  String get txDetailSourceScanned => 'Scanned';
+  String get txDetailSourceImage => 'Image';
 
   @override
-  String get txDetailSourceBotImage => 'Bot image';
+  String get txDetailSourceVoice => 'Voice';
 
   @override
-  String get txDetailSourceBotChat => 'Bot chat';
+  String get txDetailSourceTelegramText => 'Telegram Text';
+
+  @override
+  String get txDetailSourceTelegramImage => 'Telegram Image';
+
+  @override
+  String get txDetailSourceTelegramVoice => 'Telegram Voice';
+
+  @override
+  String get txDetailSourceUnknown => 'Unknown';
 
   @override
   String get txDetailTotal => 'Total';
@@ -795,7 +801,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get txListNewTransaction => 'New transaction';
 
   @override
-  String get txListFilterSource => 'Filter source';
+  String get txListFilterScope => 'Show';
 
   @override
   String get txListNotSynced => 'Not synced';
@@ -906,7 +912,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get txSearchDate => 'Date';
 
   @override
-  String get txSearchSource => 'Source';
+  String get txSearchScope => 'Show';
 
   @override
   String get txSearchIncome => 'Income';

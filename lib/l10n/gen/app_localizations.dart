@@ -1052,12 +1052,6 @@ abstract class AppLocalizations {
   /// **'New transaction'**
   String get txFormNewTransaction;
 
-  /// No description provided for @txFormEditTransaction.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit transaction'**
-  String get txFormEditTransaction;
-
   /// No description provided for @txFormManualEntry.
   ///
   /// In en, this message translates to:
@@ -1502,23 +1496,41 @@ abstract class AppLocalizations {
   /// **'Manual'**
   String get txDetailSourceManual;
 
-  /// No description provided for @txDetailSourceScanned.
+  /// No description provided for @txDetailSourceImage.
   ///
   /// In en, this message translates to:
-  /// **'Scanned'**
-  String get txDetailSourceScanned;
+  /// **'Image'**
+  String get txDetailSourceImage;
 
-  /// No description provided for @txDetailSourceBotImage.
+  /// No description provided for @txDetailSourceVoice.
   ///
   /// In en, this message translates to:
-  /// **'Bot image'**
-  String get txDetailSourceBotImage;
+  /// **'Voice'**
+  String get txDetailSourceVoice;
 
-  /// No description provided for @txDetailSourceBotChat.
+  /// No description provided for @txDetailSourceTelegramText.
   ///
   /// In en, this message translates to:
-  /// **'Bot chat'**
-  String get txDetailSourceBotChat;
+  /// **'Telegram Text'**
+  String get txDetailSourceTelegramText;
+
+  /// No description provided for @txDetailSourceTelegramImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Telegram Image'**
+  String get txDetailSourceTelegramImage;
+
+  /// No description provided for @txDetailSourceTelegramVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Telegram Voice'**
+  String get txDetailSourceTelegramVoice;
+
+  /// No description provided for @txDetailSourceUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get txDetailSourceUnknown;
 
   /// No description provided for @txDetailTotal.
   ///
@@ -1580,11 +1592,11 @@ abstract class AppLocalizations {
   /// **'New transaction'**
   String get txListNewTransaction;
 
-  /// No description provided for @txListFilterSource.
+  /// No description provided for @txListFilterScope.
   ///
   /// In en, this message translates to:
-  /// **'Filter source'**
-  String get txListFilterSource;
+  /// **'Show'**
+  String get txListFilterScope;
 
   /// No description provided for @txListNotSynced.
   ///
@@ -1778,11 +1790,11 @@ abstract class AppLocalizations {
   /// **'Date'**
   String get txSearchDate;
 
-  /// No description provided for @txSearchSource.
+  /// No description provided for @txSearchScope.
   ///
   /// In en, this message translates to:
-  /// **'Source'**
-  String get txSearchSource;
+  /// **'Show'**
+  String get txSearchScope;
 
   /// No description provided for @txSearchIncome.
   ///

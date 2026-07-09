@@ -317,7 +317,7 @@ Future<void> _writeCsvIsolate(
         t.notes ?? '',
         t.receiptUrl ?? '',
         t.aiParsed ? 'yes' : 'no',
-        txnSourceToString(t.source),
+        txnSourceCanonicalLabel(t.source, raw: t.sourceRaw),
       ];
     }),
   ];

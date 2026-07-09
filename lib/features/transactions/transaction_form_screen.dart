@@ -58,7 +58,6 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
   String _type = 'expense'; // 'expense' | 'income' | 'transfer'
   String? _accountId;
   String? _toAccountId;
-  String? _editId; // non-null when editing an existing transaction
   bool _busy = false;
   bool _isManualFallback = false;
   bool _aiParsed = false;
@@ -111,7 +110,6 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       if (cat != null) {
         _category = cat;
       }
-      _editId = p['_edit_id'] as String?;
       _accountId = p['account_id'] as String?;
       _toAccountId = p['to_account_id'] as String?;
       _roomId = p['_room_id'] as String?;
@@ -119,15 +117,15 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       _isManualFallback = (p['_manual_fallback'] as bool?) ?? false;
       _aiParsed = (p['_ai_parsed'] as bool?) ?? false;
       _imagePath = p['_image_path'] as String?;
+      // In-app captures only — the `telegram_*` sources are written server-side
+      // and never reach this form (ADR-0029).
       final prefillSource = p['_source'] as String?;
-      if (prefillSource == 'scanned' ||
-          prefillSource == 'manual' ||
-          prefillSource == 'bot_image' ||
-          prefillSource == 'bot_chat' ||
-          prefillSource == 'voice') {
+      if (prefillSource == 'image' ||
+          prefillSource == 'voice' ||
+          prefillSource == 'manual') {
         _source = prefillSource!;
       } else if (_aiParsed) {
-        _source = 'scanned';
+        _source = 'image';
       } else {
         _source = 'manual';
       }
@@ -204,7 +202,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
             _breakdownNote.text = notesPrefill;
           }
 
-          if (_editId == null && (_isManualFallback || _aiParsed)) {
+          if (_isManualFallback || _aiParsed) {
             // New AI-origin transaction with no parsed items: open Items tab
             // so user can add items manually.
             _notesMode = _NotesMode.items;
@@ -662,17 +660,11 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
         'created_at': _date.toUtc().toIso8601String(),
         if (_roomId != null) 'room_id': _roomId,
       };
-      final String? insertedId;
-      if (_editId != null) {
-        await ref
-            .read(transactionsProvider.notifier)
-            .updateTransaction(_editId!, payload);
-        insertedId = null;
-      } else {
-        insertedId = await ref
-            .read(transactionsProvider.notifier)
-            .addTransaction(payload, requireOnline: _roomId != null);
-      }
+      // Create-only. Editing an existing transaction happens inline on the
+      // detail screen (ADR-0010), never through this form.
+      final String? insertedId = await ref
+          .read(transactionsProvider.notifier)
+          .addTransaction(payload, requireOnline: _roomId != null);
 
       if (insertedId != null && _imagePath != null) {
         final tier = ref.read(userProfileProvider).value?.tier;
@@ -781,9 +773,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
         if (_roomId != null && _type != 'transfer') {
           final highlight = insertedId != null ? '?highlight=$insertedId' : '';
           context.go('/rooms/$_roomId$highlight');
-        } else if ((_aiParsed || _isManualFallback) &&
-            _editId == null &&
-            insertedId != null) {
+        } else if ((_aiParsed || _isManualFallback) && insertedId != null) {
           // Scan-originated review save — surface the new row on the
           // transactions tab so the user can see the landing.
           context.go('/transactions?highlight=$insertedId');
@@ -977,11 +967,9 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen>
       backgroundColor: c.canvas,
       appBar: AppBar(
         title: Text(
-          _editId != null
-              ? l.txFormEditTransaction
-              : _isManualFallback
-                  ? l.txFormManualEntry
-                  : (_aiParsed ? l.txFormConfirm : l.txFormNewTransaction),
+          _isManualFallback
+              ? l.txFormManualEntry
+              : (_aiParsed ? l.txFormConfirm : l.txFormNewTransaction),
         ),
       ),
       body: Form(

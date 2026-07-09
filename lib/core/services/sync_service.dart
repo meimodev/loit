@@ -102,8 +102,19 @@ class SyncService {
           // legacy `ai_parsed` boolean so the NOT NULL constraint passes
           // with the same value the migration backfill would have chosen.
           if (tx['source'] == null) {
-            tx['source'] = (tx['ai_parsed'] == true) ? 'scanned' : 'manual';
+            tx['source'] = (tx['ai_parsed'] == true) ? 'image' : 'manual';
           }
+          // A row queued by a pre-ADR-0029 build carries a legacy spelling and
+          // drains through this build after the user updates. Rewrite it, so no
+          // client can write a legacy spelling once the narrowing migration
+          // (supabase/migrations_pending/) lands.
+          tx['source'] = const {
+                'scanned': 'image',
+                'bot_chat': 'telegram_text',
+                'bot_image': 'telegram_image',
+                'bot_voice': 'telegram_voice',
+              }[tx['source']] ??
+              tx['source'];
 
           tx['client_updated_at'] = item.clientUpdatedAt.toIso8601String();
 

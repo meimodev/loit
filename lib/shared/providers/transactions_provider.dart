@@ -23,32 +23,68 @@ import 'supported_currencies_provider.dart';
 /// Canonical origin of a transaction. Mirrors the
 /// `transactions.source` column added in migration
 /// `20260521000001_transactions_source.sql`.
-enum TxnSource { manual, scanned, botImage, botChat }
+/// A (Capture channel, Capture kind) pair, or [manual] when no Capture occurred.
+/// Names follow CONTEXT.md and now match the stored spellings (ADR-0029).
+/// Never serialise this — write [Txn.sourceRaw] instead.
+enum TxnSource {
+  manual,
+  image,
+  voice,
+  telegramText,
+  telegramImage,
+  telegramVoice,
 
-TxnSource _txnSourceFromString(String? raw, {required bool aiParsed}) {
-  switch (raw) {
-    case 'manual':
-      return TxnSource.manual;
-    case 'scanned':
-      return TxnSource.scanned;
-    case 'bot_image':
-      return TxnSource.botImage;
-    case 'bot_chat':
-      return TxnSource.botChat;
-  }
-  return aiParsed ? TxnSource.scanned : TxnSource.manual;
+  /// A value this build does not recognise. The server deploys ahead of the
+  /// Play Store rollout, so a newer source arrives before the enum knows it.
+  unknown,
 }
 
-String txnSourceToString(TxnSource s) {
+const _txnSourceByDbValue = <String, TxnSource>{
+  'manual': TxnSource.manual,
+  'image': TxnSource.image,
+  'voice': TxnSource.voice,
+  'telegram_text': TxnSource.telegramText,
+  'telegram_image': TxnSource.telegramImage,
+  'telegram_voice': TxnSource.telegramVoice,
+
+  // Legacy spellings, backfilled away in 20260709012651. An older client can
+  // still enqueue one offline and drain it after updating, so reads stay
+  // tolerant. Writes emit canonical only. Removable once
+  // supabase/migrations_pending/transactions_source_narrow.sql has been applied.
+  'scanned': TxnSource.image,
+  'bot_chat': TxnSource.telegramText,
+  'bot_image': TxnSource.telegramImage,
+  'bot_voice': TxnSource.telegramVoice,
+};
+
+/// `null` and unrecognised are different facts, and conflating them is what
+/// made `voice` render as "Scanned" (ADR-0029). Null means the row was queued
+/// locally before the column existed — the `ai_parsed` guess is the same rule
+/// the original backfill used. A non-null string means the server answered;
+/// guessing would overwrite a known fact with a plausible fiction.
+TxnSource _txnSourceFromString(String? raw, {required bool aiParsed}) {
+  if (raw == null) return aiParsed ? TxnSource.image : TxnSource.manual;
+  return _txnSourceByDbValue[raw] ?? TxnSource.unknown;
+}
+
+/// Stable, locale-independent label for exports. [raw] surfaces the wire value
+/// for sources this build cannot name. Localised copy lives in the ARB files.
+String txnSourceCanonicalLabel(TxnSource s, {String? raw}) {
   switch (s) {
     case TxnSource.manual:
-      return 'manual';
-    case TxnSource.scanned:
-      return 'scanned';
-    case TxnSource.botImage:
-      return 'bot_image';
-    case TxnSource.botChat:
-      return 'bot_chat';
+      return 'Manual';
+    case TxnSource.image:
+      return 'Image';
+    case TxnSource.voice:
+      return 'Voice';
+    case TxnSource.telegramText:
+      return 'Telegram Text';
+    case TxnSource.telegramImage:
+      return 'Telegram Image';
+    case TxnSource.telegramVoice:
+      return 'Telegram Voice';
+    case TxnSource.unknown:
+      return raw ?? 'Unknown';
   }
 }
 
@@ -69,6 +105,10 @@ class Txn {
   final bool aiParsed;
   final bool isManualFallback;
   final TxnSource source;
+  /// The verbatim `transactions.source` value. Round-trips unrecognised sources
+  /// intact — restoring a deleted row must not downgrade what it could not
+  /// parse (ADR-0029). Serialise this, never [source].
+  final String sourceRaw;
   final DateTime createdAt;
   final String? roomId;
   final String? roomName;
@@ -96,6 +136,7 @@ class Txn {
     required this.isManualFallback,
     required this.createdAt,
     this.source = TxnSource.manual,
+    this.sourceRaw = 'manual',
     this.roomId,
     this.roomName,
     this.type = 'expense',
@@ -145,6 +186,7 @@ class Txn {
       }
     }
     final aiParsed = (r['ai_parsed'] as bool?) ?? false;
+    final rawSource = r['source'] as String?;
     return Txn(
       id: r['id'] as String?,
       amount: ((r['amount'] as num?) ?? 0).toDouble(),
@@ -159,7 +201,8 @@ class Txn {
       receiptUrl: r['receipt_url'] as String?,
       aiParsed: aiParsed,
       isManualFallback: (r['is_manual_fallback'] as bool?) ?? false,
-      source: _txnSourceFromString(r['source'] as String?, aiParsed: aiParsed),
+      source: _txnSourceFromString(rawSource, aiParsed: aiParsed),
+      sourceRaw: rawSource ?? (aiParsed ? 'image' : 'manual'),
       createdAt: DateTime.parse(
         (r['created_at'] as String?) ?? DateTime.now().toUtc().toIso8601String(),
       ),

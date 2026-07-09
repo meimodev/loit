@@ -34,6 +34,33 @@ AI interpretation of a **typed** chat message into a transaction — one kind of
 image and voice; it is additionally throttled by the **Rate limit**.
 _Avoid_: text scan, free text (it is no longer free).
 
+**Capture kind**:
+*What* the user supplied: **text**, **image**, or **voice**. Every **Capture**
+has exactly one kind. Kind drives which parser runs; it does not by itself
+determine cost (see **AI Credit**).
+_Avoid_: capture type, scan type.
+
+**Capture channel**:
+*Where* the input entered LOIT: **in-app** or **Telegram**. Orthogonal to
+**Capture kind** — the same kind arrives through either channel and meters
+identically. Channel is not a billing concept; only the **Rate limit** is
+channel-specific (Telegram only).
+_Avoid_: source (that is the persisted pair), platform, origin.
+
+**Transaction source**:
+The persisted origin of a transaction: a (**Capture channel**, **Capture kind**)
+pair, or **Manual** when no Capture occurred. Six values — in-app image, in-app
+voice, Telegram text, Telegram image, Telegram voice, Manual. Typing *in-app* is
+**Manual**, not a Capture: it crosses no AI boundary and charges no **AI Credit**.
+Typing *in Telegram* is a **Text parse** and is charged. That asymmetry is why the
+grid has an empty cell, not a sixth Capture.
+Source is fixed **at creation** and never changes: editing a transaction's amount,
+category, or note does not alter where it came from. A restored (undeleted)
+transaction keeps its original source.
+_Avoid_: scanned (the pre-ADR-0029 stored spelling of image; the constraint still
+accepts it during the client rollout, but nothing writes it), bot chat, entry
+method.
+
 **Rate limit**:
 A per-chat throttle on bot messages (50 / hour). Gates flooding across all
 **Capture** kinds. Independent of **AI Credits** — a different concept with a
@@ -428,7 +455,7 @@ settlement: the room implicitly owes the payer, but that debt is **not tracked**
 The UI surfaces it as **Paid from: Room pool | Personal money** on the add form,
 quick-add, scanner, and transaction detail; default is **Room pool** (Personal money
 when the room has no Room account yet). Every **AI Capture** routed to a room
-(scan, in-app voice, Telegram bot) follows the same default: it funds the room's
+(any **Capture kind**, in either **Capture channel**) follows the same default: it funds the room's
 **Room account** (a **Room-account movement**) when one exists, and only books a
 Personal-money **Out-of-pocket room expense** when the room has none. (ADR 0023
 reversed the earlier ADR-0022 stance that voice/bot room captures were always

@@ -463,14 +463,20 @@ class _DetailBody extends ConsumerWidget {
 
   String _sourceLabel(AppLocalizations l, TxnSource s) {
     switch (s) {
-      case TxnSource.scanned:
-        return l.txDetailSourceScanned;
-      case TxnSource.botImage:
-        return l.txDetailSourceBotImage;
-      case TxnSource.botChat:
-        return l.txDetailSourceBotChat;
+      case TxnSource.image:
+        return l.txDetailSourceImage;
+      case TxnSource.voice:
+        return l.txDetailSourceVoice;
+      case TxnSource.telegramText:
+        return l.txDetailSourceTelegramText;
+      case TxnSource.telegramImage:
+        return l.txDetailSourceTelegramImage;
+      case TxnSource.telegramVoice:
+        return l.txDetailSourceTelegramVoice;
       case TxnSource.manual:
         return l.txDetailSourceManual;
+      case TxnSource.unknown:
+        return l.txDetailSourceUnknown;
     }
   }
 

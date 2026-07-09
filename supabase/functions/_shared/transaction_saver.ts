@@ -1,7 +1,17 @@
 import { serviceClient } from "./supabase.ts";
 import { findCategoryInScope, type UserContext } from "./user_context.ts";
 
-export type TransactionSource = "manual" | "scanned" | "bot_image" | "bot_chat";
+// Mirrors the `transactions_source_check` constraint (ADR-0029): a
+// (Capture channel, Capture kind) pair, or "manual". The constraint also still
+// accepts the legacy spellings ('scanned', 'bot_*') for the duration of the
+// client rollout; nothing writes them any more.
+export type TransactionSource =
+  | "manual"
+  | "image"
+  | "voice"
+  | "telegram_text"
+  | "telegram_image"
+  | "telegram_voice";
 
 export interface SaveTransactionItem {
   name?: string | null;
@@ -24,9 +34,9 @@ export interface SaveTransactionInput {
   items?: SaveTransactionItem[] | null;
   roomId?: string | null;
   aiParsed?: boolean;
-  // Canonical origin (matches `transactions.source`). Defaults to `bot_chat`
-  // for caller convenience since this saver is used exclusively by the
-  // Telegram pipeline today.
+  // Canonical origin (matches `transactions.source`). Defaults to
+  // `telegram_text` for caller convenience since this saver is used exclusively
+  // by the Telegram pipeline today.
   source?: TransactionSource;
 }
 
@@ -145,7 +155,7 @@ export async function saveTransaction(
     merchant: merchantTrim || null,
     notes: notesTrim || null,
     ai_parsed: input.aiParsed ?? true,
-    source: input.source ?? "bot_chat",
+    source: input.source ?? "telegram_text",
     fx_snapshot: fx,
   };
 

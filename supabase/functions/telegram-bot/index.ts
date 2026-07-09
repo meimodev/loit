@@ -42,6 +42,7 @@ import {
 import {
   saveTransaction,
   deleteTransaction,
+  type TransactionSource,
 } from "../_shared/transaction_saver.ts";
 import {
   chargeExtraCredits,
@@ -552,8 +553,11 @@ async function commitAndReply(args: {
     if (remapped) effectiveCategory = remapped;
   }
 
-  const canonicalSource =
-    args.sourceType === "image" ? "bot_image" : "bot_chat";
+  const canonicalSource: TransactionSource = args.sourceType === "image"
+    ? "telegram_image"
+    : args.sourceType === "voice"
+    ? "telegram_voice"
+    : "telegram_text";
   // Persisted `created_at` is set by the database (now()); parser/caption
   // dates are display-only and never override the server timestamp.
   const save = await saveTransaction(

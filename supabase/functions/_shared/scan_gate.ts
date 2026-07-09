@@ -4,7 +4,7 @@ import {
   type Category,
   type ReceiptParseResult,
 } from "./receipt_parser.ts";
-import { gatedCapture } from "./gated_capture.ts";
+import { gatedCapture, type GatedCaptureResult } from "./gated_capture.ts";
 
 // The generic metering tail lives in gated_capture.ts (kept dependency-light so
 // non-receipt functions like classify-taxonomy can reuse it without pulling in

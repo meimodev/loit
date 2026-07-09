@@ -515,9 +515,6 @@ class AppLocalizationsId extends AppLocalizations {
   String get txFormNewTransaction => 'Transaksi baru';
 
   @override
-  String get txFormEditTransaction => 'Edit transaksi';
-
-  @override
   String get txFormManualEntry => 'Entri manual';
 
   @override
@@ -759,13 +756,22 @@ class AppLocalizationsId extends AppLocalizations {
   String get txDetailSourceManual => 'Manual';
 
   @override
-  String get txDetailSourceScanned => 'Dipindai';
+  String get txDetailSourceImage => 'Gambar';
 
   @override
-  String get txDetailSourceBotImage => 'Gambar bot';
+  String get txDetailSourceVoice => 'Suara';
 
   @override
-  String get txDetailSourceBotChat => 'Obrolan bot';
+  String get txDetailSourceTelegramText => 'Teks Telegram';
+
+  @override
+  String get txDetailSourceTelegramImage => 'Gambar Telegram';
+
+  @override
+  String get txDetailSourceTelegramVoice => 'Suara Telegram';
+
+  @override
+  String get txDetailSourceUnknown => 'Tidak diketahui';
 
   @override
   String get txDetailTotal => 'Total';
@@ -798,7 +804,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get txListNewTransaction => 'Transaksi baru';
 
   @override
-  String get txListFilterSource => 'Filter sumber';
+  String get txListFilterScope => 'Tampilkan';
 
   @override
   String get txListNotSynced => 'Belum disinkronkan';
@@ -911,7 +917,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get txSearchDate => 'Tanggal';
 
   @override
-  String get txSearchSource => 'Sumber';
+  String get txSearchScope => 'Tampilkan';
 
   @override
   String get txSearchIncome => 'Pemasukan';

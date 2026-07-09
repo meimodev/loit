@@ -26,7 +26,7 @@ enum _TypeFilter { income, expense }
 
 enum _DateFilter { week, month, year, custom }
 
-enum _SourceFilter { rooms, personal }
+enum _ScopeFilter { rooms, personal }
 
 class TransactionSearchScreen extends ConsumerStatefulWidget {
   const TransactionSearchScreen({super.key});
@@ -43,7 +43,7 @@ class _TransactionSearchScreenState
 
   _TypeFilter? _type;
   _DateFilter? _date;
-  _SourceFilter? _source;
+  _ScopeFilter? _source;
   DateTime? _customDate;
 
   bool get _anyFilter => _type != null || _date != null || _source != null;
@@ -112,9 +112,9 @@ class _TransactionSearchScreenState
   bool _matchesSource(Txn t) {
     if (_source == null) return true;
     switch (_source!) {
-      case _SourceFilter.rooms:
+      case _ScopeFilter.rooms:
         return t.roomId != null;
-      case _SourceFilter.personal:
+      case _ScopeFilter.personal:
         return t.roomId == null;
     }
   }
@@ -325,11 +325,11 @@ class _FiltersBar extends StatelessWidget {
 
   final _TypeFilter? type;
   final _DateFilter? date;
-  final _SourceFilter? source;
+  final _ScopeFilter? source;
   final DateTime? customDate;
   final ValueChanged<_TypeFilter?> onTypeChanged;
   final ValueChanged<_DateFilter?> onDateChanged;
-  final ValueChanged<_SourceFilter?> onSourceChanged;
+  final ValueChanged<_ScopeFilter?> onSourceChanged;
   final VoidCallback onCustomTap;
 
   @override
@@ -397,23 +397,23 @@ class _FiltersBar extends StatelessWidget {
             ],
           ),
           _ChipGroup(
-            label: l.txSearchSource,
+            label: l.txSearchScope,
             chips: [
               _ChipSpec(
                 label: l.txSearchPersonal,
                 leading: Icons.person_outline_rounded,
-                selected: source == _SourceFilter.personal,
-                onTap: () => onSourceChanged(source == _SourceFilter.personal
+                selected: source == _ScopeFilter.personal,
+                onTap: () => onSourceChanged(source == _ScopeFilter.personal
                     ? null
-                    : _SourceFilter.personal),
+                    : _ScopeFilter.personal),
               ),
               _ChipSpec(
                 label: l.txSearchRooms,
                 leading: Icons.groups_outlined,
-                selected: source == _SourceFilter.rooms,
-                onTap: () => onSourceChanged(source == _SourceFilter.rooms
+                selected: source == _ScopeFilter.rooms,
+                onTap: () => onSourceChanged(source == _ScopeFilter.rooms
                     ? null
-                    : _SourceFilter.rooms),
+                    : _ScopeFilter.rooms),
               ),
             ],
           ),

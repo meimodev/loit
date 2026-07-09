@@ -151,6 +151,7 @@ dependencies:
   printing: ^5.13.2
   share_plus: ^10.1.2
   flutter_svg: ^2.3.0
+  showcaseview: ^5.1.0
 
 dev_dependencies:
   flutter_test:

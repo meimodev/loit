@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:showcaseview/showcaseview.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_elevation.dart';
@@ -15,6 +16,14 @@ class LoitTabBar extends StatelessWidget {
     required this.onTap,
     required this.onScan,
     this.scanRoomAccent,
+    this.roomsTabAccent,
+    this.scanShowcaseKey,
+    this.scanShowcaseScope,
+    this.scanShowcaseDescription,
+    this.txShowcaseKey,
+    this.roomsShowcaseKey,
+    this.txShowcaseDescription,
+    this.roomsShowcaseDescription,
   });
 
   /// 0=Home, 1=Tx, 3=Rooms, 4=Settings. Index 2 is reserved for the scan FAB.
@@ -26,6 +35,25 @@ class LoitTabBar extends StatelessWidget {
   /// re-skinned with this accent + a group-context badge to signal the scan
   /// will land in that room rather than the personal feed.
   final Color? scanRoomAccent;
+
+  /// When non-null, the Rooms nav tab (slot 3) carries a top-edge bar in this
+  /// room's identity color. Unlike [scanRoomAccent] this persists across tab
+  /// switches while a room detail stays mounted — a "you have this room open"
+  /// marker, not the scan-target accent.
+  final Color? roomsTabAccent;
+
+  /// When set, the scan FAB is wrapped in a one-time discovery **coach mark**
+  /// (CONTEXT.md "Capture coach mark") bound to [scanShowcaseScope].
+  final GlobalKey? scanShowcaseKey;
+  final String? scanShowcaseScope;
+  final String? scanShowcaseDescription;
+
+  /// **Nav coach mark** (CONTEXT.md) — Transactions + Rooms nav tabs, wrapped
+  /// in the same [scanShowcaseScope] and sequenced after the capture FAB.
+  final GlobalKey? txShowcaseKey;
+  final GlobalKey? roomsShowcaseKey;
+  final String? txShowcaseDescription;
+  final String? roomsShowcaseDescription;
 
   @override
   Widget build(BuildContext context) {
@@ -44,10 +72,14 @@ class LoitTabBar extends StatelessWidget {
             children: [
               _item(context, 0, Icons.home_outlined, Icons.home_rounded, 'Home'),
               _item(context, 1, Icons.receipt_long_outlined,
-                  Icons.receipt_long_rounded, 'Tx'),
-              _ScanFab(onTap: onScan, roomAccent: scanRoomAccent),
+                  Icons.receipt_long_rounded, 'Tx',
+                  showcaseKey: txShowcaseKey,
+                  showcaseDescription: txShowcaseDescription),
+              _buildScanFab(),
               _item(context, 3, Icons.groups_outlined, Icons.groups_rounded,
-                  'Rooms'),
+                  'Rooms',
+                  showcaseKey: roomsShowcaseKey,
+                  showcaseDescription: roomsShowcaseDescription),
               _item(context, 4, Icons.settings_outlined, Icons.settings_rounded,
                   'Settings'),
             ],
@@ -57,28 +89,93 @@ class LoitTabBar extends StatelessWidget {
     );
   }
 
+  Widget _buildScanFab() {
+    final fab = _ScanFab(onTap: onScan, roomAccent: scanRoomAccent);
+    final key = scanShowcaseKey;
+    if (key == null) return fab;
+    return Showcase(
+      key: key,
+      scope: scanShowcaseScope,
+      description: scanShowcaseDescription,
+      child: fab,
+    );
+  }
+
   Widget _item(BuildContext context, int idx, IconData off, IconData on,
-      String label) {
+      String label,
+      {GlobalKey? showcaseKey, String? showcaseDescription}) {
     final c = context.loitColors;
     final selected = currentIndex == idx;
     final color = selected ? c.brand : c.contentSecondary;
-    return Expanded(
-      child: InkWell(
-        onTap: () => onTap(idx),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(selected ? on : off, size: 24, color: color),
-            const SizedBox(height: 2),
-            Text(label,
-                style: LoitTypography.labelM.copyWith(
-                  color: color,
-                  fontSize: 11,
-                )),
-          ],
-        ),
+    // Rooms slot (3) carries a top-edge bar in the open room's identity color
+    // (persists across tab switches while the room stays open). Icon/label stay
+    // `c.brand` for guaranteed contrast; the bar is the accent.
+    final roomAccent = idx == 3 ? roomsTabAccent : null;
+    Widget child = InkWell(
+      onTap: () => onTap(idx),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(selected ? on : off, size: 24, color: color),
+          const SizedBox(height: 2),
+          Text(label,
+              style: LoitTypography.labelM.copyWith(
+                color: color,
+                fontSize: 11,
+              )),
+        ],
       ),
     );
+    if (showcaseKey != null) {
+      child = Showcase(
+        key: showcaseKey,
+        scope: scanShowcaseScope,
+        description: showcaseDescription,
+        // Default gestures ON: the showcase overlay absorbs the tap to advance
+        // the tour, so tapping the highlighted tab never switches branch.
+        child: child,
+      );
+    }
+    child = Stack(
+      // Pass the slot's tight constraints through so the icon/label column
+      // still fills the 64px height; the bar rides on top as a positioned peer.
+      fit: StackFit.passthrough,
+      children: [
+        child,
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: Center(
+            // Enter/leave (null↔room) swaps the key → fade+scale. A room→room
+            // change keeps the 'room-bar' key → AnimatedContainer cross-fades
+            // the color instead. Both ~240ms, matching the FAB context swap.
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 240),
+              transitionBuilder: (widget, anim) => FadeTransition(
+                opacity: anim,
+                child: ScaleTransition(scale: anim, child: widget),
+              ),
+              child: roomAccent == null
+                  ? const SizedBox(key: ValueKey('no-room-bar'))
+                  : AnimatedContainer(
+                      key: const ValueKey('room-bar'),
+                      duration: const Duration(milliseconds: 240),
+                      width: 28,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: roomAccent,
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(3),
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ],
+    );
+    return Expanded(child: child);
   }
 }
 

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:showcaseview/showcaseview.dart';
 
+import '../../core/services/coach_mark_store.dart';
 import '../../features/rooms/room_colors.dart';
 import '../../l10n/l10n_x.dart';
+import '../providers/open_room_provider.dart';
 import 'loit_sheet.dart';
 import 'loit_tab_bar.dart';
 
@@ -12,15 +16,15 @@ import 'loit_tab_bar.dart';
 ///
 /// Branch order: 0=Home, 1=Transactions, 2=Rooms, 3=Settings.
 /// LoitTabBar slot 2 (center) is the Scan FAB — pushed on top, not a branch.
-class ShellScaffold extends StatefulWidget {
+class ShellScaffold extends ConsumerStatefulWidget {
   const ShellScaffold({super.key, required this.navigationShell});
   final StatefulNavigationShell navigationShell;
 
   @override
-  State<ShellScaffold> createState() => _ShellScaffoldState();
+  ConsumerState<ShellScaffold> createState() => _ShellScaffoldState();
 }
 
-class _ShellScaffoldState extends State<ShellScaffold> {
+class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
   /// Map LoitTabBar slot (0..4) to branch index. Slot 2 is FAB → no branch.
   static const _slotToBranch = <int, int>{0: 0, 1: 1, 3: 2, 4: 3};
   static const _branchToSlot = <int, int>{0: 0, 1: 1, 2: 3, 3: 4};
@@ -29,7 +33,57 @@ class _ShellScaffoldState extends State<ShellScaffold> {
   /// back-to-exit feel.
   static const _exitWindow = Duration(seconds: 2);
 
+  /// Showcase scope for the **Capture coach mark** (CONTEXT.md). Distinct from
+  /// the room-detail scope so the two registrations never collide.
+  static const _coachScope = 'shell';
+  final _scanCoachKey = GlobalKey();
+  final _txCoachKey = GlobalKey();
+  final _roomsCoachKey = GlobalKey();
+
+  /// Flags to mark seen when the (possibly combined) shell tour finishes —
+  /// populated in the post-frame check to match exactly what was shown.
+  final _pendingSeen = <String>[];
+
   DateTime? _lastBackPress;
+
+  @override
+  void initState() {
+    super.initState();
+    ShowcaseView.register(
+      scope: _coachScope,
+      onFinish: () {
+        for (final key in _pendingSeen) {
+          CoachMarkStore.markSeen(key);
+        }
+      },
+    );
+    // Fire once per install on first shell render, before the Rooms intro's
+    // later value-moment trigger can contend for the screen. Capture FAB, then
+    // the Tx + Rooms nav spotlights — as one sequence for a first-time user,
+    // or just the unseen portion for someone upgrading from an older build.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final sawCapture = await CoachMarkStore.wasSeen(CoachMarkStore.captureFab);
+      final sawNav = await CoachMarkStore.wasSeen(CoachMarkStore.navCoach);
+      if (!mounted || (sawCapture && sawNav)) return;
+      final keys = <GlobalKey>[];
+      if (!sawCapture) {
+        keys.add(_scanCoachKey);
+        _pendingSeen.add(CoachMarkStore.captureFab);
+      }
+      if (!sawNav) {
+        keys.addAll([_txCoachKey, _roomsCoachKey]);
+        _pendingSeen.add(CoachMarkStore.navCoach);
+      }
+      ShowcaseView.getNamed(_coachScope).startShowCase(keys);
+    });
+  }
+
+  @override
+  void dispose() {
+    ShowcaseView.getNamed(_coachScope).unregister();
+    super.dispose();
+  }
 
   void _onTap(int slot) {
     final branch = _slotToBranch[slot];
@@ -111,6 +165,10 @@ class _ShellScaffoldState extends State<ShellScaffold> {
     final activeSlot = _branchToSlot[widget.navigationShell.currentIndex] ?? 0;
     final loc = GoRouterState.of(context).uri.path;
     final activeRoomId = RegExp(r'^/rooms/([^/]+)$').firstMatch(loc)?.group(1);
+    // Rooms tab tint persists while a room detail is alive in any branch, even
+    // when it's not the active screen (unlike the path-based FAB accent below,
+    // which stays room-scoped only while you're actually viewing the room).
+    final openRoomId = ref.watch(openRoomIdProvider);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -124,8 +182,17 @@ class _ShellScaffoldState extends State<ShellScaffold> {
           scanRoomAccent: activeRoomId != null
               ? RoomColors.forId(activeRoomId)
               : null,
+          roomsTabAccent:
+              openRoomId != null ? RoomColors.forId(openRoomId) : null,
           onTap: _onTap,
           onScan: () => _showCaptureSheet(activeRoomId),
+          scanShowcaseKey: _scanCoachKey,
+          scanShowcaseScope: _coachScope,
+          scanShowcaseDescription: context.l10n.coachCapture,
+          txShowcaseKey: _txCoachKey,
+          roomsShowcaseKey: _roomsCoachKey,
+          txShowcaseDescription: context.l10n.coachNavTx,
+          roomsShowcaseDescription: context.l10n.coachNavRooms,
         ),
       ),
     );

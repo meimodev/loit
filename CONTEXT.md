@@ -316,6 +316,50 @@ intro** (discovery for users with no rooms) and the **Rooms tab empty state**
 (the zero-rooms entry point).
 _Avoid_: add-room button, new-room icon.
 
+### Feature discovery (coach marks)
+
+**Coach mark**:
+A one-time spotlight overlay that dims the screen, cuts a hole over one live
+on-screen target, and floats a short label pointing at it — teaching what an
+existing control does, in place, the first time its screen is seen. Distinct
+from the **Rooms intro** (a full educational sheet with its own value pitch and
+create CTA): a coach mark points at a control that is already there, adds no new
+navigation, and never blocks use. Fires on **first render** of its host screen,
+not after a value moment. Its "already seen" memory is **per device install**
+(local), **not** the once-per-user-ever server contract the **Rooms intro**
+uses — reappearing after a reinstall is acceptable for a hint.
+_Avoid_: tooltip (the passive long-press kind), tutorial, walkthrough, onboarding
+(implies a multi-screen flow), rooms intro (the sheet, a different contract).
+
+**Capture coach mark**:
+The **Coach mark** on the center capture **FAB**, shown once per install on the
+first main-shell render. It teaches that the FAB opens AI **Capture** — that a
+transaction can be snapped from a receipt (**image Capture**) or spoken (**voice
+Capture**), not only typed. One spotlight covers both capture kinds; the labelled
+rows of the capture sheet distinguish them once opened. Fires early (at launch)
+so it never contends with the later-firing **Rooms intro**.
+_Avoid_: scan coach, FAB tooltip, capture tutorial.
+
+**Nav coach mark**:
+The two-step **Coach mark** shown once per install on the main shell,
+sequenced immediately after the **Capture coach mark** — spotlighting the
+**Transactions** nav tab (the personal ledger: search, review, edit history),
+then the **Rooms** nav tab (shared spaces for splitting with a group). Its
+"seen" memory is a **separate** per-install flag from the **Capture coach
+mark**, so a user who already saw only the FAB spotlight on an earlier build
+still gets the nav spotlights once. For a first-time user the FAB and both nav
+steps run as one uninterrupted sequence.
+_Avoid_: bottom-bar tutorial, tab tooltip, nav walkthrough.
+
+**Room tabs coach mark**:
+The two-step **Coach mark** shown once per install on the first **room detail**
+open — spotlighting the **Account** tab (the room's shared balance sheet: **Room
+accounts**), then the **Budget** tab (shared spending caps: **Room budgets**) —
+so a member who lives in the Feed discovers a room has its own accounts and
+budgets. Not per-room and not gated by admin role or **Org type**: it fires on
+the first room a user opens, whichever that is.
+_Avoid_: room onboarding, balance tab tooltip, budget walkthrough.
+
 ### Room creation cap
 
 **Room creation cap**:

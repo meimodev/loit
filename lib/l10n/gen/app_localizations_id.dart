@@ -1413,6 +1413,26 @@ class AppLocalizationsId extends AppLocalizations {
   String get captureManual => 'Isi manual';
 
   @override
+  String get coachCapture =>
+      'Foto struk atau ucapkan — ketuk untuk scan, suara, atau ketik transaksi.';
+
+  @override
+  String get coachNavTx =>
+      'Semua transaksi ada di sini — cari, tinjau, dan ubah riwayatmu.';
+
+  @override
+  String get coachNavRooms =>
+      'Ruang bersama — bagi pengeluaran dan pantau anggaran bareng keluarga atau grup.';
+
+  @override
+  String get coachRoomAccount =>
+      'Saldo bersama — room ini punya kas dan hutangnya sendiri di sini.';
+
+  @override
+  String get coachRoomBudget =>
+      'Anggaran bersama — atur batas pengeluaran untuk seluruh room.';
+
+  @override
   String get voiceTitle => 'Catatan suara';
 
   @override
@@ -1420,6 +1440,17 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get voiceRecording => 'Mendengarkan… lepas untuk kirim';
+
+  @override
+  String get voiceExample1 =>
+      '“50rb makan siang di room Kantor, buat rapat tim”';
+
+  @override
+  String get voiceExample2 => '“150rb bensin di room Keluarga, buat mudik”';
+
+  @override
+  String get voiceExample3 =>
+      '“30rb kopi di room Freelance, meeting sama klien”';
 
   @override
   String get voiceProcessing => 'Membaca catatanmu…';

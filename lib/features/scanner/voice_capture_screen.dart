@@ -621,7 +621,72 @@ class _RecordControl extends StatelessWidget {
             ),
           ),
         ),
+        // Rotating spoken example — teaches that a capture can name a room and
+        // trail a note (ADR-0022). Idle only; while recording the hint owns the
+        // slot and a changing example would compete with the live orb.
+        if (!recording) ...[
+          const SizedBox(height: LoitSpacing.s4),
+          const _RotatingExample(),
+        ],
       ],
+    );
+  }
+}
+
+/// Cycles through a few example utterances under the record hint so the user
+/// sees what voice can do (room routing + notes). Fades between them every
+/// [_interval]; under reduce-motion it holds the first example, no timer.
+class _RotatingExample extends StatefulWidget {
+  const _RotatingExample();
+
+  @override
+  State<_RotatingExample> createState() => _RotatingExampleState();
+}
+
+class _RotatingExampleState extends State<_RotatingExample> {
+  static const _interval = Duration(milliseconds: 2500);
+  Timer? _timer;
+  int _index = 0;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.loitColors;
+    final l = context.l10n;
+    final examples = [l.voiceExample1, l.voiceExample2, l.voiceExample3];
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+
+    // Start (or stop) cycling based on the current reduce-motion setting —
+    // build runs on the setting flipping mid-session, so reconcile here.
+    if (reduceMotion) {
+      _timer?.cancel();
+      _timer = null;
+    } else {
+      _timer ??= Timer.periodic(_interval, (_) {
+        if (mounted) setState(() => _index = (_index + 1) % examples.length);
+      });
+    }
+
+    final text = Text(
+      examples[_index % examples.length],
+      key: ValueKey(_index),
+      textAlign: TextAlign.center,
+      style: LoitTypography.bodyS.copyWith(
+        color: c.contentInverse.withValues(alpha: 0.55),
+        fontStyle: FontStyle.italic,
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: LoitSpacing.s6),
+      child: reduceMotion
+          ? text
+          : AnimatedSwitcher(duration: LoitMotion.base, child: text),
     );
   }
 }

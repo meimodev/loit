@@ -2663,6 +2663,36 @@ abstract class AppLocalizations {
   /// **'Enter manually'**
   String get captureManual;
 
+  /// No description provided for @coachCapture.
+  ///
+  /// In en, this message translates to:
+  /// **'Snap a receipt or say it out loud — tap to scan, speak, or type a transaction.'**
+  String get coachCapture;
+
+  /// No description provided for @coachNavTx.
+  ///
+  /// In en, this message translates to:
+  /// **'Every transaction lives here — search, review, and edit your history.'**
+  String get coachNavTx;
+
+  /// No description provided for @coachNavRooms.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared spaces — split expenses and track budgets with family or a group.'**
+  String get coachNavRooms;
+
+  /// No description provided for @coachRoomAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared balance — this room tracks its own cash and debts here.'**
+  String get coachRoomAccount;
+
+  /// No description provided for @coachRoomBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared budgets — set spending caps the whole room shares.'**
+  String get coachRoomBudget;
+
   /// No description provided for @voiceTitle.
   ///
   /// In en, this message translates to:
@@ -2680,6 +2710,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Listening… release to send'**
   String get voiceRecording;
+
+  /// No description provided for @voiceExample1.
+  ///
+  /// In en, this message translates to:
+  /// **'“50k lunch in room Kantor, for the team meeting”'**
+  String get voiceExample1;
+
+  /// No description provided for @voiceExample2.
+  ///
+  /// In en, this message translates to:
+  /// **'“150k fuel in room Keluarga, for the trip home”'**
+  String get voiceExample2;
+
+  /// No description provided for @voiceExample3.
+  ///
+  /// In en, this message translates to:
+  /// **'“30k coffee in room Freelance, client meeting”'**
+  String get voiceExample3;
 
   /// No description provided for @voiceProcessing.
   ///

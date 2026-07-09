@@ -1407,6 +1407,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get captureManual => 'Enter manually';
 
   @override
+  String get coachCapture =>
+      'Snap a receipt or say it out loud — tap to scan, speak, or type a transaction.';
+
+  @override
+  String get coachNavTx =>
+      'Every transaction lives here — search, review, and edit your history.';
+
+  @override
+  String get coachNavRooms =>
+      'Shared spaces — split expenses and track budgets with family or a group.';
+
+  @override
+  String get coachRoomAccount =>
+      'Shared balance — this room tracks its own cash and debts here.';
+
+  @override
+  String get coachRoomBudget =>
+      'Shared budgets — set spending caps the whole room shares.';
+
+  @override
   String get voiceTitle => 'Voice note';
 
   @override
@@ -1414,6 +1434,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get voiceRecording => 'Listening… release to send';
+
+  @override
+  String get voiceExample1 =>
+      '“50k lunch in room Kantor, for the team meeting”';
+
+  @override
+  String get voiceExample2 => '“150k fuel in room Keluarga, for the trip home”';
+
+  @override
+  String get voiceExample3 => '“30k coffee in room Freelance, client meeting”';
 
   @override
   String get voiceProcessing => 'Reading your note…';

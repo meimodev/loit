@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:showcaseview/showcaseview.dart';
 import '../../shared/utils/locale_date_format.dart';
 
+import '../../core/services/coach_mark_store.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_radius.dart';
@@ -13,6 +15,7 @@ import '../../shared/providers/accounts_provider.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/budgets_provider.dart';
 import '../../shared/providers/home_currency_provider.dart';
+import '../../shared/providers/open_room_provider.dart';
 import '../../shared/providers/presence_provider.dart';
 import '../../shared/providers/room_accounts_provider.dart';
 import '../../shared/providers/room_aggregations_provider.dart';
@@ -54,10 +57,53 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   bool _scrollScheduled = false;
   final GlobalKey _highlightRowKey = GlobalKey(debugLabel: 'highlight-row');
 
+  /// Room tabs coach mark (CONTEXT.md). Own scope so it never collides with the
+  /// shell's Capture coach mark registration.
+  static const _coachScope = 'roomDetail';
+  final _budgetCoachKey = GlobalKey();
+  final _accountCoachKey = GlobalKey();
+  bool _roomCoachScheduled = false;
+
   @override
   void initState() {
     super.initState();
     _pendingScrollTxId = widget.highlightTxId;
+    ShowcaseView.register(
+      scope: _coachScope,
+      onFinish: () => CoachMarkStore.markSeen(CoachMarkStore.roomTabs),
+    );
+    // Flag this room as open so the shell's Rooms nav tab tints to its color,
+    // and keeps that tint while the screen sits alive in the background branch.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(openRoomIdProvider.notifier).open(widget.roomId);
+    });
+  }
+
+  @override
+  void dispose() {
+    ref.read(openRoomIdProvider.notifier).close(widget.roomId);
+    ShowcaseView.getNamed(_coachScope).unregister();
+    super.dispose();
+  }
+
+  /// Fire once per install on first room-detail open: Account tab, then Budget.
+  /// Called from the loaded (`data`) build path so the tab strip is mounted.
+  void _maybeStartRoomCoach() {
+    if (_roomCoachScheduled) return;
+    _roomCoachScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      if (await CoachMarkStore.wasSeen(CoachMarkStore.roomTabs)) return;
+      if (!mounted) return;
+      // Called only from the loaded (`data`) build path, so the tab strip — and
+      // thus both Showcase targets — are mounted. (In showcaseview 5.x the key
+      // is a registry id, not attached to the element, so it can't be probed
+      // via currentContext; the small delay lets both controllers register.)
+      ShowcaseView.getNamed(_coachScope).startShowCase(
+        [_accountCoachKey, _budgetCoachKey],
+        delay: const Duration(milliseconds: 350),
+      );
+    });
   }
 
   void _maybeScrollToHighlight() {
@@ -133,6 +179,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         final accent = RoomColors.forId(widget.roomId);
         final currency = room['base_currency'] as String? ?? 'IDR';
         String fmt(double v) => formatMoney(v, currency);
+        _maybeStartRoomCoach();
 
         return PopScope(
           canPop: widget.fromTab != 'transactions',
@@ -163,6 +210,11 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                 _TabStrip(
                   active: _tab,
                   onTap: (i) => setState(() => _tab = i),
+                  coachScope: _coachScope,
+                  budgetCoachKey: _budgetCoachKey,
+                  accountCoachKey: _accountCoachKey,
+                  budgetCoachDescription: context.l10n.coachRoomBudget,
+                  accountCoachDescription: context.l10n.coachRoomAccount,
                 ),
                 Expanded(
                   child: RefreshIndicator(
@@ -773,9 +825,39 @@ class _MemberAvatar extends ConsumerWidget {
 }
 
 class _TabStrip extends StatelessWidget {
-  const _TabStrip({required this.active, required this.onTap});
+  const _TabStrip({
+    required this.active,
+    required this.onTap,
+    this.coachScope,
+    this.budgetCoachKey,
+    this.accountCoachKey,
+    this.budgetCoachDescription,
+    this.accountCoachDescription,
+  });
   final int active;
   final ValueChanged<int> onTap;
+
+  /// Optional one-time coach marks on the Budget (idx 1) and Account (idx 3)
+  /// segments (CONTEXT.md "Room tabs coach mark").
+  final String? coachScope;
+  final GlobalKey? budgetCoachKey;
+  final GlobalKey? accountCoachKey;
+  final String? budgetCoachDescription;
+  final String? accountCoachDescription;
+
+  Widget _wrapCoach(int i, Widget child) {
+    final key = i == 1 ? budgetCoachKey : (i == 3 ? accountCoachKey : null);
+    if (key == null) return child;
+    return Showcase(
+      key: key,
+      scope: coachScope,
+      description: i == 1 ? budgetCoachDescription : accountCoachDescription,
+      // Advance the tour on tap without letting the tap also switch tabs — a
+      // tab switch mid-sequence rebuilds and cuts the tour short at step 1.
+      disableDefaultTargetGestures: true,
+      child: child,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -827,24 +909,27 @@ class _TabStrip extends StatelessWidget {
                   children: [
                     for (var i = 0; i < labels.length; i++)
                       Expanded(
-                        child: LoitTapScale(
-                          scale: 0.94,
-                          child: GestureDetector(
-                            onTap: () => onTap(i),
-                            behavior: HitTestBehavior.opaque,
-                            child: Container(
-                              height: 32,
-                              alignment: Alignment.center,
-                              child: AnimatedDefaultTextStyle(
-                                duration: LoitMotion.short,
-                                curve: LoitMotion.easeOutQuart,
-                                style: LoitTypography.bodyS.copyWith(
-                                  color: i == active
-                                      ? c.contentPrimary
-                                      : c.contentSecondary,
-                                  fontWeight: FontWeight.w600,
+                        child: _wrapCoach(
+                          i,
+                          LoitTapScale(
+                            scale: 0.94,
+                            child: GestureDetector(
+                              onTap: () => onTap(i),
+                              behavior: HitTestBehavior.opaque,
+                              child: Container(
+                                height: 32,
+                                alignment: Alignment.center,
+                                child: AnimatedDefaultTextStyle(
+                                  duration: LoitMotion.short,
+                                  curve: LoitMotion.easeOutQuart,
+                                  style: LoitTypography.bodyS.copyWith(
+                                    color: i == active
+                                        ? c.contentPrimary
+                                        : c.contentSecondary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  child: Text(labels[i]),
                                 ),
-                                child: Text(labels[i]),
                               ),
                             ),
                           ),

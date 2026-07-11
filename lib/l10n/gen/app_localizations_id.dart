@@ -2641,11 +2641,18 @@ class AppLocalizationsId extends AppLocalizations {
       'Scan struk pakai AI. Bukti pengeluaran rapi otomatis — siap buat laporan pertanggungjawaban.';
 
   @override
-  String get welcomeSlide4Title => 'Jalan tanpa internet';
+  String get welcomeSlide4Title => 'Cukup diucapkan, AI yang nulis';
 
   @override
   String get welcomeSlide4Body =>
-      'Catat di mana aja — di acara, bazaar, atau daerah sinyal susah. Data sinkron sendiri pas online.';
+      'Sebutin transaksinya, langsung jadi catatan rapi. Nggak perlu ngetik satu-satu.';
+
+  @override
+  String get welcomeSlide5Title => 'Laporan rapi, tinggal ekspor';
+
+  @override
+  String get welcomeSlide5Body =>
+      'Semua kas jadi laporan siap pakai. Ekspor buat rapat atau pertanggungjawaban dalam sekali ketuk.';
 
   @override
   String get welcomeStart => 'Mulai';

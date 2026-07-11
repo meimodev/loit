@@ -4778,14 +4778,26 @@ abstract class AppLocalizations {
   /// No description provided for @welcomeSlide4Title.
   ///
   /// In en, this message translates to:
-  /// **'Works without internet'**
+  /// **'Just say it, AI writes it down'**
   String get welcomeSlide4Title;
 
   /// No description provided for @welcomeSlide4Body.
   ///
   /// In en, this message translates to:
-  /// **'Record anywhere — at events, bazaars, or low-signal areas. Your data syncs itself once you\'re back online.'**
+  /// **'Speak the transaction and it becomes a tidy record. No typing, one by one, needed.'**
   String get welcomeSlide4Body;
+
+  /// No description provided for @welcomeSlide5Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Clean reports, ready to export'**
+  String get welcomeSlide5Title;
+
+  /// No description provided for @welcomeSlide5Body.
+  ///
+  /// In en, this message translates to:
+  /// **'All your cash rolls up into a ready-to-use report. Export it for meetings or accountability in one tap.'**
+  String get welcomeSlide5Body;
 
   /// No description provided for @welcomeStart.
   ///

@@ -2634,11 +2634,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Scan receipts with AI. Tidy proof of spending, automatically — ready for your accountability report.';
 
   @override
-  String get welcomeSlide4Title => 'Works without internet';
+  String get welcomeSlide4Title => 'Just say it, AI writes it down';
 
   @override
   String get welcomeSlide4Body =>
-      'Record anywhere — at events, bazaars, or low-signal areas. Your data syncs itself once you\'re back online.';
+      'Speak the transaction and it becomes a tidy record. No typing, one by one, needed.';
+
+  @override
+  String get welcomeSlide5Title => 'Clean reports, ready to export';
+
+  @override
+  String get welcomeSlide5Body =>
+      'All your cash rolls up into a ready-to-use report. Export it for meetings or accountability in one tap.';
 
   @override
   String get welcomeStart => 'Get started';

@@ -45,9 +45,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           l.welcomeSlide3Body,
         ),
         (
-          Icons.cloud_sync_outlined,
+          Icons.mic_none_outlined,
           l.welcomeSlide4Title,
           l.welcomeSlide4Body,
+        ),
+        (
+          Icons.insights_outlined,
+          l.welcomeSlide5Title,
+          l.welcomeSlide5Body,
         ),
       ];
 
@@ -331,8 +336,10 @@ class _AnimatedHero extends StatelessWidget {
       case 2:
         return _CameraRings(idle: idle);
       case 3:
+        return _RevealRings(idle: idle); // voice: pulse reads as sound waves
+      case 4:
       default:
-        return _SyncArcs(idle: idle);
+        return _OrbitDots(idle: idle);
     }
   }
 }
@@ -516,66 +523,6 @@ class _RevealRingsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_RevealRingsPainter old) => old.phase != phase;
-}
-
-class _SyncArcs extends StatelessWidget {
-  const _SyncArcs({required this.idle});
-  final Animation<double> idle;
-
-  @override
-  Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: AnimatedBuilder(
-        animation: idle,
-        builder: (_, __) => CustomPaint(
-          painter: _SyncArcsPainter(phase: idle.value),
-        ),
-      ),
-    );
-  }
-}
-
-class _SyncArcsPainter extends CustomPainter {
-  _SyncArcsPainter({required this.phase});
-  final double phase;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    const radius = 54.0;
-    final rot = phase * 2 * math.pi;
-    final rect = Rect.fromCircle(center: center, radius: radius);
-    final sweep = math.pi * 0.7;
-    final stroke = Paint()
-      ..color = LoitPalette.teal400.withValues(alpha: 0.5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.4
-      ..strokeCap = StrokeCap.round;
-    for (var i = 0; i < 2; i++) {
-      final start = rot + i * math.pi;
-      canvas.drawArc(rect, start, sweep, false, stroke);
-      final endA = start + sweep;
-      final tip =
-          center + Offset(math.cos(endA) * radius, math.sin(endA) * radius);
-      final dir = endA + math.pi / 2;
-      final p1 = tip + Offset(math.cos(dir + 0.5), math.sin(dir + 0.5)) * 7;
-      final p2 = tip + Offset(math.cos(dir - 0.5), math.sin(dir - 0.5)) * 7;
-      final arrow = Paint()
-        ..color = i == 0 ? LoitPalette.teal500 : LoitPalette.ochre400
-        ..style = PaintingStyle.fill;
-      canvas.drawPath(
-        Path()
-          ..moveTo(tip.dx, tip.dy)
-          ..lineTo(p1.dx, p1.dy)
-          ..lineTo(p2.dx, p2.dy)
-          ..close(),
-        arrow,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_SyncArcsPainter old) => old.phase != phase;
 }
 
 class _StaggeredEntrance extends StatelessWidget {

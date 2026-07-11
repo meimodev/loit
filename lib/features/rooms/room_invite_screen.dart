@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/loit_colors.dart';
@@ -17,6 +15,10 @@ import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/widgets/loit_button.dart';
 
+/// "Undang anggota" — QR-only invite (ADR 0031). The QR payload stays
+/// URL-shaped (`https://loit.app/invite/{token}`) so the scanner's
+/// `isLoitInviteUrl` filter and previously printed QRs keep working, but no
+/// link is surfaced or shareable from here.
 class RoomInviteScreen extends ConsumerStatefulWidget {
   const RoomInviteScreen({super.key, required this.roomId});
   final String roomId;
@@ -63,6 +65,7 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
     final l = context.l10n;
     final roomAsync = ref.watch(roomDetailProvider(widget.roomId));
     final user = ref.watch(currentUserProvider);
+    final profile = ref.watch(userProfileProvider).value;
 
     return roomAsync.when(
       loading: () => const Scaffold(
@@ -77,12 +80,22 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
         ),
       ),
       data: (room) {
-        final name = room['name'] as String? ?? 'Room';
+        final name = room['name'] as String? ?? l.roomDetailRoomFallback;
         final token = _token ?? room['invite_token'] as String? ?? '';
-        final url = 'https://loit.app/invite/$token';
         final isCreator = room['created_by'] == user?.id;
         final memberCount =
             (room['room_members'] as List?)?.length ?? 1;
+        // Member cap is enforced server-side by the room creator's tier
+        // (accept_room_invite: free/lite 3, pro 7, team 15). The client only
+        // knows the viewer's own tier, so the cap shows for the creator and
+        // falls back to a plain count for invited admins.
+        final memberCap = isCreator
+            ? switch (profile?.tier) {
+                'team' => 15,
+                'pro' => 7,
+                _ => 3,
+              }
+            : null;
 
         return Scaffold(
           backgroundColor: c.canvas,
@@ -99,90 +112,56 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  const SizedBox(height: LoitSpacing.s4),
+                  Text(name,
+                      textAlign: TextAlign.center,
+                      style: LoitTypography.titleL.copyWith(
+                          color: c.contentPrimary,
+                          fontWeight: FontWeight.w700)),
+                  const SizedBox(height: LoitSpacing.s4),
                   Container(
-                    width: 220,
-                    height: 220,
+                    width: 260,
+                    height: 260,
                     padding: const EdgeInsets.all(LoitSpacing.s3),
                     decoration: BoxDecoration(
-                      color: c.surface,
+                      // Scanners need dark-on-light; keep white in dark theme too.
+                      color: Colors.white,
                       border: Border.all(color: c.borderSubtle),
                       borderRadius: LoitRadius.brM,
                     ),
                     child: token.isEmpty
-                        ? Center(child: Text(context.l10n.roomInviteNoToken))
+                        ? Center(child: Text(l.roomInviteNoToken))
                         : QrImageView(
-                            data: url,
-                            backgroundColor: c.surface,
+                            data: 'https://loit.app/invite/$token',
+                            backgroundColor: Colors.white,
+                            eyeStyle: const QrEyeStyle(
+                              eyeShape: QrEyeShape.square,
+                              color: Colors.black,
+                            ),
+                            dataModuleStyle: const QrDataModuleStyle(
+                              dataModuleShape: QrDataModuleShape.square,
+                              color: Colors.black,
+                            ),
                           ),
                   ),
                   const SizedBox(height: LoitSpacing.s4),
-                  Text(context.l10n.roomScanToJoin,
+                  Text(l.roomScanToJoin,
                       style: LoitTypography.titleM.copyWith(
                           color: c.contentPrimary,
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
                   Text(
-                    l.roomInviteBody,
+                    l.roomInviteInstruction,
                     textAlign: TextAlign.center,
                     style: LoitTypography.bodyS
                         .copyWith(color: c.contentSecondary),
                   ),
-                  const SizedBox(height: LoitSpacing.s4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: LoitSpacing.s3, vertical: LoitSpacing.s3),
-                    decoration: BoxDecoration(
-                      color: c.surface,
-                      border: Border.all(color: c.borderSubtle),
-                      borderRadius: LoitRadius.brM,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            url,
-                            overflow: TextOverflow.ellipsis,
-                            style: LoitTypography.bodyS
-                                .copyWith(color: c.contentPrimary),
-                          ),
-                        ),
-                        const SizedBox(width: LoitSpacing.s2),
-                        InkWell(
-                          onTap: token.isEmpty
-                              ? null
-                              : () async {
-                                  await Clipboard.setData(
-                                      ClipboardData(text: url));
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context)
-                                        .showSnackBar(SnackBar(
-                                            content: Text(context.l10n.roomInviteLinkCopied)));
-                                  }
-                                },
-                          child: Text(context.l10n.roomCopy,
-                              style: LoitTypography.labelS.copyWith(
-                                  color: c.brand,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: LoitSpacing.s3),
-                  LoitButton.secondary(
-                    fullWidth: true,
-                    icon: Icons.share,
-                    label: l.roomInviteShare,
-                    onPressed: token.isEmpty
-                        ? null
-                        : () => Share.share('Join $name on LOIT: $url'),
-                  ),
                   if (isCreator) ...[
-                    const SizedBox(height: LoitSpacing.s2),
+                    const SizedBox(height: LoitSpacing.s3),
                     LoitButton.tertiary(
                       label: _regenerating
-                          ? 'Regenerating\u2026'
-                          : 'Regenerate link',
+                          ? l.roomInviteRegenerating
+                          : l.roomInviteRegen,
                       onPressed: _regenerating ? null : _regen,
                     ),
                   ],
@@ -194,7 +173,9 @@ class _RoomInviteScreenState extends ConsumerState<RoomInviteScreen> {
                       borderRadius: LoitRadius.brM,
                     ),
                     child: Text(
-                      'Free plan \u00b7 up to 3 members per room. Currently $memberCount.',
+                      memberCap != null
+                          ? l.roomInviteMemberCap(memberCount, memberCap)
+                          : l.roomInviteMemberCount(memberCount),
                       style: LoitTypography.bodyS
                           .copyWith(color: c.contentSecondary),
                     ),

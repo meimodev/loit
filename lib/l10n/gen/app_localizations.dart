@@ -3287,12 +3287,6 @@ abstract class AppLocalizations {
   /// **'%'**
   String get reportsScreenPercent;
 
-  /// No description provided for @reportsScreenEmptyBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Reports will appear when you have transactions.'**
-  String get reportsScreenEmptyBody;
-
   /// No description provided for @reportsTabOverview.
   ///
   /// In en, this message translates to:
@@ -3310,24 +3304,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Trend'**
   String get reportsTabTrend;
-
-  /// No description provided for @reportsTabInsights.
-  ///
-  /// In en, this message translates to:
-  /// **'Insights'**
-  String get reportsTabInsights;
-
-  /// No description provided for @reportsTabIncome.
-  ///
-  /// In en, this message translates to:
-  /// **'Income'**
-  String get reportsTabIncome;
-
-  /// No description provided for @reportsIncomeBySource.
-  ///
-  /// In en, this message translates to:
-  /// **'Income by source'**
-  String get reportsIncomeBySource;
 
   /// No description provided for @reportsTrendThisMonth.
   ///
@@ -3371,83 +3347,11 @@ abstract class AppLocalizations {
   /// **'Totals'**
   String get reportsTotals;
 
-  /// No description provided for @reportsUnknownMerchant.
-  ///
-  /// In en, this message translates to:
-  /// **'Unknown'**
-  String get reportsUnknownMerchant;
-
-  /// Insights section label with card count
-  ///
-  /// In en, this message translates to:
-  /// **'Insights · {count}'**
-  String reportsInsightsCount(int count);
-
-  /// Insight card title for the top spending category
-  ///
-  /// In en, this message translates to:
-  /// **'{category} leads spending'**
-  String reportsInsightTopCategoryTitle(String category);
-
-  /// Insight card body for the top spending category
-  ///
-  /// In en, this message translates to:
-  /// **'{amount} this month — your biggest category.'**
-  String reportsInsightTopCategoryBody(String amount);
-
-  /// Insight card title for a frequently visited merchant
-  ///
-  /// In en, this message translates to:
-  /// **'{merchant} · {count, plural, one{1 visit} other{{count} visits}}'**
-  String reportsInsightMerchantVisits(String merchant, int count);
-
-  /// Insight card body for a frequently visited merchant
-  ///
-  /// In en, this message translates to:
-  /// **'Most spent here: {amount}. Consider a budget cap.'**
-  String reportsInsightMerchantBody(String amount);
-
-  /// Insight card title for detected recurring subscriptions
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, one{1 recurring subscription} other{{count} recurring subscriptions}}'**
-  String reportsInsightSubscriptionsTitle(int count);
-
-  /// Insight card body listing detected subscriptions
-  ///
-  /// In en, this message translates to:
-  /// **'{list}. Tap to review.'**
-  String reportsInsightSubscriptionsBody(String list);
-
-  /// No description provided for @reportsInsightSummaryBalanced.
-  ///
-  /// In en, this message translates to:
-  /// **'You\'re spending evenly across categories — your most balanced month yet.'**
-  String get reportsInsightSummaryBalanced;
-
-  /// No description provided for @reportsInsightSummaryForming.
-  ///
-  /// In en, this message translates to:
-  /// **'Your spend pattern is forming — keep going.'**
-  String get reportsInsightSummaryForming;
-
   /// Generic error fallback with raw detail
   ///
   /// In en, this message translates to:
   /// **'Error: {detail}'**
   String commonErrorWithDetail(String detail);
-
-  /// No description provided for @roomJoinFieldLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Invite link or token'**
-  String get roomJoinFieldLabel;
-
-  /// No description provided for @roomJoinScanHint.
-  ///
-  /// In en, this message translates to:
-  /// **'You can scan a QR from the inviter or paste the loit.app/invite/… URL below.'**
-  String get roomJoinScanHint;
 
   /// No description provided for @roomCreatedBy.
   ///
@@ -3574,18 +3478,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'CSV & PDF export'**
   String get proFeatureExport;
-
-  /// No description provided for @proFeatureMultiCurrency.
-  ///
-  /// In en, this message translates to:
-  /// **'Multi-currency'**
-  String get proFeatureMultiCurrency;
-
-  /// No description provided for @proFeatureInsights.
-  ///
-  /// In en, this message translates to:
-  /// **'Advanced insights'**
-  String get proFeatureInsights;
 
   /// No description provided for @permissionsSkipHint.
   ///
@@ -3779,12 +3671,6 @@ abstract class AppLocalizations {
   /// **'Join room'**
   String get roomsScreenJoinRoom;
 
-  /// No description provided for @roomsScreenAcceptInvite.
-  ///
-  /// In en, this message translates to:
-  /// **'Accept'**
-  String get roomsScreenAcceptInvite;
-
   /// No description provided for @roomsLoadErrorTitle.
   ///
   /// In en, this message translates to:
@@ -3875,41 +3761,41 @@ abstract class AppLocalizations {
   /// **'Invite members'**
   String get roomInviteTitle;
 
-  /// No description provided for @roomInviteShare.
+  /// No description provided for @roomInviteInstruction.
   ///
   /// In en, this message translates to:
-  /// **'Share invite link'**
-  String get roomInviteShare;
+  /// **'Ask the new member to open Capture in LOIT and scan this code.'**
+  String get roomInviteInstruction;
 
-  /// No description provided for @roomInviteBody.
+  /// No description provided for @roomInviteRegen.
   ///
   /// In en, this message translates to:
-  /// **'Anyone with this link can join the room.'**
-  String get roomInviteBody;
+  /// **'Generate new code'**
+  String get roomInviteRegen;
 
-  /// No description provided for @roomJoinTitle.
+  /// No description provided for @roomInviteRegenerating.
   ///
   /// In en, this message translates to:
-  /// **'Join room'**
-  String get roomJoinTitle;
+  /// **'Generating…'**
+  String get roomInviteRegenerating;
 
-  /// No description provided for @roomJoinJoining.
+  /// Member count footer on the invite screen (cap unknown)
   ///
   /// In en, this message translates to:
-  /// **'Joining…'**
-  String get roomJoinJoining;
+  /// **'{count, plural, one{1 member} other{{count} members}}'**
+  String roomInviteMemberCount(int count);
 
-  /// No description provided for @roomJoinInvalid.
+  /// Member count vs cap footer on the invite screen
   ///
   /// In en, this message translates to:
-  /// **'This invite is invalid or expired.'**
-  String get roomJoinInvalid;
+  /// **'{count}/{cap} members'**
+  String roomInviteMemberCap(int count, int cap);
 
-  /// Shown when joining a room fails. Raw error is logged, not shown.
+  /// No description provided for @scanJoinHint.
   ///
   /// In en, this message translates to:
-  /// **'Couldn\'t join that room. Please try again.'**
-  String get roomJoinFailed;
+  /// **'Point the camera at the room\'s invite QR code'**
+  String get scanJoinHint;
 
   /// No description provided for @roomDetailAddTransaction.
   ///
@@ -4559,12 +4445,6 @@ abstract class AppLocalizations {
   /// **'Notifications'**
   String get notifFeedTitle;
 
-  /// No description provided for @roomInviteLinkCopied.
-  ///
-  /// In en, this message translates to:
-  /// **'Link copied'**
-  String get roomInviteLinkCopied;
-
   /// No description provided for @roomInviteNoToken.
   ///
   /// In en, this message translates to:
@@ -4582,12 +4462,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upgrade'**
   String get roomUpgrade;
-
-  /// No description provided for @roomCopy.
-  ///
-  /// In en, this message translates to:
-  /// **'COPY'**
-  String get roomCopy;
 
   /// No description provided for @roomTileUntitled.
   ///
@@ -4702,18 +4576,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You\'ve reached the room limit on {tier}.'**
   String roomMembershipAtLimit(String tier);
-
-  /// Pending invites count
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, one{1 pending invite} other{{count} pending invites}}'**
-  String roomInvitesPending(int count);
-
-  /// No description provided for @roomUnknownRoom.
-  ///
-  /// In en, this message translates to:
-  /// **'Unknown room'**
-  String get roomUnknownRoom;
 
   /// No description provided for @roomDetailRoomFallback.
   ///
@@ -4996,24 +4858,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scan to join'**
   String get roomScanToJoin;
-
-  /// No description provided for @roomPasteInvite.
-  ///
-  /// In en, this message translates to:
-  /// **'Paste an invite link or token'**
-  String get roomPasteInvite;
-
-  /// No description provided for @reportsThisMonth.
-  ///
-  /// In en, this message translates to:
-  /// **'THIS MONTH'**
-  String get reportsThisMonth;
-
-  /// No description provided for @reportsBeta.
-  ///
-  /// In en, this message translates to:
-  /// **'BETA'**
-  String get reportsBeta;
 
   /// No description provided for @shellPressBack.
   ///

@@ -364,6 +364,12 @@ allow_dynamic_registration = false
 [functions.telegram-bot]
 verify_jwt = false
 
+# RevenueCat auths with a shared bearer (REVENUECAT_WEBHOOK_AUTH), not a
+# Supabase JWT — gateway JWT verification must stay OFF or every RC event
+# 401s before the function runs. Always deploy with --no-verify-jwt.
+[functions.revenuecat-webhook]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

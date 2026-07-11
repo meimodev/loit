@@ -4,27 +4,19 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/config/pricing_constants.dart';
 
 class FeatureFlags {
-  final bool unlimitedBudgets;
-  final bool customCategories;
   final bool csvExport;
   final bool pdfExport;
   final bool receiptStorage;
-  final bool fullHistory;
   /// `null` = unlimited scans. Otherwise the per-month cap.
   /// Free 5, Lite 30, Pro 150. Team tier dropped — any legacy `team` row is
   /// migrated to `pro` by the drop_team migration.
   final int? scanLimitPerMonth;
-  final int budgetCategoryLimit;
 
   const FeatureFlags({
-    required this.unlimitedBudgets,
-    required this.customCategories,
     required this.csvExport,
     required this.pdfExport,
     required this.receiptStorage,
-    required this.fullHistory,
     required this.scanLimitPerMonth,
-    required this.budgetCategoryLimit,
   });
 
   bool get hasUnlimitedScans => scanLimitPerMonth == null;
@@ -32,37 +24,28 @@ class FeatureFlags {
   // Room creation cap is per-user (base + purchased slots, ADR-0020) and lives
   // on `UserProfile` (roomsCreatedTotal / effectiveRoomCap), not here — it can't
   // be a static per-tier flag once slots are buyable.
+  //
+  // The budget cap likewise lives on `UserProfile.budgetLimit` (free 3, paid
+  // 999), which is the rule `budgets_screen` actually enforces.
 
   factory FeatureFlags.forTier(String tier) => switch (tier) {
         'pro' => const FeatureFlags(
-            unlimitedBudgets: true,
-            customCategories: true,
             csvExport: true,
             pdfExport: true,
             receiptStorage: true,
-            fullHistory: true,
             scanLimitPerMonth: PricingConstants.scanCapPro,
-            budgetCategoryLimit: 1 << 30,
           ),
         'lite' => const FeatureFlags(
-            unlimitedBudgets: true,
-            customCategories: true,
             csvExport: true,
             pdfExport: false,
             receiptStorage: true,
-            fullHistory: true,
             scanLimitPerMonth: PricingConstants.scanCapLite,
-            budgetCategoryLimit: 1 << 30,
           ),
         _ => const FeatureFlags(
-            unlimitedBudgets: false,
-            customCategories: false,
             csvExport: false,
             pdfExport: false,
             receiptStorage: false,
-            fullHistory: false,
             scanLimitPerMonth: PricingConstants.scanCapFree,
-            budgetCategoryLimit: 3,
           ),
       };
 }

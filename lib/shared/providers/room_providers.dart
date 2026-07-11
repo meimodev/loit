@@ -123,13 +123,6 @@ final myRoomsTransactionsProvider =
       .toList();
 });
 
-// Pending invites for current user
-final pendingInvitesProvider =
-    FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  ref.watch(onlineEpochProvider); // auto-heal on reconnect
-  return ref.watch(roomServiceProvider).getPendingInvites();
-});
-
 // Real-time room feed (transactions in a room)
 final roomFeedProvider = FutureProvider.family<List<Map<String, dynamic>>, String>(
     (ref, roomId) async {

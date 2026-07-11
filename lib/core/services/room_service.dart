@@ -197,31 +197,6 @@ class RoomService {
     return result as String?;
   }
 
-  Future<List<Map<String, dynamic>>> getPendingInvites() async {
-    return _client
-        .from('room_invites')
-        .select('*, rooms(name)')
-        .eq('invited_user_id', _uid)
-        .eq('status', 'pending')
-        .gt('expires_at', DateTime.now().toUtc().toIso8601String());
-  }
-
-  Future<Map<String, dynamic>> createInvite({
-    required String roomId,
-    required String invitedEmail,
-  }) async {
-    return _online(() async {
-      final resp = await _client.functions.invoke(
-        'create-room-invite',
-        body: {'room_id': roomId, 'invited_email': invitedEmail},
-      );
-      if (resp.status >= 400) {
-        throw Exception(resp.data?.toString() ?? 'Failed to create invite');
-      }
-      return resp.data as Map<String, dynamic>;
-    });
-  }
-
   Future<void> notifyRoomTransaction({
     required String roomId,
     String? title,

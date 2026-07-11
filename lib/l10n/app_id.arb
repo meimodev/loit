@@ -870,13 +870,9 @@
   "reportsScreenCategory": "Kategori",
   "reportsScreenAmount": "Jumlah",
   "reportsScreenPercent": "%",
-  "reportsScreenEmptyBody": "Laporan akan muncul saat Anda memiliki transaksi.",
   "reportsTabOverview": "Ringkasan",
   "reportsTabCategories": "Kategori",
   "reportsTabTrend": "Tren",
-  "reportsTabInsights": "Wawasan",
-  "reportsTabIncome": "Pemasukan",
-  "reportsIncomeBySource": "Pemasukan per sumber",
   "reportsTrendThisMonth": "Tren · bulan ini",
   "reportsAvgPerDay": "Rata-rata/hari",
   "reportsDaysActive": "Hari",
@@ -884,59 +880,6 @@
   "reportsAllCategories": "Semua kategori",
   "reportsLast6Months": "6 bulan terakhir",
   "reportsTotals": "Total",
-  "reportsUnknownMerchant": "Tidak diketahui",
-  "reportsInsightsCount": "Wawasan · {count}",
-  "@reportsInsightsCount": {
-    "description": "Insights section label with card count",
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "reportsInsightTopCategoryTitle": "{category} mendominasi pengeluaran",
-  "@reportsInsightTopCategoryTitle": {
-    "description": "Insight card title for the top spending category",
-    "placeholders": {
-      "category": {"type": "String"}
-    }
-  },
-  "reportsInsightTopCategoryBody": "{amount} bulan ini — kategori terbesar Anda.",
-  "@reportsInsightTopCategoryBody": {
-    "description": "Insight card body for the top spending category",
-    "placeholders": {
-      "amount": {"type": "String"}
-    }
-  },
-  "reportsInsightMerchantVisits": "{merchant} · {count, plural, other{{count} kunjungan}}",
-  "@reportsInsightMerchantVisits": {
-    "description": "Insight card title for a frequently visited merchant",
-    "placeholders": {
-      "merchant": {"type": "String"},
-      "count": {"type": "int"}
-    }
-  },
-  "reportsInsightMerchantBody": "Paling banyak di sini: {amount}. Pertimbangkan batas anggaran.",
-  "@reportsInsightMerchantBody": {
-    "description": "Insight card body for a frequently visited merchant",
-    "placeholders": {
-      "amount": {"type": "String"}
-    }
-  },
-  "reportsInsightSubscriptionsTitle": "{count, plural, other{{count} langganan berulang}}",
-  "@reportsInsightSubscriptionsTitle": {
-    "description": "Insight card title for detected recurring subscriptions",
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "reportsInsightSubscriptionsBody": "{list}. Ketuk untuk meninjau.",
-  "@reportsInsightSubscriptionsBody": {
-    "description": "Insight card body listing detected subscriptions",
-    "placeholders": {
-      "list": {"type": "String"}
-    }
-  },
-  "reportsInsightSummaryBalanced": "Pengeluaran Anda merata di semua kategori — bulan paling seimbang sejauh ini.",
-  "reportsInsightSummaryForming": "Pola pengeluaran Anda sedang terbentuk — teruskan.",
   "commonErrorWithDetail": "Kesalahan: {detail}",
   "@commonErrorWithDetail": {
     "description": "Generic error fallback with raw detail",
@@ -944,8 +887,6 @@
       "detail": {"type": "String"}
     }
   },
-  "roomJoinFieldLabel": "Tautan undangan atau token",
-  "roomJoinScanHint": "Anda dapat memindai QR dari pengundang atau menempel URL loit.app/invite/… di bawah.",
   "roomCreatedBy": "Dibuat oleh",
   "roomTxnRemoveBody": "Ini menghapus transaksi dari ruang untuk semua orang. Tidak dapat dibatalkan.",
   "roomBudgetScopeNote": "Anggaran ruang hanya berlaku untuk ruang ini. Semua anggota dapat melihatnya.",
@@ -973,8 +914,6 @@
   "accountPickerTitle": "Pilih akun",
   "proFeatureBudgets": "Anggaran tanpa batas",
   "proFeatureExport": "Ekspor CSV & PDF",
-  "proFeatureMultiCurrency": "Multi-mata uang",
-  "proFeatureInsights": "Wawasan lanjutan",
   "permissionsSkipHint": "Kami akan meminta tiap izin saat Anda membutuhkannya — Anda bisa lewati sekarang.",
   "exportScreenTitle": "Ekspor data",
   "exportScreenFormat": "Format",
@@ -1008,7 +947,6 @@
   "roomsScreenEmptyBody": "Buat atau gabung ruangan untuk melacak pengeluaran bersama.",
   "roomsScreenCreateRoom": "Buat ruangan",
   "roomsScreenJoinRoom": "Gabung ruangan",
-  "roomsScreenAcceptInvite": "Terima",
   "roomsLoadErrorTitle": "Gagal memuat ruangan",
   "roomsLoadError": "Terjadi kesalahan. Periksa koneksi kamu lalu coba lagi.",
   "roomsLoadRetry": "Coba lagi",
@@ -1036,15 +974,25 @@
     }
   },
   "roomInviteTitle": "Undang anggota",
-  "roomInviteShare": "Bagikan tautan undangan",
-  "roomInviteBody": "Siapa pun dengan tautan ini dapat bergabung ke ruangan.",
-  "roomJoinTitle": "Gabung ruangan",
-  "roomJoinJoining": "Bergabung…",
-  "roomJoinInvalid": "Undangan ini tidak valid atau kedaluwarsa.",
-  "roomJoinFailed": "Gagal bergabung ke ruangan itu. Silakan coba lagi.",
-  "@roomJoinFailed": {
-    "description": "Shown when joining a room fails. Raw error is logged, not shown."
+  "roomInviteInstruction": "Minta calon anggota membuka Capture di LOIT, lalu pindai kode ini.",
+  "roomInviteRegen": "Buat kode baru",
+  "roomInviteRegenerating": "Membuat kode baru…",
+  "roomInviteMemberCount": "{count, plural, other{{count} anggota}}",
+  "@roomInviteMemberCount": {
+    "description": "Member count footer on the invite screen (cap unknown)",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
   },
+  "roomInviteMemberCap": "{count}/{cap} anggota",
+  "@roomInviteMemberCap": {
+    "description": "Member count vs cap footer on the invite screen",
+    "placeholders": {
+      "count": {"type": "int"},
+      "cap": {"type": "int"}
+    }
+  },
+  "scanJoinHint": "Arahkan kamera ke kode QR undangan ruangan",
   "roomDetailAddTransaction": "Tambah transaksi",
   "roomDetailMembers": "Anggota",
   "roomDetailBudgets": "Anggaran",
@@ -1207,7 +1155,6 @@
   },
 
   "notifFeedTitle": "Notifikasi",
-  "roomInviteLinkCopied": "Tautan disalin",
   "roomInviteNoToken": "Tidak ada token undangan",
   "roomInviteRegenFailed": "Gagal membuat ulang: {error}",
   "@roomInviteRegenFailed": {
@@ -1217,7 +1164,6 @@
     }
   },
   "roomUpgrade": "Upgrade",
-  "roomCopy": "SALIN",
 
   "roomTileUntitled": "Tanpa Judul",
   "roomTileArchivedLabel": "Diarsipkan",
@@ -1276,14 +1222,6 @@
       "tier": {"type": "String"}
     }
   },
-  "roomInvitesPending": "{count, plural, other{{count} undangan tertunda}}",
-  "@roomInvitesPending": {
-    "description": "Pending invites count",
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "roomUnknownRoom": "Ruangan tidak dikenal",
   "roomDetailRoomFallback": "Ruangan",
   "roomArchiveBody": "Anggota akan tetap bisa melihat (hanya baca). Ini tidak dapat dibatalkan.",
   "roomMemberUnknown": "Tidak dikenal",
@@ -1367,9 +1305,6 @@
   "roomColorIdentity": "IDENTITAS WARNA",
   "roomBaseCurrency": "MATA UANG DASAR",
   "roomScanToJoin": "Pindai untuk bergabung",
-  "roomPasteInvite": "Tempel tautan atau token undangan",
-  "reportsThisMonth": "BULAN INI",
-  "reportsBeta": "BETA",
   "shellPressBack": "Tekan kembali lagi untuk keluar",
   "exportFailed": "Ekspor gagal: {error}",
   "@exportFailed": {

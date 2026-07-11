@@ -43,12 +43,17 @@ import '../../l10n/l10n_x.dart';
 /// Confirm step routes to `/transactions/new` (Phase 2 C form).
 /// Success surfaces via form's save snackbar.
 class ScannerScreen extends ConsumerStatefulWidget {
-  const ScannerScreen({super.key, this.roomId});
+  const ScannerScreen({super.key, this.roomId, this.joinHint = false});
 
   /// When non-null, scanner is locked to a specific room: the toggle is
   /// preselected to Rooms and disabled, and the post-scan room picker
   /// is bypassed.
   final String? roomId;
+
+  /// True when opened from a "Gabung ruangan" entry (`/scan?join=1`):
+  /// shows a hint to point the camera at an invite QR (ADR 0031). The
+  /// scanner itself is unchanged — QR detection always runs.
+  final bool joinHint;
 
   @override
   ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
@@ -244,7 +249,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         message: '$roomId',
       );
       ref.invalidate(myRoomsProvider);
-      ref.invalidate(pendingInvitesProvider);
       ref.invalidate(userCategoriesProvider);
       if (roomId != null) ref.invalidate(roomDetailProvider(roomId));
       if (!mounted) return;
@@ -603,6 +607,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           useRoom: _useRoom,
           lockedToRoom: widget.roomId != null,
           onUseRoomChanged: (v) => setState(() => _useRoom = v),
+          joinHint: widget.joinHint,
         ),
       _ScanPhase.processing => _ProcessingView(
           stage: _procStage,
@@ -626,6 +631,7 @@ class _CaptureView extends StatelessWidget {
     required this.onUseRoomChanged,
     this.lockedToRoom = false,
     this.cameraController,
+    this.joinHint = false,
   });
   final VoidCallback onCamera;
   final VoidCallback onGallery;
@@ -634,6 +640,7 @@ class _CaptureView extends StatelessWidget {
   final ValueChanged<bool> onUseRoomChanged;
   final bool lockedToRoom;
   final CameraController? cameraController;
+  final bool joinHint;
 
   @override
   Widget build(BuildContext context) {
@@ -700,6 +707,37 @@ class _CaptureView extends StatelessWidget {
                 ),
               ),
             ),
+            // Join-mode hint (ADR 0031): entered via "Gabung ruangan".
+            if (joinHint)
+              Positioned(
+                top: 56,
+                left: LoitSpacing.s5,
+                right: LoitSpacing.s5,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: LoitSpacing.s3,
+                    vertical: LoitSpacing.s2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xCC0F6E5C),
+                    borderRadius: LoitRadius.brM,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.qr_code_2,
+                          size: 18, color: Colors.white),
+                      const SizedBox(width: LoitSpacing.s2),
+                      Expanded(
+                        child: Text(
+                          l.scanJoinHint,
+                          style: LoitTypography.bodyS
+                              .copyWith(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             // Frame guide
             Positioned.fill(
               top: 80,

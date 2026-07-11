@@ -396,6 +396,23 @@ next). Granted by the RevenueCat webhook, idempotent on
 _Avoid_: room credit, extra-room subscription, storage extension (a different
 add-on), AI Credit (unrelated).
 
+### Room invites
+
+**Room invite QR**:
+The **only** way into a room you didn't create (ADR 0031): the room's rotating
+**Invite token** rendered as a QR code on the "Undang anggota" screen, scanned
+**live** by the joiner's Capture camera. Requires co-presence — there is no
+link to send, no email invite, no paste-a-token flow.
+_Avoid_: invite link / tautan undangan (removed surface), email invite
+(never shipped, deleted), join code.
+
+**Invite token**:
+The room-level secret behind the **Room invite QR**. One per room, rotated by
+the creator via "Buat kode baru" (regenerate) — rotation immediately
+invalidates every previously displayed QR, which is the revocation mechanism
+for leaked codes or departed members.
+_Avoid_: invite link, per-user invite (the old email path's token — gone).
+
 ### Room balance sheet
 
 **Room account**:
@@ -515,8 +532,23 @@ leg of an **Out-of-pocket room expense** (real cash left the wallet). A
 **Personal spend aggregate** (dashboard MTD) since ADR 0013 — both now include
 **Personal money** out-of-pocket rows and exclude **pool**. They still differ in
 scope: cash-flow is the Tx-tab triple over the selected lens; the aggregate is
-the dashboard MTD spend metric.
+the dashboard MTD spend metric. Distinct from the **Report period total**, which
+is the Reports-screen triple and, in a room, counts **pool** rather than
+personal money.
 _Avoid_: spend total, monthly spend (when meaning the tx-tab triple).
+
+**Report period total**:
+The income / expense / net summary at the head of the **Reports** screen, over
+the selected month. Personal scope sums the user's own rows. Room scope sums the
+**pool** only — the room's **Room accounts** — so it is the mirror image of the
+**Personal cash-flow total**, not an instance of it: what one counts, the other
+excludes (ADR 0013). Converted to the viewer's home currency, unlike the room
+balance section beneath it, which stays in the room's base currency (ADR 0007).
+Since the Reports tabs are expense-only, this triple is the **only** place income
+appears in the client; income never breaks down by category there. A church
+treasurer reads **Penerimaan** per **Mata anggaran** through the **Laporan
+Realisasi Mata Anggaran** export instead (ADR 0026).
+_Avoid_: cash-flow total, monthly summary, insights.
 
 **Personal spend aggregate**:
 A "what I spent on my own life" total (dashboard month-to-date). Excludes

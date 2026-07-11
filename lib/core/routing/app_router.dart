@@ -33,7 +33,6 @@ import '../../features/rooms/room_create_screen.dart';
 import '../../features/rooms/room_type_chooser_screen.dart';
 import '../../features/rooms/church/church_onboarding_screen.dart';
 import '../../features/rooms/room_invite_screen.dart';
-import '../../features/rooms/room_join_screen.dart';
 import '../../features/rooms/rooms_screen.dart';
 import '../../features/scanner/scanner_screen.dart';
 import '../../features/scanner/voice_capture_screen.dart';
@@ -123,9 +122,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (_, __) => const RoomsScreen(),
                 routes: [
                   // Static segments must precede the `:roomId` parameter
-                  // route so `/rooms/new` and `/rooms/join` don't get
-                  // captured as room ids (which would be sent to Postgres
-                  // as a uuid and 22p02 out).
+                  // route so `/rooms/new` doesn't get captured as a room id
+                  // (which would be sent to Postgres as a uuid and 22p02 out).
                   GoRoute(
                     path: 'new',
                     builder: (_, __) => const RoomTypeChooserScreen(),
@@ -139,10 +137,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         builder: (_, __) => const ChurchOnboardingScreen(),
                       ),
                     ],
-                  ),
-                  GoRoute(
-                    path: 'join',
-                    builder: (_, __) => const RoomJoinScreen(),
                   ),
                   GoRoute(
                     path: ':roomId',
@@ -340,6 +334,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/scan',
         builder: (_, state) => ScannerScreen(
           roomId: state.uri.queryParameters['roomId'],
+          joinHint: state.uri.queryParameters['join'] == '1',
         ),
       ),
       GoRoute(

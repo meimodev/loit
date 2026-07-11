@@ -110,50 +110,60 @@ async function alreadyProcessed(eventId: string): Promise<boolean> {
   return !!data;
 }
 
+// supabase-js never throws — it returns { error }. Swallowing it would ack
+// the event to RC as granted while the DB write silently failed, so surface
+// it and let the top-level catch return 500 (RC retries on non-2xx).
+function orThrow<T extends { error: { message: string } | null }>(res: T): T {
+  if (res.error) throw new Error(res.error.message);
+  return res;
+}
+
 async function recordReceipt(
   userId: string,
   sku: string,
   eventId: string,
   payload: unknown,
 ) {
-  await supabase.from('payment_receipts').insert({
+  orThrow(await supabase.from('payment_receipts').insert({
     user_id: userId,
     product_id: sku,
     purchase_token: eventId,
     raw: payload,
-  });
+  }));
 }
 
 async function grantSubscription(userId: string, sku: string, expiryMs?: number) {
   const tier = SKU_TO_TIER[sku];
-  await supabase
+  orThrow(await supabase
     .from('users')
     .update({
       tier,
       tier_expires_at: expiryMs ? new Date(expiryMs).toISOString() : null,
     })
-    .eq('id', userId);
+    .eq('id', userId));
   return tier;
 }
 
 async function revokeSubscription(userId: string) {
-  await supabase
+  orThrow(await supabase
     .from('users')
     .update({ tier: 'free', tier_expires_at: null })
-    .eq('id', userId);
+    .eq('id', userId));
 }
 
 async function grantScanTopUp(userId: string, sku: string) {
   const amount = TOPUP_AMOUNT[sku] ?? 15;
-  await supabase.rpc('add_scan_topup', { p_user_id: userId, p_amount: amount });
+  orThrow(
+    await supabase.rpc('add_scan_topup', { p_user_id: userId, p_amount: amount }),
+  );
 }
 
 async function grantStorageExtension(userId: string) {
-  await supabase.rpc('extend_receipt_expiry', { p_user_id: userId });
+  orThrow(await supabase.rpc('extend_receipt_expiry', { p_user_id: userId }));
 }
 
 async function grantRoomSlot(userId: string) {
-  await supabase.rpc('add_room_slot', { p_user_id: userId, p_amount: 1 });
+  orThrow(await supabase.rpc('add_room_slot', { p_user_id: userId, p_amount: 1 }));
 }
 
 serve(async (req) => {

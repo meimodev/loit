@@ -870,13 +870,9 @@
   "reportsScreenCategory": "Category",
   "reportsScreenAmount": "Amount",
   "reportsScreenPercent": "%",
-  "reportsScreenEmptyBody": "Reports will appear when you have transactions.",
   "reportsTabOverview": "Overview",
   "reportsTabCategories": "Categories",
   "reportsTabTrend": "Trend",
-  "reportsTabInsights": "Insights",
-  "reportsTabIncome": "Income",
-  "reportsIncomeBySource": "Income by source",
   "reportsTrendThisMonth": "Trend · this month",
   "reportsAvgPerDay": "Avg/day",
   "reportsDaysActive": "Days",
@@ -884,59 +880,6 @@
   "reportsAllCategories": "All categories",
   "reportsLast6Months": "Last 6 months",
   "reportsTotals": "Totals",
-  "reportsUnknownMerchant": "Unknown",
-  "reportsInsightsCount": "Insights · {count}",
-  "@reportsInsightsCount": {
-    "description": "Insights section label with card count",
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "reportsInsightTopCategoryTitle": "{category} leads spending",
-  "@reportsInsightTopCategoryTitle": {
-    "description": "Insight card title for the top spending category",
-    "placeholders": {
-      "category": {"type": "String"}
-    }
-  },
-  "reportsInsightTopCategoryBody": "{amount} this month — your biggest category.",
-  "@reportsInsightTopCategoryBody": {
-    "description": "Insight card body for the top spending category",
-    "placeholders": {
-      "amount": {"type": "String"}
-    }
-  },
-  "reportsInsightMerchantVisits": "{merchant} · {count, plural, one{1 visit} other{{count} visits}}",
-  "@reportsInsightMerchantVisits": {
-    "description": "Insight card title for a frequently visited merchant",
-    "placeholders": {
-      "merchant": {"type": "String"},
-      "count": {"type": "int"}
-    }
-  },
-  "reportsInsightMerchantBody": "Most spent here: {amount}. Consider a budget cap.",
-  "@reportsInsightMerchantBody": {
-    "description": "Insight card body for a frequently visited merchant",
-    "placeholders": {
-      "amount": {"type": "String"}
-    }
-  },
-  "reportsInsightSubscriptionsTitle": "{count, plural, one{1 recurring subscription} other{{count} recurring subscriptions}}",
-  "@reportsInsightSubscriptionsTitle": {
-    "description": "Insight card title for detected recurring subscriptions",
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "reportsInsightSubscriptionsBody": "{list}. Tap to review.",
-  "@reportsInsightSubscriptionsBody": {
-    "description": "Insight card body listing detected subscriptions",
-    "placeholders": {
-      "list": {"type": "String"}
-    }
-  },
-  "reportsInsightSummaryBalanced": "You're spending evenly across categories — your most balanced month yet.",
-  "reportsInsightSummaryForming": "Your spend pattern is forming — keep going.",
   "commonErrorWithDetail": "Error: {detail}",
   "@commonErrorWithDetail": {
     "description": "Generic error fallback with raw detail",
@@ -944,8 +887,6 @@
       "detail": {"type": "String"}
     }
   },
-  "roomJoinFieldLabel": "Invite link or token",
-  "roomJoinScanHint": "You can scan a QR from the inviter or paste the loit.app/invite/… URL below.",
   "roomCreatedBy": "Created by",
   "roomTxnRemoveBody": "This removes the transaction from the room for everyone. Cannot be undone.",
   "roomBudgetScopeNote": "Room budgets apply to this room only. All members can see them.",
@@ -973,8 +914,6 @@
   "accountPickerTitle": "Select account",
   "proFeatureBudgets": "Unlimited budgets",
   "proFeatureExport": "CSV & PDF export",
-  "proFeatureMultiCurrency": "Multi-currency",
-  "proFeatureInsights": "Advanced insights",
   "permissionsSkipHint": "We'll ask each when you need it — you can skip now.",
   "exportScreenTitle": "Export data",
   "exportScreenFormat": "Format",
@@ -1014,7 +953,6 @@
   "roomsScreenEmptyBody": "Create or join a room to track shared expenses.",
   "roomsScreenCreateRoom": "Create room",
   "roomsScreenJoinRoom": "Join room",
-  "roomsScreenAcceptInvite": "Accept",
   "roomsLoadErrorTitle": "Couldn't load rooms",
   "roomsLoadError": "Something went wrong. Check your connection and try again.",
   "roomsLoadRetry": "Try again",
@@ -1042,15 +980,25 @@
     }
   },
   "roomInviteTitle": "Invite members",
-  "roomInviteShare": "Share invite link",
-  "roomInviteBody": "Anyone with this link can join the room.",
-  "roomJoinTitle": "Join room",
-  "roomJoinJoining": "Joining…",
-  "roomJoinInvalid": "This invite is invalid or expired.",
-  "roomJoinFailed": "Couldn't join that room. Please try again.",
-  "@roomJoinFailed": {
-    "description": "Shown when joining a room fails. Raw error is logged, not shown."
+  "roomInviteInstruction": "Ask the new member to open Capture in LOIT and scan this code.",
+  "roomInviteRegen": "Generate new code",
+  "roomInviteRegenerating": "Generating…",
+  "roomInviteMemberCount": "{count, plural, one{1 member} other{{count} members}}",
+  "@roomInviteMemberCount": {
+    "description": "Member count footer on the invite screen (cap unknown)",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
   },
+  "roomInviteMemberCap": "{count}/{cap} members",
+  "@roomInviteMemberCap": {
+    "description": "Member count vs cap footer on the invite screen",
+    "placeholders": {
+      "count": {"type": "int"},
+      "cap": {"type": "int"}
+    }
+  },
+  "scanJoinHint": "Point the camera at the room's invite QR code",
   "roomDetailAddTransaction": "Add transaction",
   "roomDetailMembers": "Members",
   "roomDetailBudgets": "Budgets",
@@ -1213,7 +1161,6 @@
   },
 
   "notifFeedTitle": "Notifications",
-  "roomInviteLinkCopied": "Link copied",
   "roomInviteNoToken": "No invite token",
   "roomInviteRegenFailed": "Failed to regenerate: {error}",
   "@roomInviteRegenFailed": {
@@ -1223,7 +1170,6 @@
     }
   },
   "roomUpgrade": "Upgrade",
-  "roomCopy": "COPY",
 
   "roomTileUntitled": "Untitled",
   "roomTileArchivedLabel": "Archived",
@@ -1282,14 +1228,6 @@
       "tier": {"type": "String"}
     }
   },
-  "roomInvitesPending": "{count, plural, one{1 pending invite} other{{count} pending invites}}",
-  "@roomInvitesPending": {
-    "description": "Pending invites count",
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "roomUnknownRoom": "Unknown room",
   "roomDetailRoomFallback": "Room",
   "roomArchiveBody": "Members will retain read-only access. This cannot be undone.",
   "roomMemberUnknown": "Unknown",
@@ -1373,9 +1311,6 @@
   "roomColorIdentity": "COLOR IDENTITY",
   "roomBaseCurrency": "BASE CURRENCY",
   "roomScanToJoin": "Scan to join",
-  "roomPasteInvite": "Paste an invite link or token",
-  "reportsThisMonth": "THIS MONTH",
-  "reportsBeta": "BETA",
   "shellPressBack": "Press back again to exit",
   "exportFailed": "Export failed: {error}",
   "@exportFailed": {

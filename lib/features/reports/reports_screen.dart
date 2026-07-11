@@ -6,7 +6,6 @@ import '../../shared/utils/locale_date_format.dart';
 
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_motion.dart';
-import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
 import '../../l10n/l10n_x.dart';
@@ -23,7 +22,11 @@ import '../../shared/widgets/loit_group_label.dart';
 import '../../shared/widgets/loit_mini_line_chart.dart';
 import '../../shared/widgets/loit_stat_triple.dart';
 
-/// LOIT Reports — G · Reports & Insights.
+/// LOIT Reports — G · Reports.
+///
+/// Three expense-scoped tabs (Overview, Categories, Trend). Income surfaces
+/// only as the **Report period total** in the header triple; there is no
+/// income-by-category view in the client.
 ///
 /// When [roomId] is provided, scopes the report to transactions made inside
 /// that room (any member, subject to RLS). Otherwise shows the user's global
@@ -45,7 +48,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -161,8 +164,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                 Tab(text: l10n.reportsTabOverview),
                 Tab(text: l10n.reportsTabCategories),
                 Tab(text: l10n.reportsTabTrend),
-                Tab(text: l10n.reportsTabInsights),
-                Tab(text: l10n.reportsTabIncome),
               ],
             ),
           ),
@@ -176,8 +177,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                 ]),
                 _tabScroll(_categoriesSlivers(monthTxns, fmt, home)),
                 _tabScroll(_trendSlivers(txns, fmt, home)),
-                _tabScroll(_insightsSlivers(monthTxns, fmt, home)),
-                _tabScroll(_incomeSlivers(monthTxns, fmt, home)),
               ],
             ),
           ),
@@ -206,44 +205,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         ],
       ),
     );
-  }
-
-  List<Widget> _incomeSlivers(List<Txn> monthTxns, String Function(double) fmt, String home) {
-    final l10n = context.l10n;
-    final cats = _incomeCategoryTotals(monthTxns, home).entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final total = cats.fold<double>(0, (s, e) => s + e.value);
-    if (cats.isEmpty) {
-      return [
-        SliverToBoxAdapter(
-            child: _EmptyHint(text: l10n.reportsScreenNoData)),
-      ];
-    }
-    return [
-      SliverToBoxAdapter(
-          child: LoitGroupLabel(label: l10n.reportsIncomeBySource)),
-      SliverList.builder(
-        itemCount: cats.length,
-        itemBuilder: (_, i) => _CategoryLine(
-          entry: cats[i],
-          total: total,
-          fmt: fmt,
-          isLast: i == cats.length - 1,
-          roomId: widget.roomId,
-        ),
-      ),
-    ];
-  }
-
-  Map<String, double> _incomeCategoryTotals(List<Txn> txns, String home) {
-    final out = <String, double>{};
-    for (final t in txns) {
-      if (t.isTransfer || !t.isIncome) continue;
-      final v = t.absAmountIn(home);
-      final k = t.category ?? 'income_other';
-      out[k] = (out[k] ?? 0) + v;
-    }
-    return out;
   }
 
   /// Room balance-sheet section (shared accounts + net), shown at the top of
@@ -558,131 +519,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     ];
   }
 
-  List<Widget> _insightsSlivers(List<Txn> monthTxns, String Function(double) fmt, String home) {
-    final c = context.loitColors;
-    final l10n = context.l10n;
-    final cats = _categoryTotals(monthTxns, home).entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final cards = <_InsightCard>[];
-
-    if (cats.isNotEmpty) {
-      final top = cats.first;
-      final style = ref.watch(categoryStyleProvider(top.key));
-      final label = ref.watch(categoryLabelProvider(
-          CategoryLabelKey(key: top.key, activeRoomId: widget.roomId)));
-      cards.add(_InsightCard(
-        title: l10n.reportsInsightTopCategoryTitle(label),
-        body: l10n.reportsInsightTopCategoryBody(fmt(top.value)),
-        color: style.tint,
-        icon: style.icon,
-      ));
-    }
-
-    if (monthTxns.isNotEmpty) {
-      final byMerchant = <String, int>{};
-      final spendByMerchant = <String, double>{};
-      for (final t in monthTxns) {
-        final raw = (t.notes ?? '').trim();
-        final m = raw.isEmpty ? l10n.reportsUnknownMerchant : raw.split('\n').first;
-        byMerchant[m] = (byMerchant[m] ?? 0) + 1;
-        if (!t.isTransfer && !t.isIncome) {
-          spendByMerchant[m] =
-              (spendByMerchant[m] ?? 0) + t.absAmountIn(home);
-        }
-      }
-      final repeats = byMerchant.entries.where((e) => e.value >= 3).toList()
-        ..sort((a, b) => b.value.compareTo(a.value));
-      if (repeats.isNotEmpty) {
-        final r = repeats.first;
-        cards.add(_InsightCard(
-          title: l10n.reportsInsightMerchantVisits(r.key, r.value),
-          body: l10n.reportsInsightMerchantBody(fmt(spendByMerchant[r.key] ?? 0)),
-          color: c.info,
-          icon: Icons.repeat,
-        ));
-      }
-    }
-
-    final subs = _detectSubscriptions(monthTxns);
-    if (subs.isNotEmpty) {
-      cards.add(_InsightCard(
-        title: l10n.reportsInsightSubscriptionsTitle(subs.length),
-        body: l10n.reportsInsightSubscriptionsBody(subs.take(3).join(', ')),
-        color: const Color(0xFFD49A2B),
-        icon: Icons.power,
-      ));
-    }
-
-    if (cards.isEmpty) {
-      return [
-        SliverToBoxAdapter(
-            child: _EmptyHint(text: l10n.reportsScreenEmptyBody)),
-      ];
-    }
-    return [
-      SliverToBoxAdapter(
-        child: LoitScaleIn(
-          from: 0.94,
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(LoitSpacing.s4,
-                LoitSpacing.s4, LoitSpacing.s4, LoitSpacing.s4),
-            decoration: BoxDecoration(
-              color: c.surface,
-              border: Border(bottom: BorderSide(color: c.borderSubtle)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(l10n.reportsThisMonth,
-                    style: LoitTypography.labelS.copyWith(
-                        color: c.contentSecondary, letterSpacing: 0.4)),
-                const SizedBox(height: 4),
-                Text(
-                  cards.length >= 3
-                      ? l10n.reportsInsightSummaryBalanced
-                      : l10n.reportsInsightSummaryForming,
-                  style: LoitTypography.titleM.copyWith(
-                      color: c.contentPrimary, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      SliverToBoxAdapter(
-        child: LoitGroupLabel(
-          label: l10n.reportsInsightsCount(cards.length),
-          trailing: _BetaChip(),
-        ),
-      ),
-      SliverList.builder(
-        itemCount: cards.length,
-        itemBuilder: (_, i) => LoitFadeSlideIn(
-          delay: LoitMotion.staggerStep * (i + 1),
-          offset: 16,
-          child: cards[i],
-        ),
-      ),
-    ];
-  }
-
-  List<String> _detectSubscriptions(List<Txn> monthTxns) {
-    const subCats = {'utilities', 'entertainment'};
-    final byMerchant = <String, int>{};
-    for (final t in monthTxns) {
-      final raw = (t.notes ?? '').trim();
-      if (raw.isEmpty) continue;
-      final m = raw.split('\n').first;
-      if (!subCats.contains(t.category)) continue;
-      if (t.isTransfer || t.isIncome) continue;
-      byMerchant[m] = (byMerchant[m] ?? 0) + 1;
-    }
-    return byMerchant.entries
-        .where((e) => e.value == 1)
-        .map((e) => e.key)
-        .toList();
-  }
-
   List<double> _spendByDay(List<Txn> txns, DateTime month, String home) {
     final days = DateTime(month.year, month.month + 1, 0).day;
     final out = List<double>.filled(days, 0);
@@ -840,94 +676,6 @@ class _CategoryLine extends ConsumerWidget {
                     .copyWith(color: c.contentTertiary)),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _InsightCard extends StatelessWidget {
-  const _InsightCard({
-    required this.title,
-    required this.body,
-    required this.color,
-    required this.icon,
-  });
-  final String title;
-  final String body;
-  final Color color;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.loitColors;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.surface,
-        border: Border(bottom: BorderSide(color: c.borderSubtle)),
-      ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(width: 3, color: color),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: LoitSpacing.s4, vertical: LoitSpacing.s4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.14),
-                        borderRadius: LoitRadius.brS,
-                      ),
-                      child: Icon(icon, color: color, size: 16),
-                    ),
-                    const SizedBox(width: LoitSpacing.s3),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(title,
-                              style: LoitTypography.bodyM.copyWith(
-                                  color: c.contentPrimary,
-                                  fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 4),
-                          Text(body,
-                              style: LoitTypography.bodyS
-                                  .copyWith(color: c.contentSecondary)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BetaChip extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final c = context.loitColors;
-    return LoitGentlePulse(
-      maxScale: 1.06,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFFE6F4F0),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(context.l10n.reportsBeta,
-            style: LoitTypography.labelS.copyWith(
-                color: c.brand, letterSpacing: 0.4, fontWeight: FontWeight.w700)),
       ),
     );
   }

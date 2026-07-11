@@ -123,8 +123,6 @@ class ProSuccessScreen extends ConsumerWidget {
                                     l10n.proFeatureBudgets,
                                     l10n.proSuccessUnlimitedScans,
                                     l10n.proFeatureExport,
-                                    l10n.proFeatureMultiCurrency,
-                                    l10n.proFeatureInsights,
                                   ])
                                     Padding(
                                       padding: const EdgeInsets.symmetric(

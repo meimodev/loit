@@ -3,22 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/pricing_constants.dart';
-import '../../core/services/analytics_service.dart';
-import '../../core/services/interaction_log_service.dart';
 import '../../core/theme/loit_colors.dart';
 import '../../core/theme/loit_motion.dart';
 import '../../core/theme/loit_radius.dart';
 import '../../core/theme/loit_spacing.dart';
 import '../../core/theme/loit_typography.dart';
-import '../../core/services/reachability_service.dart'
-    show OnlineOnlyActionException;
 import '../../l10n/l10n_x.dart';
 import '../../shared/providers/auth_providers.dart';
 import '../../shared/providers/presence_provider.dart';
 import '../../shared/providers/room_providers.dart';
 import '../../shared/widgets/loit_animations.dart';
 import '../../shared/widgets/loit_empty_state.dart';
-import '../../shared/widgets/room_error_state.dart';
 import '../paywall/paywall_screen.dart';
 import 'room_colors.dart';
 import 'room_slot_sheet.dart';
@@ -31,7 +26,6 @@ class RoomsScreen extends ConsumerWidget {
     final c = context.loitColors;
     final l = context.l10n;
     final rooms = ref.watch(myRoomsProvider);
-    final invites = ref.watch(pendingInvitesProvider);
 
     final hasRooms = rooms.value?.isNotEmpty ?? false;
     final profile = ref.watch(userProfileProvider).value;
@@ -66,16 +60,15 @@ class RoomsScreen extends ConsumerWidget {
         title: Text(l.roomsScreenTitle),
         actions: [
           IconButton(
-            icon: const Icon(Icons.link),
+            icon: const Icon(Icons.qr_code_scanner),
             tooltip: l.roomsScreenJoinRoom,
-            onPressed: () => context.push('/rooms/join'),
+            onPressed: () => context.push('/scan?join=1'),
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(myRoomsProvider);
-          ref.invalidate(pendingInvitesProvider);
           await ref.read(myRoomsProvider.future);
         },
         child: CustomScrollView(
@@ -83,20 +76,6 @@ class RoomsScreen extends ConsumerWidget {
           slivers: [
             const SliverToBoxAdapter(
               child: _MembershipCard(),
-            ),
-            SliverToBoxAdapter(
-              child: invites.maybeWhen(
-                data: (list) => LoitAnimatedReveal(
-                  visible: list.isNotEmpty,
-                  child: list.isEmpty
-                      ? const SizedBox.shrink()
-                      : LoitFadeSlideIn(
-                          key: ValueKey('invites-${list.length}'),
-                          child: _InvitesBanner(invites: list),
-                        ),
-                ),
-                orElse: () => const SizedBox.shrink(),
-              ),
             ),
             rooms.when(
               skipLoadingOnReload: true,
@@ -113,7 +92,6 @@ class RoomsScreen extends ConsumerWidget {
                     primaryCta: l.roomsLoadRetry,
                     onPrimaryCta: () {
                       ref.invalidate(myRoomsProvider);
-                      ref.invalidate(pendingInvitesProvider);
                     },
                   ),
                 ),
@@ -131,7 +109,7 @@ class RoomsScreen extends ConsumerWidget {
                         primaryCta: l.roomsScreenCreateRoom,
                         onPrimaryCta: () => context.push('/rooms/new'),
                         secondaryCta: l.roomsScreenJoinRoom,
-                        onSecondaryCta: () => context.push('/rooms/join'),
+                        onSecondaryCta: () => context.push('/scan?join=1'),
                       ),
                     ),
                   );
@@ -539,94 +517,6 @@ class _MetaItem extends StatelessWidget {
             style: LoitTypography.bodyS.copyWith(color: c.contentTertiary)),
       ],
     );
-  }
-}
-
-class _InvitesBanner extends ConsumerWidget {
-  const _InvitesBanner({required this.invites});
-  final List<Map<String, dynamic>> invites;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.loitColors;
-    final l = context.l10n;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-          LoitSpacing.s4, LoitSpacing.s3, LoitSpacing.s4, 0),
-      padding: const EdgeInsets.all(LoitSpacing.s3),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFDF4E0),
-        borderRadius: LoitRadius.brM,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.mail_outline,
-                  size: 18, color: Color(0xFF7D5916)),
-              const SizedBox(width: LoitSpacing.s2),
-              Expanded(
-                child: Text(
-                  l.roomInvitesPending(invites.length),
-                  style: LoitTypography.bodyM.copyWith(
-                      color: const Color(0xFF7D5916),
-                      fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: LoitSpacing.s2),
-          for (final invite in invites)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      (invite['rooms'] as Map?)?['name'] as String? ??
-                          l.roomUnknownRoom,
-                      style: LoitTypography.bodyS
-                          .copyWith(color: c.contentPrimary),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => _accept(context, ref, invite),
-                    child: Text(l.roomsScreenAcceptInvite),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _accept(BuildContext context, WidgetRef ref,
-      Map<String, dynamic> invite) async {
-    final l = context.l10n;
-    try {
-      final roomId = await ref
-          .read(roomServiceProvider)
-          .acceptInvite(invite['invite_token'] as String);
-      Analytics.roomJoined();
-      InteractionLog.success(
-          action: 'room_joined', screen: 'rooms', message: 'Joined $roomId');
-      ref.invalidate(myRoomsProvider);
-      ref.invalidate(pendingInvitesProvider);
-      if (context.mounted && roomId != null) {
-        context.push('/rooms/$roomId');
-      }
-    } on OnlineOnlyActionException {
-      if (context.mounted) showRoomOnlineOnlySnack(context);
-    } catch (e) {
-      InteractionLog.error(
-          action: 'room_join', screen: 'rooms', message: '$e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(l.roomJoinFailed)));
-      }
-    }
   }
 }
 

@@ -164,7 +164,14 @@ class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
   Widget build(BuildContext context) {
     final activeSlot = _branchToSlot[widget.navigationShell.currentIndex] ?? 0;
     final loc = GoRouterState.of(context).uri.path;
-    final activeRoomId = RegExp(r'^/rooms/([^/]+)$').firstMatch(loc)?.group(1);
+    // Scope capture (and the FAB accent) to a room only while the Rooms branch
+    // is the visible screen. indexedStack keeps a room detail alive in the
+    // background, so a path match alone leaks room scope onto other tabs — the
+    // manual capture would silently become a room transaction (branch 2=Rooms).
+    final onRoomsBranch = widget.navigationShell.currentIndex == 2;
+    final activeRoomId = onRoomsBranch
+        ? RegExp(r'^/rooms/([^/]+)$').firstMatch(loc)?.group(1)
+        : null;
     // Rooms tab tint persists while a room detail is alive in any branch, even
     // when it's not the active screen (unlike the path-based FAB accent below,
     // which stays room-scoped only while you're actually viewing the room).

@@ -131,10 +131,12 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   }
 
   void _handleBack() {
+    // Back always lands on the rooms list, except when the room was opened by
+    // tapping a room-origin row in the personal Transactions list — then return
+    // there. A plain pop() is unreliable: a room pushed onto a non-rooms branch
+    // pops to that branch's previous screen, not the rooms list.
     if (widget.fromTab == 'transactions') {
       context.go('/transactions');
-    } else if (context.canPop()) {
-      context.pop();
     } else {
       context.go('/rooms');
     }
@@ -182,7 +184,9 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         _maybeStartRoomCoach();
 
         return PopScope(
-          canPop: widget.fromTab != 'transactions',
+          // Route system-back through _handleBack too, so gesture and header
+          // button always agree on the destination.
+          canPop: false,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
             _handleBack();

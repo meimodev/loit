@@ -581,7 +581,10 @@ async function commitAndReply(args: {
     if (save.reason === "invalid_category") {
       await offerInvalidCategoryPicker(args);
     } else {
-      await sendMessage(args.link.externalChatId, t(args.locale, "botParseFailed"));
+      // The transaction parsed fine — this is a save-time failure (e.g. a
+      // rejected room-account insert), so use save-specific copy rather than
+      // the misleading "no transaction found" line.
+      await sendMessage(args.link.externalChatId, t(args.locale, "botSaveFailed"));
     }
     logBotEvent({
       event: "bot_save_failed",
